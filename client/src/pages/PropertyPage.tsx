@@ -18,9 +18,9 @@ export default function PropertyPage() {
   useEffect(() => {
     // Set page title
     if (property) {
-      document.title = `${property.title} | VirtualStay`;
+      document.title = `${property.title} | RealEVR Estates`;
     } else {
-      document.title = "Property | VirtualStay";
+      document.title = "Property | RealEVR Estates";
     }
   }, [property]);
 

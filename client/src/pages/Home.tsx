@@ -18,7 +18,7 @@ export default function Home() {
 
   useEffect(() => {
     // Set page title
-    document.title = "VirtualStay - Virtual Property Tours";
+    document.title = "RealEVR Estates - Virtual Property Tours";
   }, []);
 
   return (

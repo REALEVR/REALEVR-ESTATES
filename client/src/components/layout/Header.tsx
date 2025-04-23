@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import logoPath from '../../assets/logo.png';
 
 export default function Header() {
   const [location, setLocation] = useLocation();
@@ -18,7 +19,8 @@ export default function Header() {
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center">
-          <span className="text-[#FF5A5F] text-2xl font-bold">VirtualStay</span>
+          <img src={logoPath} alt="RealEVR Estates Logo" className="h-10 mr-2" />
+          <span className="text-black text-2xl font-bold">RealEVR Estates</span>
         </Link>
         
         {/* Search Bar */}
