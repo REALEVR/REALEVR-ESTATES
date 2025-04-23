@@ -15,6 +15,7 @@ export const properties = pgTable("properties", {
   rating: text("rating").notNull(),
   reviewCount: integer("review_count").notNull(),
   propertyType: text("property_type").notNull(),
+  category: text("category").notNull(), // Added category field
   isFeatured: boolean("is_featured").default(false),
   hasTour: boolean("has_tour").default(true),
   tourUrl: text("tour_url"),

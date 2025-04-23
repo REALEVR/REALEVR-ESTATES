@@ -15,6 +15,7 @@ export interface IStorage {
   getAllProperties(): Promise<Property[]>;
   getProperty(id: number): Promise<Property | undefined>;
   getFeaturedProperties(): Promise<Property[]>;
+  getPropertiesByCategory(category: string): Promise<Property[]>;
   searchProperties(query: string): Promise<Property[]>;
   filterProperties(filters: Partial<Property>): Promise<Property[]>;
   createProperty(property: InsertProperty): Promise<Property>;
@@ -94,6 +95,7 @@ export class MemStorage implements IStorage {
         rating: "4.97",
         reviewCount: 243,
         propertyType: "Luxury",
+        category: "rental_units",
         isFeatured: true,
         hasTour: true,
         tourUrl: "https://realevr.com/LA%20ROSE%20ROYAL%20APARTMENTS/",
@@ -111,6 +113,7 @@ export class MemStorage implements IStorage {
         rating: "4.9",
         reviewCount: 156,
         propertyType: "Apartments",
+        category: "furnished_houses",
         isFeatured: false,
         hasTour: true,
         tourUrl: "",
@@ -128,6 +131,7 @@ export class MemStorage implements IStorage {
         rating: "4.7",
         reviewCount: 92,
         propertyType: "Luxury",
+        category: "for_sale",
         isFeatured: false,
         hasTour: true,
         tourUrl: "",
@@ -145,6 +149,7 @@ export class MemStorage implements IStorage {
         rating: "4.8",
         reviewCount: 115,
         propertyType: "Apartments",
+        category: "bank_sales",
         isFeatured: false,
         hasTour: true,
         tourUrl: "",
@@ -162,6 +167,7 @@ export class MemStorage implements IStorage {
         rating: "4.6",
         reviewCount: 78,
         propertyType: "Urban",
+        category: "rental_units",
         isFeatured: false,
         hasTour: true,
         tourUrl: "",
@@ -179,6 +185,7 @@ export class MemStorage implements IStorage {
         rating: "4.9",
         reviewCount: 203,
         propertyType: "Houses",
+        category: "for_sale",
         isFeatured: false,
         hasTour: true,
         tourUrl: "",
@@ -196,6 +203,7 @@ export class MemStorage implements IStorage {
         rating: "4.7",
         reviewCount: 132,
         propertyType: "Urban",
+        category: "bank_sales",
         isFeatured: false,
         hasTour: true,
         tourUrl: "",
@@ -213,6 +221,7 @@ export class MemStorage implements IStorage {
         rating: "4.8",
         reviewCount: 95,
         propertyType: "Modern",
+        category: "rental_units",
         isFeatured: false,
         hasTour: true,
         tourUrl: "",
@@ -230,6 +239,7 @@ export class MemStorage implements IStorage {
         rating: "4.5",
         reviewCount: 87,
         propertyType: "Beachfront",
+        category: "furnished_houses",
         isFeatured: false,
         hasTour: true,
         tourUrl: "",
