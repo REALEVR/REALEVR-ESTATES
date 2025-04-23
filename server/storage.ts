@@ -280,6 +280,10 @@ export class MemStorage implements IStorage {
   async getFeaturedProperties(): Promise<Property[]> {
     return Array.from(this.properties.values()).filter(property => property.isFeatured);
   }
+
+  async getPropertiesByCategory(category: string): Promise<Property[]> {
+    return Array.from(this.properties.values()).filter(property => property.category === category);
+  }
   
   async searchProperties(query: string): Promise<Property[]> {
     const lowerQuery = query.toLowerCase();

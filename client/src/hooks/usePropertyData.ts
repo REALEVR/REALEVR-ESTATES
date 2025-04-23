@@ -19,6 +19,13 @@ export function useFeaturedProperties() {
   });
 }
 
+export function usePropertiesByCategory(category: string) {
+  return useQuery<Property[]>({
+    queryKey: ["/api/properties/category", category],
+    enabled: !!category,
+  });
+}
+
 export function usePropertySearch(query: string) {
   return useQuery<Property[]>({
     queryKey: ["/api/properties/search", query],
@@ -30,5 +37,6 @@ export default {
   useProperties,
   useProperty,
   useFeaturedProperties,
+  usePropertiesByCategory,
   usePropertySearch,
 };

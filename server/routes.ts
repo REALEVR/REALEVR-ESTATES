@@ -43,6 +43,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get properties by category
+  app.get("/api/properties/category/:category", async (req, res) => {
+    try {
+      const category = req.params.category;
+      const properties = await storage.getPropertiesByCategory(category);
+      res.json(properties);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch properties by category" });
+    }
+  });
+  
   // Search properties
   app.get("/api/properties/search", async (req, res) => {
     try {
