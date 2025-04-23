@@ -14,25 +14,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Get a specific property by ID
-  app.get("/api/properties/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid property ID" });
-      }
-      
-      const property = await storage.getProperty(id);
-      if (!property) {
-        return res.status(404).json({ message: "Property not found" });
-      }
-      
-      res.json(property);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch property" });
-    }
-  });
-  
   // Get featured properties
   app.get("/api/properties/featured", async (req, res) => {
     try {
@@ -62,6 +43,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(properties);
     } catch (error) {
       res.status(500).json({ message: "Failed to search properties" });
+    }
+  });
+  
+  // Get a specific property by ID - must be placed after other /api/properties/... routes
+  app.get("/api/properties/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid property ID" });
+      }
+      
+      const property = await storage.getProperty(id);
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      res.json(property);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch property" });
     }
   });
   
@@ -134,11 +134,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (filters.amenities && filters.amenities.length > 0) {
-        properties = properties.filter(p => 
-          filters.amenities!.every(amenity => 
-            p.amenities.includes(amenity)
-          )
-        );
+        properties = properties.filter(p => {
+          if (!p.amenities) return false;
+          return filters.amenities!.every(amenity => p.amenities!.includes(amenity));
+        });
       }
       
       res.json(properties);

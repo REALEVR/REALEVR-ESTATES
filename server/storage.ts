@@ -297,8 +297,8 @@ export class MemStorage implements IStorage {
   async filterProperties(filters: Partial<Property>): Promise<Property[]> {
     return Array.from(this.properties.values()).filter(property => {
       for (const [key, value] of Object.entries(filters)) {
-        if (key === 'amenities' && Array.isArray(value) && Array.isArray(property.amenities)) {
-          if (!value.every(v => property.amenities.includes(v))) {
+        if (key === 'amenities' && Array.isArray(value)) {
+          if (!property.amenities || !value.every(v => property.amenities!.includes(v))) {
             return false;
           }
         } else if (property[key as keyof Property] !== value) {
