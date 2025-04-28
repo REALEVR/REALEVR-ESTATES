@@ -36,11 +36,14 @@ const handlePropertyView = (e: React.MouseEvent) => {
   e.preventDefault();
   e.stopPropagation();
   
-  if (!hasValidPayment && property.category === 'rental_units' && viewedProperties >= 5) {
+  // For rental units, always require payment before viewing (not just after 5 views)
+  if (!hasValidPayment && property.category === 'rental_units') {
     setIsPaymentModalOpen(true);
     return;
   }
   
+  // For other property types (except furnished houses which are paid upon booking),
+  // allow direct viewing
   window.location.href = `/property/${property.id}`;
 };
 

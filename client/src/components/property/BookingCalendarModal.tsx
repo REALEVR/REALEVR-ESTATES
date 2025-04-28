@@ -8,12 +8,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { addDays, format, setHours, setMinutes } from "date-fns";
+import PaymentModal from "@/components/payment/PaymentModal";
 
 interface BookingCalendarModalProps {
   isOpen: boolean;
   onClose: () => void;
   propertyId: number;
   propertyTitle: string;
+  propertyCategory?: string; // Add category to determine payment flow
 }
 
 const availableTimeSlots = [
@@ -25,7 +27,8 @@ export default function BookingCalendarModal({
   isOpen,
   onClose,
   propertyId,
-  propertyTitle
+  propertyTitle,
+  propertyCategory = "other" // Default to other if not specified
 }: BookingCalendarModalProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
   const [selectedTime, setSelectedTime] = useState<string>(availableTimeSlots[0]);
@@ -34,6 +37,8 @@ export default function BookingCalendarModal({
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [pendingEvent, setPendingEvent] = useState<any>(null);
   const { toast } = useToast();
 
   // Function to validate the form before submission
@@ -81,12 +86,27 @@ export default function BookingCalendarModal({
       bookingId: Math.random().toString(36).substring(2, 9)
     };
     
+    // For furnished properties, require payment before confirming booking
+    if (propertyCategory === "furnished_houses") {
+      setPendingEvent(calendarEvent);
+      setIsPaymentModalOpen(true);
+      setIsSubmitting(false);
+    } else {
+      // For other property types, confirm booking immediately
+      processBooking(calendarEvent);
+    }
+  };
+  
+  // Process the booking after payment (if required)
+  const processBooking = (calendarEvent: any) => {
     // Simulate sending to API
     setTimeout(() => {
       console.log("Booking request:", calendarEvent);
       
       // In a real implementation, this would send the data to your server
       // which would then create an event in your Google Calendar using the Google Calendar API
+      
+      const eventDateTime = new Date(calendarEvent.startTime);
       
       toast({
         title: "Visit Scheduled!",
@@ -97,6 +117,17 @@ export default function BookingCalendarModal({
       resetForm();
       onClose();
     }, 1500);
+  };
+  
+  // Handle payment confirmation
+  const handlePaymentConfirm = () => {
+    setIsPaymentModalOpen(false);
+    
+    if (pendingEvent) {
+      setIsSubmitting(true);
+      processBooking(pendingEvent);
+      setPendingEvent(null);
+    }
   };
   
   const resetForm = () => {
