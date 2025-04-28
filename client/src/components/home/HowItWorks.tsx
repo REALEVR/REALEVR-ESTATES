@@ -46,14 +46,14 @@ export default function HowItWorks() {
           <div className="aspect-w-16 aspect-h-9 max-w-3xl mx-auto bg-gray-200 rounded-xl overflow-hidden shadow-lg">
             <iframe 
               className="w-full h-full"
-              src="https://www.youtube.com/embed/IY6qCkK5wDw"
-              title="Virtual Tour Navigation Demo"
+              src="https://www.youtube.com/embed/Ef7CC5EtJww"
+              title="BnB Booking Process Demo"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
               allowFullScreen
             ></iframe>
           </div>
           <p className="text-gray-500 text-center mt-4 max-w-2xl mx-auto">
-            This video demonstrates how to navigate through our virtual tour interface, highlighting key features and controls to help you explore properties in Uganda.
+            This video demonstrates how our BnB booking system works - browse properties, book your stay, pay a 20% deposit, and get instant access to owner contact details.
           </p>
         </div>
         
