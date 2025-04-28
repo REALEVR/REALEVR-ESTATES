@@ -120,8 +120,8 @@ export default function BookingCalendarModal({
   };
   
   // Handle payment confirmation
-  const handlePaymentConfirm = () => {
-    setIsPaymentModalOpen(false);
+  const handlePaymentConfirm = (response: any) => {
+    console.log("Payment successful:", response);
     
     if (pendingEvent) {
       setIsSubmitting(true);
@@ -140,112 +140,131 @@ export default function BookingCalendarModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[525px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Schedule a Visit</DialogTitle>
-          <DialogDescription>
-            Schedule a visit to view {propertyTitle}. Select a date and time that works for you.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          <div className="grid gap-6">
-            <div className="space-y-2">
-              <Label>Select a Date</Label>
-              <div className="border rounded-md p-3">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  disabled={(date) => 
-                    date < new Date() || // No past dates
-                    date.getDay() === 0 || // No Sundays
-                    date > addDays(new Date(), 60) // No dates more than 60 days in the future
-                  }
-                  initialFocus
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[525px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Schedule a Visit</DialogTitle>
+            <DialogDescription>
+              Schedule a visit to view {propertyTitle}. Select a date and time that works for you.
+              {propertyCategory === "furnished_houses" && (
+                <span className="block mt-2 text-sm font-medium">
+                  <i className="fas fa-info-circle mr-1 text-[#FF5A5F]"></i>
+                  Payment required to confirm booking for furnished properties.
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleSubmit} className="space-y-4 py-4">
+            <div className="grid gap-6">
+              <div className="space-y-2">
+                <Label>Select a Date</Label>
+                <div className="border rounded-md p-3">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    disabled={(date) => 
+                      date < new Date() || // No past dates
+                      date.getDay() === 0 || // No Sundays
+                      date > addDays(new Date(), 60) // No dates more than 60 days in the future
+                    }
+                    initialFocus
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="time">Select a Time</Label>
+                <Select value={selectedTime} onValueChange={setSelectedTime}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableTimeSlots.map((time) => (
+                      <SelectItem key={time} value={time}>{time}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your full name"
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Your email address"
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Your phone number"
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="notes">Additional Notes (Optional)</Label>
+                <Textarea
+                  id="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Any specific details or questions about the property"
+                  rows={3}
                 />
               </div>
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="time">Select a Time</Label>
-              <Select value={selectedTime} onValueChange={setSelectedTime}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a time" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableTimeSlots.map((time) => (
-                    <SelectItem key={time} value={time}>{time}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your full name"
-                required
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Your email address"
-                required
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="Your phone number"
-                required
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="notes">Additional Notes (Optional)</Label>
-              <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Any specific details or questions about the property"
-                rows={3}
-              />
-            </div>
-          </div>
-          
-          <DialogFooter className="pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="mr-2"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting || !isFormValid()}
-            >
-              {isSubmitting ? "Scheduling..." : "Schedule Visit"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            <DialogFooter className="pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                className="mr-2"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting || !isFormValid()}
+              >
+                {isSubmitting ? "Scheduling..." : propertyCategory === "furnished_houses" ? "Continue to Payment" : "Schedule Visit"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Payment Modal for Furnished Properties */}
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        propertyId={propertyId}
+        propertyTitle={propertyTitle}
+        paymentType="PropertyDeposit"
+        amount={5000} // Default deposit amount in UGX
+        successCallback={handlePaymentConfirm}
+      />
+    </>
   );
 }

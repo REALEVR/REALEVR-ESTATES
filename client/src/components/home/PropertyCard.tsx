@@ -53,13 +53,13 @@ const handleScheduleClick = (e: React.MouseEvent) => {
   setIsBookingModalOpen(true);
 };
 
-const handlePaymentConfirm = async () => {
+const handlePaymentConfirm = async (response: any) => {
   try {
-    // TODO: Implement actual payment processing
-    setIsPaymentModalOpen(false);
+    console.log("Payment response:", response);
+    // Payment was successful, now redirect to property page
     window.location.href = `/property/${property.id}`;
   } catch (error) {
-    console.error('Payment failed:', error);
+    console.error('Payment handling error:', error);
   }
 };
 
@@ -146,12 +146,17 @@ const handlePaymentConfirm = async () => {
         onClose={() => setIsBookingModalOpen(false)}
         propertyId={property.id}
         propertyTitle={property.title}
+        propertyCategory={property.category}
       />
       
       <PaymentModal
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
-        onConfirm={handlePaymentConfirm}
+        propertyId={property.id}
+        propertyTitle={property.title}
+        paymentType="ViewingFee"
+        amount={10000} // 10,000 UGX for viewing rental properties
+        successCallback={handlePaymentConfirm}
       />
     </>
   );
