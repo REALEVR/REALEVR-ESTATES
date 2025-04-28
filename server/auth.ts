@@ -30,14 +30,20 @@ async function comparePasswords(supplied: string, stored: string) {
 
 export function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "realevrEstatesSecretKey",
+    secret: process.env.SESSION_SECRET!,
     resave: false,
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === "production",
       maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
+      sameSite: "lax"
     },
+    name: "session"
   };
+
+  if (!process.env.SESSION_SECRET) {
+    throw new Error("SESSION_SECRET environment variable is required");
+  }
 
   app.set("trust proxy", 1);
   app.use(session(sessionSettings));
