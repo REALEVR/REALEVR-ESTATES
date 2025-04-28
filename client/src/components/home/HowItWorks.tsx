@@ -23,9 +23,9 @@ export default function HowItWorks() {
   return (
     <section className="py-12">
       <div className="container mx-auto px-4">
-        <h2 className="text-2xl md:text-3xl font-bold mb-2 text-center">How Virtual Tours Work</h2>
+        <h2 className="text-2xl md:text-3xl font-bold mb-2 text-center">How Virtual Tours Work in Uganda</h2>
         <p className="text-gray-500 text-center mb-10 max-w-2xl mx-auto">
-          Experience properties from anywhere with our immersive virtual tours
+          Experience Kampala properties from anywhere with our immersive virtual tours
         </p>
         
         <div className="grid md:grid-cols-3 gap-8">
@@ -40,9 +40,26 @@ export default function HowItWorks() {
           ))}
         </div>
         
+        {/* Demo Video Section */}
+        <div className="mt-12 mb-8">
+          <h3 className="text-xl font-bold text-center mb-6">Watch How It Works</h3>
+          <div className="aspect-w-16 aspect-h-9 max-w-3xl mx-auto bg-gray-200 rounded-xl overflow-hidden shadow-lg">
+            <iframe 
+              className="w-full h-full"
+              src="https://www.youtube.com/embed/IY6qCkK5wDw"
+              title="Virtual Tour Navigation Demo"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+              allowFullScreen
+            ></iframe>
+          </div>
+          <p className="text-gray-500 text-center mt-4 max-w-2xl mx-auto">
+            This video demonstrates how to navigate through our virtual tour interface, highlighting key features and controls to help you explore properties in Uganda.
+          </p>
+        </div>
+        
         <div className="mt-12 text-center">
           <Button asChild className="bg-[#FF5A5F] hover:bg-[#FF7478] text-white">
-            <Link href="#">Start Exploring</Link>
+            <Link href="#featured">Start Exploring</Link>
           </Button>
         </div>
       </div>

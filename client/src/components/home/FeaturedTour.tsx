@@ -5,9 +5,13 @@ import { useQuery } from "@tanstack/react-query";
 import type { Property } from "@shared/schema";
 
 export default function FeaturedTour() {
-  const { data: featuredProperty, isLoading, error } = useQuery<Property>({
-    queryKey: ["/api/properties/1"], // Assuming ID 1 is the featured property
+  // Get all properties and select the one with the most reviews (most viewed)
+  const { data: properties, isLoading, error } = useQuery<Property[]>({
+    queryKey: ["/api/properties"],
   });
+  
+  // Find the property with the highest review count (most viewed)
+  const featuredProperty = properties?.sort((a, b) => b.reviewCount - a.reviewCount)[0];
 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
