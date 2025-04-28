@@ -19,10 +19,28 @@ export default function FilterBar() {
     { name: "Bank Sales", icon: "landmark", slug: "bank_sales", isActive: false }
   ]);
 
-  // Set the active category based on the current URL if it contains the category
+  // Set the active category based on the current URL route
   useEffect(() => {
-    if (location.includes("/category/")) {
-      const categorySlug = location.split("/category/")[1];
+    // Map routes to category slugs
+    const routeMap: Record<string, string> = {
+      '/rental-units': 'rental_units',
+      '/furnished-rentals': 'furnished_houses',
+      '/for-sale': 'for_sale',
+      '/bank-sales': 'bank_sales'
+    };
+    
+    let categorySlug = '';
+    
+    // Check if location matches one of our defined routes
+    if (routeMap[location]) {
+      categorySlug = routeMap[location];
+    } 
+    // Check if it's a category URL
+    else if (location.includes("/category/")) {
+      categorySlug = location.split("/category/")[1];
+    }
+    
+    if (categorySlug) {
       const newCategories = [...categories];
       
       newCategories.forEach(cat => {
@@ -31,7 +49,7 @@ export default function FilterBar() {
       
       setCategories(newCategories);
     }
-  }, [location]);
+  }, [location, categories]);
 
   const toggleCategory = (index: number) => {
     const newCategories = [...categories];
@@ -45,8 +63,17 @@ export default function FilterBar() {
     newCategories[index].isActive = true;
     setCategories(newCategories);
     
-    // Navigate to the category page
-    setLocation(`/category/${newCategories[index].slug}`);
+    // Map category slugs to specific routes
+    const routeMap: Record<string, string> = {
+      'rental_units': '/rental-units',
+      'furnished_houses': '/furnished-rentals',
+      'for_sale': '/for-sale',
+      'bank_sales': '/bank-sales'
+    };
+    
+    // Navigate to the appropriate category page
+    const route = routeMap[newCategories[index].slug] || `/category/${newCategories[index].slug}`;
+    setLocation(route);
   };
 
   return (
