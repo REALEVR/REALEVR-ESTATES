@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import AnimatedLayout from "@/components/layout/AnimatedLayout";
 import Home from "@/pages/Home";
 import PropertyPage from "@/pages/PropertyPage";
 import MembershipPage from "@/pages/MembershipPage";
@@ -57,7 +58,9 @@ function App() {
             <div className="flex flex-col min-h-screen">
               <Header />
               <main className="flex-grow">
-                <Router />
+                <AnimatedLayout>
+                  <Router />
+                </AnimatedLayout>
               </main>
               <Footer />
             </div>

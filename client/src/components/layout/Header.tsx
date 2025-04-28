@@ -37,22 +37,6 @@ export default function Header() {
           <span className="text-black text-2xl font-bold">RealEVR Estates</span>
         </Link>
         
-        {/* Main Navigation */}
-        <div className="hidden md:flex space-x-6 ml-8">
-          <Link href="/furnished-rentals" className={`text-sm font-medium ${location === '/furnished-rentals' ? 'text-black border-b-2 border-black' : 'text-gray-600 hover:text-black'}`}>
-            Furnished Houses
-          </Link>
-          <Link href="/bank-sales" className={`text-sm font-medium ${location === '/bank-sales' ? 'text-black border-b-2 border-black' : 'text-gray-600 hover:text-black'}`}>
-            Bank Sales Auctions
-          </Link>
-          <Link href="/rental-units" className={`text-sm font-medium ${location === '/rental-units' ? 'text-black border-b-2 border-black' : 'text-gray-600 hover:text-black'}`}>
-            Rental Units
-          </Link>
-          <Link href="/for-sale" className={`text-sm font-medium ${location === '/for-sale' ? 'text-black border-b-2 border-black' : 'text-gray-600 hover:text-black'}`}>
-            Properties For Sale
-          </Link>
-        </div>
-        
         {/* Search Bar */}
         <div className="hidden md:flex flex-1 max-w-xl mx-8">
           <form className="relative w-full" onSubmit={handleSearch}>

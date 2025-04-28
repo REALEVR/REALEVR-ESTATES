@@ -6,6 +6,7 @@ import BookingCalendarModal from "../property/BookingCalendarModal";
 import PaymentModal from "../property/PaymentModal";
 import { usePropertyViews } from "@/hooks/usePropertyViews";
 import { Button } from "@/components/ui/button";
+import { AnimatedCard, FadeIn } from "@/components/ui/animated-components";
 
 interface PropertyCardProps {
   property: Property;
@@ -61,16 +62,18 @@ const handlePaymentConfirm = async () => {
 
   return (
     <>
-      <div className="property-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg">
+      <AnimatedCard className="property-card bg-white rounded-xl overflow-hidden shadow-md">
         <div className="relative">
-          <img 
-            src={property.imageUrl} 
-            alt={property.title} 
-            className="w-full h-52 object-cover"
-          />
-          <div className="absolute top-3 right-3 flex space-x-2">
+          <FadeIn>
+            <img 
+              src={property.imageUrl} 
+              alt={property.title} 
+              className="w-full h-52 object-cover transition-transform duration-500 hover:scale-110"
+            />
+          </FadeIn>
+          <div className="absolute top-3 right-3 flex space-x-2 z-10">
             <button 
-              className="p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white"
+              className="p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white transition-colors"
               onClick={handleShareClick}
               aria-label="Share this property"
               title="Share this property"
@@ -78,7 +81,7 @@ const handlePaymentConfirm = async () => {
               <i className="fas fa-share-alt"></i>
             </button>
             <button 
-              className="p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white"
+              className="p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white transition-colors"
               onClick={handleFavoriteClick}
               aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
               title={isFavorite ? "Remove from favorites" : "Add to favorites"}
@@ -87,7 +90,7 @@ const handlePaymentConfirm = async () => {
             </button>
           </div>
           {property.hasTour && (
-            <span className="absolute bottom-3 left-3 bg-black/50 text-white px-2 py-1 rounded-md text-sm font-medium">
+            <span className="absolute bottom-3 left-3 bg-black/50 text-white px-2 py-1 rounded-md text-sm font-medium z-10">
               360° Tour Available
             </span>
           )}
@@ -118,14 +121,14 @@ const handlePaymentConfirm = async () => {
           </div>
           <Button 
             variant="outline" 
-            className="w-full text-sm h-8 border-[#FF5A5F] text-[#FF5A5F] hover:bg-[#FF5A5F]/5"
+            className="w-full text-sm h-8 border-[#FF5A5F] text-[#FF5A5F] hover:bg-[#FF5A5F]/5 transition-colors"
             onClick={handleScheduleClick}
           >
             <i className="far fa-calendar-alt mr-2"></i>
             Schedule Visit
           </Button>
         </div>
-      </div>
+      </AnimatedCard>
 
       {/* Modals */}
       <SharePropertyModal 
