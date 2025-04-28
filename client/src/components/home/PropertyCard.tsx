@@ -3,6 +3,8 @@ import { Link } from "wouter";
 import type { Property } from "@shared/schema";
 import SharePropertyModal from "../property/SharePropertyModal";
 import BookingCalendarModal from "../property/BookingCalendarModal";
+import PaymentModal from "../property/PaymentModal";
+import { usePropertyViews } from "@/hooks/usePropertyViews";
 import { Button } from "@/components/ui/button";
 
 interface PropertyCardProps {

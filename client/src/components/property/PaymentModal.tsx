@@ -12,7 +12,7 @@ interface PaymentModalProps {
 
 export default function PaymentModal({ isOpen, onClose, onConfirm }: PaymentModalProps) {
   const config = {
-    public_key: process.env.FLUTTERWAVE_PUBLIC_KEY!,
+    public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
     tx_ref: Date.now().toString(),
     amount: 10000,
     currency: 'UGX',
@@ -25,7 +25,7 @@ export default function PaymentModal({ isOpen, onClose, onConfirm }: PaymentModa
     customizations: {
       title: 'Property Viewing Access',
       description: 'Payment for viewing 5 rental properties',
-      logo: 'https://your-logo-url.com',
+      logo: 'https://st2.depositphotos.com/1802620/7621/v/450/depositphotos_76219969-stock-illustration-real-estate-logo-template.jpg',
     },
   };
 
