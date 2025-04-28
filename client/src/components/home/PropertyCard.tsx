@@ -26,11 +26,36 @@ export default function PropertyCard({ property }: PropertyCardProps) {
     setIsShareModalOpen(true);
   };
 
-  const handleScheduleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsBookingModalOpen(true);
-  };
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+const { viewedProperties, hasValidPayment } = usePropertyViews();
+
+const handlePropertyView = (e: React.MouseEvent) => {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  if (!hasValidPayment && property.category === 'rental_units' && viewedProperties >= 5) {
+    setIsPaymentModalOpen(true);
+    return;
+  }
+  
+  window.location.href = `/property/${property.id}`;
+};
+
+const handleScheduleClick = (e: React.MouseEvent) => {
+  e.preventDefault();
+  e.stopPropagation();
+  setIsBookingModalOpen(true);
+};
+
+const handlePaymentConfirm = async () => {
+  try {
+    // TODO: Implement actual payment processing
+    setIsPaymentModalOpen(false);
+    window.location.href = `/property/${property.id}`;
+  } catch (error) {
+    console.error('Payment failed:', error);
+  }
+};
 
   return (
     <>
@@ -113,6 +138,12 @@ export default function PropertyCard({ property }: PropertyCardProps) {
         onClose={() => setIsBookingModalOpen(false)}
         propertyId={property.id}
         propertyTitle={property.title}
+      />
+      
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        onConfirm={handlePaymentConfirm}
       />
     </>
   );
