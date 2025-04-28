@@ -60,12 +60,30 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  email: text("email").notNull(),
+  fullName: text("full_name").notNull(),
+  membershipPlan: text("membership_plan"),
+  membershipStartDate: text("membership_start_date"),
+  membershipEndDate: text("membership_end_date"),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
+export const insertUserSchema = createInsertSchema(users)
+  .pick({
+    username: true,
+    password: true,
+    email: true,
+    fullName: true,
+    membershipPlan: true,
+  })
+  .extend({
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    email: z.string().email("Invalid email address"),
+    confirmPassword: z.string(),
+  })
+  .refine(data => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertUser = Omit<z.infer<typeof insertUserSchema>, "confirmPassword">;
 export type User = typeof users.$inferSelect;
