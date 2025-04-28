@@ -100,9 +100,27 @@ export default function BookingCalendarModal({
     setIsPaymentModalOpen(true);
   };
   
-  const handlePaymentSuccess = () => {
+  const handlePaymentSuccess = (response: any) => {
     setIsPaymentModalOpen(false);
     onClose();
+    
+    // Save transaction details to localStorage for reference
+    const paymentInfo = {
+      transactionId: response.transaction_id,
+      amount: response.amount,
+      propertyId,
+      propertyTitle,
+      date: new Date().toISOString()
+    };
+    
+    try {
+      // Store the payment info in localStorage
+      const payments = JSON.parse(localStorage.getItem('payments') || '[]');
+      payments.push(paymentInfo);
+      localStorage.setItem('payments', JSON.stringify(payments));
+    } catch (error) {
+      console.error('Error saving payment info', error);
+    }
     
     // Redirect with success parameter for BnBs
     if (isBnB) {
@@ -112,7 +130,7 @@ export default function BookingCalendarModal({
     toast({
       title: isBnB ? "Booking Confirmed!" : "Viewing Booked!",
       description: isBnB 
-        ? `Your booking for ${propertyTitle} has been confirmed. You've paid a ${depositAmount.toLocaleString()} UGX deposit.`
+        ? `Your booking for ${propertyTitle} has been confirmed. You've paid a ${depositAmount.toLocaleString()} UGX deposit. Transaction ID: ${response.transaction_id}`
         : `Your viewing for ${propertyTitle} has been scheduled on ${format(date!, "PPP")} at ${selectedTimeSlot}.`,
       duration: 5000,
     });

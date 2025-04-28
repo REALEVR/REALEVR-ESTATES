@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CreditCard, CheckCircle2 } from "lucide-react";
+import { FlutterWaveButton } from "flutterwave-react-v3";
 
 type PaymentType = "PropertyDeposit" | "ViewingFee" | "Subscription" | "BnBBookingDeposit";
 
@@ -29,9 +30,59 @@ export default function PaymentModal({
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   
+  // Get the Flutterwave public key from environment variables
+  const publicKey = import.meta.env.FLUTTERWAVE_PUBLIC_KEY || "";
+  
   // Generate a random transaction reference for tracking
   const txRef = `tx-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
   
+  const handlePaymentSuccess = async (response: any) => {
+    if (response.status === "successful") {
+      setIsLoading(true);
+      
+      try {
+        // In a production app, you would verify this payment with your backend
+        // But for now, we'll just simulate a successful payment verification
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        setIsSuccess(true);
+        
+        if (successCallback) {
+          await successCallback(response);
+        } else {
+          toast({
+            title: "Payment Successful",
+            description: `Your payment of ${amount.toLocaleString()} UGX has been processed successfully.`,
+            duration: 5000,
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Payment Verification Failed",
+          description: "There was an error verifying your payment. Please contact support.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      toast({
+        title: "Payment Failed",
+        description: "Your payment could not be processed. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handlePaymentClose = () => {
+    toast({
+      title: "Payment Cancelled",
+      description: "You have cancelled the payment process.",
+      variant: "destructive",
+    });
+  };
+  
+  // Fallback payment method when Flutterwave isn't available
   const handlePayNow = async () => {
     setIsLoading(true);
     
@@ -68,6 +119,29 @@ export default function PaymentModal({
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  // Configuration for Flutterwave
+  const config = {
+    public_key: publicKey,
+    tx_ref: txRef,
+    amount: amount,
+    currency: "UGX",
+    payment_options: "card,mobilemoney,ussd",
+    customer: {
+      email: "user@example.com",  // In a real app, this would be the user's email
+      phone_number: "256700000000",  // In a real app, this would be the user's phone
+      name: "User",  // In a real app, this would be the user's name
+    },
+    customizations: {
+      title: "RealEVR Estates",
+      description: paymentType === "BnBBookingDeposit" 
+        ? `Booking Deposit for ${propertyTitle}` 
+        : paymentType === "ViewingFee"
+        ? `Viewing Fee for ${propertyTitle}`
+        : "Payment",
+      logo: "https://realevr.ug/logo.png",
+    },
   };
 
   return (
@@ -128,13 +202,28 @@ export default function PaymentModal({
             
             <div className="flex flex-col space-y-4">
               <div className="flex items-center justify-center">
-                <Button 
-                  onClick={handlePayNow}
-                  className="w-full bg-[#FF5A5F] hover:bg-[#FF7478] text-white"
-                >
-                  <CreditCard className="mr-2 h-5 w-5" />
-                  Pay {amount.toLocaleString()} UGX Now
-                </Button>
+                {publicKey ? (
+                  <FlutterWaveButton
+                    {...config}
+                    className="w-full bg-[#FF5A5F] hover:bg-[#FF7478] text-white py-2 px-4 rounded-md flex items-center justify-center"
+                    callback={handlePaymentSuccess}
+                    onClose={handlePaymentClose}
+                    text={
+                      <div className="flex items-center">
+                        <CreditCard className="mr-2 h-5 w-5" />
+                        Pay {amount.toLocaleString()} UGX Now
+                      </div>
+                    }
+                  />
+                ) : (
+                  <Button 
+                    onClick={handlePayNow}
+                    className="w-full bg-[#FF5A5F] hover:bg-[#FF7478] text-white"
+                  >
+                    <CreditCard className="mr-2 h-5 w-5" />
+                    Pay {amount.toLocaleString()} UGX Now
+                  </Button>
+                )}
               </div>
               
               <p className="text-center text-gray-500 text-xs">
