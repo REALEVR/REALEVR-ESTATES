@@ -13,6 +13,7 @@ type CategoryType = {
 
 export default function FilterBar() {
   const [location, setLocation] = useLocation();
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   
   const [categories, setCategories] = useState<CategoryType[]>([
     { name: "For Rent", icon: "home", slug: "rental_units", isActive: false },
@@ -100,12 +101,22 @@ export default function FilterBar() {
           </AnimatedItem>
         ))}
         <AnimatedItem delay={0.4}>
-          <Button variant="outline" className="bg-white border border-gray-200 rounded-lg px-4 py-2 ml-4 flex items-center hover:bg-gray-50 transition-colors">
+          <Button 
+            variant="outline" 
+            className="bg-white border border-gray-200 rounded-lg px-4 py-2 ml-4 flex items-center hover:bg-gray-50 transition-colors"
+            onClick={() => setIsFilterDialogOpen(true)}
+          >
             <i className="fas fa-sliders-h mr-2"></i>
             <span>Filters</span>
           </Button>
         </AnimatedItem>
       </AnimatedContainer>
+      
+      {/* Filters Dialog */}
+      <ExploreFiltersDialog 
+        isOpen={isFilterDialogOpen} 
+        onClose={() => setIsFilterDialogOpen(false)} 
+      />
     </section>
   );
 }
