@@ -9,6 +9,7 @@ import Home from "@/pages/Home";
 import PropertyPage from "@/pages/PropertyPage";
 import MembershipPage from "@/pages/MembershipPage";
 import FurnishedRentalsPage from "@/pages/FurnishedRentalsPage";
+import BankSalesPage from "@/pages/BankSalesPage";
 import NotFound from "@/pages/not-found";
 import { AuthProvider } from "@/hooks/use-auth";
 import { PaymentProvider } from "@/contexts/PaymentContext";
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/property/:id" component={PropertyPage} />
       <Route path="/membership" component={MembershipPage} />
       <Route path="/furnished-rentals" component={FurnishedRentalsPage} />
+      <Route path="/bank-sales" component={BankSalesPage} />
       <Route component={NotFound} />
     </Switch>
   );
