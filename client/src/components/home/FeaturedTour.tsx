@@ -139,13 +139,43 @@ export default function FeaturedTour() {
                   <span className="text-2xl font-bold">${featuredProperty.price}</span>
                   <span className="text-gray-500"> / month</span>
                 </div>
-                <div className="flex space-x-3">
-                  <Button variant="outline" className="border-gray-800">
-                    Schedule Visit
-                  </Button>
-                  <Button variant="default" className="bg-[#FF5A5F] hover:bg-[#FF7478]">
-                    Contact Agent
-                  </Button>
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap gap-3">
+                    <Button asChild variant="outline" className="border-gray-800">
+                      <span>Schedule Visit</span>
+                    </Button>
+                    <Button asChild className="bg-[#FF5A5F] hover:bg-[#FF7478]">
+                      <a 
+                        href="tel:+256771891323" 
+                        className="flex items-center"
+                      >
+                        <i className="fas fa-phone mr-2"></i> Call Agent
+                      </a>
+                    </Button>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-3">
+                    <Button asChild variant="outline" className="border-gray-800 border-green-500 text-green-500 hover:bg-green-50">
+                      <a 
+                        href="https://wa.me/256771891323?text=Hello%2C%20I'm%20interested%20in%20the%20property%20I%20saw%20on%20RealEVR%20Estates.%20Can%20you%20provide%20more%20details%3F" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center"
+                      >
+                        <i className="fab fa-whatsapp mr-2"></i> WhatsApp Agent 1
+                      </a>
+                    </Button>
+                    <Button asChild variant="outline" className="border-gray-800 border-green-500 text-green-500 hover:bg-green-50">
+                      <a 
+                        href="https://wa.me/256702742333?text=Hello%2C%20I'm%20interested%20in%20the%20property%20I%20saw%20on%20RealEVR%20Estates.%20Can%20you%20provide%20more%20details%3F" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center"
+                      >
+                        <i className="fab fa-whatsapp mr-2"></i> WhatsApp Agent 2
+                      </a>
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
