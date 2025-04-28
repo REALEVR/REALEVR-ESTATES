@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import VirtualTour from "@/components/property/VirtualTour";
+import BookingCalendarModal from "../property/BookingCalendarModal";
+import SharePropertyModal from "../property/SharePropertyModal";
 import { useQuery } from "@tanstack/react-query";
 import type { Property } from "@shared/schema";
 
@@ -14,6 +16,8 @@ export default function FeaturedTour() {
   const featuredProperty = properties?.sort((a, b) => b.reviewCount - a.reviewCount)[0];
 
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -141,8 +145,13 @@ export default function FeaturedTour() {
                 </div>
                 <div className="flex flex-col gap-3">
                   <div className="flex flex-wrap gap-3">
-                    <Button asChild variant="outline" className="border-gray-800">
-                      <span>Schedule Visit</span>
+                    <Button 
+                      variant="outline" 
+                      className="border-gray-800"
+                      onClick={() => setIsBookingModalOpen(true)}
+                    >
+                      <i className="far fa-calendar-alt mr-2"></i>
+                      Schedule Visit
                     </Button>
                     <Button asChild className="bg-[#FF5A5F] hover:bg-[#FF7478]">
                       <a 
