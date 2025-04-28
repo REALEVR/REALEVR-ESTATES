@@ -85,9 +85,9 @@ export class MemStorage implements IStorage {
     const propertyData: InsertProperty[] = [
       {
         title: "La Rose Royal Apartments",
-        location: "Beverly Hills, Los Angeles",
-        price: 3200,
-        description: "Experience luxury living at La Rose Royal Apartments. This elegant property offers spacious interiors, high-end finishes, and breathtaking views of Beverly Hills. The modern architectural design combines comfort with sophisticated style, perfect for those seeking an upscale lifestyle.",
+        location: "Nakasero, Kampala, Uganda",
+        price: 1500,
+        description: "Experience luxury living at La Rose Royal Apartments in the heart of Nakasero. This elegant property offers spacious interiors, high-end finishes, and breathtaking views of Kampala. The modern architectural design combines comfort with sophisticated style, perfect for those seeking an upscale lifestyle in Uganda's capital.",
         bedrooms: 3,
         bathrooms: 2,
         squareFeet: 1850,
@@ -99,13 +99,13 @@ export class MemStorage implements IStorage {
         isFeatured: true,
         hasTour: true,
         tourUrl: "https://realevr.com/LA%20ROSE%20ROYAL%20APARTMENTS/",
-        amenities: ["Pool Access", "Fitness Center", "Underground parking"]
+        amenities: ["Pool Access", "Fitness Center", "24/7 Security", "Underground parking"]
       },
       {
-        title: "Luxury Downtown Loft",
-        location: "San Francisco, CA",
-        price: 2850,
-        description: "Modern loft with open floor plan and city views.",
+        title: "Kololo Heights Loft",
+        location: "Kololo, Kampala, Uganda",
+        price: 1200,
+        description: "Modern loft with open floor plan and stunning views of the Kololo district, close to diplomatic missions and upscale amenities.",
         bedrooms: 2,
         bathrooms: 2,
         squareFeet: 1200,
@@ -117,7 +117,7 @@ export class MemStorage implements IStorage {
         isFeatured: false,
         hasTour: true,
         tourUrl: "",
-        amenities: ["Fitness Center", "High-Speed Internet"]
+        amenities: ["Fitness Center", "High-Speed Internet", "Backup Power", "Rooftop Terrace"]
       },
       {
         title: "Skyline Penthouse",

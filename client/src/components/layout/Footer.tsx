@@ -8,7 +8,7 @@ export default function Footer() {
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <h3 className="font-bold text-lg mb-4">VirtualStay</h3>
+            <h3 className="font-bold text-lg mb-4">RealEVR Estates</h3>
             <ul className="space-y-2 text-gray-500">
               <li><Link href="#" className="hover:text-[#FF5A5F]">About Us</Link></li>
               <li><Link href="#" className="hover:text-[#FF5A5F]">How It Works</Link></li>
@@ -69,7 +69,7 @@ export default function Footer() {
           </div>
           
           <div className="text-gray-500 text-sm">
-            &copy; {currentYear} VirtualStay, Inc. All rights reserved.
+            &copy; {currentYear} RealEVR Estates, Inc. All rights reserved.
             <span className="mx-2">·</span>
             <Link href="#" className="hover:underline">Privacy</Link>
             <span className="mx-2">·</span>
