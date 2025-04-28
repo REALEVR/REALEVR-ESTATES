@@ -91,9 +91,21 @@ export default function FeaturedTour() {
                     <span className="text-gray-500 underline">{featuredProperty.reviewCount} reviews</span>
                   </div>
                 </div>
-                <button className="p-2 hover:bg-gray-100 rounded-full">
-                  <i className="far fa-heart text-xl"></i>
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                    className="p-2 hover:bg-gray-100 rounded-full"
+                    onClick={() => setIsShareModalOpen(true)}
+                    title="Share this property"
+                  >
+                    <i className="fas fa-share-alt text-xl"></i>
+                  </button>
+                  <button 
+                    className="p-2 hover:bg-gray-100 rounded-full"
+                    title="Save to favorites"
+                  >
+                    <i className="far fa-heart text-xl"></i>
+                  </button>
+                </div>
               </div>
               
               <div className="border-t border-b border-gray-200 py-6 my-6">
@@ -191,6 +203,21 @@ export default function FeaturedTour() {
           </div>
         </div>
       </div>
+      
+      {/* Modals */}
+      <BookingCalendarModal
+        isOpen={isBookingModalOpen}
+        onClose={() => setIsBookingModalOpen(false)}
+        propertyId={featuredProperty.id}
+        propertyTitle={featuredProperty.title}
+      />
+      
+      <SharePropertyModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        propertyId={featuredProperty.id}
+        propertyTitle={featuredProperty.title}
+      />
     </section>
   );
 }
