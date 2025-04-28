@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import OwnerContactDetails from "./OwnerContactDetails";
 import BookingCalendarModal from "./BookingCalendarModal";
+import VirtualTourModal from "./VirtualTourModal";
 import type { Property } from "@shared/schema";
 
 interface PropertyDetailsProps {
@@ -13,6 +14,7 @@ interface PropertyDetailsProps {
 export default function PropertyDetails({ property }: PropertyDetailsProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [isTourModalOpen, setIsTourModalOpen] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [location] = useLocation();
   const { toast } = useToast();
@@ -43,9 +45,18 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
     });
   };
 
+  const handleViewTour = () => {
+    setIsTourModalOpen(true);
+  };
+
   const handleContactAgent = () => {
     if (isBnB && !bookingConfirmed) {
-      setIsBookingModalOpen(true);
+      toast({
+        title: "Contact Information Hidden",
+        description: "You need to book this property with a deposit to view owner contact details.",
+        variant: "destructive",
+        duration: 4000,
+      });
       return;
     }
     
@@ -163,7 +174,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
           <Button 
             variant="default" 
             className="bg-[#FF5A5F] hover:bg-[#FF7478]"
-            onClick={handleContactAgent}
+            onClick={isBnB ? handleViewTour : handleContactAgent}
           >
             {isBnB ? "View Virtual Tour" : "Contact Agent"}
           </Button>
@@ -189,6 +200,14 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
         propertyTitle={property.title}
         propertyCategory={isBnB ? "BnB" : property.category || "rental"}
         propertyPrice={property.price}
+      />
+      
+      {/* Virtual Tour Modal */}
+      <VirtualTourModal
+        isOpen={isTourModalOpen}
+        onClose={() => setIsTourModalOpen(false)}
+        propertyTitle={property.title}
+        tourUrl={property.tourUrl || undefined}
       />
     </div>
   );

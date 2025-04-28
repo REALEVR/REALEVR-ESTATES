@@ -1,12 +1,8 @@
-import { useState, useEffect } from "react";
+import { AlertCircle, Phone, Mail, User, MapPin, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Label } from "@/components/ui/label";
-import { CalendarDays, Mail, MapPin, Phone } from "lucide-react";
-import { Property } from "@shared/schema";
-import { usePayment } from "@/contexts/PaymentContext";
-import BookingCalendarModal from "./BookingCalendarModal";
+import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import type { Property } from "@shared/schema";
 
 interface OwnerContactDetailsProps {
   property: Property;
@@ -14,100 +10,94 @@ interface OwnerContactDetailsProps {
 }
 
 export default function OwnerContactDetails({ property, bookingConfirmed }: OwnerContactDetailsProps) {
-  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-  const { openDepositPaymentPrompt } = usePayment();
-  
-  // Mock property owner data (in a real app this would come from the backend)
-  const owner = {
-    name: "John Doe",
-    phone: "+256 700 123456",
-    email: "johndoe@example.com",
-    responseTime: "Usually responds within 1 hour",
-    joinedDate: "April 2022"
-  };
-
   if (!bookingConfirmed) {
     return (
-      <Card className="w-full p-4 bg-gray-50 border border-gray-200">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-semibold">Contact Information Hidden</CardTitle>
-          <CardDescription>
-            Owner contact details are only available after confirming your booking with a deposit.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-0 pb-2">
-          <div className="flex items-center">
-            <CalendarDays className="h-4 w-4 mr-2 text-gray-500" />
-            <span className="text-sm text-gray-500">Book this property to view contact details</span>
-          </div>
-        </CardContent>
-        <CardFooter className="pt-2">
-          <Button 
-            onClick={() => setIsBookingModalOpen(true)}
-            className="w-full"
-          >
-            Book Now
-          </Button>
-        </CardFooter>
-      </Card>
+      <Alert variant="destructive" className="mb-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Contact details hidden</AlertTitle>
+        <AlertDescription>
+          The owner's contact details are only revealed after you book this property with a 20% deposit. 
+          Click "Book Now" to secure your stay.
+        </AlertDescription>
+      </Alert>
     );
   }
 
+  // These would normally come from the property or user data
+  // Showing fake data for demonstration purposes
+  const ownerDetails = {
+    name: "Sarah Johnson",
+    phone: "+256 705 123456",
+    email: "sarah.johnson@example.com",
+    address: "Kampala, Uganda",
+    responseTime: "Usually responds within 1 hour",
+    verificationStatus: "Identity verified",
+  };
+
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold">Owner Contact Information</CardTitle>
-        <CardDescription>
-          You've successfully booked this property. Contact the owner for any questions.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          <div>
-            <Label className="text-base font-medium">{owner.name}</Label>
-            <p className="text-sm text-gray-500">Property Owner</p>
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center mb-4">
+            <div className="h-16 w-16 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden mr-4">
+              <User className="h-10 w-10 text-gray-500" />
+            </div>
+            <div>
+              <h4 className="text-lg font-semibold">{ownerDetails.name}</h4>
+              <p className="text-gray-500 text-sm">{ownerDetails.responseTime}</p>
+              <div className="flex items-center text-green-600 text-sm mt-1">
+                <Shield className="h-3 w-3 mr-1" />
+                <span>{ownerDetails.verificationStatus}</span>
+              </div>
+            </div>
           </div>
           
-          <Separator />
-          
-          <div className="flex items-center">
-            <Phone className="h-4 w-4 mr-2 text-gray-500" />
-            <span>{owner.phone}</span>
+          <div className="space-y-4 mt-6">
+            <div className="flex items-center">
+              <Phone className="h-5 w-5 mr-3 text-gray-500" />
+              <div>
+                <p className="text-sm text-gray-500">Phone</p>
+                <p className="font-medium">{ownerDetails.phone}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center">
+              <Mail className="h-5 w-5 mr-3 text-gray-500" />
+              <div>
+                <p className="text-sm text-gray-500">Email</p>
+                <p className="font-medium">{ownerDetails.email}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center">
+              <MapPin className="h-5 w-5 mr-3 text-gray-500" />
+              <div>
+                <p className="text-sm text-gray-500">Address</p>
+                <p className="font-medium">{ownerDetails.address}</p>
+              </div>
+            </div>
           </div>
           
-          <div className="flex items-center">
-            <Mail className="h-4 w-4 mr-2 text-gray-500" />
-            <span>{owner.email}</span>
+          <div className="flex space-x-3 mt-6">
+            <Button className="w-full" variant="outline">
+              <Phone className="h-4 w-4 mr-2" />
+              Call
+            </Button>
+            <Button className="w-full" variant="default">
+              <Mail className="h-4 w-4 mr-2" />
+              Email
+            </Button>
           </div>
-          
-          <div className="flex items-center">
-            <MapPin className="h-4 w-4 mr-2 text-gray-500" />
-            <span>{property.location}</span>
-          </div>
-          
-          <Separator />
-          
-          <div className="text-sm text-gray-500">
-            <p>{owner.responseTime}</p>
-            <p>Member since {owner.joinedDate}</p>
-          </div>
-        </div>
-      </CardContent>
-      <CardFooter>
-        <div className="text-xs text-gray-400 w-full">
-          Note: Please be respectful of the owner's time and contact during reasonable hours.
-        </div>
-      </CardFooter>
+        </CardContent>
+      </Card>
       
-      {/* Booking Calendar Modal */}
-      <BookingCalendarModal 
-        isOpen={isBookingModalOpen}
-        onClose={() => setIsBookingModalOpen(false)}
-        propertyId={property.id}
-        propertyTitle={property.title}
-        propertyCategory="BnB"
-        propertyPrice={property.price}
-      />
-    </Card>
+      <Alert>
+        <Shield className="h-4 w-4" />
+        <AlertTitle>Safety Notice</AlertTitle>
+        <AlertDescription>
+          Your booking is protected by our Secure Payment Policy. We recommend keeping all communication and payments within our platform.
+        </AlertDescription>
+      </Alert>
+    </div>
   );
 }

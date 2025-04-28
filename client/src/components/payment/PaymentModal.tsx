@@ -1,11 +1,8 @@
 import { useState } from "react";
-import { useFlutterwave, closePaymentModal } from "flutterwave-react-v3";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { Loader2, CreditCard, CheckCircle2 } from "lucide-react";
 
 type PaymentType = "PropertyDeposit" | "ViewingFee" | "Subscription" | "BnBBookingDeposit";
 
@@ -15,7 +12,7 @@ interface PaymentModalProps {
   propertyId?: number;
   propertyTitle?: string;
   paymentType: PaymentType;
-  amount?: number;
+  amount: number;
   successCallback?: (response: any) => void;
 }
 
@@ -25,254 +22,139 @@ export default function PaymentModal({
   propertyId,
   propertyTitle,
   paymentType,
-  amount = 0,
+  amount,
   successCallback
 }: PaymentModalProps) {
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [selectedAmount, setSelectedAmount] = useState<string>(amount > 0 ? amount.toString() : "");
-  const [customAmount, setCustomAmount] = useState<string>("");
-  const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-
-  // Generate a unique transaction reference
-  const generateReference = () => {
-    const date = new Date();
-    return `RealEVR-${date.getTime()}-${Math.floor(Math.random() * 1000000)}`;
-  };
-
-  // Get payment title based on type
-  const getPaymentTitle = () => {
-    switch (paymentType) {
-      case "PropertyDeposit":
-        return `Property Deposit: ${propertyTitle}`;
-      case "ViewingFee":
-        return `Viewing Fee: ${propertyTitle}`;
-      case "Subscription":
-        return "Membership Subscription";
-      case "BnBBookingDeposit":
-        return `Booking Deposit: ${propertyTitle}`;
-      default:
-        return "Payment";
-    }
-  };
-
-  // Calculate final amount to pay
-  const getFinalAmount = () => {
-    if (selectedAmount === "custom") {
-      return Number(customAmount);
-    }
-    return Number(selectedAmount);
-  };
-
-  // Configure Flutterwave payment
-  const config = {
-    public_key: "FLWPUBK_TEST-YOUR_PUBLIC_KEY_HERE", // Replace with your actual public key
-    tx_ref: generateReference(),
-    amount: getFinalAmount(),
-    currency: "UGX", // Using Uganda Shillings
-    payment_options: "card,mobilemoney,ussd",
-    customer: {
-      email,
-      phone_number: phone,
-      name,
-    },
-    customizations: {
-      title: getPaymentTitle(),
-      description: `Payment for ${getPaymentTitle()}`,
-      logo: "https://realevr.com/logo.png", // Replace with your actual logo
-    },
-  };
-
-  const handleFlutterPayment = useFlutterwave(config);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email || !name || !phone || getFinalAmount() <= 0) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill out all required fields and enter a valid amount.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsProcessing(true);
-    
-    // Initiate Flutterwave payment
-    handleFlutterPayment({
-      callback: (response) => {
-        console.log("Payment response:", response);
-        closePaymentModal();
-        
-        if (response.status === "successful") {
-          toast({
-            title: "Payment Successful!",
-            description: `Your payment of ${getFinalAmount()} UGX has been processed successfully.`,
-          });
-          
-          // Call success callback if provided
-          if (successCallback) {
-            successCallback(response);
-          }
-        } else {
-          toast({
-            title: "Payment Failed",
-            description: "There was an issue processing your payment. Please try again.",
-            variant: "destructive"
-          });
-        }
-        
-        setIsProcessing(false);
-        resetForm();
-        onClose();
-      },
-      onClose: () => {
-        toast({
-          title: "Payment Cancelled",
-          description: "You cancelled the payment process.",
-        });
-        setIsProcessing(false);
-        onClose();
-      },
-    });
-  };
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   
-  const resetForm = () => {
-    setEmail("");
-    setName("");
-    setPhone("");
-    setSelectedAmount(amount > 0 ? amount.toString() : "");
-    setCustomAmount("");
-  };
-
-  // Available amounts based on payment type
-  const getAmountOptions = () => {
-    switch (paymentType) {
-      case "PropertyDeposit":
-        return [
-          { label: "10% Deposit (50,000 UGX)", value: "50000" },
-          { label: "25% Deposit (125,000 UGX)", value: "125000" },
-          { label: "50% Deposit (250,000 UGX)", value: "250000" },
-          { label: "Custom Amount", value: "custom" }
-        ];
-      case "ViewingFee":
-        return [
-          { label: "Standard Viewing (10,000 UGX)", value: "10000" },
-          { label: "Premium Viewing (25,000 UGX)", value: "25000" },
-          { label: "Custom Amount", value: "custom" }
-        ];
-      case "Subscription":
-        return [
-          { label: "1 Month (50,000 UGX)", value: "50000" },
-          { label: "3 Months (135,000 UGX)", value: "135000" },
-          { label: "6 Months (250,000 UGX)", value: "250000" },
-          { label: "1 Year (450,000 UGX)", value: "450000" }
-        ];
-      default:
-        return [{ label: "Custom Amount", value: "custom" }];
+  // Generate a random transaction reference for tracking
+  const txRef = `tx-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+  
+  const handlePayNow = async () => {
+    setIsLoading(true);
+    
+    try {
+      // Simulate payment processing
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Mock successful payment
+      setIsSuccess(true);
+      
+      // If there's a success callback, call it with mock payment data
+      if (successCallback) {
+        await successCallback({
+          status: "successful",
+          transaction_id: `sim-${Date.now()}`,
+          tx_ref: txRef,
+          amount: amount,
+          currency: "UGX"
+        });
+      } else {
+        // Otherwise show a toast
+        toast({
+          title: "Payment Successful",
+          description: `Your payment of ${amount.toLocaleString()} UGX has been processed successfully.`,
+          duration: 5000,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Payment Failed",
+        description: "Your payment could not be processed. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Make a Payment</DialogTitle>
+          <DialogTitle className="text-xl">
+            {isSuccess ? "Payment Successful" : "Complete Payment"}
+          </DialogTitle>
           <DialogDescription>
-            {paymentType === "PropertyDeposit" && "Secure this property with a deposit payment."}
-            {paymentType === "ViewingFee" && "Pay a small fee to schedule a viewing of this property."}
-            {paymentType === "Subscription" && "Subscribe to our premium membership plan."}
-            {paymentType === "BnBBookingDeposit" && "Pay booking deposit to confirm your reservation and view owner contact details."}
+            {isSuccess 
+              ? "Your payment has been processed successfully."
+              : paymentType === "BnBBookingDeposit"
+              ? `Pay a 20% deposit (${amount.toLocaleString()} UGX) to secure your booking.`
+              : paymentType === "ViewingFee"
+              ? `Pay the standard viewing fee of ${amount.toLocaleString()} UGX.`
+              : `Complete your payment of ${amount.toLocaleString()} UGX.`
+            }
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Full Name</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Your full name"
-              required
-            />
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-8">
+            <Loader2 className="h-10 w-10 text-[#FF5A5F] animate-spin mb-4" />
+            <p className="text-center text-gray-500">
+              Processing your payment...
+              <br />
+              Please do not close this window.
+            </p>
           </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="email">Email Address</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Your email address"
-              required
-            />
+        ) : isSuccess ? (
+          <div className="flex flex-col items-center justify-center py-8">
+            <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
+            <p className="text-center text-gray-700 font-medium mb-2">
+              Thank you for your payment!
+            </p>
+            <p className="text-center text-gray-500 max-w-sm">
+              {paymentType === "BnBBookingDeposit" 
+                ? "Owner contact details are now available. You can contact them directly to arrange your stay."
+                : paymentType === "ViewingFee"
+                ? "You can now view up to 10 properties for the next 24 hours."
+                : "Your payment has been processed successfully."
+              }
+            </p>
           </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone Number</Label>
-            <Input
-              id="phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="Your phone number"
-              required
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="amount">Select Amount</Label>
-            <Select value={selectedAmount} onValueChange={setSelectedAmount}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select an amount" />
-              </SelectTrigger>
-              <SelectContent>
-                {getAmountOptions().map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {selectedAmount === "custom" && (
-            <div className="space-y-2">
-              <Label htmlFor="customAmount">Custom Amount (UGX)</Label>
-              <Input
-                id="customAmount"
-                type="number"
-                value={customAmount}
-                onChange={(e) => setCustomAmount(e.target.value)}
-                placeholder="Enter amount in UGX"
-                min="1"
-                required
-              />
+        ) : (
+          <div className="space-y-6 py-4">
+            <div className="bg-gray-50 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold">{amount.toLocaleString()} UGX</p>
+              <p className="text-gray-500 text-sm">
+                {paymentType === "BnBBookingDeposit" 
+                  ? "20% Booking Deposit" 
+                  : paymentType === "ViewingFee"
+                  ? "Property Viewing Fee (24 hours)"
+                  : "Total Amount"}
+              </p>
             </div>
-          )}
-          
-          <DialogFooter className="pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="mr-2"
-              disabled={isProcessing}
-            >
+            
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-center justify-center">
+                <Button 
+                  onClick={handlePayNow}
+                  className="w-full bg-[#FF5A5F] hover:bg-[#FF7478] text-white"
+                >
+                  <CreditCard className="mr-2 h-5 w-5" />
+                  Pay {amount.toLocaleString()} UGX Now
+                </Button>
+              </div>
+              
+              <p className="text-center text-gray-500 text-xs">
+                By clicking "Pay Now", you agree to our terms of service and payment policies.
+              </p>
+            </div>
+          </div>
+        )}
+        
+        <DialogFooter>
+          {isSuccess ? (
+            <Button onClick={onClose} className="w-full">
+              Close
+            </Button>
+          ) : (
+            <Button onClick={onClose} variant="outline" className="w-full">
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={isProcessing || !email || !name || !phone || getFinalAmount() <= 0}
-            >
-              {isProcessing ? "Processing..." : `Pay ${getFinalAmount().toLocaleString()} UGX`}
-            </Button>
-          </DialogFooter>
-        </form>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
