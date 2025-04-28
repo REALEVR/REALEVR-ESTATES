@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { addDays, format, setHours, setMinutes } from "date-fns";
+import { addDays, format, setHours, setMinutes, differenceInCalendarDays } from "date-fns";
 import PaymentModal from "@/components/payment/PaymentModal";
 
 interface BookingCalendarModalProps {
@@ -16,6 +17,7 @@ interface BookingCalendarModalProps {
   propertyId: number;
   propertyTitle: string;
   propertyCategory?: string; // Add category to determine payment flow
+  propertyPrice?: number; // Daily rate for furnished properties
 }
 
 const availableTimeSlots = [
@@ -28,10 +30,20 @@ export default function BookingCalendarModal({
   onClose,
   propertyId,
   propertyTitle,
-  propertyCategory = "other" // Default to other if not specified
+  propertyCategory = "other", // Default to other if not specified
+  propertyPrice = 35000 // Default daily rate in UGX
 }: BookingCalendarModalProps) {
+  // For regular viewing appointment
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
   const [selectedTime, setSelectedTime] = useState<string>(availableTimeSlots[0]);
+  
+  // For furnished properties booking
+  const [startDate, setStartDate] = useState<Date | undefined>(addDays(new Date(), 1));
+  const [endDate, setEndDate] = useState<Date | undefined>(addDays(new Date(), 3)); // 2-night default
+  const [totalNights, setTotalNights] = useState<number>(2);
+  const [totalAmount, setTotalAmount] = useState<number>(propertyPrice * 2);
+  
+  // Common fields
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -40,6 +52,22 @@ export default function BookingCalendarModal({
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [pendingEvent, setPendingEvent] = useState<any>(null);
   const { toast } = useToast();
+  
+  // Calculate booking details when dates change
+  useEffect(() => {
+    if (propertyCategory === "furnished_houses" && startDate && endDate) {
+      const nights = differenceInCalendarDays(endDate, startDate);
+      if (nights > 0) {
+        setTotalNights(nights);
+        setTotalAmount(propertyPrice * nights);
+      } else {
+        // If end date is before or same as start date, reset it
+        setEndDate(addDays(startDate, 1));
+        setTotalNights(1);
+        setTotalAmount(propertyPrice);
+      }
+    }
+  }, [startDate, endDate, propertyPrice, propertyCategory]);
 
   // Function to validate the form before submission
   const isFormValid = () => {

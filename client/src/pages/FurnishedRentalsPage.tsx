@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import PropertyCard from "@/components/home/PropertyCard";
+import VirtualTour from "@/components/property/VirtualTour";
 import type { Property } from "@shared/schema";
 
 export default function FurnishedRentalsPage() {
@@ -173,15 +174,38 @@ export default function FurnishedRentalsPage() {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {sortedProperties.map(property => (
-                <Link 
-                  key={property.id} 
-                  href={`/property/${property.id}`}
-                  onClick={(e) => handleViewProperty(e, property)}
-                >
-                  <a className="block">
-                    <PropertyCard property={property} />
-                  </a>
-                </Link>
+                <div key={property.id} className="flex flex-col">
+                  <Link 
+                    href={`/property/${property.id}`}
+                    onClick={(e) => handleViewProperty(e, property)}
+                  >
+                    <a className="block">
+                      <PropertyCard property={property} />
+                    </a>
+                  </Link>
+                  
+                  {/* Virtual Tour Preview (if available) */}
+                  {property.hasTour && hasActiveViewingPackage && (
+                    <div className="mt-3 rounded-lg overflow-hidden border border-gray-200 shadow-sm h-40">
+                      <div className="relative w-full h-full bg-gray-100">
+                        {/* Virtual Tour Frame */}
+                        <div className="w-full h-full">
+                          <VirtualTour 
+                            tourUrl={property.tourUrl || 'https://app.lapentor.com/sphere/la-rose-royal-apartments'} 
+                            isFullscreen={false} 
+                          />
+                        </div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Link href={`/property/${property.id}`}>
+                            <a className="px-4 py-2 bg-black/70 hover:bg-black/80 text-white rounded-md transition duration-200 transform hover:scale-105">
+                              View Full Tour
+                            </a>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           </div>
