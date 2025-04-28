@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
-type PaymentType = "PropertyDeposit" | "ViewingFee" | "Subscription";
+type PaymentType = "PropertyDeposit" | "ViewingFee" | "Subscription" | "BnBBookingDeposit";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -51,6 +51,8 @@ export default function PaymentModal({
         return `Viewing Fee: ${propertyTitle}`;
       case "Subscription":
         return "Membership Subscription";
+      case "BnBBookingDeposit":
+        return `Booking Deposit: ${propertyTitle}`;
       default:
         return "Payment";
     }
@@ -183,6 +185,7 @@ export default function PaymentModal({
             {paymentType === "PropertyDeposit" && "Secure this property with a deposit payment."}
             {paymentType === "ViewingFee" && "Pay a small fee to schedule a viewing of this property."}
             {paymentType === "Subscription" && "Subscribe to our premium membership plan."}
+            {paymentType === "BnBBookingDeposit" && "Pay booking deposit to confirm your reservation and view owner contact details."}
           </DialogDescription>
         </DialogHeader>
         

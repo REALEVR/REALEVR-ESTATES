@@ -144,21 +144,14 @@ export default function BookingCalendarModal({
     }
   };
   
-  // Process BnB booking (Airbnb style)
+  // Process BnB booking with payment requirement
   const processBnBBooking = (bookingRequest: any) => {
-    // Simulate API call
-    setTimeout(() => {
-      console.log("BnB Booking request:", bookingRequest);
-      
-      toast({
-        title: "Booking Confirmed!",
-        description: `Your stay is booked for ${totalNights} night${totalNights > 1 ? 's' : ''} starting ${format(startDate!, 'MMM d, yyyy')}. Payment will be collected at check-in.`,
-      });
-      
-      setIsSubmitting(false);
-      resetForm();
-      onClose();
-    }, 1500);
+    // Store the booking request for after payment
+    setPendingEvent(bookingRequest);
+    
+    // Open payment modal
+    setIsSubmitting(false);
+    setIsPaymentModalOpen(true);
   };
   
   // Process the booking after payment (if required)
@@ -208,14 +201,20 @@ export default function BookingCalendarModal({
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-[525px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Schedule a Visit</DialogTitle>
+            <DialogTitle>{isBnB ? "Book Your Stay" : "Schedule a Visit"}</DialogTitle>
             <DialogDescription>
-              Schedule a visit to view {propertyTitle}. Select a date and time that works for you.
-              {propertyCategory === "furnished_houses" && (
-                <span className="block mt-2 text-sm font-medium">
-                  <i className="fas fa-info-circle mr-1 text-[#FF5A5F]"></i>
-                  Payment required to confirm booking for furnished properties.
-                </span>
+              {isBnB ? (
+                <>
+                  Book your stay at {propertyTitle}. Select your check-in and check-out dates.
+                  <span className="block mt-2 text-sm font-medium">
+                    <i className="fas fa-info-circle mr-1 text-[#FF5A5F]"></i>
+                    Payment is required to confirm booking and view owner contact details.
+                  </span>
+                </>
+              ) : (
+                <>
+                  Schedule a visit to view {propertyTitle}. Select a date and time that works for you.
+                </>
               )}
             </DialogDescription>
           </DialogHeader>
@@ -264,7 +263,7 @@ export default function BookingCalendarModal({
                     </div>
                     <p className="text-sm text-gray-500 mt-2">
                       <i className="fas fa-info-circle mr-1"></i>
-                      Payment will be collected at check-in.
+                      A booking deposit (20% of total) is required now to confirm and view contact details.
                     </p>
                   </div>
                 </div>
@@ -362,21 +361,26 @@ export default function BookingCalendarModal({
                 type="submit"
                 disabled={isSubmitting || !isFormValid()}
               >
-                {isSubmitting ? "Scheduling..." : propertyCategory === "furnished_houses" ? "Continue to Payment" : "Schedule Visit"}
+                {isSubmitting ? 
+                  "Processing..." : 
+                  isBnB ? 
+                    "Continue to Payment" : 
+                    "Schedule Visit"
+                }
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
       
-      {/* Payment Modal for Furnished Properties */}
+      {/* Payment Modal for BnB/Furnished Properties */}
       <PaymentModal
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
         propertyId={propertyId}
         propertyTitle={propertyTitle}
-        paymentType="PropertyDeposit"
-        amount={5000} // Default deposit amount in UGX
+        paymentType={isBnB ? "BnBBookingDeposit" : "PropertyDeposit"}
+        amount={isBnB ? Math.ceil(totalAmount * 0.2) : 5000} // 20% deposit for BnBs, 5000 UGX for regular viewings
         successCallback={handlePaymentConfirm}
       />
     </>
