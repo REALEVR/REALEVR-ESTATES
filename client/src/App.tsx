@@ -9,6 +9,7 @@ import Home from "@/pages/Home";
 import PropertyPage from "@/pages/PropertyPage";
 import MembershipPage from "@/pages/MembershipPage";
 import NotFound from "@/pages/not-found";
+import { AuthProvider } from "@/hooks/use-auth";
 
 function Router() {
   return (
@@ -24,16 +25,18 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <div className="flex flex-col min-h-screen">
-          <Header />
-          <main className="flex-grow">
-            <Router />
-          </main>
-          <Footer />
-        </div>
-        <Toaster />
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <div className="flex flex-col min-h-screen">
+            <Header />
+            <main className="flex-grow">
+              <Router />
+            </main>
+            <Footer />
+          </div>
+          <Toaster />
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

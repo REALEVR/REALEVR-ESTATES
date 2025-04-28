@@ -1,13 +1,88 @@
-import { useEffect } from "react";
-import { Link } from "wouter";
+import { useEffect, useState } from "react";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, Loader2 } from "lucide-react";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { insertUserSchema } from "@shared/schema";
+import { z } from "zod";
+import { useAuth } from "@/hooks/use-auth";
+
+// Remove confirmPassword from the final submitted data
+type FormValues = z.infer<typeof insertUserSchema>;
 
 export default function MembershipPage() {
+  const [, setLocation] = useLocation();
+  const { user, registerMutation } = useAuth();
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  
+  const form = useForm<FormValues>({
+    resolver: zodResolver(insertUserSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+      confirmPassword: "",
+      email: "",
+      fullName: "",
+      membershipPlan: selectedPlan || "",
+    },
+  });
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      setLocation("/");
+    }
+  }, [user, setLocation]);
+
   useEffect(() => {
     document.title = "Become a Member | RealEVR Estates";
   }, []);
+
+  useEffect(() => {
+    // Update form value when plan changes
+    if (selectedPlan) {
+      form.setValue("membershipPlan", selectedPlan);
+    }
+  }, [selectedPlan, form]);
+
+  const openPlanSignup = (plan: string) => {
+    setSelectedPlan(plan);
+    setShowRegisterModal(true);
+  };
+
+  const onSubmit = (data: FormValues) => {
+    // Exclude confirmPassword from data sent to API
+    const { confirmPassword, ...registerData } = data;
+    registerMutation.mutate(registerData);
+  };
+
+  const planFeatures = {
+    basic: ["5 property listings", "Basic virtual tour", "30-day listing", "Email support"],
+    professional: [
+      "20 property listings",
+      "Premium virtual tours",
+      "60-day listing",
+      "Priority support",
+      "Property analytics",
+      "Featured listings"
+    ],
+    enterprise: [
+      "Unlimited property listings",
+      "Custom virtual tours",
+      "Unlimited listing duration",
+      "24/7 dedicated support",
+      "Advanced analytics",
+      "Featured listings",
+      "Custom branding",
+      "API access"
+    ]
+  };
 
   return (
     <div className="container mx-auto px-4 py-12">
@@ -31,7 +106,7 @@ export default function MembershipPage() {
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
-              {["5 property listings", "Basic virtual tour", "30-day listing", "Email support"].map((feature) => (
+              {planFeatures.basic.map((feature) => (
                 <li key={feature} className="flex items-center gap-2">
                   <CheckIcon className="h-5 w-5 text-green-500" />
                   <span>{feature}</span>
@@ -40,7 +115,12 @@ export default function MembershipPage() {
             </ul>
           </CardContent>
           <CardFooter>
-            <Button className="w-full">Sign Up Now</Button>
+            <Button 
+              className="w-full"
+              onClick={() => openPlanSignup("basic")}
+            >
+              Sign Up Now
+            </Button>
           </CardFooter>
         </Card>
 
@@ -59,14 +139,7 @@ export default function MembershipPage() {
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
-              {[
-                "20 property listings",
-                "Premium virtual tours",
-                "60-day listing",
-                "Priority support",
-                "Property analytics",
-                "Featured listings"
-              ].map((feature) => (
+              {planFeatures.professional.map((feature) => (
                 <li key={feature} className="flex items-center gap-2">
                   <CheckIcon className="h-5 w-5 text-green-500" />
                   <span>{feature}</span>
@@ -75,7 +148,12 @@ export default function MembershipPage() {
             </ul>
           </CardContent>
           <CardFooter>
-            <Button className="w-full bg-black hover:bg-gray-800">Sign Up Now</Button>
+            <Button 
+              className="w-full bg-black hover:bg-gray-800"
+              onClick={() => openPlanSignup("professional")}
+            >
+              Sign Up Now
+            </Button>
           </CardFooter>
         </Card>
 
@@ -91,16 +169,7 @@ export default function MembershipPage() {
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
-              {[
-                "Unlimited property listings",
-                "Custom virtual tours",
-                "Unlimited listing duration",
-                "24/7 dedicated support",
-                "Advanced analytics",
-                "Featured listings",
-                "Custom branding",
-                "API access"
-              ].map((feature) => (
+              {planFeatures.enterprise.map((feature) => (
                 <li key={feature} className="flex items-center gap-2">
                   <CheckIcon className="h-5 w-5 text-green-500" />
                   <span>{feature}</span>
@@ -109,7 +178,12 @@ export default function MembershipPage() {
             </ul>
           </CardContent>
           <CardFooter>
-            <Button className="w-full">Contact Sales</Button>
+            <Button 
+              className="w-full"
+              onClick={() => openPlanSignup("enterprise")}
+            >
+              Contact Sales
+            </Button>
           </CardFooter>
         </Card>
       </div>
@@ -122,8 +196,114 @@ export default function MembershipPage() {
         <Button asChild variant="outline" className="mr-4">
           <Link href="/">Return Home</Link>
         </Button>
-        <Button>Start Free Trial</Button>
+        <Button onClick={() => openPlanSignup("trial")}>
+          Start Free Trial
+        </Button>
       </div>
+
+      {/* Registration Dialog */}
+      <Dialog open={showRegisterModal} onOpenChange={setShowRegisterModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Create Your Account</DialogTitle>
+            <DialogDescription>
+              {selectedPlan === "trial" 
+                ? "Sign up for a 14-day free trial with Professional features."
+                : `Complete your registration for the ${selectedPlan?.charAt(0).toUpperCase()}${selectedPlan?.slice(1)} plan.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+              <FormField
+                control={form.control}
+                name="fullName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="John Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="john.doe@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username</FormLabel>
+                    <FormControl>
+                      <Input placeholder="johndoe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="••••••••" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="••••••••" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end pt-4">
+                <Button type="button" variant="outline" className="mr-2" onClick={() => setShowRegisterModal(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={registerMutation.isPending}>
+                  {registerMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Registering...
+                    </>
+                  ) : (
+                    "Complete Registration"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
