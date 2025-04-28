@@ -7,6 +7,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import Home from "@/pages/Home";
 import PropertyPage from "@/pages/PropertyPage";
+import MembershipPage from "@/pages/MembershipPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -14,6 +15,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/property/:id" component={PropertyPage} />
+      <Route path="/membership" component={MembershipPage} />
       <Route component={NotFound} />
     </Switch>
   );

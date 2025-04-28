@@ -39,8 +39,8 @@ export default function Header() {
         
         {/* Navigation Menu */}
         <nav className="flex items-center space-x-4">
-          <Link href="#" className="hidden md:block text-gray-800 hover:text-[#FF5A5F] font-medium">
-            Become a Host
+          <Link href="/membership" className="hidden md:block text-gray-800 hover:text-[#FF5A5F] font-medium">
+            Become a Member
           </Link>
           <Button variant="ghost" size="icon" className="hidden md:flex rounded-full p-2 hover:bg-gray-100">
             <i className="fas fa-globe text-gray-800"></i>
