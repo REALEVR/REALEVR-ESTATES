@@ -20,6 +20,13 @@ export const properties = pgTable("properties", {
   hasTour: boolean("has_tour").default(true),
   tourUrl: text("tour_url"),
   amenities: text("amenities").array(),
+  // Auction specific fields
+  bankName: text("bank_name"),
+  auctionDate: text("auction_date"),
+  startingBid: integer("starting_bid"),
+  currentBid: integer("current_bid"),
+  bidIncrement: integer("bid_increment"),
+  auctionStatus: text("auction_status"),
 });
 
 export const amenities = pgTable("amenities", {
