@@ -67,7 +67,8 @@ export default function RentalUnitsPage() {
     } else if (sortBy === "price-high") {
       return b.price - a.price;
     } else if (sortBy === "newest") {
-      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      // Default sorting by id if no createdAt field is available
+      return b.id - a.id;
     }
     return 0; // default: no sorting
   });
@@ -97,16 +98,11 @@ export default function RentalUnitsPage() {
       propertyType: "Apartment",
       category: "rental_units",
       amenities: ["Parking", "Security", "Water Tank", "Wi-Fi"],
-      available: true,
-      featured: true,
       hasTour: false,
       tourUrl: null,
-      createdAt: "2024-04-01T10:30:00Z",
-      auctionEndDate: null,
       auctionStatus: null,
       bankName: null,
-      isFeatured: true,
-      isAvailable: true
+      isFeatured: true
     },
     {
       id: 102,
@@ -123,16 +119,11 @@ export default function RentalUnitsPage() {
       propertyType: "House",
       category: "rental_units",
       amenities: ["Garden", "Servant Quarters", "Security", "Parking"],
-      available: true,
-      featured: true,
       hasTour: true,
       tourUrl: "https://app.lapentor.com/sphere/la-rose-royal-apartments",
-      createdAt: "2024-04-05T08:15:00Z",
-      auctionEndDate: null,
       auctionStatus: null,
       bankName: null,
-      isFeatured: true,
-      isAvailable: true
+      isFeatured: true
     },
     {
       id: 103,
@@ -149,16 +140,11 @@ export default function RentalUnitsPage() {
       propertyType: "Apartment",
       category: "rental_units",
       amenities: ["Water Tank", "Security", "Nearby Shops"],
-      available: true,
-      featured: false,
       hasTour: false,
       tourUrl: null,
-      createdAt: "2024-04-10T14:45:00Z",
-      auctionEndDate: null,
       auctionStatus: null,
       bankName: null,
-      isFeatured: false,
-      isAvailable: true
+      isFeatured: false
     },
     {
       id: 104,
@@ -175,16 +161,11 @@ export default function RentalUnitsPage() {
       propertyType: "Apartment",
       category: "rental_units",
       amenities: ["Pool", "Gym", "24/7 Security", "Balcony", "Parking"],
-      available: true,
-      featured: true,
       hasTour: true,
       tourUrl: "https://app.lapentor.com/sphere/la-rose-royal-apartments",
-      createdAt: "2024-03-28T09:20:00Z",
-      auctionEndDate: null,
       auctionStatus: null,
       bankName: null,
-      isFeatured: true,
-      isAvailable: true
+      isFeatured: true
     },
     {
       id: 105,
@@ -201,16 +182,11 @@ export default function RentalUnitsPage() {
       propertyType: "House",
       category: "rental_units",
       amenities: ["Large Compound", "Fruit Trees", "Borehole", "Security"],
-      available: true,
-      featured: false,
       hasTour: false,
       tourUrl: null,
-      createdAt: "2024-04-15T11:30:00Z",
-      auctionEndDate: null,
       auctionStatus: null,
       bankName: null,
-      isFeatured: false,
-      isAvailable: true
+      isFeatured: false
     },
     {
       id: 106,
@@ -227,16 +203,11 @@ export default function RentalUnitsPage() {
       propertyType: "Apartment",
       category: "rental_units",
       amenities: ["City View", "Security", "Balcony", "Wi-Fi"],
-      available: true,
-      featured: false,
       hasTour: false,
       tourUrl: null,
-      createdAt: "2024-04-08T13:15:00Z",
-      auctionEndDate: null,
       auctionStatus: null,
       bankName: null,
-      isFeatured: false,
-      isAvailable: true
+      isFeatured: false
     }
   ];
 
@@ -395,15 +366,16 @@ export default function RentalUnitsPage() {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {sortedProperties.map(property => (
-                <Link 
-                  key={property.id} 
-                  href={`/property/${property.id}`}
-                  onClick={(e) => handleViewProperty(e, property)}
-                >
-                  <a className="block">
-                    <PropertyCard property={property} />
-                  </a>
-                </Link>
+                <div key={property.id} className="cursor-pointer" onClick={(e) => {
+                  if (!hasActiveViewingPackage) {
+                    e.preventDefault();
+                    openViewingPaymentPrompt();
+                  } else {
+                    window.location.href = `/property/${property.id}`;
+                  }
+                }}>
+                  <PropertyCard property={property} />
+                </div>
               ))}
             </div>
           </div>
@@ -415,15 +387,16 @@ export default function RentalUnitsPage() {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {sampleRentalUnits.map(property => (
-                <Link 
-                  key={property.id} 
-                  href={`/property/${property.id}`}
-                  onClick={(e) => handleViewProperty(e, property)}
-                >
-                  <a className="block">
-                    <PropertyCard property={property} />
-                  </a>
-                </Link>
+                <div key={property.id} className="cursor-pointer" onClick={(e) => {
+                  if (!hasActiveViewingPackage) {
+                    e.preventDefault();
+                    openViewingPaymentPrompt();
+                  } else {
+                    window.location.href = `/property/${property.id}`;
+                  }
+                }}>
+                  <PropertyCard property={property} />
+                </div>
               ))}
             </div>
             

@@ -10,6 +10,7 @@ import Home from "@/pages/Home";
 import PropertyPage from "@/pages/PropertyPage";
 import MembershipPage from "@/pages/MembershipPage";
 import FurnishedRentalsPage from "@/pages/FurnishedRentalsPage";
+import RentalUnitsPage from "@/pages/RentalUnitsPage";
 import BankSalesPage from "@/pages/BankSalesPage";
 import NotFound from "@/pages/not-found";
 import { AuthProvider } from "@/hooks/use-auth";
@@ -23,13 +24,7 @@ function Router() {
       <Route path="/membership" component={MembershipPage} />
       <Route path="/furnished-rentals" component={FurnishedRentalsPage} />
       <Route path="/bank-sales" component={BankSalesPage} />
-      <Route path="/rental-units" component={() => (
-        <div className="container mx-auto px-4 py-8">
-          <h1 className="text-3xl font-bold mb-4">Rental Units</h1>
-          <p className="mb-8 text-gray-600">Browse our selection of rental units across Uganda.</p>
-          {/* Rental units listing will be implemented similarly to FurnishedRentalsPage */}
-        </div>
-      )} />
+      <Route path="/rental-units" component={RentalUnitsPage} />
       <Route path="/for-sale" component={() => (
         <div className="container mx-auto px-4 py-8">
           <h1 className="text-3xl font-bold mb-4">Properties For Sale</h1>
