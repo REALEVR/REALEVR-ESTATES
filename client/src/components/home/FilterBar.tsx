@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { AnimatedContainer, AnimatedItem } from "@/components/ui/animated-components";
+import ExploreFiltersDialog from "./ExploreFiltersDialog";
 
 type CategoryType = {
   name: string;
@@ -15,7 +16,7 @@ export default function FilterBar() {
   
   const [categories, setCategories] = useState<CategoryType[]>([
     { name: "For Rent", icon: "home", slug: "rental_units", isActive: false },
-    { name: "Furnished", icon: "couch", slug: "furnished_houses", isActive: false },
+    { name: "BnBs", icon: "couch", slug: "furnished_houses", isActive: false },
     { name: "For Sale", icon: "tag", slug: "for_sale", isActive: false },
     { name: "Bank Sales", icon: "landmark", slug: "bank_sales", isActive: false }
   ]);
@@ -25,7 +26,7 @@ export default function FilterBar() {
     // Map routes to category slugs
     const routeMap: Record<string, string> = {
       '/rental-units': 'rental_units',
-      '/furnished-rentals': 'furnished_houses',
+      '/bnbs': 'furnished_houses',
       '/for-sale': 'for_sale',
       '/bank-sales': 'bank_sales'
     };
@@ -67,7 +68,7 @@ export default function FilterBar() {
     // Map category slugs to specific routes
     const routeMap: Record<string, string> = {
       'rental_units': '/rental-units',
-      'furnished_houses': '/furnished-rentals',
+      'furnished_houses': '/bnbs',
       'for_sale': '/for-sale',
       'bank_sales': '/bank-sales'
     };
