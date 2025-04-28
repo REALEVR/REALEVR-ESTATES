@@ -9,7 +9,7 @@ import AnimatedLayout from "@/components/layout/AnimatedLayout";
 import Home from "@/pages/Home";
 import PropertyPage from "@/pages/PropertyPage";
 import MembershipPage from "@/pages/MembershipPage";
-import FurnishedRentalsPage from "@/pages/FurnishedRentalsPage";
+import BnBsPage from "@/pages/BnBsPage";
 import RentalUnitsPage from "@/pages/RentalUnitsPage";
 import ForSalePage from "@/pages/ForSalePage";
 import BankSalesPage from "@/pages/BankSalesPage";
@@ -23,7 +23,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/property/:id" component={PropertyPage} />
       <Route path="/membership" component={MembershipPage} />
-      <Route path="/furnished-rentals" component={FurnishedRentalsPage} />
+      <Route path="/bnbs" component={BnBsPage} />
       <Route path="/bank-sales" component={BankSalesPage} />
       <Route path="/rental-units" component={RentalUnitsPage} />
       <Route path="/for-sale" component={ForSalePage} />

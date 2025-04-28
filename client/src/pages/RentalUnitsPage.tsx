@@ -231,7 +231,7 @@ export default function RentalUnitsPage() {
                 <div className="flex-1">
                   <h3 className="text-amber-800 font-medium">Viewing Package Required</h3>
                   <p className="text-amber-700 text-sm mt-1">
-                    A one-time fee of 15,000 UGX is required to view contact details for up to 10 rental properties. This provides access for 14 days.
+                    A one-time fee of 15,000 UGX is required to view contact details for up to 10 rental properties. This provides access for 1 day only.
                   </p>
                   <Button 
                     className="mt-3 bg-amber-600 hover:bg-amber-700" 

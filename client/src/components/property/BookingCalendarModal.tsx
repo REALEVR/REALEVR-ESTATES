@@ -37,7 +37,7 @@ export default function BookingCalendarModal({
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
   const [selectedTime, setSelectedTime] = useState<string>(availableTimeSlots[0]);
   
-  // For furnished properties booking
+  // For BnB/furnished properties booking
   const [startDate, setStartDate] = useState<Date | undefined>(addDays(new Date(), 1));
   const [endDate, setEndDate] = useState<Date | undefined>(addDays(new Date(), 3)); // 2-night default
   const [totalNights, setTotalNights] = useState<number>(2);
@@ -53,9 +53,12 @@ export default function BookingCalendarModal({
   const [pendingEvent, setPendingEvent] = useState<any>(null);
   const { toast } = useToast();
   
+  // Check if this is a BnB booking
+  const isBnB = propertyCategory === "BnB" || propertyCategory === "furnished_houses";
+  
   // Calculate booking details when dates change
   useEffect(() => {
-    if (propertyCategory === "furnished_houses" && startDate && endDate) {
+    if ((propertyCategory === "furnished_houses" || propertyCategory === "BnB") && startDate && endDate) {
       const nights = differenceInCalendarDays(endDate, startDate);
       if (nights > 0) {
         setTotalNights(nights);
@@ -96,33 +99,66 @@ export default function BookingCalendarModal({
     
     setIsSubmitting(true);
     
-    // Create the Google Calendar event details
-    const eventDateTime = selectedDate ? timeToDate(selectedTime, selectedDate) : new Date();
-    const eventEndTime = selectedDate ? addDays(timeToDate(selectedTime, selectedDate), 0) : new Date();
-    eventEndTime.setHours(eventEndTime.getHours() + 1); // 1 hour viewing
-    
-    // Create the event object (in a production system, this would be sent to your API)
-    const calendarEvent = {
-      propertyId,
-      propertyTitle,
-      visitorName: name,
-      visitorEmail: email,
-      visitorPhone: phone,
-      notes,
-      startTime: eventDateTime.toISOString(),
-      endTime: eventEndTime.toISOString(),
-      bookingId: Math.random().toString(36).substring(2, 9)
-    };
-    
-    // For furnished properties, require payment before confirming booking
-    if (propertyCategory === "furnished_houses") {
-      setPendingEvent(calendarEvent);
-      setIsPaymentModalOpen(true);
-      setIsSubmitting(false);
+    // Handle different booking types
+    if (isBnB) {
+      // For BnB bookings - date range with no immediate payment
+      const bookingRequest = {
+        propertyId,
+        propertyTitle,
+        guestName: name,
+        guestEmail: email,
+        guestPhone: phone,
+        notes,
+        checkInDate: startDate?.toISOString(),
+        checkOutDate: endDate?.toISOString(),
+        totalNights,
+        totalAmount,
+        bookingId: Math.random().toString(36).substring(2, 9),
+        status: "pending", // Initial status
+        paymentStatus: "pending" // Payment will be collected later
+      };
+      
+      // Just confirm booking for BnB (Airbnb style) - payment collected later
+      processBnBBooking(bookingRequest);
     } else {
-      // For other property types, confirm booking immediately
+      // For regular property viewings
+      // Create the calendar event details
+      const eventDateTime = selectedDate ? timeToDate(selectedTime, selectedDate) : new Date();
+      const eventEndTime = selectedDate ? addDays(timeToDate(selectedTime, selectedDate), 0) : new Date();
+      eventEndTime.setHours(eventEndTime.getHours() + 1); // 1 hour viewing
+      
+      // Create the event object (in a production system, this would be sent to your API)
+      const calendarEvent = {
+        propertyId,
+        propertyTitle,
+        visitorName: name,
+        visitorEmail: email,
+        visitorPhone: phone,
+        notes,
+        startTime: eventDateTime.toISOString(),
+        endTime: eventEndTime.toISOString(),
+        bookingId: Math.random().toString(36).substring(2, 9)
+      };
+      
       processBooking(calendarEvent);
     }
+  };
+  
+  // Process BnB booking (Airbnb style)
+  const processBnBBooking = (bookingRequest: any) => {
+    // Simulate API call
+    setTimeout(() => {
+      console.log("BnB Booking request:", bookingRequest);
+      
+      toast({
+        title: "Booking Confirmed!",
+        description: `Your stay is booked for ${totalNights} night${totalNights > 1 ? 's' : ''} starting ${format(startDate!, 'MMM d, yyyy')}. Payment will be collected at check-in.`,
+      });
+      
+      setIsSubmitting(false);
+      resetForm();
+      onClose();
+    }, 1500);
   };
   
   // Process the booking after payment (if required)
@@ -186,36 +222,86 @@ export default function BookingCalendarModal({
           
           <form onSubmit={handleSubmit} className="space-y-4 py-4">
             <div className="grid gap-6">
-              <div className="space-y-2">
-                <Label>Select a Date</Label>
-                <div className="border rounded-md p-3">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    disabled={(date) => 
-                      date < new Date() || // No past dates
-                      date.getDay() === 0 || // No Sundays
-                      date > addDays(new Date(), 60) // No dates more than 60 days in the future
-                    }
-                    initialFocus
-                  />
+              {isBnB ? (
+                <div className="space-y-4">
+                  <Label className="text-lg font-medium">Select Your Stay Dates</Label>
+                  <div className="space-y-2">
+                    <Label>Check-in / Check-out Dates</Label>
+                    <div className="border rounded-md p-3">
+                      <Calendar
+                        mode="range"
+                        selected={{
+                          from: startDate!,
+                          to: endDate!
+                        }}
+                        onSelect={(range) => {
+                          if (range?.from) setStartDate(range.from);
+                          if (range?.to) setEndDate(range.to);
+                        }}
+                        disabled={(date) => 
+                          date < new Date() || // No past dates
+                          date > addDays(new Date(), 90) // No dates more than 90 days in the future
+                        }
+                        initialFocus
+                        numberOfMonths={2}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 bg-gray-50 rounded-md">
+                    <h4 className="font-medium text-base mb-2">Booking Summary</h4>
+                    <div className="flex justify-between mb-1">
+                      <span>Price per night:</span>
+                      <span>{propertyPrice.toLocaleString()} UGX</span>
+                    </div>
+                    <div className="flex justify-between mb-1">
+                      <span>Number of nights:</span>
+                      <span>{totalNights}</span>
+                    </div>
+                    <div className="flex justify-between font-medium text-lg pt-2 border-t">
+                      <span>Total:</span>
+                      <span>{totalAmount.toLocaleString()} UGX</span>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-2">
+                      <i className="fas fa-info-circle mr-1"></i>
+                      Payment will be collected at check-in.
+                    </p>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="time">Select a Time</Label>
-                <Select value={selectedTime} onValueChange={setSelectedTime}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a time" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableTimeSlots.map((time) => (
-                      <SelectItem key={time} value={time}>{time}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label>Select a Date</Label>
+                    <div className="border rounded-md p-3">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={setSelectedDate}
+                        disabled={(date) => 
+                          date < new Date() || // No past dates
+                          date.getDay() === 0 || // No Sundays
+                          date > addDays(new Date(), 60) // No dates more than 60 days in the future
+                        }
+                        initialFocus
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="time">Select a Time</Label>
+                    <Select value={selectedTime} onValueChange={setSelectedTime}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a time" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableTimeSlots.map((time) => (
+                          <SelectItem key={time} value={time}>{time}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
               
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
