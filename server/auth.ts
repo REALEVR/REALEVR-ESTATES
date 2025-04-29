@@ -29,8 +29,15 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
+  // Use a default secret for offline development, but warn about it
+  const sessionSecret = process.env.SESSION_SECRET || "realevr-dev-secret-key-for-offline-use-only";
+  
+  if (!process.env.SESSION_SECRET) {
+    console.warn("WARNING: Using insecure default SESSION_SECRET. Do not use in production!");
+  }
+  
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET!,
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -40,10 +47,6 @@ export function setupAuth(app: Express) {
     },
     name: "session"
   };
-
-  if (!process.env.SESSION_SECRET) {
-    throw new Error("SESSION_SECRET environment variable is required");
-  }
 
   app.set("trust proxy", 1);
   app.use(session(sessionSettings));
