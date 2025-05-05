@@ -231,9 +231,16 @@ export default function PropertyManager() {
                     variant="outline" 
                     size="sm"
                     onClick={() => {
+                      // Set tab selection first, then open dialog
+                      try {
+                        if (typeof window !== 'undefined') {
+                          window.localStorage.setItem('propertyFormTab', 'tour');
+                        }
+                      } catch (e) {
+                        console.error('LocalStorage error:', e);
+                      }
+                      // Open the edit dialog after setting tab preference
                       handleOpenEditDialog(property);
-                      // The tab selection is handled in PropertyFormNew via defaultValue
-                      localStorage.setItem('propertyFormTab', 'tour');
                     }}
                   >
                     <Box className="h-4 w-4" />
@@ -327,6 +334,14 @@ export default function PropertyManager() {
           </DialogHeader>
           <PropertyForm 
             onSuccess={() => {
+              // Clear localStorage tab selection when done
+              try {
+                if (typeof window !== 'undefined') {
+                  window.localStorage.removeItem('propertyFormTab');
+                }
+              } catch (e) {
+                console.error('LocalStorage error:', e);
+              }
               setIsAddPropertyOpen(false);
               queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
             }} 
@@ -347,6 +362,14 @@ export default function PropertyManager() {
             <PropertyForm 
               property={selectedProperty}
               onSuccess={() => {
+                // Clear localStorage tab selection when done
+                try {
+                  if (typeof window !== 'undefined') {
+                    window.localStorage.removeItem('propertyFormTab');
+                  }
+                } catch (e) {
+                  console.error('LocalStorage error:', e);
+                }
                 setIsEditPropertyOpen(false);
                 setSelectedProperty(null);
                 queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
