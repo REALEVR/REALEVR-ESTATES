@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { Loader2, LogOut, Settings, User, Glasses } from "lucide-react";
+import { Loader2, LogOut, Settings, User, Glasses, Building } from "lucide-react";
 
 export default function Header() {
   const [location, setLocation] = useLocation();
@@ -111,6 +111,12 @@ export default function Header() {
                   <DropdownMenuItem>
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Settings</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/properties">
+                      <Building className="mr-2 h-4 w-4" />
+                      <span>Property Manager</span>
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/admin/virtual-tours">

@@ -10,6 +10,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUserRole(userId: number, role: string): Promise<User>;
   
   // Property methods
   getAllProperties(): Promise<Property[]>;
@@ -19,6 +20,7 @@ export interface IStorage {
   searchProperties(query: string): Promise<Property[]>;
   filterProperties(filters: Partial<Property>): Promise<Property[]>;
   createProperty(property: InsertProperty): Promise<Property>;
+  updateProperty(id: number, property: Partial<Property>): Promise<Property | undefined>;
   
   // Amenity methods
   getAllAmenities(): Promise<Amenity[]>;
@@ -510,6 +512,30 @@ export class MemStorage implements IStorage {
     const user: User = { ...insertUser, id };
     this.users.set(id, user);
     return user;
+  }
+
+  async updateUserRole(userId: number, role: string): Promise<User> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+    
+    // Update the user's role
+    const updatedUser = { ...user, role };
+    this.users.set(userId, updatedUser);
+    return updatedUser;
+  }
+
+  async updateProperty(id: number, propertyUpdate: Partial<Property>): Promise<Property | undefined> {
+    const property = await this.getProperty(id);
+    if (!property) {
+      return undefined;
+    }
+    
+    // Merge the existing property with the updates
+    const updatedProperty = { ...property, ...propertyUpdate };
+    this.properties.set(id, updatedProperty);
+    return updatedProperty;
   }
   
   // Property methods

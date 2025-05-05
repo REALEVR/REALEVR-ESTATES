@@ -1,9 +1,23 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { z } from "zod";
 import fetch from "node-fetch";
+
+// Middleware to check if user is an admin or property manager
+const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+  
+  const user = req.user;
+  if (!user.role || (user.role !== "admin" && user.role !== "property_manager")) {
+    return res.status(403).json({ message: "Unauthorized. Admin or property manager role required." });
+  }
+  
+  next();
+};
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
@@ -233,6 +247,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Error verifying payment",
         error: error.message
       });
+    }
+  });
+
+  // Create a new property (admin only)
+  app.post("/api/properties/create", adminMiddleware, async (req, res) => {
+    try {
+      const property = await storage.createProperty(req.body);
+      res.status(201).json(property);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+  
+  // Update a property (admin only)
+  app.patch("/api/properties/:id", adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid property ID" });
+      }
+      
+      const updatedProperty = await storage.updateProperty(id, req.body);
+      if (!updatedProperty) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      res.json(updatedProperty);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+  
+  // Update user role (admin only)
+  app.patch("/api/users/:id/role", adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const { role } = req.body;
+      if (!role || !["user", "admin", "property_manager"].includes(role)) {
+        return res.status(400).json({ message: "Invalid role. Must be 'user', 'admin', or 'property_manager'" });
+      }
+      
+      const updatedUser = await storage.updateUserRole(id, role);
+      res.json(updatedUser);
+    } catch (error: any) {
+      res.status(404).json({ message: error.message });
     }
   });
 
