@@ -396,7 +396,7 @@ export default function PropertyFormNew({ property, onSuccess }: PropertyFormPro
       >
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="details">Property Details</TabsTrigger>
-          <TabsTrigger value="tour" disabled={!property?.id}>Virtual Tour</TabsTrigger>
+          <TabsTrigger value="tour">Virtual Tour</TabsTrigger>
         </TabsList>
         
         <TabsContent value="details" className="mt-6">
@@ -777,7 +777,16 @@ export default function PropertyFormNew({ property, onSuccess }: PropertyFormPro
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {property && (
+              {!property?.id ? (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Save the property first</AlertTitle>
+                  <AlertDescription>
+                    Please save the property details first before uploading a virtual tour.
+                    Switch to the "Property Details" tab, fill in the required fields, and click "Save Property".
+                  </AlertDescription>
+                </Alert>
+              ) : (
                 <>
                   <div className="border rounded-lg p-4 bg-muted/20">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
