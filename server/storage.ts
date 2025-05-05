@@ -85,6 +85,7 @@ export class MemStorage implements IStorage {
     } catch (error) {
       console.error('Error loading data:', error);
     }
+  }
 
   constructor() {
     this.users = new Map();
