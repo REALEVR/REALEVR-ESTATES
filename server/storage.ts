@@ -22,6 +22,7 @@ export interface IStorage {
   filterProperties(filters: Partial<Property>): Promise<Property[]>;
   createProperty(property: InsertProperty): Promise<Property>;
   updateProperty(id: number, property: Partial<Property>): Promise<Property | undefined>;
+  deleteProperty(id: number): Promise<boolean>;
   
   // Amenity methods
   getAllAmenities(): Promise<Amenity[]>;
@@ -601,6 +602,14 @@ export class MemStorage implements IStorage {
     const updatedProperty = { ...property, ...propertyUpdate };
     this.properties.set(id, updatedProperty);
     return updatedProperty;
+  }
+  
+  async deleteProperty(id: number): Promise<boolean> {
+    if (!this.properties.has(id)) {
+      return false;
+    }
+    
+    return this.properties.delete(id);
   }
   
   // Property methods

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
+import { Link } from 'wouter';
 import { Property } from '@shared/schema';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -23,7 +25,7 @@ import {
   Edit,
   Plus,
   Trash2,
-  Cube3d,
+  Box,  // Replacing Cube3d with Box
   Eye,
   Search,
   Building,
@@ -187,7 +189,7 @@ export default function PropertyManager() {
               <TableCell>{getCategoryBadge(property.category)}</TableCell>
               <TableCell>
                 {property.hasTour ? (
-                  <Badge variant="success" className="bg-green-100 text-green-800 hover:bg-green-200">
+                  <Badge variant="outline" className="bg-green-100 text-green-800 hover:bg-green-200">
                     <Check className="w-3 h-3 mr-1" />
                     Available
                   </Badge>
@@ -199,7 +201,7 @@ export default function PropertyManager() {
               </TableCell>
               <TableCell>
                 {property.isFeatured ? (
-                  <Badge variant="success" className="bg-amber-100 text-amber-800 hover:bg-amber-200">
+                  <Badge variant="outline" className="bg-amber-100 text-amber-800 hover:bg-amber-200">
                     Featured
                   </Badge>
                 ) : (
@@ -228,12 +230,14 @@ export default function PropertyManager() {
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => {
-                      setSelectedProperty(property);
-                      window.location.href = `/admin/virtual-tour-manager?propertyId=${property.id}`;
-                    }}
+                    asChild
                   >
-                    <ThreeDCube className="h-4 w-4" />
+                    <Link 
+                      onClick={() => setSelectedProperty(property)}
+                      href={`/admin/virtual-tour-manager?propertyId=${property.id}`}
+                    >
+                      <Box className="h-4 w-4" />
+                    </Link>
                   </Button>
                 )}
                 <Button 

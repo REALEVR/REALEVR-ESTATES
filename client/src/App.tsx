@@ -51,6 +51,11 @@ function Router() {
         component={VirtualTourManager} 
         allowedRoles={["admin", "property_manager"]}
       />
+      <ProtectedAdminRoute 
+        path="/admin/virtual-tour-manager" 
+        component={VirtualTourManager} 
+        allowedRoles={["admin", "property_manager"]}
+      />
       
       <ProtectedAdminRoute 
         path="/admin/properties" 

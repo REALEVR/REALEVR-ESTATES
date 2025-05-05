@@ -5,6 +5,7 @@ import { setupAuth } from "./auth";
 import { z } from "zod";
 import fetch from "node-fetch";
 import path from "path";
+import fs from "fs";
 import { 
   uploadPropertyImage, 
   uploadVirtualTour, 
@@ -284,6 +285,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedProperty);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
+    }
+  });
+  
+  // Delete a property (admin only)
+  app.delete("/api/properties/:id", adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid property ID" });
+      }
+      
+      const property = await storage.getProperty(id);
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      // Remove any associated virtual tour files if they exist
+      if (property.hasTour && property.tourUrl) {
+        // Extract the property ID from the tourUrl
+        const match = property.tourUrl.match(/property_(\d+)_tour/);
+        if (match) {
+          const propertyId = match[1];
+          const tourPath = path.join(process.cwd(), 'uploads', 'tours', `property_${propertyId}_tour`);
+          
+          if (fs.existsSync(tourPath)) {
+            try {
+              fs.rmSync(tourPath, { recursive: true, force: true });
+              console.log(`Deleted tour directory for property ID ${propertyId}`);
+            } catch (err) {
+              console.error(`Failed to delete tour directory: ${err}`);
+            }
+          }
+        }
+      }
+      
+      // Delete the property from storage
+      const success = await storage.deleteProperty(id);
+      if (!success) {
+        return res.status(500).json({ message: "Failed to delete property" });
+      }
+      
+      res.status(200).json({ message: "Property deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
     }
   });
   
