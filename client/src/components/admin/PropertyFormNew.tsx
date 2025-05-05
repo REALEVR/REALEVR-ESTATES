@@ -148,17 +148,28 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
           description: property ? "Property has been updated successfully" : "New property has been created",
         });
         
-        // Invalidate all property-related queries to ensure UI updates
-        queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/properties/featured'] });
+        // Super aggressive cache invalidation - remove everything property related
+        queryClient.removeQueries({ queryKey: ['/api/properties'] });
+        queryClient.removeQueries({ queryKey: ['/api/properties/featured'] });
+        queryClient.removeQueries({ queryKey: ['/api/properties/category'] });
         
         if (property) {
-          // Also invalidate the specific property query
-          queryClient.invalidateQueries({ queryKey: [`/api/properties/${property.id}`] });
+          // Also remove the specific property query
+          queryClient.removeQueries({ queryKey: [`/api/properties/${property.id}`] });
         }
         
-        // Force a fetch instead of just invalidating
+        // Force a fetch of all key queries
         queryClient.refetchQueries({ queryKey: ['/api/properties'] });
+        queryClient.refetchQueries({ queryKey: ['/api/properties/featured'] });
+        
+        // Add a small delay to ensure the backend has processed the changes
+        setTimeout(() => {
+          queryClient.refetchQueries({ queryKey: ['/api/properties'] });
+          queryClient.refetchQueries({ queryKey: ['/api/properties/featured'] });
+          if (property) {
+            queryClient.refetchQueries({ queryKey: [`/api/properties/${property.id}`] });
+          }
+        }, 500);
         
         // Call onSuccess callback if provided
         if (onSuccess) {
