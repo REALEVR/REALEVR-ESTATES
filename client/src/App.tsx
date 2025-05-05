@@ -22,6 +22,7 @@ import AdminUserManager from "@/pages/AdminUserManager";
 import AuthPage from "@/pages/auth-page";
 import FeaturedPropertiesPage from "@/pages/FeaturedPropertiesPage";
 import ProfilePage from "@/pages/ProfilePage";
+import TestPage from "@/pages/TestPage"; // Added test page
 import { AuthProvider } from "@/hooks/use-auth";
 import { PaymentProvider } from "@/contexts/PaymentContext";
 import VirtualTourManager from "@/components/admin/VirtualTourManager";
