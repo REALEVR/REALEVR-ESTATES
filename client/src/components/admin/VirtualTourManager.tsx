@@ -157,7 +157,7 @@ export default function VirtualTourManager() {
     try {
       // Create FormData
       const formData = new FormData();
-      formData.append('tour', file);
+      formData.append('tourZip', file);
       
       // Upload the virtual tour zip
       const response = await fetch(`/api/upload/virtual-tour/${property.id}`, {
