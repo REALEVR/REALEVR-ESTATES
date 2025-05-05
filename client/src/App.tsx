@@ -20,6 +20,7 @@ import HostResponsibly from "@/pages/HostResponsibly";
 import PropertyManager from "@/pages/PropertyManager";
 import AdminUserManager from "@/pages/AdminUserManager";
 import AuthPage from "@/pages/auth-page";
+import FeaturedPropertiesPage from "@/pages/FeaturedPropertiesPage";
 import { AuthProvider } from "@/hooks/use-auth";
 import { PaymentProvider } from "@/contexts/PaymentContext";
 import VirtualTourManager from "@/components/admin/VirtualTourManager";
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/bank-sales" component={BankSalesPage} />
       <Route path="/rental-units" component={RentalUnitsPage} />
       <Route path="/for-sale" component={ForSalePage} />
+      <Route path="/featured-properties" component={FeaturedPropertiesPage} />
       
       {/* Legal and Information Pages */}
       <Route path="/privacy" component={PrivacyPolicy} />

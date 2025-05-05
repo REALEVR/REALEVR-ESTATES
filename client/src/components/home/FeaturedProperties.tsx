@@ -113,7 +113,7 @@ export default function FeaturedProperties() {
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl md:text-3xl font-bold">Featured Properties</h2>
           <Button variant="link" asChild>
-            <Link href="/explore" className="flex items-center">
+            <Link href="/featured-properties" className="flex items-center">
               View all <ChevronRight className="h-4 w-4 ml-1" />
             </Link>
           </Button>

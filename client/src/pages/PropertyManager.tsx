@@ -101,6 +101,32 @@ export default function PropertyManager() {
       });
     }
   };
+  
+  const handleToggleAvailability = async (propertyId: number) => {
+    try {
+      const response = await apiRequest('POST', `/api/properties/${propertyId}/toggle-availability`);
+      
+      if (response.ok) {
+        const updatedProperty = await response.json();
+        toast({
+          title: updatedProperty.isAvailable ? "Property Available" : "Property Unavailable",
+          description: `The property is now ${updatedProperty.isAvailable ? 'available' : 'unavailable'} for booking.`,
+        });
+        
+        // Refresh the properties list
+        queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update property availability");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update property availability",
+        variant: "destructive",
+      });
+    }
+  };
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -177,6 +203,7 @@ export default function PropertyManager() {
             <TableHead>Category</TableHead>
             <TableHead>Virtual Tour</TableHead>
             <TableHead>Featured</TableHead>
+            <TableHead>Availability</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -207,6 +234,26 @@ export default function PropertyManager() {
                 ) : (
                   <span className="text-gray-500">-</span>
                 )}
+              </TableCell>
+              <TableCell>
+                <Button 
+                  variant={property.isAvailable ? "outline" : "secondary"}
+                  size="sm"
+                  onClick={() => handleToggleAvailability(property.id)}
+                  className={`${property.isAvailable ? 'border-green-500 text-green-600 hover:bg-green-50' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                >
+                  {property.isAvailable ? (
+                    <>
+                      <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                      Available
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-2 h-2 rounded-full bg-gray-500 mr-2"></div>
+                      Unavailable
+                    </>
+                  )}
+                </Button>
               </TableCell>
               <TableCell className="text-right space-x-2">
                 <Button 
