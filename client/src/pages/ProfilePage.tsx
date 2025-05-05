@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { Redirect, useLocation, Link } from "wouter";
 import {
   Card,
   CardContent,
@@ -20,6 +20,16 @@ export default function ProfilePage() {
   const { user, logoutMutation } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<string>("profile");
+  const [location] = useLocation();
+  
+  // Extract tab from URL query parameters
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get("tab");
+    if (tabParam && ["profile", "settings", "properties", "bookings", "notifications"].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [location]);
   
   // Redirect if user is not logged in
   if (!user) {
@@ -241,9 +251,11 @@ export default function ProfilePage() {
                 <CardContent>
                   <div className="text-center py-8 text-gray-500">
                     <p>You don't have any saved properties yet.</p>
-                    <Button variant="link" className="mt-2">
-                      Browse Properties
-                    </Button>
+                    <Link href="/">
+                      <Button variant="link" className="mt-2">
+                        Browse Properties
+                      </Button>
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
@@ -260,9 +272,11 @@ export default function ProfilePage() {
                 <CardContent>
                   <div className="text-center py-8 text-gray-500">
                     <p>You don't have any property bookings yet.</p>
-                    <Button variant="link" className="mt-2">
-                      Browse Properties
-                    </Button>
+                    <Link href="/">
+                      <Button variant="link" className="mt-2">
+                        Browse Properties
+                      </Button>
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
