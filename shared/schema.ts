@@ -72,6 +72,8 @@ export const users = pgTable("users", {
   membershipPlan: text("membership_plan"),
   membershipStartDate: text("membership_start_date"),
   membershipEndDate: text("membership_end_date"),
+  role: text("role").default("user").notNull(), // Possible values: "user", "admin", "property_manager"
+  isVerified: boolean("is_verified").default(false),
 });
 
 export const insertUserSchema = createInsertSchema(users)

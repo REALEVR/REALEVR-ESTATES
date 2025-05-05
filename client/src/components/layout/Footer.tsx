@@ -32,11 +32,11 @@ export default function Footer() {
           <div>
             <h3 className="font-bold text-lg mb-4">Hosting</h3>
             <ul className="space-y-2 text-gray-500">
-              <li><Link href="#" className="hover:text-[#FF5A5F]">Add Your Property</Link></li>
-              <li><Link href="#" className="hover:text-[#FF5A5F]">Resources</Link></li>
-              <li><Link href="#" className="hover:text-[#FF5A5F]">Community Forum</Link></li>
-              <li><Link href="#" className="hover:text-[#FF5A5F]">Host Responsibly</Link></li>
-              <li><Link href="#" className="hover:text-[#FF5A5F]">Virtual Tour Creation</Link></li>
+              <li><Link href="/admin/virtual-tours" className="hover:text-[#FF5A5F]">Add Your Property</Link></li>
+              <li><Link href="/resources" className="hover:text-[#FF5A5F]">Resources</Link></li>
+              <li><Link href="/community" className="hover:text-[#FF5A5F]">Community Forum</Link></li>
+              <li><Link href="/host-responsibly" className="hover:text-[#FF5A5F]">Host Responsibly</Link></li>
+              <li><Link href="/virtual-tour-creation" className="hover:text-[#FF5A5F]">Virtual Tour Creation</Link></li>
             </ul>
           </div>
           
@@ -71,11 +71,11 @@ export default function Footer() {
           <div className="text-gray-500 text-sm">
             &copy; {currentYear} RealEVR Estates, Inc. All rights reserved.
             <span className="mx-2">·</span>
-            <Link href="#" className="hover:underline">Privacy</Link>
+            <Link href="/privacy" className="hover:underline">Privacy</Link>
             <span className="mx-2">·</span>
-            <Link href="#" className="hover:underline">Terms</Link>
+            <Link href="/terms" className="hover:underline">Terms</Link>
             <span className="mx-2">·</span>
-            <Link href="#" className="hover:underline">Sitemap</Link>
+            <Link href="/sitemap" className="hover:underline">Sitemap</Link>
           </div>
         </div>
       </div>
