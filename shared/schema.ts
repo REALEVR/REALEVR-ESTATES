@@ -7,6 +7,7 @@ export const properties = pgTable("properties", {
   title: text("title").notNull(),
   location: text("location").notNull(),
   price: integer("price").notNull(),
+  currency: text("currency").default("UGX").notNull(), // Added currency field with default UGX
   description: text("description").notNull(),
   bedrooms: integer("bedrooms").notNull(),
   bathrooms: integer("bathrooms").notNull(),
@@ -20,6 +21,7 @@ export const properties = pgTable("properties", {
   hasTour: boolean("has_tour").default(true),
   tourUrl: text("tour_url"),
   amenities: text("amenities").array(),
+  monthlyPrice: integer("monthly_price"), // Now optional for rental properties
   // Auction specific fields
   bankName: text("bank_name"),
   auctionDate: text("auction_date"),

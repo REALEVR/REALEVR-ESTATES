@@ -28,8 +28,17 @@ export function usePropertiesByCategory(category: string) {
 
 export function usePropertySearch(query: string) {
   return useQuery<Property[]>({
-    queryKey: ["/api/properties/search", query],
+    queryKey: ["/api/properties/search", { q: query }],
     enabled: !!query,
+    queryFn: ({ queryKey }) => {
+      // We need a custom query function to handle the query parameter
+      const [url, params] = queryKey;
+      const searchParams = new URLSearchParams(params as Record<string, string>).toString();
+      return fetch(`${url}?${searchParams}`).then(res => {
+        if (!res.ok) throw new Error('Network response was not ok');
+        return res.json();
+      });
+    }
   });
 }
 
