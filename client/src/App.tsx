@@ -14,6 +14,10 @@ import RentalUnitsPage from "@/pages/RentalUnitsPage";
 import ForSalePage from "@/pages/ForSalePage";
 import BankSalesPage from "@/pages/BankSalesPage";
 import NotFound from "@/pages/not-found";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import TermsOfService from "@/pages/TermsOfService";
+import HostResponsibly from "@/pages/HostResponsibly";
+import PropertyManager from "@/pages/PropertyManager";
 import { AuthProvider } from "@/hooks/use-auth";
 import { PaymentProvider } from "@/contexts/PaymentContext";
 import VirtualTourManager from "@/components/admin/VirtualTourManager";
@@ -30,10 +34,21 @@ function Router() {
       <Route path="/rental-units" component={RentalUnitsPage} />
       <Route path="/for-sale" component={ForSalePage} />
       
+      {/* Legal and Information Pages */}
+      <Route path="/privacy" component={PrivacyPolicy} />
+      <Route path="/terms" component={TermsOfService} />
+      <Route path="/host-responsibly" component={HostResponsibly} />
+      
       {/* Admin routes - protected by role */}
       <ProtectedAdminRoute 
         path="/admin/virtual-tours" 
         component={VirtualTourManager} 
+        allowedRoles={["admin", "property_manager"]}
+      />
+      
+      <ProtectedAdminRoute 
+        path="/admin/properties" 
+        component={PropertyManager} 
         allowedRoles={["admin", "property_manager"]}
       />
       

@@ -32,7 +32,7 @@ export default function Footer() {
           <div>
             <h3 className="font-bold text-lg mb-4">Hosting</h3>
             <ul className="space-y-2 text-gray-500">
-              <li><Link href="/admin/virtual-tours" className="hover:text-[#FF5A5F]">Add Your Property</Link></li>
+              <li><Link href="/admin/properties" className="hover:text-[#FF5A5F]">Add Your Property</Link></li>
               <li><Link href="/resources" className="hover:text-[#FF5A5F]">Resources</Link></li>
               <li><Link href="/community" className="hover:text-[#FF5A5F]">Community Forum</Link></li>
               <li><Link href="/host-responsibly" className="hover:text-[#FF5A5F]">Host Responsibly</Link></li>
