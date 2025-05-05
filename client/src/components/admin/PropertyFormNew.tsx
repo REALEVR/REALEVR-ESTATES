@@ -38,8 +38,16 @@ import {
   Bath,
   SquareCode,
   Eye,
-  Box
+  Box,
+  FileSearch,
+  ChevronDown
 } from 'lucide-react';
+
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from "@/components/ui/collapsible";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
