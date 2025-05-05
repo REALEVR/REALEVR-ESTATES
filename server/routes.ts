@@ -28,9 +28,22 @@ const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
+// Middleware to disable caching for API responses
+const noCacheMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+  next();
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
   setupAuth(app);
+  
+  // Apply no-cache middleware to all API routes
+  app.use('/api', noCacheMiddleware);
+  
   // Get all properties
   app.get("/api/properties", async (req, res) => {
     try {
