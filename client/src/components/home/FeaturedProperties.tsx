@@ -1,16 +1,23 @@
-import { useQuery } from "@tanstack/react-query";
 import { Property } from "@shared/schema";
 import PropertyCard from "./PropertyCard";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import useEmblaCarousel from 'embla-carousel-react';
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useFeaturedProperties } from "@/hooks/usePropertyData";
+import { queryClient } from "@/lib/queryClient";
 
 export default function FeaturedProperties() {
-  const { data: featuredProperties, isLoading, error } = useQuery<Property[]>({
-    queryKey: ["/api/properties/featured"],
-  });
+  // Force refetch featured properties on mount to ensure fresh data
+  const [key, setKey] = useState(0);
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["/api/properties/featured"] });
+    queryClient.refetchQueries({ queryKey: ["/api/properties/featured"] });
+    setKey(prev => prev + 1);
+  }, []);
+  
+  const { data: featuredProperties, isLoading, error } = useFeaturedProperties();
 
   // Setup carousel
   const [emblaRef, emblaApi] = useEmblaCarousel({ 

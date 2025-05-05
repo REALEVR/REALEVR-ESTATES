@@ -1,5 +1,4 @@
-import { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import Hero from "@/components/home/Hero";
@@ -10,12 +9,19 @@ import PropertyCard from "@/components/home/PropertyCard";
 import AmenitiesHighlight from "@/components/home/AmenitiesHighlight";
 import HowItWorks from "@/components/home/HowItWorks";
 import DownloadApp from "@/components/home/DownloadApp";
-import type { Property } from "@shared/schema";
+import { useProperties } from "@/hooks/usePropertyData";
+import { queryClient } from "@/lib/queryClient";
 
 export default function Home() {
-  const { data: properties, isLoading, error } = useQuery<Property[]>({
-    queryKey: ["/api/properties"],
-  });
+  // Force refetch on mount to ensure fresh data
+  const [key, setKey] = useState(0);
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
+    queryClient.refetchQueries({ queryKey: ["/api/properties"] });
+    setKey(prev => prev + 1);
+  }, []);
+  
+  const { data: properties, isLoading, error } = useProperties();
 
   useEffect(() => {
     // Set page title

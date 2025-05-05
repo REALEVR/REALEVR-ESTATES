@@ -1,19 +1,25 @@
 import { useState, useEffect } from "react";
 import { useRoute } from "wouter";
-import { useQuery } from "@tanstack/react-query";
 import VirtualTour from "@/components/property/VirtualTour";
 import PropertyDetails from "@/components/property/PropertyDetails";
 import { Button } from "@/components/ui/button";
-import type { Property } from "@shared/schema";
+import { useProperty } from "@/hooks/usePropertyData";
+import { queryClient } from "@/lib/queryClient";
 
 export default function PropertyPage() {
   const [, params] = useRoute<{ id: string }>("/property/:id");
   const propertyId = params?.id ? parseInt(params.id) : 0;
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const { data: property, isLoading, error } = useQuery<Property>({
-    queryKey: [`/api/properties/${propertyId}`],
-  });
+  // Force refetch on mount to ensure fresh data
+  useEffect(() => {
+    if (propertyId) {
+      queryClient.invalidateQueries({ queryKey: [`/api/properties/${propertyId}`] });
+      queryClient.refetchQueries({ queryKey: [`/api/properties/${propertyId}`] });
+    }
+  }, [propertyId]);
+  
+  const { data: property, isLoading, error } = useProperty(propertyId);
 
   useEffect(() => {
     // Set page title
