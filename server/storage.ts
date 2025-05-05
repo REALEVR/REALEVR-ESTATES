@@ -643,9 +643,9 @@ export class MemStorage implements IStorage {
     return this.properties.delete(id);
   }
   
-  // Helper function to sort properties by ID (newest first)
-  private sortPropertiesByNewest(properties: Property[]): Property[] {
-    return [...properties].sort((a, b) => b.id - a.id);
+  // Helper function to sort properties by ID (insertion order)
+  private sortPropertiesByInsertionOrder(properties: Property[]): Property[] {
+    return [...properties].sort((a, b) => a.id - b.id);
   }
   
   // Property methods
@@ -656,7 +656,7 @@ export class MemStorage implements IStorage {
     
     // Deep clone to break any reference issues
     const clonedProperties = JSON.parse(JSON.stringify(properties));
-    return this.sortPropertiesByNewest(clonedProperties);
+    return this.sortPropertiesByInsertionOrder(clonedProperties);
   }
   
   async getProperty(id: number): Promise<Property | undefined> {
@@ -683,7 +683,7 @@ export class MemStorage implements IStorage {
     // Deep clone to break any reference issues
     const clonedProperties = JSON.parse(JSON.stringify(propertiesArray));
     
-    const allFeatured = this.sortPropertiesByNewest(
+    const allFeatured = this.sortPropertiesByInsertionOrder(
       clonedProperties.filter((property: Property) => property.isFeatured)
     );
     
