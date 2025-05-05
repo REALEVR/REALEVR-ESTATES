@@ -288,6 +288,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Toggle property availability (admin/property manager only)
+  app.post("/api/properties/:id/toggle-availability", adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid property ID" });
+      }
+      
+      const updatedProperty = await storage.togglePropertyAvailability(id);
+      if (!updatedProperty) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      res.json(updatedProperty);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
   // Delete a property (admin only)
   app.delete("/api/properties/:id", adminMiddleware, async (req, res) => {
     try {

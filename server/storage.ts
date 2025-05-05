@@ -724,9 +724,31 @@ export class MemStorage implements IStorage {
   
   async createProperty(insertProperty: InsertProperty): Promise<Property> {
     const id = this.propertyCurrentId++;
-    const property: Property = { ...insertProperty, id };
+    
+    // Ensure default values
+    const property: Property = { 
+      ...insertProperty, 
+      id,
+      isAvailable: insertProperty.isAvailable === undefined ? true : insertProperty.isAvailable
+    };
+    
     this.properties.set(id, property);
     return property;
+  }
+  
+  async togglePropertyAvailability(id: number): Promise<Property | undefined> {
+    const property = await this.getProperty(id);
+    if (!property) {
+      return undefined;
+    }
+    
+    const updatedProperty = { 
+      ...property, 
+      isAvailable: !property.isAvailable 
+    };
+    
+    this.properties.set(id, updatedProperty);
+    return updatedProperty;
   }
   
   // Amenity methods

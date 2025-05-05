@@ -92,6 +92,14 @@ const handlePaymentConfirm = async (response: any) => {
               <i className={`${isFavorite ? 'fas text-[#FF5A5F]' : 'far'} fa-heart`}></i>
             </button>
           </div>
+          {property.isAvailable !== undefined && (
+            <div className="absolute top-3 left-3 z-10">
+              <span className={`flex items-center text-xs font-medium rounded-full px-2 py-1 ${property.isAvailable ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                <span className={`w-2 h-2 rounded-full mr-1 ${property.isAvailable ? 'bg-white' : 'bg-white'}`}></span>
+                {property.isAvailable ? 'Available' : 'Unavailable'}
+              </span>
+            </div>
+          )}
           {property.hasTour && (
             <span className="absolute bottom-3 left-3 bg-black/50 text-white px-2 py-1 rounded-md text-sm font-medium z-10">
               360° Tour Available

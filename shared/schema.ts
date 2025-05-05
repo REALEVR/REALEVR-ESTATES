@@ -22,6 +22,8 @@ export const properties = pgTable("properties", {
   tourUrl: text("tour_url"),
   amenities: text("amenities").array(),
   monthlyPrice: integer("monthly_price"), // Now optional for rental properties
+  isAvailable: boolean("is_available").default(true), // Property availability status
+  ownerContactInfo: text("owner_contact_info"), // Owner contact information
   // Auction specific fields
   bankName: text("bank_name"),
   auctionDate: text("auction_date"),
