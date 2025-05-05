@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Property } from '@shared/schema';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useRecentProperties } from '@/hooks/usePropertyData';
 import PropertyCard from './PropertyCard';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Button } from '@/components/ui/button';
@@ -17,10 +17,7 @@ export default function RecentProperties() {
     data: recentProperties, 
     isLoading: isLoadingRecent,
     isError: isErrorRecent,
-  } = useQuery<Property[]>({
-    queryKey: ['/api/properties/recent'],
-    refetchOnWindowFocus: false,
-  });
+  } = useRecentProperties();
   
   if (isLoadingRecent) {
     return (

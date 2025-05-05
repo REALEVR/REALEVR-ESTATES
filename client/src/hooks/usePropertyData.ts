@@ -170,6 +170,25 @@ export function usePopularProperties(limit?: number) {
   return result;
 }
 
+export function useRecentProperties(limit?: number) {
+  const queryParams = limit ? `?limit=${limit}` : '';
+  const result = useQuery<Property[]>({
+    queryKey: ["/api/properties/recent", { limit }],
+    ...PROPERTY_QUERY_OPTIONS,
+    queryFn: () => freshFetch(`/api/properties/recent${queryParams}`)
+  });
+  
+  // Log recent properties updates for debugging
+  console.log("Recent properties query state:", { 
+    isLoading: result.isLoading,
+    isError: result.isError,
+    dataCount: result.data?.length || 0,
+    dataUpdatedAt: new Date(result.dataUpdatedAt).toLocaleTimeString()
+  });
+  
+  return result;
+}
+
 export async function trackPropertyView(propertyId: number) {
   try {
     console.log(`Tracking view for property ${propertyId}`);
@@ -204,5 +223,6 @@ export default {
   usePropertiesByCategory,
   usePropertySearch,
   usePopularProperties,
+  useRecentProperties,
   trackPropertyView,
 };
