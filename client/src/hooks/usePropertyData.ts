@@ -4,91 +4,151 @@ import type { Property } from "@shared/schema";
 // Helper to ensure we never get cached data from the browser
 function addTimestampToUrl(url: string): string {
   const timestamp = new Date().getTime();
+  const randomVal = Math.random().toString(36).substring(2, 15);
   const separator = url.includes('?') ? '&' : '?';
-  return `${url}${separator}_t=${timestamp}`;
+  return `${url}${separator}_t=${timestamp}&_r=${randomVal}`;
 }
 
-// Custom query function that adds a timestamp to prevent any caching
+// Custom query function that adds a timestamp and random value to prevent any caching
 const freshFetch = async (url: string) => {
-  const response = await fetch(addTimestampToUrl(url), {
-    headers: {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
-    },
-    credentials: "include"
-  });
+  // Log the fetch for debugging
+  console.log(`Fetching fresh data from: ${url}`);
   
-  if (!response.ok) {
-    throw new Error('Network response was not ok');
+  try {
+    const response = await fetch(addTimestampToUrl(url), {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      credentials: "include"
+    });
+    
+    if (!response.ok) {
+      console.error(`Fetch error for ${url}: ${response.status} ${response.statusText}`);
+      throw new Error(`Network response was not ok: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log(`Successfully fetched data from ${url}`, { count: Array.isArray(data) ? data.length : 'single item' });
+    return data;
+  } catch (error) {
+    console.error(`Error fetching ${url}:`, error);
+    throw error;
   }
-  
-  return response.json();
+};
+
+// Common refetch options for property queries to ensure data consistency
+const PROPERTY_QUERY_OPTIONS = {
+  staleTime: 0, // Data is always considered stale
+  refetchOnMount: "always" as const,
+  refetchOnWindowFocus: "always" as const,
+  refetchInterval: 3000, // Poll every 3 seconds for more immediate updates
+  refetchOnReconnect: true,
+  gcTime: 0, // Don't keep old data in memory
+  retry: 3, // Retry failed requests 3 times
+  retryDelay: (attempt: number) => Math.min(1000 * 2 ** attempt, 10000), // Exponential backoff
 };
 
 export function useProperties() {
-  return useQuery<Property[]>({
+  const result = useQuery<Property[]>({
     queryKey: ["/api/properties"],
-    staleTime: 0,
-    refetchOnMount: "always", // Always refetch on mount
-    refetchOnWindowFocus: "always", // Always refetch when window gets focus
-    refetchInterval: 5000, // Poll every 5 seconds to ensure real-time updates
-    gcTime: 0, // In React Query v5, cacheTime was renamed to gcTime
+    ...PROPERTY_QUERY_OPTIONS,
     queryFn: () => freshFetch("/api/properties")
   });
+  
+  // Log data updates for debugging
+  console.log("Properties query state:", { 
+    isLoading: result.isLoading,
+    isError: result.isError,
+    dataCount: result.data?.length || 0,
+    dataUpdatedAt: new Date(result.dataUpdatedAt).toLocaleTimeString()
+  });
+  
+  return result;
 }
 
 export function useProperty(id: number) {
-  return useQuery<Property>({
+  const result = useQuery<Property>({
     queryKey: [`/api/properties/${id}`],
-    staleTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: "always",
-    refetchInterval: 5000,
-    gcTime: 0,
+    ...PROPERTY_QUERY_OPTIONS,
     queryFn: () => freshFetch(`/api/properties/${id}`)
   });
+  
+  // Log property data updates for debugging
+  console.log(`Property ${id} query state:`, { 
+    isLoading: result.isLoading,
+    isError: result.isError,
+    propertyTitle: result.data?.title || 'N/A',
+    dataUpdatedAt: new Date(result.dataUpdatedAt).toLocaleTimeString()
+  });
+  
+  return result;
 }
 
 export function useFeaturedProperties() {
-  return useQuery<Property[]>({
+  const result = useQuery<Property[]>({
     queryKey: ["/api/properties/featured"],
-    staleTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: "always",
-    refetchInterval: 5000,
-    gcTime: 0,
+    ...PROPERTY_QUERY_OPTIONS,
+    refetchInterval: 2000, // Poll even more frequently for featured properties
     queryFn: () => freshFetch("/api/properties/featured")
   });
+  
+  // Log featured properties updates for debugging
+  console.log("Featured properties query state:", { 
+    isLoading: result.isLoading,
+    isError: result.isError,
+    dataCount: result.data?.length || 0,
+    dataUpdatedAt: new Date(result.dataUpdatedAt).toLocaleTimeString()
+  });
+  
+  return result;
 }
 
 export function usePropertiesByCategory(category: string) {
-  return useQuery<Property[]>({
+  const result = useQuery<Property[]>({
     queryKey: ["/api/properties/category", category],
     enabled: !!category,
-    staleTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: "always",
-    refetchInterval: 5000,
-    gcTime: 0,
+    ...PROPERTY_QUERY_OPTIONS,
     queryFn: () => freshFetch(`/api/properties/category/${category}`)
   });
+  
+  // Log category properties updates for debugging
+  if (category) {
+    console.log(`${category} properties query state:`, { 
+      isLoading: result.isLoading,
+      isError: result.isError,
+      dataCount: result.data?.length || 0,
+      dataUpdatedAt: new Date(result.dataUpdatedAt).toLocaleTimeString()
+    });
+  }
+  
+  return result;
 }
 
 export function usePropertySearch(query: string) {
-  return useQuery<Property[]>({
+  const result = useQuery<Property[]>({
     queryKey: ["/api/properties/search", { q: query }],
     enabled: !!query,
-    staleTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: "always",
-    refetchInterval: 5000,
-    gcTime: 0,
+    ...PROPERTY_QUERY_OPTIONS,
     queryFn: () => {
       const params = new URLSearchParams({ q: query }).toString();
       return freshFetch(`/api/properties/search?${params}`);
     }
   });
+  
+  // Log search results updates for debugging
+  if (query) {
+    console.log(`Search query "${query}" state:`, { 
+      isLoading: result.isLoading,
+      isError: result.isError,
+      dataCount: result.data?.length || 0,
+      dataUpdatedAt: new Date(result.dataUpdatedAt).toLocaleTimeString()
+    });
+  }
+  
+  return result;
 }
 
 export default {
