@@ -151,15 +151,26 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
         // Ultra aggressive cache invalidation strategy
         console.log("Performing ultra-aggressive cache invalidation...");
         
-        // First invalidate all queries
+        // First invalidate all related queries with a more aggressive approach
+        queryClient.invalidateQueries(); // Invalidate everything to be completely safe
+        
+        // Then explicitly invalidate each specific endpoint
         queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
         queryClient.invalidateQueries({ queryKey: ['/api/properties/featured'] });
         queryClient.invalidateQueries({ queryKey: ['/api/properties/category'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/properties/popular'] });
         
-        // Then remove them from cache completely
+        // Also invalidate all category-specific endpoints
+        queryClient.invalidateQueries({ queryKey: ['/api/properties/category/for_sale'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/properties/category/rental_units'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/properties/category/furnished_houses'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/properties/category/bank_sales'] });
+        
+        // Then remove all property queries from cache completely
         queryClient.removeQueries({ queryKey: ['/api/properties'] });
         queryClient.removeQueries({ queryKey: ['/api/properties/featured'] });
         queryClient.removeQueries({ queryKey: ['/api/properties/category'] });
+        queryClient.removeQueries({ queryKey: ['/api/properties/popular'] });
         
         if (property) {
           queryClient.invalidateQueries({ queryKey: [`/api/properties/${property.id}`] });
@@ -396,16 +407,27 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
         // Ultra aggressive cache invalidation for tour upload
         console.log("Performing ultra-aggressive cache invalidation after tour upload...");
         
-        // First invalidate all queries
+        // First invalidate all related queries with a more aggressive approach
+        queryClient.invalidateQueries(); // Invalidate everything to be completely safe
+        
+        // Then explicitly invalidate each specific endpoint
         queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
         queryClient.invalidateQueries({ queryKey: ['/api/properties/featured'] });
         queryClient.invalidateQueries({ queryKey: ['/api/properties/category'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/properties/popular'] });
         queryClient.invalidateQueries({ queryKey: [`/api/properties/${property.id}`] });
         
-        // Then remove them from cache completely
+        // Also invalidate all category-specific endpoints
+        queryClient.invalidateQueries({ queryKey: ['/api/properties/category/for_sale'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/properties/category/rental_units'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/properties/category/furnished_houses'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/properties/category/bank_sales'] });
+        
+        // Then remove all property queries from cache completely
         queryClient.removeQueries({ queryKey: ['/api/properties'] });
         queryClient.removeQueries({ queryKey: ['/api/properties/featured'] });
         queryClient.removeQueries({ queryKey: ['/api/properties/category'] });
+        queryClient.removeQueries({ queryKey: ['/api/properties/popular'] });
         queryClient.removeQueries({ queryKey: [`/api/properties/${property.id}`] });
         
         // Immediate and delayed refetches
@@ -573,8 +595,8 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                           <Select 
                             onValueChange={(value) => {
                               field.onChange(value);
-                              // If changing to "sale", clear the monthly price field
-                              if (value === "sale" || value === "bank-sale") {
+                              // If changing to "for_sale" or "bank_sales", clear the monthly price field
+                              if (value === "for_sale" || value === "bank_sales") {
                                 form.setValue('monthlyPrice', undefined);
                               }
                             }}
@@ -586,10 +608,10 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="rental">Rental Unit</SelectItem>
-                              <SelectItem value="bnb">BnB</SelectItem>
-                              <SelectItem value="sale">For Sale</SelectItem>
-                              <SelectItem value="bank-sale">Bank Sale</SelectItem>
+                              <SelectItem value="rental_units">Rental Unit</SelectItem>
+                              <SelectItem value="furnished_houses">BnB</SelectItem>
+                              <SelectItem value="for_sale">For Sale</SelectItem>
+                              <SelectItem value="bank_sales">Bank Sale</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -647,7 +669,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                       </div>
                       
                       {/* Monthly price field - only for rental categories */}
-                      {form.watch('category') === 'rental' && (
+                      {form.watch('category') === 'rental_units' && (
                         <FormField
                           control={form.control}
                           name="monthlyPrice"
