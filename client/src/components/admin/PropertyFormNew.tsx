@@ -379,6 +379,19 @@ export default function PropertyFormNew({ property, onSuccess }: PropertyFormPro
     if (!property?.id) {
       setLocalStorageItem('propertyFormTab', 'details');
     }
+    
+    // Add event listener for custom tab change event
+    const handleTabChange = (e: any) => {
+      if (e.detail === 'details' || e.detail === 'tour') {
+        setLocalStorageItem('propertyFormTab', e.detail);
+      }
+    };
+    
+    window.addEventListener('tab-change', handleTabChange);
+    
+    return () => {
+      window.removeEventListener('tab-change', handleTabChange);
+    };
   }, [property]);
 
   return (
@@ -388,7 +401,8 @@ export default function PropertyFormNew({ property, onSuccess }: PropertyFormPro
       </h1>
       
       <Tabs 
-        defaultValue={getLocalStorageItem('propertyFormTab', 'details')} 
+        value={getLocalStorageItem('propertyFormTab', 'details')}
+        defaultValue="details"
         className="w-full" 
         onValueChange={(value) => {
           setLocalStorageItem('propertyFormTab', value);
@@ -785,6 +799,19 @@ export default function PropertyFormNew({ property, onSuccess }: PropertyFormPro
                     Please save the property details first before uploading a virtual tour.
                     Switch to the "Property Details" tab, fill in the required fields, and click "Save Property".
                   </AlertDescription>
+                  <div className="mt-4">
+                    <Button 
+                      variant="secondary" 
+                      onClick={() => {
+                        setLocalStorageItem('propertyFormTab', 'details');
+                        // Force tab change
+                        const event = new CustomEvent('tab-change', { detail: 'details' });
+                        window.dispatchEvent(event);
+                      }}
+                    >
+                      Switch to Property Details
+                    </Button>
+                  </div>
                 </Alert>
               ) : (
                 <>

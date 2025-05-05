@@ -85,6 +85,7 @@ const mkdirAsync = promisify(fs.mkdir);
 // Function to extract a zip file
 export async function extractTourZip(zipPath: string, propertyId: number): Promise<string> {
   try {
+    console.log(`Extracting tour zip from ${zipPath} for property ${propertyId}`);
     const zip = new AdmZip(zipPath);
     
     // Create a directory for the extracted tour
@@ -92,24 +93,42 @@ export async function extractTourZip(zipPath: string, propertyId: number): Promi
     
     // If the directory already exists, remove it
     if (fs.existsSync(extractDir)) {
+      console.log(`Removing existing tour directory: ${extractDir}`);
       fs.rmSync(extractDir, { recursive: true, force: true });
     }
     
     // Create the directory
+    console.log(`Creating tour directory: ${extractDir}`);
     await mkdirAsync(extractDir, { recursive: true });
     
     // Extract the zip file
+    console.log('Extracting zip file...');
     zip.extractAllTo(extractDir, true);
     
+    // List extracted files (for debugging)
+    const files = fs.readdirSync(extractDir);
+    console.log(`Extracted ${files.length} files/directories: `, files);
+    
+    // Check if index.htm file exists
+    const indexFile = files.find(file => file.toLowerCase() === 'index.htm');
+    if (!indexFile) {
+      console.warn('Warning: No index.htm file found in the extracted tour');
+    } else {
+      console.log(`Found index file: ${indexFile}`);
+    }
+    
     // Delete the zip file to save space
+    console.log(`Deleting zip file: ${zipPath}`);
     await unlinkAsync(zipPath);
     
     // Return the path to the extracted tour directory
-    return path.relative(process.cwd(), extractDir);
+    const relativePath = path.relative(process.cwd(), extractDir);
+    console.log(`Tour extraction complete. Relative path: ${relativePath}`);
+    return relativePath;
     
   } catch (error) {
     console.error('Error extracting tour zip:', error);
-    throw new Error('Failed to extract virtual tour files.');
+    throw new Error('Failed to extract virtual tour files: ' + (error as Error).message);
   }
 }
 
