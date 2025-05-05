@@ -49,6 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Logged in successfully",
         description: `Welcome back, ${user.username}!`,
       });
+      // Redirect to profile page after successful login
+      window.location.href = "/profile";
     },
     onError: (error: Error) => {
       toast({
@@ -70,6 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Registration successful",
         description: `Welcome to RealEVR Estates, ${user.username}!`,
       });
+      // Redirect to profile page after successful registration
+      window.location.href = "/profile";
     },
     onError: (error: Error) => {
       toast({
