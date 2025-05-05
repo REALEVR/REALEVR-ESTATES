@@ -4,6 +4,14 @@ import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { z } from "zod";
 import fetch from "node-fetch";
+import path from "path";
+import { 
+  uploadPropertyImage, 
+  uploadVirtualTour, 
+  handleUploadErrors,
+  extractTourZip,
+  setupStaticFileRoutes
+} from "./upload";
 
 // Middleware to check if user is an admin or property manager
 const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -415,6 +423,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: error.message
       });
     }
+  });
+
+  // Setup routes to serve static files
+  setupStaticFileRoutes(app);
+  
+  // Upload property image (admin only)
+  app.post("/api/upload/property-image", adminMiddleware, (req, res) => {
+    uploadPropertyImage(req, res, (err: any) => {
+      if (err) {
+        return res.status(400).json({ 
+          status: "error", 
+          message: err.message 
+        });
+      }
+      
+      if (!req.file) {
+        return res.status(400).json({ 
+          status: "error", 
+          message: "No file uploaded" 
+        });
+      }
+      
+      // Return the path to the uploaded image
+      const imagePath = `/uploads/images/${req.file.filename}`;
+      
+      res.json({ 
+        status: "success", 
+        message: "Image uploaded successfully",
+        imagePath 
+      });
+    });
+  });
+  
+  // Upload virtual tour zip (admin only)
+  app.post("/api/upload/virtual-tour/:propertyId", adminMiddleware, (req, res) => {
+    const propertyId = parseInt(req.params.propertyId);
+    
+    if (isNaN(propertyId)) {
+      return res.status(400).json({ 
+        status: "error", 
+        message: "Invalid property ID" 
+      });
+    }
+    
+    uploadVirtualTour(req, res, async (err: any) => {
+      if (err) {
+        return res.status(400).json({ 
+          status: "error", 
+          message: err.message 
+        });
+      }
+      
+      if (!req.file) {
+        return res.status(400).json({ 
+          status: "error", 
+          message: "No file uploaded" 
+        });
+      }
+      
+      try {
+        // Extract the tour files
+        const extractedPath = await extractTourZip(req.file.path, propertyId);
+        
+        // Find the index.html file
+        const indexPath = path.join(extractedPath, 'index.htm');
+        // Convert to URL friendly path
+        const tourUrl = `/uploads/tours/property_${propertyId}_tour/index.htm`;
+        
+        // Update the property with the tour URL
+        const updatedProperty = await storage.updateProperty(propertyId, { 
+          hasTour: true,
+          tourUrl: tourUrl
+        });
+        
+        res.json({
+          status: "success",
+          message: "Virtual tour uploaded and extracted successfully",
+          tourUrl,
+          property: updatedProperty
+        });
+      } catch (error: any) {
+        res.status(500).json({
+          status: "error",
+          message: "Error processing virtual tour: " + error.message
+        });
+      }
+    });
   });
 
   const httpServer = createServer(app);
