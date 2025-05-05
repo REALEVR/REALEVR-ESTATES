@@ -161,7 +161,9 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
         <div className="mb-4 md:mb-0">
           <span className="text-2xl font-bold">{property.price.toLocaleString()} UGX</span>
-          <span className="text-gray-500">{isBnB ? " / night" : " / month"}</span>
+          {property.category !== 'for_sale' && (
+            <span className="text-gray-500">{isBnB ? " / night" : " / month"}</span>
+          )}
         </div>
         <div className="flex space-x-3">
           <Button 

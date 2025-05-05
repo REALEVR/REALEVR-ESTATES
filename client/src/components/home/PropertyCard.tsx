@@ -121,7 +121,9 @@ const handlePaymentConfirm = async (response: any) => {
           <div className="flex justify-between items-center mb-3">
             <div>
               <span className="font-bold">${property.price}</span>
-              <span className="text-gray-500 text-sm"> / month</span>
+              {property.category !== 'for_sale' && (
+                <span className="text-gray-500 text-sm"> / month</span>
+              )}
             </div>
             <Link 
               href={`/property/${property.id}`} 
