@@ -92,6 +92,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get recently added properties
+  app.get("/api/properties/recent", async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 4;
+      const recentProperties = await storage.getRecentlyAddedProperties(limit);
+      
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }).json(recentProperties);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch recently added properties" });
+    }
+  });
+  
   // Test route to add a new property (for testing newest property logic)
   app.get("/api/test/add-new-property", async (req, res) => {
     try {

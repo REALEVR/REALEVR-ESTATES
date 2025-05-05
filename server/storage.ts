@@ -25,6 +25,7 @@ export interface IStorage {
   deleteProperty(id: number): Promise<boolean>;
   incrementPropertyViewCount(id: number): Promise<Property | undefined>;
   getPopularProperties(limit?: number): Promise<Property[]>;
+  getRecentlyAddedProperties(limit?: number): Promise<Property[]>;
   
   // Amenity methods
   getAllAmenities(): Promise<Amenity[]>;
@@ -913,6 +914,29 @@ export class MemStorage implements IStorage {
     console.log(`[DEBUG] Returning ${popularProperties.length} popular properties`);
     
     return popularProperties;
+  }
+  
+  async getRecentlyAddedProperties(limit: number = 4): Promise<Property[]> {
+    console.log(`[DEBUG] Getting recently added properties, limit: ${limit}`);
+    
+    // Get all properties
+    const propertiesArray = Array.from(this.properties.values());
+    
+    // Deep clone to break any reference issues
+    const clonedProperties = JSON.parse(JSON.stringify(propertiesArray));
+    
+    // Sort by ID (highest/newest first)
+    const sortedByNewest = clonedProperties.sort((a: Property, b: Property) => {
+      return b.id - a.id; // Descending order (newest first)
+    });
+    
+    // Take only the specified number of properties
+    const recentProperties = sortedByNewest.slice(0, limit);
+    
+    console.log(`[DEBUG] Recently added properties: ${recentProperties.map((p: Property) => `"${p.title}" (ID: ${p.id})`).join(', ')}`);
+    console.log(`[DEBUG] Returning ${recentProperties.length} recently added properties`);
+    
+    return recentProperties;
   }
   
   // Amenity methods
