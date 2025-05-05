@@ -118,13 +118,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid property ID" });
       }
       
+      console.log(`[DEBUG] Getting property with ID ${id}`);
       const property = await storage.getProperty(id);
       if (!property) {
+        console.log(`[DEBUG] Property with ID ${id} not found`);
         return res.status(404).json({ message: "Property not found" });
       }
       
-      res.json(property);
+      console.log(`[DEBUG] Found property ${id}: ${property.title}`);
+      
+      // Set cache control headers to prevent caching
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }).json(property);
     } catch (error) {
+      console.error(`[ERROR] Failed to fetch property:`, error);
       res.status(500).json({ message: "Failed to fetch property" });
     }
   });
@@ -204,7 +214,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      res.json(properties);
+      // Set cache control headers to prevent caching
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }).json(properties);
     } catch (error) {
       res.status(500).json({ message: "Failed to filter properties" });
     }
@@ -344,13 +359,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid property ID" });
       }
       
+      console.log(`[DEBUG] Toggling availability for property ${id}`);
+      
       const updatedProperty = await storage.togglePropertyAvailability(id);
       if (!updatedProperty) {
+        console.log(`[DEBUG] Property with ID ${id} not found for availability toggle`);
         return res.status(404).json({ message: "Property not found" });
       }
       
-      res.json(updatedProperty);
+      console.log(`[DEBUG] Property ${id} availability toggled to: ${updatedProperty.available}`);
+      
+      // Set cache control headers to prevent caching
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }).json(updatedProperty);
     } catch (error: any) {
+      console.error(`[ERROR] Failed to toggle property availability:`, error);
       res.status(500).json({ message: error.message });
     }
   });

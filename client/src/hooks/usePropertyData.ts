@@ -30,7 +30,9 @@ export function useProperties() {
   return useQuery<Property[]>({
     queryKey: ["/api/properties"],
     staleTime: 0,
-    refetchOnMount: true,
+    refetchOnMount: "always", // Always refetch on mount
+    refetchOnWindowFocus: "always", // Always refetch when window gets focus
+    refetchInterval: 5000, // Poll every 5 seconds to ensure real-time updates
     gcTime: 0, // In React Query v5, cacheTime was renamed to gcTime
     queryFn: () => freshFetch("/api/properties")
   });
@@ -40,7 +42,9 @@ export function useProperty(id: number) {
   return useQuery<Property>({
     queryKey: [`/api/properties/${id}`],
     staleTime: 0,
-    refetchOnMount: true,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+    refetchInterval: 5000,
     gcTime: 0,
     queryFn: () => freshFetch(`/api/properties/${id}`)
   });
@@ -50,7 +54,9 @@ export function useFeaturedProperties() {
   return useQuery<Property[]>({
     queryKey: ["/api/properties/featured"],
     staleTime: 0,
-    refetchOnMount: true,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+    refetchInterval: 5000,
     gcTime: 0,
     queryFn: () => freshFetch("/api/properties/featured")
   });
@@ -61,7 +67,9 @@ export function usePropertiesByCategory(category: string) {
     queryKey: ["/api/properties/category", category],
     enabled: !!category,
     staleTime: 0,
-    refetchOnMount: true,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+    refetchInterval: 5000,
     gcTime: 0,
     queryFn: () => freshFetch(`/api/properties/category/${category}`)
   });
@@ -72,7 +80,9 @@ export function usePropertySearch(query: string) {
     queryKey: ["/api/properties/search", { q: query }],
     enabled: !!query,
     staleTime: 0,
-    refetchOnMount: true,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+    refetchInterval: 5000,
     gcTime: 0,
     queryFn: () => {
       const params = new URLSearchParams({ q: query }).toString();
