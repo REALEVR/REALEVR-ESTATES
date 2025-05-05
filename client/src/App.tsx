@@ -49,6 +49,7 @@ function Router() {
       {/* Authentication and User Pages */}
       <Route path="/auth" component={AuthPage} />
       <Route path="/profile" component={ProfilePage} />
+      <Route path="/test-page" component={TestPage} />
       
       {/* Admin routes - protected by role */}
       <ProtectedAdminRoute 
