@@ -75,7 +75,7 @@ interface PropertyFormProps {
   onSuccess?: () => void;
 }
 
-export default function PropertyFormNew({ property, onSuccess }: PropertyFormProps) {
+export default function PropertyForm({ property, onSuccess }: PropertyFormProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [uploadError, setUploadError] = useState("");
