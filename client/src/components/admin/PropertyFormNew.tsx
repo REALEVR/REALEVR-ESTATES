@@ -148,8 +148,17 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
           description: property ? "Property has been updated successfully" : "New property has been created",
         });
         
-        // Invalidate queries to refresh data
+        // Invalidate all property-related queries to ensure UI updates
         queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/properties/featured'] });
+        
+        if (property) {
+          // Also invalidate the specific property query
+          queryClient.invalidateQueries({ queryKey: [`/api/properties/${property.id}`] });
+        }
+        
+        // Force a fetch instead of just invalidating
+        queryClient.refetchQueries({ queryKey: ['/api/properties'] });
         
         // Call onSuccess callback if provided
         if (onSuccess) {

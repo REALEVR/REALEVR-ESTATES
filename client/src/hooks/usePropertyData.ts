@@ -11,12 +11,14 @@ export function useProperties() {
 export function useProperty(id: number) {
   return useQuery<Property>({
     queryKey: [`/api/properties/${id}`],
+    staleTime: 0, // Always refetch to ensure fresh data
   });
 }
 
 export function useFeaturedProperties() {
   return useQuery<Property[]>({
     queryKey: ["/api/properties/featured"],
+    staleTime: 0, // Always refetch to ensure fresh data
   });
 }
 
@@ -24,6 +26,7 @@ export function usePropertiesByCategory(category: string) {
   return useQuery<Property[]>({
     queryKey: ["/api/properties/category", category],
     enabled: !!category,
+    staleTime: 0, // Always refetch to ensure fresh data
   });
 }
 
@@ -31,6 +34,7 @@ export function usePropertySearch(query: string) {
   return useQuery<Property[]>({
     queryKey: ["/api/properties/search", { q: query }],
     enabled: !!query,
+    staleTime: 0, // Always refetch to ensure fresh data
     queryFn: ({ queryKey }) => {
       // We need a custom query function to handle the query parameter
       const [url, params] = queryKey;
