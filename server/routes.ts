@@ -92,6 +92,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Test route to add a new property (for testing newest property logic)
+  app.get("/api/test/add-new-property", async (req, res) => {
+    try {
+      const testProperty = {
+        title: "Brand New Test Property",
+        description: "This is a test property added to verify it appears at the top of popular properties.",
+        location: "Kampala, Uganda",
+        price: 450000,
+        currency: "UGX",
+        bedrooms: 3,
+        bathrooms: 2,
+        size: 1800,
+        sizeUnit: "sqft",
+        category: "for_sale",
+        propertyType: "Apartment",
+        isAvailable: true,
+        isFeatured: false,
+        amenities: ["Pool Access", "24/7 Security", "Parking"],
+        images: ["/uploads/images/default-property.jpg"],
+        mapLocation: {
+          latitude: 0.347596,
+          longitude: 32.582520
+        },
+        viewCount: 0,
+        hasVirtualTour: false,
+        virtualTourUrl: "",
+      };
+      
+      const newProperty = await storage.createProperty(testProperty);
+      console.log(`[DEBUG] Created test property: "${newProperty.title}" with ID ${newProperty.id}`);
+      
+      // Return the newly created property
+      res.json(newProperty);
+    } catch (error) {
+      console.error("[ERROR] Failed to create test property:", error);
+      res.status(500).json({ message: "Failed to create test property" });
+    }
+  });
+
   // Get properties by category
   app.get("/api/properties/category/:category", async (req, res) => {
     try {

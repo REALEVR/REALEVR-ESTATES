@@ -876,6 +876,9 @@ export class MemStorage implements IStorage {
     // Deep clone to break any reference issues
     const clonedProperties = JSON.parse(JSON.stringify(propertiesArray));
     
+    // Log all property IDs to debug
+    console.log(`[DEBUG] All property IDs: ${clonedProperties.map((p: Property) => p.id).join(', ')}`);
+    
     // Find the newest property (highest ID)
     const newestProperty = clonedProperties.reduce((newest: Property | null, current: Property) => {
       if (!newest || current.id > newest.id) {
@@ -886,29 +889,27 @@ export class MemStorage implements IStorage {
     
     if (newestProperty) {
       console.log(`[DEBUG] Newest property found: "${newestProperty.title}" (ID: ${newestProperty.id})`);
+    } else {
+      console.log(`[DEBUG] No newest property found!`);
     }
     
-    // Filter out the newest property from the array
-    const withoutNewest = newestProperty 
-      ? clonedProperties.filter((p: Property) => p.id !== newestProperty.id)
-      : clonedProperties;
-    
-    // Sort remaining properties by view count (highest first)
-    const sortedByViews = withoutNewest.sort((a: Property, b: Property) => {
+    // Place newest property first and sort the rest by views
+    const sortedProperties = clonedProperties.sort((a: Property, b: Property) => {
+      // If a is the newest property, it comes first
+      if (newestProperty && a.id === newestProperty.id) return -1;
+      // If b is the newest property, it comes first
+      if (newestProperty && b.id === newestProperty.id) return 1;
+      
+      // Otherwise, sort by view count
       const aViews = a.viewCount || 0;
       const bViews = b.viewCount || 0;
       return bViews - aViews;
     });
     
-    // Combine with newest property at the start
-    const combined = newestProperty
-      ? [newestProperty, ...sortedByViews]
-      : sortedByViews;
-    
     // Take only the specified number of properties
-    const popularProperties = combined.slice(0, limit);
+    const popularProperties = sortedProperties.slice(0, limit);
     
-    console.log(`[DEBUG] Popular properties order: ${popularProperties.map(p => `"${p.title}"`).join(', ')}`);
+    console.log(`[DEBUG] Popular properties order: ${popularProperties.map((p: Property) => `"${p.title}" (ID: ${p.id})`).join(', ')}`);
     console.log(`[DEBUG] Returning ${popularProperties.length} popular properties`);
     
     return popularProperties;
