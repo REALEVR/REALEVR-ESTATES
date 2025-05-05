@@ -511,9 +511,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Invalid property ID" 
       });
     }
+
+    console.log(`Received virtual tour upload request for property ${propertyId}`);
     
     uploadVirtualTour(req, res, async (err: any) => {
       if (err) {
+        console.error(`Upload error: ${err.message}`);
         return res.status(400).json({ 
           status: "error", 
           message: err.message 
@@ -521,20 +524,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (!req.file) {
+        console.error('No file was uploaded');
         return res.status(400).json({ 
           status: "error", 
           message: "No file uploaded" 
         });
       }
       
+      console.log(`File received: ${req.file.originalname}, mimetype: ${req.file.mimetype}, size: ${req.file.size} bytes`);
+      
       try {
-        // Extract the tour files
-        const extractedPath = await extractTourZip(req.file.path, propertyId);
+        // Verify that the property exists
+        const property = await storage.getProperty(propertyId);
+        if (!property) {
+          fs.unlinkSync(req.file.path); // Delete the uploaded file
+          return res.status(404).json({
+            status: "error",
+            message: "Property not found"
+          });
+        }
         
-        // Find the index.html file
-        const indexPath = path.join(extractedPath, 'index.htm');
-        // Convert to URL friendly path
-        const tourUrl = `/uploads/tours/property_${propertyId}_tour/index.htm`;
+        // Extract the tour files
+        console.log(`Starting extraction of tour file from ${req.file.path}`);
+        const extractedPath = await extractTourZip(req.file.path, propertyId);
+        console.log(`Tour extracted to ${extractedPath}`);
+        
+        // Check for index.htm file directly
+        const directory = path.join(process.cwd(), extractedPath);
+        const directoryContents = fs.readdirSync(directory);
+        console.log(`Directory contents:`, directoryContents);
+        
+        let indexFile = directoryContents.find(f => f.toLowerCase() === 'index.htm');
+        
+        // If not found at root level, try to find it in subdirectories
+        if (!indexFile) {
+          console.log('No index.htm found at root level, checking subdirectories...');
+          
+          for (const item of directoryContents) {
+            const itemPath = path.join(directory, item);
+            if (fs.statSync(itemPath).isDirectory()) {
+              const subDirContents = fs.readdirSync(itemPath);
+              console.log(`Contents of ${item}:`, subDirContents);
+              
+              if (subDirContents.includes('index.htm')) {
+                indexFile = `${item}/index.htm`;
+                console.log(`Found index.htm in subdirectory: ${indexFile}`);
+                break;
+              }
+            }
+          }
+        }
+        
+        // Determine the correct tour URL
+        let tourUrl = `/uploads/tours/property_${propertyId}_tour/index.htm`;
+        if (indexFile && indexFile.includes('/')) {
+          tourUrl = `/uploads/tours/property_${propertyId}_tour/${indexFile}`;
+        }
+        
+        console.log(`Setting tour URL to: ${tourUrl}`);
         
         // Update the property with the tour URL
         const updatedProperty = await storage.updateProperty(propertyId, { 
@@ -546,9 +593,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "success",
           message: "Virtual tour uploaded and extracted successfully",
           tourUrl,
-          property: updatedProperty
+          property: updatedProperty,
+          fileInfo: {
+            originalName: req.file.originalname,
+            size: req.file.size,
+            mimeType: req.file.mimetype
+          },
+          directoryContents: directoryContents
         });
       } catch (error: any) {
+        console.error(`Error processing virtual tour: ${error.message}`);
+        console.error(error.stack);
         res.status(500).json({
           status: "error",
           message: "Error processing virtual tour: " + error.message

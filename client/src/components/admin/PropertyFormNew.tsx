@@ -255,6 +255,7 @@ export default function PropertyFormNew({ property, onSuccess }: PropertyFormPro
   const [tourUploadSuccess, setTourUploadSuccess] = useState(false);
   const [tourUploadError, setTourUploadError] = useState("");
   const [tourPreviewUrl, setTourPreviewUrl] = useState<string | null>(property?.tourUrl || null);
+  const [tourDebugInfo, setTourDebugInfo] = useState<any>(null);
   const tourFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleTourUpload = async () => {
@@ -318,6 +319,10 @@ export default function PropertyFormNew({ property, onSuccess }: PropertyFormPro
       
       const result = await response.json();
       
+      // Store debug info regardless of success/failure
+      setTourDebugInfo(result);
+      console.log('Tour upload response:', result);
+      
       if (response.ok && result.status === 'success') {
         setTourUploadSuccess(true);
         setTourPreviewUrl(result.tourUrl);
@@ -330,11 +335,12 @@ export default function PropertyFormNew({ property, onSuccess }: PropertyFormPro
         // Refresh the property data
         queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
       } else {
-        setTourUploadError(result.message || "Failed to upload virtual tour");
+        const errorMsg = result.message || "Failed to upload virtual tour";
+        setTourUploadError(errorMsg);
         
         toast({
           title: "Error",
-          description: result.message || "Failed to upload virtual tour",
+          description: errorMsg,
           variant: "destructive",
         });
       }
@@ -893,28 +899,118 @@ export default function PropertyFormNew({ property, onSuccess }: PropertyFormPro
                     )}
                   </div>
                   
-                  {(tourPreviewUrl || property.tourUrl) && (
+                  {/* Tour preview section */}
+                  {(tourPreviewUrl || property?.tourUrl) && (
                     <div className="border rounded-lg p-4">
                       <h3 className="text-lg font-semibold mb-2">Virtual Tour Preview</h3>
                       <div className="space-y-4">
                         <div className="aspect-video bg-gray-100 rounded-md overflow-hidden">
                           <iframe 
-                            src={tourPreviewUrl || property.tourUrl || ""} 
+                            src={tourPreviewUrl || property?.tourUrl || ""} 
                             className="w-full h-full"
-                            title={`Virtual tour of ${property.title}`}
-                            sandbox="allow-same-origin allow-scripts"
+                            title={`Virtual tour of ${property?.title}`}
+                            sandbox="allow-same-origin allow-scripts allow-forms"
                           />
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex flex-wrap gap-2">
                           <Button 
                             variant="outline" 
-                            onClick={() => window.open(tourPreviewUrl || property.tourUrl || "", '_blank')}
+                            onClick={() => window.open(tourPreviewUrl || property?.tourUrl || "", '_blank')}
                           >
                             <Eye className="mr-2 h-4 w-4" />
                             Open in New Tab
                           </Button>
+                          
+                          <div className="flex-1"></div>
+                          
+                          <Button 
+                            variant="secondary" 
+                            onClick={() => {
+                              // Check if iframe is accessible by trying to access its document
+                              const iframe = document.querySelector('iframe');
+                              try {
+                                if (iframe) {
+                                  // Just accessing this property will throw if cross-origin issues
+                                  const iframeDoc = iframe.contentDocument;
+                                  if (iframeDoc) {
+                                    toast({
+                                      title: "Tour Access Check",
+                                      description: "Tour file is accessible. If you still see issues, there may be a problem with the tour file structure.",
+                                    });
+                                  }
+                                }
+                              } catch (e) {
+                                toast({
+                                  title: "Tour Access Check",
+                                  description: "There seems to be a cross-origin issue with the tour. Please check the server logs.",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                          >
+                            <FileSearch className="mr-2 h-4 w-4" />
+                            Check Tour Access
+                          </Button>
+                        </div>
+                        
+                        <div className="text-xs text-muted-foreground">
+                          <p>Tour URL: <code className="bg-muted px-1 py-0.5 rounded">{tourPreviewUrl || property?.tourUrl}</code></p>
                         </div>
                       </div>
+                    </div>
+                  )}
+                  
+                  {/* Debug info section - Hidden by default, shown on demand or when there's an error */}
+                  {(tourDebugInfo || tourUploadError) && (
+                    <div className="border rounded-lg p-4 bg-muted/30">
+                      <Collapsible>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="outline" size="sm" className="w-full flex justify-between">
+                            <span>Tour Upload Debug Information</span>
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="p-2">
+                          {tourDebugInfo && (
+                            <div className="text-xs">
+                              <h4 className="font-semibold mb-1">Server Response:</h4>
+                              <pre className="bg-muted p-2 rounded overflow-auto max-h-[200px]">
+                                {JSON.stringify(tourDebugInfo, null, 2)}
+                              </pre>
+                              
+                              {tourDebugInfo.directoryContents && (
+                                <div className="mt-2">
+                                  <h4 className="font-semibold mb-1">Extracted Files:</h4>
+                                  <ul className="list-disc list-inside">
+                                    {tourDebugInfo.directoryContents.map((item: string, index: number) => (
+                                      <li key={index} className="truncate">{item}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          {tourUploadError && (
+                            <div className="mt-2 text-xs">
+                              <h4 className="font-semibold mb-1 text-destructive">Error:</h4>
+                              <pre className="bg-destructive/10 p-2 rounded text-destructive">
+                                {tourUploadError}
+                              </pre>
+                              
+                              <div className="mt-2 space-y-1">
+                                <h4 className="font-semibold">Common Solutions:</h4>
+                                <ul className="list-disc list-inside">
+                                  <li>Make sure your ZIP file is a proper 3D Vista export</li>
+                                  <li>Check that the ZIP file contains an index.htm file</li>
+                                  <li>The ZIP file structure should have index.htm at the root or in a single subdirectory</li>
+                                  <li>Try creating a fresh export from 3D Vista</li>
+                                </ul>
+                              </div>
+                            </div>
+                          )}
+                        </CollapsibleContent>
+                      </Collapsible>
                     </div>
                   )}
                 </>
