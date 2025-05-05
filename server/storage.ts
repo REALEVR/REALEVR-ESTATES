@@ -294,7 +294,7 @@ export class MemStorage implements IStorage {
         rating: "4.9",
         reviewCount: 72,
         propertyType: "Luxury",
-        category: "sale",
+        category: "for_sale",
         isFeatured: true,
         hasTour: true,
         tourUrl: "",
