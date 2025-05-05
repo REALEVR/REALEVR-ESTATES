@@ -17,6 +17,14 @@ export default function PropertyPage() {
     if (propertyId) {
       queryClient.invalidateQueries({ queryKey: [`/api/properties/${propertyId}`] });
       queryClient.refetchQueries({ queryKey: [`/api/properties/${propertyId}`] });
+      
+      // Track property view
+      trackPropertyView(propertyId).then((newViewCount) => {
+        console.log(`Property ${propertyId} view tracked, new count: ${newViewCount}`);
+        
+        // Invalidate popular properties query to update the list when view counts change
+        queryClient.invalidateQueries({ queryKey: ["/api/properties/popular"] });
+      });
     }
   }, [propertyId]);
   

@@ -5,6 +5,7 @@ import Hero from "@/components/home/Hero";
 import FilterBar from "@/components/home/FilterBar";
 import FeaturedTour from "@/components/home/FeaturedTour";
 import FeaturedProperties from "@/components/home/FeaturedProperties";
+import PopularProperties from "@/components/home/PopularProperties";
 import PropertyCard from "@/components/home/PropertyCard";
 import AmenitiesHighlight from "@/components/home/AmenitiesHighlight";
 import HowItWorks from "@/components/home/HowItWorks";
@@ -35,6 +36,7 @@ export default function Home() {
       <FilterBar />
       <FeaturedTour />
       <FeaturedProperties />
+      <PopularProperties />
 
       {/* Property Listings */}
       <section className="py-10">
