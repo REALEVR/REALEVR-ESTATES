@@ -139,6 +139,7 @@ export class MemStorage implements IStorage {
         title: "La Rose Royal Apartments",
         location: "Nakasero, Kampala, Uganda",
         price: 1500,
+        currency: "USD",
         description: "Experience luxury living at La Rose Royal Apartments in the heart of Nakasero. This elegant property offers spacious interiors, high-end finishes, and breathtaking views of Kampala. The modern architectural design combines comfort with sophisticated style, perfect for those seeking an upscale lifestyle in Uganda's capital.",
         bedrooms: 3,
         bathrooms: 2,
@@ -147,11 +148,12 @@ export class MemStorage implements IStorage {
         rating: "4.97",
         reviewCount: 243,
         propertyType: "Luxury",
-        category: "rental_units",
+        category: "rental",
         isFeatured: true,
         hasTour: true,
         tourUrl: "https://realevr.com/LA%20ROSE%20ROYAL%20APARTMENTS/",
-        amenities: ["Pool Access", "Fitness Center", "24/7 Security", "Underground parking"]
+        amenities: ["Pool Access", "Fitness Center", "24/7 Security", "Underground parking"],
+        monthlyPrice: 1500
       },
       {
         title: "Kololo Heights Loft",

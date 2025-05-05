@@ -58,6 +58,7 @@ const propertyFormSchema = insertPropertySchema.extend({
   title: z.string().min(3, "Title must be at least 3 characters"),
   location: z.string().min(3, "Location is required"),
   price: z.coerce.number().positive("Price must be positive"),
+  currency: z.string().default("UGX"),
   description: z.string().min(20, "Description must be at least 20 characters"),
   bedrooms: z.coerce.number().int().min(0, "Bedrooms must be a positive number"),
   bathrooms: z.coerce.number().min(0, "Bathrooms must be a positive number"),
@@ -65,6 +66,7 @@ const propertyFormSchema = insertPropertySchema.extend({
   amenities: z.array(z.string()).optional(),
   propertyType: z.string().min(1, "Property type is required"),
   category: z.string().min(1, "Category is required"),
+  monthlyPrice: z.coerce.number().optional(),
   ownerContactInfo: z.string().optional(),
 });
 
@@ -99,6 +101,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
     title: '',
     location: '',
     price: 0,
+    currency: 'UGX',
     description: '',
     bedrooms: 0,
     bathrooms: 0,
@@ -112,6 +115,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
     tourUrl: '',
     isFeatured: false,
     amenities: [],
+    monthlyPrice: undefined,
     ownerContactInfo: '',
   };
 
@@ -488,29 +492,18 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
-                      name="price"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Price (UGX)</FormLabel>
-                          <FormControl>
-                            <div className="flex items-center">
-                              <DollarSign className="mr-2 h-4 w-4 text-muted-foreground" />
-                              <Input type="number" placeholder="1000000" {...field} />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
                       name="category"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Category</FormLabel>
                           <Select 
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              // If changing to "sale", clear the monthly price field
+                              if (value === "sale" || value === "bank-sale") {
+                                form.setValue('monthlyPrice', undefined);
+                              }
+                            }}
                             defaultValue={field.value}
                           >
                             <FormControl>
@@ -529,6 +522,88 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                         </FormItem>
                       )}
                     />
+                    
+                    {/* Price with currency selector */}
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="col-span-2">
+                          <FormField
+                            control={form.control}
+                            name="price"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Price</FormLabel>
+                                <FormControl>
+                                  <div className="flex items-center">
+                                    <DollarSign className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    <Input type="number" placeholder="1000000" {...field} />
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-1">
+                          <FormField
+                            control={form.control}
+                            name="currency"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Currency</FormLabel>
+                                <Select 
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="UGX" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="UGX">UGX</SelectItem>
+                                    <SelectItem value="USD">USD</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Monthly price field - only for rental categories */}
+                      {form.watch('category') === 'rental' && (
+                        <FormField
+                          control={form.control}
+                          name="monthlyPrice"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Monthly Price</FormLabel>
+                              <FormControl>
+                                <div className="flex items-center">
+                                  <DollarSign className="mr-2 h-4 w-4 text-muted-foreground" />
+                                  <Input 
+                                    type="number" 
+                                    placeholder="Monthly rent amount" 
+                                    {...field} 
+                                    value={field.value === undefined ? '' : field.value}
+                                    onChange={(e) => {
+                                      const value = e.target.value === '' ? undefined : Number(e.target.value);
+                                      field.onChange(value);
+                                    }}
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormDescription>
+                                Monthly rental amount for this property
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
+                    </div>
                   </div>
                   
                   <div className="grid grid-cols-3 gap-4">
