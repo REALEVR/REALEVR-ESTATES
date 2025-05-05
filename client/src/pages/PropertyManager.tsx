@@ -1,211 +1,357 @@
-import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useProperties } from "@/hooks/usePropertyData";
-import PropertyForm from "@/components/admin/PropertyForm";
-import VirtualTourManager from "@/components/admin/VirtualTourManager";
-import { useAuth } from "@/hooks/use-auth";
-import { Loader2, Building, Camera, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Property } from '@shared/schema';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Edit,
+  Plus,
+  Trash2,
+  Cube3d,
+  Eye,
+  Search,
+  Building,
+  Home,
+  Hotel,
+  Landmark,
+  BadgePercent, // Using BadgePercent instead of Bank
+  Check
+} from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import PropertyForm from '@/components/admin/PropertyForm';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 
 export default function PropertyManager() {
-  const [activeTab, setActiveTab] = useState("properties");
-  const [editingProperty, setEditingProperty] = useState<number | null>(null);
-  const [showNewPropertyForm, setShowNewPropertyForm] = useState(false);
-  const { data: properties = [], isLoading, refetch } = useProperties();
-  const { user } = useAuth();
-  
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-    setEditingProperty(null);
-    setShowNewPropertyForm(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isAddPropertyOpen, setIsAddPropertyOpen] = useState(false);
+  const [isEditPropertyOpen, setIsEditPropertyOpen] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const { toast } = useToast();
+
+  const { data: properties, isLoading } = useQuery<Property[]>({
+    queryKey: ['/api/properties'],
+  });
+
+  const filteredProperties = properties?.filter(property => {
+    // Filter by search query
+    const matchesSearch = !searchQuery || 
+      property.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      property.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      property.description.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Filter by selected category
+    const matchesCategory = !selectedCategory || property.category === selectedCategory;
+    
+    return matchesSearch && matchesCategory;
+  });
+
+  const handleOpenEditDialog = (property: Property) => {
+    setSelectedProperty(property);
+    setIsEditPropertyOpen(true);
   };
-  
-  const handleAddNewClick = () => {
-    setEditingProperty(null);
-    setShowNewPropertyForm(true);
+
+  const handleDeleteProperty = async (propertyId: number) => {
+    if (!confirm('Are you sure you want to delete this property? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      const response = await apiRequest('DELETE', `/api/properties/${propertyId}`);
+      
+      if (response.ok) {
+        toast({
+          title: "Property Deleted",
+          description: "The property has been successfully deleted",
+        });
+        
+        // Refresh the properties list
+        queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete property");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete property",
+        variant: "destructive",
+      });
+    }
   };
-  
-  const handleEditClick = (propertyId: number) => {
-    setEditingProperty(propertyId);
-    setShowNewPropertyForm(false);
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'rental':
+        return <Building className="w-4 h-4 mr-1" />;
+      case 'bnb':
+        return <Hotel className="w-4 h-4 mr-1" />;
+      case 'sale':
+        return <Home className="w-4 h-4 mr-1" />;
+      case 'bank-sale':
+        return <BadgePercent className="w-4 h-4 mr-1" />;
+      default:
+        return <Landmark className="w-4 h-4 mr-1" />;
+    }
   };
-  
-  const handleFormSuccess = () => {
-    refetch();
-    setEditingProperty(null);
-    setShowNewPropertyForm(false);
-  };
-  
-  if (isLoading) {
+
+  const getCategoryBadge = (category: string) => {
+    let variant = "outline";
+    let label = "";
+    
+    switch (category) {
+      case 'rental':
+        variant = "secondary";
+        label = "Rental Unit";
+        break;
+      case 'bnb':
+        variant = "default";
+        label = "BnB";
+        break;
+      case 'sale':
+        variant = "outline";
+        label = "For Sale";
+        break;
+      case 'bank-sale':
+        variant = "destructive";
+        label = "Bank Sale";
+        break;
+      default:
+        label = category;
+    }
+    
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-border" />
-      </div>
+      <Badge variant={variant as any} className="capitalize flex items-center">
+        {getCategoryIcon(category)}
+        {label}
+      </Badge>
     );
-  }
-  
+  };
+
+  const renderPropertyTable = () => {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center h-40">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
+      );
+    }
+
+    if (!filteredProperties || filteredProperties.length === 0) {
+      return (
+        <div className="text-center py-8">
+          <p className="text-gray-500">No properties found. Add a new property to get started.</p>
+        </div>
+      );
+    }
+
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Title</TableHead>
+            <TableHead>Location</TableHead>
+            <TableHead>Price (UGX)</TableHead>
+            <TableHead>Category</TableHead>
+            <TableHead>Virtual Tour</TableHead>
+            <TableHead>Featured</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filteredProperties.map(property => (
+            <TableRow key={property.id}>
+              <TableCell className="font-medium">{property.title}</TableCell>
+              <TableCell>{property.location}</TableCell>
+              <TableCell>{property.price.toLocaleString()}</TableCell>
+              <TableCell>{getCategoryBadge(property.category)}</TableCell>
+              <TableCell>
+                {property.hasTour ? (
+                  <Badge variant="success" className="bg-green-100 text-green-800 hover:bg-green-200">
+                    <Check className="w-3 h-3 mr-1" />
+                    Available
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-gray-500">
+                    Not Available
+                  </Badge>
+                )}
+              </TableCell>
+              <TableCell>
+                {property.isFeatured ? (
+                  <Badge variant="success" className="bg-amber-100 text-amber-800 hover:bg-amber-200">
+                    Featured
+                  </Badge>
+                ) : (
+                  <span className="text-gray-500">-</span>
+                )}
+              </TableCell>
+              <TableCell className="text-right space-x-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => handleOpenEditDialog(property)}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+                {property.hasTour ? (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    asChild
+                  >
+                    <a href={property.tourUrl || "#"} target="_blank" rel="noopener noreferrer">
+                      <Eye className="h-4 w-4" />
+                    </a>
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setSelectedProperty(property);
+                      window.location.href = `/admin/virtual-tour-manager?propertyId=${property.id}`;
+                    }}
+                  >
+                    <ThreeDCube className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={() => handleDeleteProperty(property.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    );
+  };
+
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Property Management</h1>
-          <p className="text-gray-600 mt-2">
-            Manage your properties and virtual tours in one place.
-          </p>
-          <div className="flex items-center mt-4 text-sm">
-            <span className="text-gray-600">Logged in as:</span>
-            <span className="font-semibold ml-2">{user?.fullName || user?.username}</span>
-            <span className="ml-2 bg-gray-100 text-gray-800 px-2 py-0.5 rounded-full capitalize">
-              {user?.role || "Property Manager"}
-            </span>
+    <div className="container mx-auto py-8">
+      <h1 className="text-3xl font-bold mb-6">Property Manager</h1>
+      
+      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-6">
+        <div className="flex items-center w-full md:w-auto">
+          <div className="relative w-full md:w-80">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+            <Input
+              placeholder="Search properties..."
+              className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
         </div>
         
-        <Tabs defaultValue="properties" onValueChange={handleTabChange} value={activeTab}>
-          <TabsList className="mb-6">
-            <TabsTrigger value="properties" className="flex items-center">
-              <Building className="h-4 w-4 mr-2" />
-              Properties
-            </TabsTrigger>
-            <TabsTrigger value="virtual-tours" className="flex items-center">
-              <Camera className="h-4 w-4 mr-2" />
-              Virtual Tours
-            </TabsTrigger>
-          </TabsList>
+        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center md:ml-auto w-full md:w-auto">
+          <Button variant="outline" onClick={() => setSelectedCategory(null)} className={!selectedCategory ? 'bg-primary/10' : ''}>
+            All Properties
+          </Button>
+          <Button variant="outline" onClick={() => setSelectedCategory('rental')} className={selectedCategory === 'rental' ? 'bg-primary/10' : ''}>
+            <Building className="mr-2 h-4 w-4" />
+            Rentals
+          </Button>
+          <Button variant="outline" onClick={() => setSelectedCategory('bnb')} className={selectedCategory === 'bnb' ? 'bg-primary/10' : ''}>
+            <Hotel className="mr-2 h-4 w-4" />
+            BnBs
+          </Button>
+          <Button variant="outline" onClick={() => setSelectedCategory('sale')} className={selectedCategory === 'sale' ? 'bg-primary/10' : ''}>
+            <Home className="mr-2 h-4 w-4" />
+            For Sale
+          </Button>
+          <Button variant="outline" onClick={() => setSelectedCategory('bank-sale')} className={selectedCategory === 'bank-sale' ? 'bg-primary/10' : ''}>
+            <BadgePercent className="mr-2 h-4 w-4" />
+            Bank Sales
+          </Button>
           
-          <TabsContent value="properties">
-            <div className="mb-6">
-              <Button onClick={handleAddNewClick} className="flex items-center">
-                <Plus className="h-4 w-4 mr-2" />
-                Add New Property
-              </Button>
-            </div>
-            
-            {showNewPropertyForm && (
-              <div className="mb-8">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Add New Property</CardTitle>
-                    <CardDescription>
-                      Fill in the details to add a new property to the platform.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <PropertyForm onSuccess={handleFormSuccess} />
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-            
-            {editingProperty !== null && (
-              <div className="mb-8">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Edit Property</CardTitle>
-                    <CardDescription>
-                      Update the details of this property.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <PropertyForm 
-                      property={properties.find(p => p.id === editingProperty)} 
-                      onSuccess={handleFormSuccess}
-                    />
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-            
-            {!showNewPropertyForm && editingProperty === null && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {properties.map(property => (
-                  <Card key={property.id} className="overflow-hidden h-full flex flex-col">
-                    <div className="aspect-video relative">
-                      <img 
-                        src={property.imageUrl} 
-                        alt={property.title}
-                        className="absolute inset-0 w-full h-full object-cover"
-                      />
-                    </div>
-                    <CardContent className="flex-1 flex flex-col p-4">
-                      <h3 className="text-lg font-semibold line-clamp-1">{property.title}</h3>
-                      <p className="text-gray-500 text-sm mb-2">{property.location}</p>
-                      <p className="text-gray-600 text-sm line-clamp-3 mb-4">{property.description}</p>
-                      
-                      <div className="mt-auto flex items-center justify-between">
-                        <div className="text-sm">
-                          <span className="font-semibold">{property.bedrooms}</span> beds · 
-                          <span className="font-semibold ml-1">{property.bathrooms}</span> baths
-                        </div>
-                        <div className="text-sm font-bold">
-                          {new Intl.NumberFormat('en-UG', { 
-                            style: 'currency',
-                            currency: 'UGX',
-                            maximumFractionDigits: 0 
-                          }).format(property.price)}
-                        </div>
-                      </div>
-                      
-                      <div className="mt-4 flex space-x-2">
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="flex-1"
-                          onClick={() => handleEditClick(property.id)}
-                        >
-                          Edit
-                        </Button>
-                        {property.hasTour ? (
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="flex-1"
-                            onClick={() => {
-                              setActiveTab('virtual-tours');
-                            }}
-                          >
-                            Manage Tour
-                          </Button>
-                        ) : (
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="flex-1"
-                            onClick={() => {
-                              setActiveTab('virtual-tours');
-                            }}
-                          >
-                            Add Tour
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                
-                {properties.length === 0 && (
-                  <div className="col-span-full text-center py-12 bg-gray-50 rounded-lg border">
-                    <Building className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900">No properties yet</h3>
-                    <p className="mt-1 text-gray-500">Get started by adding your first property.</p>
-                    <Button 
-                      onClick={handleAddNewClick} 
-                      className="mt-4"
-                    >
-                      Add New Property
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="virtual-tours">
-            <VirtualTourManager />
-          </TabsContent>
-        </Tabs>
+          <Button onClick={() => setIsAddPropertyOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Property
+          </Button>
+        </div>
       </div>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>All Properties</CardTitle>
+          <CardDescription>
+            Manage your property listings
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {renderPropertyTable()}
+        </CardContent>
+        <CardFooter className="flex justify-between">
+          <p className="text-sm text-gray-500">
+            {filteredProperties?.length || 0} properties found
+          </p>
+        </CardFooter>
+      </Card>
+      
+      {/* Add Property Dialog */}
+      <Dialog open={isAddPropertyOpen} onOpenChange={setIsAddPropertyOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Property</DialogTitle>
+            <DialogDescription>
+              Create a new property listing with all details
+            </DialogDescription>
+          </DialogHeader>
+          <PropertyForm 
+            onSuccess={() => {
+              setIsAddPropertyOpen(false);
+              queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+            }} 
+          />
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Property Dialog */}
+      <Dialog open={isEditPropertyOpen} onOpenChange={setIsEditPropertyOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Property</DialogTitle>
+            <DialogDescription>
+              Update the property details
+            </DialogDescription>
+          </DialogHeader>
+          {selectedProperty && (
+            <PropertyForm 
+              property={selectedProperty}
+              onSuccess={() => {
+                setIsEditPropertyOpen(false);
+                setSelectedProperty(null);
+                queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+              }} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

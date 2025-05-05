@@ -1,6 +1,27 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import fs from "fs";
+import path from "path";
+
+// Create necessary directories for uploads
+const uploadDir = path.join(process.cwd(), 'uploads');
+const imageDir = path.join(uploadDir, 'images');
+const tourDir = path.join(uploadDir, 'tours');
+
+// Create directories if they don't exist
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+  log("Created uploads directory");
+}
+if (!fs.existsSync(imageDir)) {
+  fs.mkdirSync(imageDir);
+  log("Created images directory");
+}
+if (!fs.existsSync(tourDir)) {
+  fs.mkdirSync(tourDir);
+  log("Created tours directory");
+}
 
 const app = express();
 app.use(express.json());

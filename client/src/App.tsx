@@ -23,6 +23,7 @@ import AuthPage from "@/pages/auth-page";
 import { AuthProvider } from "@/hooks/use-auth";
 import { PaymentProvider } from "@/contexts/PaymentContext";
 import VirtualTourManager from "@/components/admin/VirtualTourManager";
+import { Check } from "lucide-react";
 import { ProtectedAdminRoute } from "./lib/protected-admin-route";
 
 function Router() {
