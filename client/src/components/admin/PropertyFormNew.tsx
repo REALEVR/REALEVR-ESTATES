@@ -776,21 +776,59 @@ export default function PropertyFormNew({ property, onSuccess }: PropertyFormPro
                 </div>
               </div>
               
-              <div className="flex items-center justify-end space-x-4 mt-8">
-                <Button type="button" variant="outline">
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    'Save Property'
+              <div className="flex flex-col sm:flex-row justify-between gap-4 mt-8">
+                <div>
+                  {!property && (
+                    <FormDescription className="text-sm">
+                      Save the property details first before adding a virtual tour
+                    </FormDescription>
                   )}
-                </Button>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <Button type="button" variant="outline">
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    size="lg"
+                    disabled={form.formState.isSubmitting} 
+                    className="min-w-[150px]"
+                  >
+                    {form.formState.isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="mr-2 h-4 w-4" />
+                        Save Property
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
+              
+              {property && (
+                <div className="flex justify-end mt-4">
+                  <Button 
+                    type="button" 
+                    variant="secondary" 
+                    className="w-full sm:w-auto"
+                    onClick={() => {
+                      // Change to tour tab after saving
+                      setLocalStorageItem('propertyFormTab', 'tour');
+                      // Force tab change
+                      const event = new CustomEvent('tab-change', { detail: 'tour' });
+                      window.dispatchEvent(event);
+                    }}
+                  >
+                    <Box className="mr-2 h-4 w-4" />
+                    Continue to Virtual Tour
+                  </Button>
+                </div>
+              )}
             </form>
           </Form>
         </TabsContent>
@@ -1024,10 +1062,53 @@ export default function PropertyFormNew({ property, onSuccess }: PropertyFormPro
                 </>
               )}
             </CardContent>
-            <CardFooter className="flex justify-between">
+            <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4">
               <p className="text-sm text-muted-foreground">
                 Note: Upload only 3D Vista tour exports for optimal compatibility
               </p>
+              
+              {(tourPreviewUrl || property?.tourUrl) && (
+                <Button 
+                  type="button" 
+                  onClick={() => {
+                    // Mark property as completed with virtual tour
+                    if (property?.id && !property.hasTour) {
+                      // Update property to mark hasTour as true
+                      apiRequest('PATCH', `/api/properties/${property.id}`, { hasTour: true })
+                        .then(response => {
+                          if (response.ok) {
+                            toast({
+                              title: "Success",
+                              description: "Property has been updated with virtual tour"
+                            });
+                            // Refresh data
+                            queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+                            // If onSuccess callback exists, call it to close the form
+                            if (onSuccess) {
+                              onSuccess();
+                            }
+                          }
+                        })
+                        .catch(err => {
+                          toast({
+                            title: "Error",
+                            description: "Failed to update property: " + err.message,
+                            variant: "destructive"
+                          });
+                        });
+                    } else if (onSuccess) {
+                      // If property already has tour, just call onSuccess
+                      onSuccess();
+                    }
+                  }}
+                  size="lg"
+                  className="min-w-[150px]"
+                  variant="default"
+                >
+                  <Check className="mr-2 h-4 w-4" />
+                  Finish
+                </Button>
+              )}
             </CardFooter>
           </Card>
         </TabsContent>
