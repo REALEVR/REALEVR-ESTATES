@@ -11,6 +11,7 @@ import HowItWorks from "@/components/home/HowItWorks";
 import DownloadApp from "@/components/home/DownloadApp";
 import { useProperties } from "@/hooks/usePropertyData";
 import { queryClient } from "@/lib/queryClient";
+import type { Property } from "@shared/schema";
 
 export default function Home() {
   // Force refetch on mount to ensure fresh data
@@ -80,7 +81,7 @@ export default function Home() {
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {properties && properties.filter(p => !p.isFeatured).map((property) => (
+                {properties && (properties as Property[]).filter(p => !p.isFeatured).map((property) => (
                   <PropertyCard key={property.id} property={property} />
                 ))}
               </div>

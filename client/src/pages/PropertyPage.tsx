@@ -5,6 +5,7 @@ import PropertyDetails from "@/components/property/PropertyDetails";
 import { Button } from "@/components/ui/button";
 import { useProperty } from "@/hooks/usePropertyData";
 import { queryClient } from "@/lib/queryClient";
+import type { Property } from "@shared/schema";
 
 export default function PropertyPage() {
   const [, params] = useRoute<{ id: string }>("/property/:id");
@@ -24,7 +25,7 @@ export default function PropertyPage() {
   useEffect(() => {
     // Set page title
     if (property) {
-      document.title = `${property.title} | RealEVR Estates`;
+      document.title = `${(property as Property).title} | RealEVR Estates`;
     } else {
       document.title = "Property | RealEVR Estates";
     }
@@ -73,7 +74,7 @@ export default function PropertyPage() {
           <div className="lg:w-1/2">
             <div className="h-[400px] lg:h-[600px] tour-container bg-gray-200 relative">
               <VirtualTour 
-                tourUrl={property.tourUrl || "https://realevr.com/LA%20ROSE%20ROYAL%20APARTMENTS/"} 
+                tourUrl={(property as Property).tourUrl || "https://realevr.com/LA%20ROSE%20ROYAL%20APARTMENTS/"} 
                 isFullscreen={isFullscreen}
               />
               
@@ -101,7 +102,7 @@ export default function PropertyPage() {
           </div>
           
           <div className="lg:w-1/2">
-            <PropertyDetails property={property} />
+            <PropertyDetails property={property as Property} />
           </div>
         </div>
       </div>
