@@ -57,35 +57,57 @@ export class MemStorage implements IStorage {
     this.propertyTypeCurrentId = 1;
     
     // Initialize with sample data
-    this.initializeSampleData();
+    (async () => {
+      await this.initializeSampleData();
+    })().catch(err => console.error("Failed to initialize sample data:", err));
   }
   
-  private initializeSampleData() {
-    // Create an admin user
-    this.createUser({
-      username: "admin",
-      password: "$2b$10$vQcQDIUw7PwEPBfUI/lVXefk7pzT3sQdY6Dmv5MPq.Z4m9B4VclPq", // password: "admin123"
-      email: "admin@realevr.com",
-      fullName: "Admin User",
-      membershipPlan: "premium",
-      role: "admin",
-      isVerified: true,
-      membershipStartDate: "2025-01-01",
-      membershipEndDate: "2026-01-01"
-    });
-    
-    // Regular user
-    this.createUser({
-      username: "user",
-      password: "$2b$10$vQcQDIUw7PwEPBfUI/lVXefk7pzT3sQdY6Dmv5MPq.Z4m9B4VclPq", // password: "admin123"
-      email: "user@example.com",
-      fullName: "Regular User",
-      membershipPlan: "basic",
-      role: "user",
-      isVerified: true,
-      membershipStartDate: "2025-02-01",
-      membershipEndDate: "2025-08-01"
-    });
+  private async initializeSampleData() {
+    try {
+      // Create an admin user
+      const admin: InsertUser = {
+        username: "admin",
+        password: "$2b$10$vQcQDIUw7PwEPBfUI/lVXefk7pzT3sQdY6Dmv5MPq.Z4m9B4VclPq", // password: "admin123"
+        email: "admin@realevr.com",
+        fullName: "Admin User",
+        membershipPlan: "premium",
+        role: "admin",
+        isVerified: true,
+        membershipStartDate: "2025-01-01",
+        membershipEndDate: "2026-01-01"
+      };
+      await this.createUser(admin);
+      
+      // Regular user
+      const regularUser: InsertUser = {
+        username: "user",
+        password: "$2b$10$vQcQDIUw7PwEPBfUI/lVXefk7pzT3sQdY6Dmv5MPq.Z4m9B4VclPq", // password: "admin123"
+        email: "user@example.com",
+        fullName: "Regular User",
+        membershipPlan: "basic",
+        role: "user",
+        isVerified: true,
+        membershipStartDate: "2025-02-01",
+        membershipEndDate: "2025-08-01"
+      };
+      await this.createUser(regularUser);
+      
+      // Property manager
+      const propertyManager: InsertUser = {
+        username: "manager",
+        password: "$2b$10$vQcQDIUw7PwEPBfUI/lVXefk7pzT3sQdY6Dmv5MPq.Z4m9B4VclPq", // password: "admin123"
+        email: "manager@realevr.com",
+        fullName: "Property Manager",
+        membershipPlan: "premium",
+        role: "property_manager",
+        isVerified: true,
+        membershipStartDate: "2025-01-15",
+        membershipEndDate: "2025-12-15"
+      };
+      await this.createUser(propertyManager);
+    } catch (error) {
+      console.error("Error initializing sample data:", error);
+    }
     
     // Property Types
     const propertyTypeData: InsertPropertyType[] = [
@@ -540,13 +562,18 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userCurrentId++;
+    // Handle user creation with proper default values
     const user: User = { 
-      ...insertUser, 
       id,
+      username: insertUser.username,
+      password: insertUser.password,
+      email: insertUser.email,
+      fullName: insertUser.fullName,
+      membershipPlan: insertUser.membershipPlan || null,
       membershipStartDate: null,
       membershipEndDate: null,
-      role: "user",
-      isVerified: false
+      role: insertUser.role || "user",
+      isVerified: insertUser.isVerified || false
     };
     this.users.set(id, user);
     return user;

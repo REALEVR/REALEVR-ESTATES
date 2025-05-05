@@ -83,11 +83,19 @@ export const insertUserSchema = createInsertSchema(users)
     email: true,
     fullName: true,
     membershipPlan: true,
+    role: true,
+    isVerified: true,
+    membershipStartDate: true,
+    membershipEndDate: true
   })
   .extend({
     password: z.string().min(6, "Password must be at least 6 characters"),
     email: z.string().email("Invalid email address"),
     confirmPassword: z.string(),
+    role: z.enum(["user", "admin", "property_manager"]).optional().default("user"),
+    isVerified: z.boolean().optional().default(false),
+    membershipStartDate: z.string().nullable().optional(),
+    membershipEndDate: z.string().nullable().optional(),
   })
   .refine(data => data.password === data.confirmPassword, {
     message: "Passwords don't match",
