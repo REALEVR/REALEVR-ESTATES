@@ -4,6 +4,7 @@ import type { Property } from "@shared/schema";
 export function useProperties() {
   return useQuery<Property[]>({
     queryKey: ["/api/properties"],
+    staleTime: 0, // Always refetch to ensure fresh data
   });
 }
 
