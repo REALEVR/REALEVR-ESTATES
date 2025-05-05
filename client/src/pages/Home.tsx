@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Hero from "@/components/home/Hero";
 import FilterBar from "@/components/home/FilterBar";
 import FeaturedTour from "@/components/home/FeaturedTour";
@@ -15,9 +16,20 @@ import { useProperties } from "@/hooks/usePropertyData";
 import { queryClient } from "@/lib/queryClient";
 import type { Property } from "@shared/schema";
 
+// Property category labels for display
+const categoryLabels = {
+  "rental_units": "Rental Units",
+  "rental": "Rental Units",
+  "furnished_houses": "Furnished Houses (BnBs)",
+  "for_sale": "Properties For Sale",
+  "bank_sales": "Bank Sales"
+};
+
 export default function Home() {
   // Force refetch on mount to ensure fresh data
   const [key, setKey] = useState(0);
+  const [activeTab, setActiveTab] = useState("all");
+  
   useEffect(() => {
     queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
     queryClient.refetchQueries({ queryKey: ["/api/properties"] });
@@ -30,6 +42,15 @@ export default function Home() {
     // Set page title
     document.title = "RealEVR Estates - Virtual Property Tours";
   }, []);
+  
+  // Group properties by category
+  const propertyCategories = {
+    all: properties || [],
+    rental_units: properties?.filter(p => p.category === "rental_units" || p.category === "rental") || [],
+    furnished_houses: properties?.filter(p => p.category === "furnished_houses") || [],
+    for_sale: properties?.filter(p => p.category === "for_sale") || [],
+    bank_sales: properties?.filter(p => p.category === "bank_sales") || []
+  };
 
   return (
     <>
@@ -44,7 +65,7 @@ export default function Home() {
       <section className="py-10">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl md:text-3xl font-bold">Popular Virtual Tours</h2>
+            <h2 className="text-2xl md:text-3xl font-bold">Browse Properties</h2>
             <div className="flex items-center">
               <span className="text-gray-500 mr-2">Sort by:</span>
               <Select defaultValue="recommended">
@@ -84,11 +105,31 @@ export default function Home() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {properties && (properties as Property[]).filter(p => !p.isFeatured).map((property) => (
-                  <PropertyCard key={property.id} property={property} />
+              <Tabs defaultValue="all" className="w-full" onValueChange={setActiveTab}>
+                <TabsList className="grid grid-cols-5 w-full mb-8">
+                  <TabsTrigger value="all">All Properties</TabsTrigger>
+                  <TabsTrigger value="rental_units">Rental Units</TabsTrigger>
+                  <TabsTrigger value="furnished_houses">Furnished Houses</TabsTrigger>
+                  <TabsTrigger value="for_sale">For Sale</TabsTrigger>
+                  <TabsTrigger value="bank_sales">Bank Sales</TabsTrigger>
+                </TabsList>
+                
+                {Object.entries(propertyCategories).map(([category, categoryProperties]) => (
+                  <TabsContent value={category} key={category}>
+                    {categoryProperties.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500">No properties found in this category.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {categoryProperties.map((property) => (
+                          <PropertyCard key={property.id} property={property} />
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
                 ))}
-              </div>
+              </Tabs>
               
               <div className="mt-12 text-center">
                 <Button variant="outline" className="px-6 py-3 bg-white border border-gray-200 rounded-lg font-medium hover:bg-gray-50">
