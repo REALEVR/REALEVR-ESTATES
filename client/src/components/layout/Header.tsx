@@ -154,7 +154,7 @@ export default function Header() {
                     <Link href="/membership">Become a Member</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/membership">Sign In</Link>
+                    <Link href="/auth">Sign In</Link>
                   </DropdownMenuItem>
                 </>
               )}

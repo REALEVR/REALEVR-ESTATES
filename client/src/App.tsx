@@ -19,6 +19,7 @@ import TermsOfService from "@/pages/TermsOfService";
 import HostResponsibly from "@/pages/HostResponsibly";
 import PropertyManager from "@/pages/PropertyManager";
 import AdminUserManager from "@/pages/AdminUserManager";
+import AuthPage from "@/pages/auth-page";
 import { AuthProvider } from "@/hooks/use-auth";
 import { PaymentProvider } from "@/contexts/PaymentContext";
 import VirtualTourManager from "@/components/admin/VirtualTourManager";
@@ -39,6 +40,9 @@ function Router() {
       <Route path="/privacy" component={PrivacyPolicy} />
       <Route path="/terms" component={TermsOfService} />
       <Route path="/host-responsibly" component={HostResponsibly} />
+      
+      {/* Authentication */}
+      <Route path="/auth" component={AuthPage} />
       
       {/* Admin routes - protected by role */}
       <ProtectedAdminRoute 
