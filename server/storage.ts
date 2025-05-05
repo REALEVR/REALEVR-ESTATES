@@ -282,6 +282,25 @@ export class MemStorage implements IStorage {
         amenities: ["High-Speed Internet", "Art Studio Space", "Backup Power", "Security"]
       },
       {
+        title: "Cadenza Luxury Suites",
+        location: "Kololo, Kampala, Uganda",
+        price: 2200,
+        currency: "USD",
+        description: "Elegant Cadenza Luxury Suites offering premium living in the heart of Kololo. These newly built apartments feature Italian marble, smart home technology, and 24/7 concierge service.",
+        bedrooms: 2,
+        bathrooms: 2,
+        squareFeet: 1500,
+        imageUrl: "https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=600&h=400&q=80",
+        rating: "4.9",
+        reviewCount: 72,
+        propertyType: "Luxury",
+        category: "sale",
+        isFeatured: true,
+        hasTour: true,
+        tourUrl: "",
+        amenities: ["Concierge", "Smart Home", "Gym", "Rooftop Lounge"]
+      },
+      {
         title: "Bugolobi Colonial Residence",
         location: "Bugolobi, Kampala, Uganda",
         price: 3200,
