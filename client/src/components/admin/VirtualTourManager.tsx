@@ -325,7 +325,11 @@ export default function VirtualTourManager() {
                                 setSelectedProperty(property.id.toString());
                                 form.setValue("tourUrl", property.tourUrl || "");
                                 form.setValue("propertyId", property.id);
-                                document.querySelector('[data-value="add"]')?.click();
+                                // Use safer approach to trigger tab change
+                                const addTab = document.querySelector('[data-value="add"]') as HTMLElement;
+                                if (addTab) {
+                                  addTab.click();
+                                }
                               }}
                             >
                               Edit

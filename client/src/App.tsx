@@ -16,6 +16,7 @@ import BankSalesPage from "@/pages/BankSalesPage";
 import NotFound from "@/pages/not-found";
 import { AuthProvider } from "@/hooks/use-auth";
 import { PaymentProvider } from "@/contexts/PaymentContext";
+import VirtualTourManager from "@/components/admin/VirtualTourManager";
 
 function Router() {
   return (
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/bank-sales" component={BankSalesPage} />
       <Route path="/rental-units" component={RentalUnitsPage} />
       <Route path="/for-sale" component={ForSalePage} />
+      <Route path="/admin/virtual-tours" component={VirtualTourManager} />
       <Route path="/category/:categorySlug" component={() => (
         <div className="container mx-auto px-4 py-8">
           <h1 className="text-3xl font-bold mb-4">Property Category</h1>
