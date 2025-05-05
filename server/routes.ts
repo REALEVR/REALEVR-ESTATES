@@ -279,6 +279,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get all users (admin only)
+  app.get("/api/users", adminMiddleware, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      
+      // Remove passwords before sending to client
+      const sanitizedUsers = users.map(user => {
+        const { password, ...userWithoutPassword } = user;
+        return userWithoutPassword;
+      });
+      
+      res.json(sanitizedUsers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Update user role (admin only)
   app.patch("/api/users/:id/role", adminMiddleware, async (req, res) => {
     try {
@@ -293,7 +310,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const updatedUser = await storage.updateUserRole(id, role);
-      res.json(updatedUser);
+      
+      // Remove password before sending back to client
+      const { password, ...userWithoutPassword } = updatedUser;
+      
+      res.json(userWithoutPassword);
     } catch (error: any) {
       res.status(404).json({ message: error.message });
     }

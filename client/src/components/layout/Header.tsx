@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { Loader2, LogOut, Settings, User, Glasses, Building } from "lucide-react";
+import { Loader2, LogOut, Settings, User, Glasses, Building, Users } from "lucide-react";
 
 export default function Header() {
   const [location, setLocation] = useLocation();
@@ -124,6 +124,15 @@ export default function Header() {
                       <span>Virtual Tour Manager</span>
                     </Link>
                   </DropdownMenuItem>
+                  
+                  {user.role === "admin" && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin/users">
+                        <Users className="mr-2 h-4 w-4" />
+                        <span>User Management</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} disabled={logoutMutation.isPending}>
                     {logoutMutation.isPending ? (

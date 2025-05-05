@@ -9,6 +9,7 @@ export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUserRole(userId: number, role: string): Promise<User>;
   
@@ -60,6 +61,32 @@ export class MemStorage implements IStorage {
   }
   
   private initializeSampleData() {
+    // Create an admin user
+    this.createUser({
+      username: "admin",
+      password: "$2b$10$vQcQDIUw7PwEPBfUI/lVXefk7pzT3sQdY6Dmv5MPq.Z4m9B4VclPq", // password: "admin123"
+      email: "admin@realevr.com",
+      fullName: "Admin User",
+      membershipPlan: "premium",
+      role: "admin",
+      isVerified: true,
+      membershipStartDate: "2025-01-01",
+      membershipEndDate: "2026-01-01"
+    });
+    
+    // Regular user
+    this.createUser({
+      username: "user",
+      password: "$2b$10$vQcQDIUw7PwEPBfUI/lVXefk7pzT3sQdY6Dmv5MPq.Z4m9B4VclPq", // password: "admin123"
+      email: "user@example.com",
+      fullName: "Regular User",
+      membershipPlan: "basic",
+      role: "user",
+      isVerified: true,
+      membershipStartDate: "2025-02-01",
+      membershipEndDate: "2025-08-01"
+    });
+    
     // Property Types
     const propertyTypeData: InsertPropertyType[] = [
       { name: "Apartments", icon: "building" },
@@ -505,6 +532,10 @@ export class MemStorage implements IStorage {
     return Array.from(this.users.values()).find(
       (user) => user.username === username,
     );
+  }
+  
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {

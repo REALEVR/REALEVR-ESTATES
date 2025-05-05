@@ -18,6 +18,7 @@ import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import TermsOfService from "@/pages/TermsOfService";
 import HostResponsibly from "@/pages/HostResponsibly";
 import PropertyManager from "@/pages/PropertyManager";
+import AdminUserManager from "@/pages/AdminUserManager";
 import { AuthProvider } from "@/hooks/use-auth";
 import { PaymentProvider } from "@/contexts/PaymentContext";
 import VirtualTourManager from "@/components/admin/VirtualTourManager";
@@ -50,6 +51,12 @@ function Router() {
         path="/admin/properties" 
         component={PropertyManager} 
         allowedRoles={["admin", "property_manager"]}
+      />
+      
+      <ProtectedAdminRoute 
+        path="/admin/users" 
+        component={AdminUserManager} 
+        allowedRoles={["admin"]}
       />
       
       <Route path="/category/:categorySlug" component={() => (
