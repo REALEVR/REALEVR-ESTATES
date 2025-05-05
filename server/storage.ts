@@ -23,6 +23,8 @@ export interface IStorage {
   createProperty(property: InsertProperty): Promise<Property>;
   updateProperty(id: number, property: Partial<Property>): Promise<Property | undefined>;
   deleteProperty(id: number): Promise<boolean>;
+  incrementPropertyViewCount(id: number): Promise<Property | undefined>;
+  getPopularProperties(limit?: number): Promise<Property[]>;
   
   // Amenity methods
   getAllAmenities(): Promise<Amenity[]>;
@@ -737,7 +739,7 @@ export class MemStorage implements IStorage {
     const properties = clonedProperties.filter((property: Property) => property.category === category);
     console.log(`[DEBUG] Found ${properties.length} properties in category ${category}`);
     
-    return this.sortPropertiesByNewest(properties);
+    return this.sortPropertiesByInsertionOrder(properties);
   }
   
   async searchProperties(query: string): Promise<Property[]> {
@@ -761,7 +763,7 @@ export class MemStorage implements IStorage {
     
     console.log(`[DEBUG] Found ${properties.length} properties matching search query`);
     
-    return this.sortPropertiesByNewest(properties);
+    return this.sortPropertiesByInsertionOrder(properties);
   }
   
   async filterProperties(filters: Partial<Property>): Promise<Property[]> {
@@ -788,7 +790,7 @@ export class MemStorage implements IStorage {
     
     console.log(`[DEBUG] Found ${properties.length} properties matching filters`);
     
-    return this.sortPropertiesByNewest(properties);
+    return this.sortPropertiesByInsertionOrder(properties);
   }
   
   async createProperty(insertProperty: InsertProperty): Promise<Property> {
@@ -802,7 +804,8 @@ export class MemStorage implements IStorage {
       id,
       isAvailable: insertProperty.isAvailable === undefined ? true : insertProperty.isAvailable,
       // Ensure required fields are not undefined
-      currency: insertProperty.currency || 'UGX'
+      currency: insertProperty.currency || 'UGX',
+      viewCount: insertProperty.viewCount || 0
     }));
     
     console.log(`[DEBUG] New property created with ID ${id}`);
