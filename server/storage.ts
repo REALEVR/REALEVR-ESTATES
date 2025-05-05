@@ -67,7 +67,7 @@ export class MemStorage implements IStorage {
       // Create an admin user
       const admin: InsertUser = {
         username: "admin",
-        password: "$2b$10$vQcQDIUw7PwEPBfUI/lVXefk7pzT3sQdY6Dmv5MPq.Z4m9B4VclPq", // password: "admin123"
+        password: "admin123", // Plain text for testing purposes only
         email: "admin@realevr.com",
         fullName: "Admin User",
         membershipPlan: "premium",
@@ -81,7 +81,7 @@ export class MemStorage implements IStorage {
       // Regular user
       const regularUser: InsertUser = {
         username: "user",
-        password: "$2b$10$vQcQDIUw7PwEPBfUI/lVXefk7pzT3sQdY6Dmv5MPq.Z4m9B4VclPq", // password: "admin123"
+        password: "admin123", // Plain text for testing purposes only
         email: "user@example.com",
         fullName: "Regular User",
         membershipPlan: "basic",
@@ -95,7 +95,7 @@ export class MemStorage implements IStorage {
       // Property manager
       const propertyManager: InsertUser = {
         username: "manager",
-        password: "$2b$10$vQcQDIUw7PwEPBfUI/lVXefk7pzT3sQdY6Dmv5MPq.Z4m9B4VclPq", // password: "admin123"
+        password: "admin123", // Plain text for testing purposes only
         email: "manager@realevr.com",
         fullName: "Property Manager",
         membershipPlan: "premium",
