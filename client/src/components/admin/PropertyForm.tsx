@@ -36,11 +36,15 @@ import {
   Map, 
   Bed, 
   Bath,
-  SquareCode
+  SquareCode,
+  Eye,
+  Box,
+  ArrowLeft
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Extend the insertPropertySchema with additional validations
 const propertyFormSchema = insertPropertySchema.extend({
@@ -248,15 +252,123 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
     }
   };
 
+  // Add tour upload functionality
+  const [tourUploading, setTourUploading] = useState(false);
+  const [tourUploadSuccess, setTourUploadSuccess] = useState(false);
+  const [tourUploadError, setTourUploadError] = useState("");
+  const [tourPreviewUrl, setTourPreviewUrl] = useState<string | null>(property?.tourUrl || null);
+  const tourFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleTourUpload = async () => {
+    const fileInput = tourFileInputRef.current;
+    
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select a ZIP file to upload",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!property?.id) {
+      toast({
+        title: "Error",
+        description: "Please save the property first before uploading a tour",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const file = fileInput.files[0];
+    
+    // Check if file is a zip
+    if (!file.name.endsWith('.zip')) {
+      toast({
+        title: "Error",
+        description: "Please upload a ZIP file (3D Vista tour export)",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Check file size (max 100MB)
+    if (file.size > 100 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "File is too large. Maximum allowed size is 100MB",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setTourUploading(true);
+    setTourUploadSuccess(false);
+    setTourUploadError("");
+    
+    try {
+      // Create FormData
+      const formData = new FormData();
+      formData.append('tourZip', file);
+      
+      // Upload the virtual tour zip
+      const response = await fetch(`/api/upload/virtual-tour/${property.id}`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.status === 'success') {
+        setTourUploadSuccess(true);
+        setTourPreviewUrl(result.tourUrl);
+        
+        toast({
+          title: "Success",
+          description: "Virtual tour uploaded and extracted successfully",
+        });
+        
+        // Refresh the property data
+        queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+      } else {
+        setTourUploadError(result.message || "Failed to upload virtual tour");
+        
+        toast({
+          title: "Error",
+          description: result.message || "Failed to upload virtual tour",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      setTourUploadError(error.message || "Failed to upload virtual tour");
+      
+      toast({
+        title: "Error",
+        description: "Failed to upload virtual tour: " + (error.message || "Unknown error"),
+        variant: "destructive",
+      });
+    } finally {
+      setTourUploading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">
         {property ? "Edit Property" : "Create New Property"}
       </h1>
       
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <Tabs defaultValue="details" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="details">Property Details</TabsTrigger>
+          <TabsTrigger value="tour" disabled={!property?.id}>Virtual Tour</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="details" className="mt-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-6">
               {/* Basic Information */}
               <FormField

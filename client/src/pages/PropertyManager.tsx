@@ -39,7 +39,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import PropertyForm from '@/components/admin/PropertyForm';
+import PropertyForm from '@/components/admin/PropertyFormNew';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 
@@ -230,14 +230,13 @@ export default function PropertyManager() {
                   <Button 
                     variant="outline" 
                     size="sm"
-                    asChild
+                    onClick={() => {
+                      handleOpenEditDialog(property);
+                      // The tab selection is handled in PropertyFormNew via defaultValue
+                      localStorage.setItem('propertyFormTab', 'tour');
+                    }}
                   >
-                    <Link 
-                      onClick={() => setSelectedProperty(property)}
-                      href={`/admin/virtual-tour-manager?propertyId=${property.id}`}
-                    >
-                      <Box className="h-4 w-4" />
-                    </Link>
+                    <Box className="h-4 w-4" />
                   </Button>
                 )}
                 <Button 
