@@ -48,7 +48,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/properties", async (req, res) => {
     try {
       const properties = await storage.getAllProperties();
-      res.json(properties);
+      
+      // Set cache control headers to prevent caching
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }).json(properties);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch properties" });
     }
@@ -58,7 +64,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/properties/featured", async (req, res) => {
     try {
       const featuredProperties = await storage.getFeaturedProperties();
-      res.json(featuredProperties);
+      
+      // Set cache control headers to prevent caching
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }).json(featuredProperties);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch featured properties" });
     }
@@ -69,7 +81,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const category = req.params.category;
       const properties = await storage.getPropertiesByCategory(category);
-      res.json(properties);
+      
+      // Set cache control headers to prevent caching
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }).json(properties);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch properties by category" });
     }
@@ -80,7 +98,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const query = req.query.q as string || "";
       const properties = await storage.searchProperties(query);
-      res.json(properties);
+      
+      // Set cache control headers to prevent caching
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }).json(properties);
     } catch (error) {
       res.status(500).json({ message: "Failed to search properties" });
     }
@@ -290,13 +314,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid property ID" });
       }
       
+      console.log(`[DEBUG] PATCH request for property ${id} with data:`, JSON.stringify(req.body));
+      
       const updatedProperty = await storage.updateProperty(id, req.body);
       if (!updatedProperty) {
+        console.log(`[DEBUG] Property with ID ${id} not found for update`);
         return res.status(404).json({ message: "Property not found" });
       }
       
-      res.json(updatedProperty);
+      console.log(`[DEBUG] Property ${id} successfully updated, sending response`);
+      
+      // Set cache control headers to prevent caching
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }).json(updatedProperty);
     } catch (error: any) {
+      console.error('Error updating property:', error);
       res.status(400).json({ message: error.message });
     }
   });
