@@ -367,7 +367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Property not found" });
       }
       
-      console.log(`[DEBUG] Property ${id} availability toggled to: ${updatedProperty.available}`);
+      console.log(`[DEBUG] Property ${id} availability toggled to: ${updatedProperty.isAvailable}`);
       
       // Set cache control headers to prevent caching
       res.set({
@@ -509,7 +509,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       );
 
-      const data = await response.json();
+      const data = await response.json() as { 
+        status: string; 
+        data: { 
+          status: string; 
+          amount: number; 
+          currency: string;
+          // Add other fields as needed
+        }
+      };
 
       // Check if the payment was successful
       if (data.status === "success" && data.data.status === "successful") {

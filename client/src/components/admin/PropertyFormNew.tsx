@@ -148,28 +148,57 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
           description: property ? "Property has been updated successfully" : "New property has been created",
         });
         
-        // Super aggressive cache invalidation - remove everything property related
+        // Ultra aggressive cache invalidation strategy
+        console.log("Performing ultra-aggressive cache invalidation...");
+        
+        // First invalidate all queries
+        queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/properties/featured'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/properties/category'] });
+        
+        // Then remove them from cache completely
         queryClient.removeQueries({ queryKey: ['/api/properties'] });
         queryClient.removeQueries({ queryKey: ['/api/properties/featured'] });
         queryClient.removeQueries({ queryKey: ['/api/properties/category'] });
         
         if (property) {
-          // Also remove the specific property query
+          queryClient.invalidateQueries({ queryKey: [`/api/properties/${property.id}`] });
           queryClient.removeQueries({ queryKey: [`/api/properties/${property.id}`] });
         }
         
-        // Force a fetch of all key queries
+        // Initial immediate refetch
+        console.log("Initial refetch of property data...");
         queryClient.refetchQueries({ queryKey: ['/api/properties'] });
         queryClient.refetchQueries({ queryKey: ['/api/properties/featured'] });
         
-        // Add a small delay to ensure the backend has processed the changes
+        // Multiple staggered refetches to ensure data consistency
         setTimeout(() => {
+          console.log("First delayed refetch at 500ms...");
           queryClient.refetchQueries({ queryKey: ['/api/properties'] });
           queryClient.refetchQueries({ queryKey: ['/api/properties/featured'] });
           if (property) {
             queryClient.refetchQueries({ queryKey: [`/api/properties/${property.id}`] });
           }
         }, 500);
+        
+        setTimeout(() => {
+          console.log("Second delayed refetch at 1000ms...");
+          queryClient.refetchQueries({ queryKey: ['/api/properties'] });
+          queryClient.refetchQueries({ queryKey: ['/api/properties/featured'] });
+          if (property) {
+            queryClient.refetchQueries({ queryKey: [`/api/properties/${property.id}`] });
+          }
+        }, 1000);
+        
+        setTimeout(() => {
+          console.log("Final delayed refetch at 2000ms...");
+          queryClient.refetchQueries({ queryKey: ['/api/properties'] });
+          queryClient.refetchQueries({ queryKey: ['/api/properties/featured'] });
+          if (property) {
+            queryClient.refetchQueries({ queryKey: [`/api/properties/${property.id}`] });
+          }
+          console.log("Cache invalidation sequence complete");
+        }, 2000);
         
         // Call onSuccess callback if provided
         if (onSuccess) {
@@ -364,8 +393,33 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
           description: "Virtual tour uploaded and extracted successfully",
         });
         
-        // Refresh the property data
+        // Ultra aggressive cache invalidation for tour upload
+        console.log("Performing ultra-aggressive cache invalidation after tour upload...");
+        
+        // First invalidate all queries
         queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/properties/featured'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/properties/category'] });
+        queryClient.invalidateQueries({ queryKey: [`/api/properties/${property.id}`] });
+        
+        // Then remove them from cache completely
+        queryClient.removeQueries({ queryKey: ['/api/properties'] });
+        queryClient.removeQueries({ queryKey: ['/api/properties/featured'] });
+        queryClient.removeQueries({ queryKey: ['/api/properties/category'] });
+        queryClient.removeQueries({ queryKey: [`/api/properties/${property.id}`] });
+        
+        // Immediate and delayed refetches
+        queryClient.refetchQueries({ queryKey: ['/api/properties'] });
+        queryClient.refetchQueries({ queryKey: ['/api/properties/featured'] });
+        queryClient.refetchQueries({ queryKey: [`/api/properties/${property.id}`] });
+        
+        // Multiple delayed refetches
+        setTimeout(() => {
+          console.log("Delayed refetch after tour upload...");
+          queryClient.refetchQueries({ queryKey: ['/api/properties'] });
+          queryClient.refetchQueries({ queryKey: ['/api/properties/featured'] });
+          queryClient.refetchQueries({ queryKey: [`/api/properties/${property.id}`] });
+        }, 1000);
       } else {
         const errorMsg = result.message || "Failed to upload virtual tour";
         setTourUploadError(errorMsg);
