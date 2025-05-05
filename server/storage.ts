@@ -876,16 +876,39 @@ export class MemStorage implements IStorage {
     // Deep clone to break any reference issues
     const clonedProperties = JSON.parse(JSON.stringify(propertiesArray));
     
-    // Sort by view count (highest first)
-    const sortedProperties = clonedProperties.sort((a: Property, b: Property) => {
+    // Find the newest property (highest ID)
+    const newestProperty = clonedProperties.reduce((newest: Property | null, current: Property) => {
+      if (!newest || current.id > newest.id) {
+        return current;
+      }
+      return newest;
+    }, null);
+    
+    if (newestProperty) {
+      console.log(`[DEBUG] Newest property found: "${newestProperty.title}" (ID: ${newestProperty.id})`);
+    }
+    
+    // Filter out the newest property from the array
+    const withoutNewest = newestProperty 
+      ? clonedProperties.filter((p: Property) => p.id !== newestProperty.id)
+      : clonedProperties;
+    
+    // Sort remaining properties by view count (highest first)
+    const sortedByViews = withoutNewest.sort((a: Property, b: Property) => {
       const aViews = a.viewCount || 0;
       const bViews = b.viewCount || 0;
       return bViews - aViews;
     });
     
-    // Take only the specified number of properties
-    const popularProperties = sortedProperties.slice(0, limit);
+    // Combine with newest property at the start
+    const combined = newestProperty
+      ? [newestProperty, ...sortedByViews]
+      : sortedByViews;
     
+    // Take only the specified number of properties
+    const popularProperties = combined.slice(0, limit);
+    
+    console.log(`[DEBUG] Popular properties order: ${popularProperties.map(p => `"${p.title}"`).join(', ')}`);
     console.log(`[DEBUG] Returning ${popularProperties.length} popular properties`);
     
     return popularProperties;
