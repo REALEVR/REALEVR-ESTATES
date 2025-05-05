@@ -633,9 +633,15 @@ export class MemStorage implements IStorage {
     return this.properties.delete(id);
   }
   
+  // Helper function to sort properties by ID (newest first)
+  private sortPropertiesByNewest(properties: Property[]): Property[] {
+    return [...properties].sort((a, b) => b.id - a.id);
+  }
+  
   // Property methods
   async getAllProperties(): Promise<Property[]> {
-    return Array.from(this.properties.values());
+    const properties = Array.from(this.properties.values());
+    return this.sortPropertiesByNewest(properties);
   }
   
   async getProperty(id: number): Promise<Property | undefined> {
@@ -643,19 +649,25 @@ export class MemStorage implements IStorage {
   }
   
   async getFeaturedProperties(): Promise<Property[]> {
-    // Get all featured properties
-    const allFeatured = Array.from(this.properties.values()).filter(property => property.isFeatured);
+    // Get all featured properties, sorted by newest first
+    const allFeatured = this.sortPropertiesByNewest(
+      Array.from(this.properties.values()).filter(property => property.isFeatured)
+    );
     
-    // Main showcase properties - one from each category
-    const mainShowcaseProperties = [];
+    // Main showcase properties - one from each category, prioritizing newest
+    const mainShowcaseProperties: Property[] = [];
     
-    // Find one featured property from each category
+    // Find one featured property from each category, newest first
     const categories = ["rental_units", "furnished_houses", "for_sale", "bank_sales"];
     
     for (const category of categories) {
-      const propertyForCategory = allFeatured.find(property => property.category === category);
-      if (propertyForCategory) {
-        mainShowcaseProperties.push(propertyForCategory);
+      const propertiesInCategory = allFeatured.filter(
+        property => property.category === category
+      );
+      
+      if (propertiesInCategory.length > 0) {
+        // Add the newest property in this category
+        mainShowcaseProperties.push(propertiesInCategory[0]);
       }
     }
     
@@ -675,20 +687,26 @@ export class MemStorage implements IStorage {
   }
 
   async getPropertiesByCategory(category: string): Promise<Property[]> {
-    return Array.from(this.properties.values()).filter(property => property.category === category);
+    const properties = Array.from(this.properties.values())
+      .filter(property => property.category === category);
+    
+    return this.sortPropertiesByNewest(properties);
   }
   
   async searchProperties(query: string): Promise<Property[]> {
     const lowerQuery = query.toLowerCase();
-    return Array.from(this.properties.values()).filter(property => 
+    const properties = Array.from(this.properties.values()).filter(property => 
       property.title.toLowerCase().includes(lowerQuery) || 
       property.location.toLowerCase().includes(lowerQuery) ||
-      property.propertyType.toLowerCase().includes(lowerQuery)
+      property.propertyType.toLowerCase().includes(lowerQuery) ||
+      (property.description && property.description.toLowerCase().includes(lowerQuery))
     );
+    
+    return this.sortPropertiesByNewest(properties);
   }
   
   async filterProperties(filters: Partial<Property>): Promise<Property[]> {
-    return Array.from(this.properties.values()).filter(property => {
+    const properties = Array.from(this.properties.values()).filter(property => {
       for (const [key, value] of Object.entries(filters)) {
         if (key === 'amenities' && Array.isArray(value)) {
           if (!property.amenities || !value.every(v => property.amenities!.includes(v))) {
@@ -700,6 +718,8 @@ export class MemStorage implements IStorage {
       }
       return true;
     });
+    
+    return this.sortPropertiesByNewest(properties);
   }
   
   async createProperty(insertProperty: InsertProperty): Promise<Property> {

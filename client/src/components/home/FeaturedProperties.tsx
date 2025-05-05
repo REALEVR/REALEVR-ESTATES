@@ -1,14 +1,73 @@
 import { useQuery } from "@tanstack/react-query";
 import { Property } from "@shared/schema";
 import PropertyCard from "./PropertyCard";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+import useEmblaCarousel from 'embla-carousel-react';
+import { useCallback, useEffect, useRef } from "react";
 
 export default function FeaturedProperties() {
   const { data: featuredProperties, isLoading, error } = useQuery<Property[]>({
     queryKey: ["/api/properties/featured"],
   });
+
+  // Setup carousel
+  const [emblaRef, emblaApi] = useEmblaCarousel({ 
+    loop: true, 
+    align: 'start',
+    skipSnaps: false,
+    dragFree: true,
+  });
+  
+  // Autoplay functionality
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const stopAutoplay = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  const startAutoplay = useCallback(() => {
+    stopAutoplay();
+    if (emblaApi) {
+      intervalRef.current = setInterval(() => {
+        emblaApi.scrollNext();
+      }, 5000); // Scroll every 5 seconds
+    }
+  }, [emblaApi, stopAutoplay]);
+  
+  // Navigation functions
+  const scrollPrev = useCallback(() => {
+    if (emblaApi) {
+      emblaApi.scrollPrev();
+      startAutoplay(); // Reset autoplay timer on manual navigation
+    }
+  }, [emblaApi, startAutoplay]);
+  
+  const scrollNext = useCallback(() => {
+    if (emblaApi) {
+      emblaApi.scrollNext();
+      startAutoplay(); // Reset autoplay timer on manual navigation
+    }
+  }, [emblaApi, startAutoplay]);
+  
+  // Initialize autoplay
+  useEffect(() => {
+    if (emblaApi) {
+      startAutoplay();
+      emblaApi.on('pointerDown', stopAutoplay);
+      emblaApi.on('settle', startAutoplay);
+    
+      return () => {
+        stopAutoplay();
+        emblaApi.off('pointerDown', stopAutoplay);
+        emblaApi.off('settle', startAutoplay);
+      };
+    }
+  }, [emblaApi, startAutoplay, stopAutoplay]);
 
   if (isLoading) {
     return (
@@ -60,10 +119,37 @@ export default function FeaturedProperties() {
           </Button>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {featuredProperties.map((property) => (
-            <PropertyCard key={property.id} property={property} />
-          ))}
+        <div className="relative">
+          {/* Carousel controls */}
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 z-10">
+            <Button 
+              variant="outline" 
+              className="rounded-full h-10 w-10 p-2 bg-white/80 hover:bg-white shadow-md" 
+              onClick={scrollPrev}
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </Button>
+          </div>
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10">
+            <Button 
+              variant="outline" 
+              className="rounded-full h-10 w-10 p-2 bg-white/80 hover:bg-white shadow-md" 
+              onClick={scrollNext}
+            >
+              <ChevronRight className="h-6 w-6" />
+            </Button>
+          </div>
+          
+          {/* Carousel container */}
+          <div className="overflow-hidden" ref={emblaRef}>
+            <div className="flex">
+              {featuredProperties.map((property) => (
+                <div key={property.id} className="flex-[0_0_100%] sm:flex-[0_0_50%] lg:flex-[0_0_33.333%] xl:flex-[0_0_25%] px-3">
+                  <PropertyCard property={property} />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>
