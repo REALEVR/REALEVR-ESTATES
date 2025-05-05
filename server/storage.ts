@@ -38,6 +38,11 @@ export interface IStorage {
   createPropertyType(propertyType: InsertPropertyType): Promise<PropertyType>;
 }
 
+import * as fs from 'fs';
+import * as path from 'path';
+
+const DATA_FILE = 'data.json';
+
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private properties: Map<number, Property>;
@@ -48,6 +53,38 @@ export class MemStorage implements IStorage {
   private propertyCurrentId: number;
   private amenityCurrentId: number;
   private propertyTypeCurrentId: number;
+
+  private saveData() {
+    const data = {
+      users: Array.from(this.users.values()),
+      properties: Array.from(this.properties.values()),
+      amenities: Array.from(this.amenities.values()),
+      propertyTypes: Array.from(this.propertyTypes.values()),
+      userCurrentId: this.userCurrentId,
+      propertyCurrentId: this.propertyCurrentId,
+      amenityCurrentId: this.amenityCurrentId,
+      propertyTypeCurrentId: this.propertyTypeCurrentId
+    };
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+  }
+
+  private loadData() {
+    try {
+      if (fs.existsSync(DATA_FILE)) {
+        const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        this.users = new Map(data.users.map((u: User) => [u.id, u]));
+        this.properties = new Map(data.properties.map((p: Property) => [p.id, p]));
+        this.amenities = new Map(data.amenities.map((a: Amenity) => [a.id, a]));
+        this.propertyTypes = new Map(data.propertyTypes.map((t: PropertyType) => [t.id, t]));
+        this.userCurrentId = data.userCurrentId;
+        this.propertyCurrentId = data.propertyCurrentId;
+        this.amenityCurrentId = data.amenityCurrentId;
+        this.propertyTypeCurrentId = data.propertyTypeCurrentId;
+        return;
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+    }
 
   constructor() {
     this.users = new Map();
@@ -812,6 +849,7 @@ export class MemStorage implements IStorage {
     console.log(`[DEBUG] New property created with ID ${id}`);
     
     this.properties.set(id, property);
+    this.saveData();
     return property;
   }
   
