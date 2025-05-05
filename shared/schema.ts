@@ -11,7 +11,7 @@ export const properties = pgTable("properties", {
   description: text("description").notNull(),
   bedrooms: integer("bedrooms").notNull(),
   bathrooms: integer("bathrooms").notNull(),
-  squareFeet: integer("square_feet").notNull(),
+  squareMeters: integer("square_meters").notNull(),
   imageUrl: text("image_url").notNull(),
   rating: text("rating").notNull(),
   reviewCount: integer("review_count").notNull(),

@@ -116,7 +116,7 @@ const handlePaymentConfirm = async (response: any) => {
           </div>
           <p className="text-gray-500 text-sm mb-2">{property.location}</p>
           <p className="text-gray-500 text-sm mb-3">
-            {property.bedrooms} bed • {property.bathrooms} bath • {property.squareFeet} sq ft
+            {property.bedrooms} bed • {property.bathrooms} bath • {property.squareMeters} sq m
           </p>
           <div className="flex justify-between items-center mb-3">
             <div>
