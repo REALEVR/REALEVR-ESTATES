@@ -377,7 +377,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                     </div>
                     <FormControl>
                       <Switch
-                        checked={field.value}
+                        checked={field.value === true}
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>
@@ -398,7 +398,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                     </div>
                     <FormControl>
                       <Switch
-                        checked={field.value}
+                        checked={field.value === true}
                         onCheckedChange={(checked) => {
                           field.onChange(checked);
                           if (!checked) {
@@ -420,7 +420,14 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                   <FormItem>
                     <FormLabel>Virtual Tour URL</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://app.lapentor.com/sphere/la-rose-apartments" {...field} />
+                      <Input 
+                        placeholder="https://app.lapentor.com/sphere/la-rose-apartments" 
+                        value={field.value || ""} 
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        ref={field.ref}
+                        name={field.name}
+                      />
                     </FormControl>
                     <FormDescription>
                       URL to the virtual tour. You can add more details in the Virtual Tour Manager.

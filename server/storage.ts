@@ -509,7 +509,14 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userCurrentId++;
-    const user: User = { ...insertUser, id };
+    const user: User = { 
+      ...insertUser, 
+      id,
+      membershipStartDate: null,
+      membershipEndDate: null,
+      role: "user",
+      isVerified: false
+    };
     this.users.set(id, user);
     return user;
   }
