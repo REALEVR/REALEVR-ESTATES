@@ -76,6 +76,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get popular properties (based on view count)
+  app.get("/api/properties/popular", async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 4;
+      const popularProperties = await storage.getPopularProperties(limit);
+      
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }).json(popularProperties);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch popular properties" });
+    }
+  });
+  
   // Get properties by category
   app.get("/api/properties/category/:category", async (req, res) => {
     try {
@@ -136,6 +152,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error(`[ERROR] Failed to fetch property:`, error);
       res.status(500).json({ message: "Failed to fetch property" });
+    }
+  });
+  
+  // Increment property view count
+  app.post("/api/properties/:id/view", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid property ID" });
+      }
+      
+      console.log(`[DEBUG] Incrementing view count for property ${id}`);
+      const updatedProperty = await storage.incrementPropertyViewCount(id);
+      
+      if (!updatedProperty) {
+        console.log(`[DEBUG] Property with ID ${id} not found for view count increment`);
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      console.log(`[DEBUG] Property ${id} view count updated to: ${updatedProperty.viewCount}`);
+      
+      res.status(200).json({ 
+        success: true, 
+        viewCount: updatedProperty.viewCount 
+      });
+    } catch (error) {
+      console.error(`[ERROR] Failed to increment view count:`, error);
+      res.status(500).json({ message: "Failed to increment view count" });
     }
   });
   

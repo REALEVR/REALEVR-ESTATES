@@ -151,10 +151,58 @@ export function usePropertySearch(query: string) {
   return result;
 }
 
+export function usePopularProperties(limit?: number) {
+  const queryParams = limit ? `?limit=${limit}` : '';
+  const result = useQuery<Property[]>({
+    queryKey: ["/api/properties/popular", { limit }],
+    ...PROPERTY_QUERY_OPTIONS,
+    queryFn: () => freshFetch(`/api/properties/popular${queryParams}`)
+  });
+  
+  // Log popular properties updates for debugging
+  console.log("Popular properties query state:", { 
+    isLoading: result.isLoading,
+    isError: result.isError,
+    dataCount: result.data?.length || 0,
+    dataUpdatedAt: new Date(result.dataUpdatedAt).toLocaleTimeString()
+  });
+  
+  return result;
+}
+
+export async function trackPropertyView(propertyId: number) {
+  try {
+    console.log(`Tracking view for property ${propertyId}`);
+    const response = await fetch(`/api/properties/${propertyId}/view`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to track property view: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log(`View tracked successfully, new count: ${data.viewCount}`);
+    return data.viewCount;
+  } catch (error) {
+    console.error('Error tracking property view:', error);
+    // Don't throw error as this is a non-critical operation
+    return null;
+  }
+}
+
 export default {
   useProperties,
   useProperty,
   useFeaturedProperties,
   usePropertiesByCategory,
   usePropertySearch,
+  usePopularProperties,
+  trackPropertyView,
 };

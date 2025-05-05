@@ -3,7 +3,7 @@ import { useRoute } from "wouter";
 import VirtualTour from "@/components/property/VirtualTour";
 import PropertyDetails from "@/components/property/PropertyDetails";
 import { Button } from "@/components/ui/button";
-import { useProperty } from "@/hooks/usePropertyData";
+import { useProperty, trackPropertyView } from "@/hooks/usePropertyData";
 import { queryClient } from "@/lib/queryClient";
 import type { Property } from "@shared/schema";
 

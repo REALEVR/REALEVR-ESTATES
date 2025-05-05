@@ -840,6 +840,57 @@ export class MemStorage implements IStorage {
     return updatedProperty;
   }
   
+  async incrementPropertyViewCount(id: number): Promise<Property | undefined> {
+    console.log(`[DEBUG] Incrementing view count for property ${id}`);
+    
+    const property = await this.getProperty(id);
+    if (!property) {
+      console.log(`[DEBUG] Property with ID ${id} not found for view count increment`);
+      return undefined;
+    }
+    
+    const currentViewCount = property.viewCount || 0;
+    console.log(`[DEBUG] Current view count: ${currentViewCount}`);
+    
+    // Create a completely fresh copy with updated view count
+    const updatedProperty = JSON.parse(JSON.stringify({
+      ...property,
+      viewCount: currentViewCount + 1
+    }));
+    
+    console.log(`[DEBUG] New view count: ${updatedProperty.viewCount}`);
+    
+    // Clear and set to ensure the map updates properly
+    this.properties.delete(id);
+    this.properties.set(id, updatedProperty);
+    
+    return updatedProperty;
+  }
+  
+  async getPopularProperties(limit: number = 4): Promise<Property[]> {
+    console.log(`[DEBUG] Getting popular properties, limit: ${limit}`);
+    
+    // Get all properties
+    const propertiesArray = Array.from(this.properties.values());
+    
+    // Deep clone to break any reference issues
+    const clonedProperties = JSON.parse(JSON.stringify(propertiesArray));
+    
+    // Sort by view count (highest first)
+    const sortedProperties = clonedProperties.sort((a: Property, b: Property) => {
+      const aViews = a.viewCount || 0;
+      const bViews = b.viewCount || 0;
+      return bViews - aViews;
+    });
+    
+    // Take only the specified number of properties
+    const popularProperties = sortedProperties.slice(0, limit);
+    
+    console.log(`[DEBUG] Returning ${popularProperties.length} popular properties`);
+    
+    return popularProperties;
+  }
+  
   // Amenity methods
   async getAllAmenities(): Promise<Amenity[]> {
     return Array.from(this.amenities.values());
