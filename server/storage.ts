@@ -616,12 +616,22 @@ export class MemStorage implements IStorage {
   async updateProperty(id: number, propertyUpdate: Partial<Property>): Promise<Property | undefined> {
     const property = await this.getProperty(id);
     if (!property) {
+      console.log(`[DEBUG] Property with ID ${id} not found for update`);
       return undefined;
     }
     
-    // Merge the existing property with the updates
-    const updatedProperty = { ...property, ...propertyUpdate };
+    console.log(`[DEBUG] Updating property ${id}:`, property.title);
+    console.log(`[DEBUG] With updates:`, JSON.stringify(propertyUpdate));
+    
+    // Make a completely fresh copy to avoid any reference issues
+    const updatedProperty = JSON.parse(JSON.stringify({ ...property, ...propertyUpdate }));
+    
+    console.log(`[DEBUG] Result:`, JSON.stringify(updatedProperty));
+    
+    // Clear and set to ensure the map updates properly
+    this.properties.delete(id);
     this.properties.set(id, updatedProperty);
+    
     return updatedProperty;
   }
   
@@ -640,19 +650,44 @@ export class MemStorage implements IStorage {
   
   // Property methods
   async getAllProperties(): Promise<Property[]> {
+    console.log(`[DEBUG] Getting all properties. Count: ${this.properties.size}`);
     const properties = Array.from(this.properties.values());
-    return this.sortPropertiesByNewest(properties);
+    console.log(`[DEBUG] Properties list has ${properties.length} items`);
+    
+    // Deep clone to break any reference issues
+    const clonedProperties = JSON.parse(JSON.stringify(properties));
+    return this.sortPropertiesByNewest(clonedProperties);
   }
   
   async getProperty(id: number): Promise<Property | undefined> {
-    return this.properties.get(id);
+    console.log(`[DEBUG] Getting property with ID ${id}`);
+    const property = this.properties.get(id);
+    
+    if (property) {
+      console.log(`[DEBUG] Found property: ${property.title}`);
+      // Deep clone to break any reference issues
+      return JSON.parse(JSON.stringify(property));
+    } else {
+      console.log(`[DEBUG] Property with ID ${id} not found`);
+      return undefined;
+    }
   }
   
   async getFeaturedProperties(): Promise<Property[]> {
+    console.log(`[DEBUG] Getting featured properties`);
+    
     // Get all featured properties, sorted by newest first
+    const propertiesArray = Array.from(this.properties.values());
+    console.log(`[DEBUG] Total properties: ${propertiesArray.length}`);
+    
+    // Deep clone to break any reference issues
+    const clonedProperties = JSON.parse(JSON.stringify(propertiesArray));
+    
     const allFeatured = this.sortPropertiesByNewest(
-      Array.from(this.properties.values()).filter(property => property.isFeatured)
+      clonedProperties.filter((property: Property) => property.isFeatured)
     );
+    
+    console.log(`[DEBUG] Featured properties: ${allFeatured.length}`);
     
     // Main showcase properties - one from each category, prioritizing newest
     const mainShowcaseProperties: Property[] = [];
@@ -662,19 +697,20 @@ export class MemStorage implements IStorage {
     
     for (const category of categories) {
       const propertiesInCategory = allFeatured.filter(
-        property => property.category === category
+        (property: Property) => property.category === category
       );
       
       if (propertiesInCategory.length > 0) {
         // Add the newest property in this category
         mainShowcaseProperties.push(propertiesInCategory[0]);
+        console.log(`[DEBUG] Added featured property from category ${category}: ${propertiesInCategory[0].title}`);
       }
     }
     
     // If we didn't get 4 properties (one per category), add more from other categories to reach 4
     if (mainShowcaseProperties.length < 4) {
       const remainingFeatured = allFeatured.filter(
-        property => !mainShowcaseProperties.some(p => p.id === property.id)
+        (property: Property) => !mainShowcaseProperties.some(p => p.id === property.id)
       );
       
       mainShowcaseProperties.push(
@@ -682,31 +718,62 @@ export class MemStorage implements IStorage {
       );
     }
     
+    console.log(`[DEBUG] Returning ${mainShowcaseProperties.length} featured properties`);
+    
     // Return exactly 4 properties or less if there aren't enough featured ones
     return mainShowcaseProperties.slice(0, 4);
   }
 
   async getPropertiesByCategory(category: string): Promise<Property[]> {
-    const properties = Array.from(this.properties.values())
-      .filter(property => property.category === category);
+    console.log(`[DEBUG] Getting properties by category: ${category}`);
+    
+    // Get all properties
+    const propertiesArray = Array.from(this.properties.values());
+    
+    // Deep clone to break any reference issues
+    const clonedProperties = JSON.parse(JSON.stringify(propertiesArray));
+    
+    // Filter by category
+    const properties = clonedProperties.filter((property: Property) => property.category === category);
+    console.log(`[DEBUG] Found ${properties.length} properties in category ${category}`);
     
     return this.sortPropertiesByNewest(properties);
   }
   
   async searchProperties(query: string): Promise<Property[]> {
+    console.log(`[DEBUG] Searching properties with query: ${query}`);
+    
     const lowerQuery = query.toLowerCase();
-    const properties = Array.from(this.properties.values()).filter(property => 
+    
+    // Get all properties
+    const propertiesArray = Array.from(this.properties.values());
+    
+    // Deep clone to break any reference issues
+    const clonedProperties = JSON.parse(JSON.stringify(propertiesArray));
+    
+    // Filter by search criteria
+    const properties = clonedProperties.filter((property: Property) => 
       property.title.toLowerCase().includes(lowerQuery) || 
       property.location.toLowerCase().includes(lowerQuery) ||
       property.propertyType.toLowerCase().includes(lowerQuery) ||
       (property.description && property.description.toLowerCase().includes(lowerQuery))
     );
     
+    console.log(`[DEBUG] Found ${properties.length} properties matching search query`);
+    
     return this.sortPropertiesByNewest(properties);
   }
   
   async filterProperties(filters: Partial<Property>): Promise<Property[]> {
-    const properties = Array.from(this.properties.values()).filter(property => {
+    console.log(`[DEBUG] Filtering properties with filters:`, JSON.stringify(filters));
+    
+    // Get all properties
+    const propertiesArray = Array.from(this.properties.values());
+    
+    // Deep clone to break any reference issues
+    const clonedProperties = JSON.parse(JSON.stringify(propertiesArray));
+    
+    const properties = clonedProperties.filter((property: Property) => {
       for (const [key, value] of Object.entries(filters)) {
         if (key === 'amenities' && Array.isArray(value)) {
           if (!property.amenities || !value.every(v => property.amenities!.includes(v))) {
@@ -719,35 +786,54 @@ export class MemStorage implements IStorage {
       return true;
     });
     
+    console.log(`[DEBUG] Found ${properties.length} properties matching filters`);
+    
     return this.sortPropertiesByNewest(properties);
   }
   
   async createProperty(insertProperty: InsertProperty): Promise<Property> {
+    console.log(`[DEBUG] Creating new property: ${insertProperty.title}`);
+    
     const id = this.propertyCurrentId++;
     
-    // Ensure default values
-    const property: Property = { 
+    // Ensure default values with deep cloning to break any reference issues
+    const property: Property = JSON.parse(JSON.stringify({ 
       ...insertProperty, 
       id,
-      isAvailable: insertProperty.isAvailable === undefined ? true : insertProperty.isAvailable
-    };
+      isAvailable: insertProperty.isAvailable === undefined ? true : insertProperty.isAvailable,
+      // Ensure required fields are not undefined
+      currency: insertProperty.currency || 'UGX'
+    }));
+    
+    console.log(`[DEBUG] New property created with ID ${id}`);
     
     this.properties.set(id, property);
     return property;
   }
   
   async togglePropertyAvailability(id: number): Promise<Property | undefined> {
+    console.log(`[DEBUG] Toggling availability for property ${id}`);
+    
     const property = await this.getProperty(id);
     if (!property) {
+      console.log(`[DEBUG] Property with ID ${id} not found for toggle availability`);
       return undefined;
     }
     
-    const updatedProperty = { 
-      ...property, 
-      isAvailable: !property.isAvailable 
-    };
+    console.log(`[DEBUG] Current availability: ${property.isAvailable}`);
     
+    // Create a completely fresh copy with updated availability
+    const updatedProperty = JSON.parse(JSON.stringify({
+      ...property,
+      isAvailable: !property.isAvailable
+    }));
+    
+    console.log(`[DEBUG] New availability: ${updatedProperty.isAvailable}`);
+    
+    // Clear and set to ensure the map updates properly
+    this.properties.delete(id);
     this.properties.set(id, updatedProperty);
+    
     return updatedProperty;
   }
   
