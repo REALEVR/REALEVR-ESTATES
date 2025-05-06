@@ -323,11 +323,11 @@ export class MemStorage implements IStorage {
         amenities: ["High-Speed Internet", "Art Studio Space", "Backup Power", "Security"]
       },
       {
-        title: "Cadenza Luxury Suites",
+        title: "Cadenza Luxury Residence",
         location: "Kololo, Kampala, Uganda",
         price: 2200,
         currency: "USD",
-        description: "Elegant Cadenza Luxury Suites offering premium living in the heart of Kololo. These newly built apartments feature Italian marble, smart home technology, and 24/7 concierge service.",
+        description: "Experience the luxurious Cadenza Residence in the heart of Kololo. These newly built apartments feature Italian marble, smart home technology, and 24/7 concierge service. The property includes high-end finishes, panoramic views of Kampala, and access to exclusive amenities.",
         bedrooms: 2,
         bathrooms: 2,
         squareMeters: 140,
@@ -338,7 +338,7 @@ export class MemStorage implements IStorage {
         category: "for_sale",
         isFeatured: true,
         hasTour: true,
-        tourUrl: "",
+        tourUrl: "/uploads/tours/9/CADENZA RESIDENCE/index.htm",
         amenities: ["Concierge", "Smart Home", "Gym", "Rooftop Lounge"]
       },
       {
