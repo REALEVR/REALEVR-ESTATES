@@ -218,13 +218,13 @@ export default function AuthPage() {
                       Register
                     </button>
                   </div>
-{/*                   
+                  
                   <div className="text-xs text-center text-gray-500 w-full">
                     <p>Test Accounts Available:</p>
                     <p className="font-mono">Admin: admin / admin123</p>
                     <p className="font-mono">Manager: manager / admin123</p>
                     <p className="font-mono">User: user / admin123</p>
-                  </div> */}
+                  </div>
                 </CardFooter>
               </Card>
             </TabsContent>
