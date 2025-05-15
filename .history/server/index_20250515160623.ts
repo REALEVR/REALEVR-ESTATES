@@ -79,7 +79,7 @@ app.use((req, res, next) => {
 
   // Use the PORT environment variable provided by the cloud platform
   // with a fallback to port 5000 for local development
-  const port = parseInt(process.env.PORT || '8080', 10);
+  const port = process.env.PORT || 5000;
   server.listen(port, "0.0.0.0", () => {
     log(`Server running at http://0.0.0.0:${port}`);
   });
