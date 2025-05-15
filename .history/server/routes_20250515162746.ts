@@ -6,9 +6,9 @@ import { z } from "zod";
 import fetch from "node-fetch";
 import path from "path";
 import fs from "fs";
-import {
-  uploadPropertyImage,
-  uploadVirtualTour,
+import { 
+  uploadPropertyImage, 
+  uploadVirtualTour, 
   handleUploadErrors,
   extractTourZip,
   setupStaticFileRoutes
@@ -19,12 +19,12 @@ const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ message: "Not authenticated" });
   }
-
+  
   const user = req.user;
   if (!user.role || (user.role !== "admin" && user.role !== "property_manager")) {
     return res.status(403).json({ message: "Unauthorized. Admin or property manager role required." });
   }
-
+  
   next();
 };
 
@@ -40,15 +40,15 @@ const noCacheMiddleware = (req: Request, res: Response, next: NextFunction) => {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
   setupAuth(app);
-
+  
   // Apply no-cache middleware to all API routes
   app.use('/api', noCacheMiddleware);
-
+  
   // Get all properties
   app.get("/api/properties", async (req, res) => {
     try {
       const properties = await storage.getAllProperties();
-
+      
       // Set cache control headers to prevent caching
       res.set({
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -59,12 +59,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch properties" });
     }
   });
-
+  
   // Get featured properties
   app.get("/api/properties/featured", async (req, res) => {
     try {
       const featuredProperties = await storage.getFeaturedProperties();
-
+      
       // Set cache control headers to prevent caching
       res.set({
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -75,13 +75,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch featured properties" });
     }
   });
-
+  
   // Get popular properties (based on view count)
   app.get("/api/properties/popular", async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 4;
       const popularProperties = await storage.getPopularProperties(limit);
-
+      
       res.set({
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
@@ -91,13 +91,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch popular properties" });
     }
   });
-
+  
   // Get recently added properties
   app.get("/api/properties/recent", async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 4;
       const recentProperties = await storage.getRecentlyAddedProperties(limit);
-
+      
       res.set({
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
@@ -107,7 +107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch recently added properties" });
     }
   });
-
+  
   // Test route to add a new property (for testing newest property logic)
   app.get("/api/test/add-new-property", async (req, res) => {
     try {
@@ -135,10 +135,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hasVirtualTour: false,
         virtualTourUrl: "",
       };
-
+      
       const newProperty = await storage.createProperty(testProperty);
       console.log(`[DEBUG] Created test property: "${newProperty.title}" with ID ${newProperty.id}`);
-
+      
       // Return the newly created property
       res.json(newProperty);
     } catch (error) {
@@ -152,7 +152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const category = req.params.category;
       const properties = await storage.getPropertiesByCategory(category);
-
+      
       // Set cache control headers to prevent caching
       res.set({
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -163,13 +163,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch properties by category" });
     }
   });
-
+  
   // Search properties
   app.get("/api/properties/search", async (req, res) => {
     try {
       const query = req.query.q as string || "";
       const properties = await storage.searchProperties(query);
-
+      
       // Set cache control headers to prevent caching
       res.set({
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -180,7 +180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to search properties" });
     }
   });
-
+  
   // Get a specific property by ID - must be placed after other /api/properties/... routes
   app.get("/api/properties/:id", async (req, res) => {
     try {
@@ -188,16 +188,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid property ID" });
       }
-
+      
       console.log(`[DEBUG] Getting property with ID ${id}`);
       const property = await storage.getProperty(id);
       if (!property) {
         console.log(`[DEBUG] Property with ID ${id} not found`);
         return res.status(404).json({ message: "Property not found" });
       }
-
+      
       console.log(`[DEBUG] Found property ${id}: ${property.title}`);
-
+      
       // Set cache control headers to prevent caching
       res.set({
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -209,7 +209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch property" });
     }
   });
-
+  
   // Increment property view count
   app.post("/api/properties/:id/view", async (req, res) => {
     try {
@@ -217,27 +217,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid property ID" });
       }
-
+      
       console.log(`[DEBUG] Incrementing view count for property ${id}`);
       const updatedProperty = await storage.incrementPropertyViewCount(id);
-
+      
       if (!updatedProperty) {
         console.log(`[DEBUG] Property with ID ${id} not found for view count increment`);
         return res.status(404).json({ message: "Property not found" });
       }
-
+      
       console.log(`[DEBUG] Property ${id} view count updated to: ${updatedProperty.viewCount}`);
-
-      res.status(200).json({
-        success: true,
-        viewCount: updatedProperty.viewCount
+      
+      res.status(200).json({ 
+        success: true, 
+        viewCount: updatedProperty.viewCount 
       });
     } catch (error) {
       console.error(`[ERROR] Failed to increment view count:`, error);
       res.status(500).json({ message: "Failed to increment view count" });
     }
   });
-
+  
   // Get all property types
   app.get("/api/property-types", async (req, res) => {
     try {
@@ -247,7 +247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch property types" });
     }
   });
-
+  
   // Get all amenities
   app.get("/api/amenities", async (req, res) => {
     try {
@@ -257,7 +257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch amenities" });
     }
   });
-
+  
   // Filter properties
   app.post("/api/properties/filter", async (req, res) => {
     try {
@@ -270,49 +270,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amenities: z.array(z.string()).optional(),
         hasTour: z.boolean().optional()
       });
-
+      
       const parseResult = filterSchema.safeParse(req.body);
-
+      
       if (!parseResult.success) {
         return res.status(400).json({ message: "Invalid filter parameters" });
       }
-
+      
       const filters = parseResult.data;
-
+      
       // Apply filters to properties
       let properties = await storage.getAllProperties();
-
+      
       if (filters.propertyType) {
         properties = properties.filter(p => p.propertyType === filters.propertyType);
       }
-
+      
       if (filters.minPrice !== undefined) {
         properties = properties.filter(p => p.price >= filters.minPrice!);
       }
-
+      
       if (filters.maxPrice !== undefined) {
         properties = properties.filter(p => p.price <= filters.maxPrice!);
       }
-
+      
       if (filters.bedrooms !== undefined) {
         properties = properties.filter(p => p.bedrooms >= filters.bedrooms!);
       }
-
+      
       if (filters.bathrooms !== undefined) {
         properties = properties.filter(p => p.bathrooms >= filters.bathrooms!);
       }
-
+      
       if (filters.hasTour !== undefined) {
         properties = properties.filter(p => p.hasTour === filters.hasTour);
       }
-
+      
       if (filters.amenities && filters.amenities.length > 0) {
         properties = properties.filter(p => {
           if (!p.amenities) return false;
           return filters.amenities!.every(amenity => p.amenities!.includes(amenity));
         });
       }
-
+      
       // Set cache control headers to prevent caching
       res.set({
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -330,18 +330,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { transaction_id } = req.body;
 
       if (!transaction_id) {
-        return res.status(400).json({
-          status: "error",
-          message: "Transaction ID is required"
+        return res.status(400).json({ 
+          status: "error", 
+          message: "Transaction ID is required" 
         });
       }
 
       const flutterwaveSecretKey = process.env.FLUTTERWAVE_SECRET_KEY;
-
+      
       if (!flutterwaveSecretKey) {
-        return res.status(500).json({
-          status: "error",
-          message: "Flutterwave secret key is not configured"
+        return res.status(500).json({ 
+          status: "error", 
+          message: "Flutterwave secret key is not configured" 
         });
       }
 
@@ -364,7 +364,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // For security: Verify the amount matches what you expect
         const amount = data.data.amount;
         const currency = data.data.currency;
-
+        
         // Standard package is 10,000 UGX
         if (amount === 10000 && currency === "UGX") {
           return res.json({
@@ -375,7 +375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days from now
             }
           });
-        }
+        } 
         // Premium package is 30,000 UGX
         else if (amount === 30000 && currency === "UGX") {
           return res.json({
@@ -386,7 +386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 days from now
             }
           });
-        }
+        } 
         else {
           return res.status(400).json({
             status: "error",
@@ -419,7 +419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: error.message });
     }
   });
-
+  
   // Update a property (admin only)
   app.patch("/api/properties/:id", adminMiddleware, async (req, res) => {
     try {
@@ -427,17 +427,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid property ID" });
       }
-
+      
       console.log(`[DEBUG] PATCH request for property ${id} with data:`, JSON.stringify(req.body));
-
+      
       const updatedProperty = await storage.updateProperty(id, req.body);
       if (!updatedProperty) {
         console.log(`[DEBUG] Property with ID ${id} not found for update`);
         return res.status(404).json({ message: "Property not found" });
       }
-
+      
       console.log(`[DEBUG] Property ${id} successfully updated, sending response`);
-
+      
       // Set cache control headers to prevent caching
       res.set({
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -449,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: error.message });
     }
   });
-
+  
   // Toggle property availability (admin/property manager only)
   app.post("/api/properties/:id/toggle-availability", adminMiddleware, async (req, res) => {
     try {
@@ -457,17 +457,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid property ID" });
       }
-
+      
       console.log(`[DEBUG] Toggling availability for property ${id}`);
-
+      
       const updatedProperty = await storage.togglePropertyAvailability(id);
       if (!updatedProperty) {
         console.log(`[DEBUG] Property with ID ${id} not found for availability toggle`);
         return res.status(404).json({ message: "Property not found" });
       }
-
+      
       console.log(`[DEBUG] Property ${id} availability toggled to: ${updatedProperty.isAvailable}`);
-
+      
       // Set cache control headers to prevent caching
       res.set({
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -479,7 +479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
-
+  
   // Delete a property (admin only)
   app.delete("/api/properties/:id", adminMiddleware, async (req, res) => {
     try {
@@ -487,12 +487,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid property ID" });
       }
-
+      
       const property = await storage.getProperty(id);
       if (!property) {
         return res.status(404).json({ message: "Property not found" });
       }
-
+      
       // Remove any associated virtual tour files if they exist
       if (property.hasTour && property.tourUrl) {
         // Extract the property ID from the tourUrl
@@ -500,7 +500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (match) {
           const propertyId = match[1];
           const tourPath = path.join(process.cwd(), 'uploads', 'tours', `property_${propertyId}_tour`);
-
+          
           if (fs.existsSync(tourPath)) {
             try {
               fs.rmSync(tourPath, { recursive: true, force: true });
@@ -511,30 +511,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
-
+      
       // Delete the property from storage
       const success = await storage.deleteProperty(id);
       if (!success) {
         return res.status(500).json({ message: "Failed to delete property" });
       }
-
+      
       res.status(200).json({ message: "Property deleted successfully" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
-
+  
   // Get all users (admin only)
-  app.get("/api/users", adminMiddleware, async (req, res) => {
+  app.get("/api/users", async (req, res) => {
     try {
       const users = await storage.getAllUsers();
-
+      
       // Remove passwords before sending to client
       const sanitizedUsers = users.map(user => {
         const { password, ...userWithoutPassword } = user;
         return userWithoutPassword;
       });
-
+      
       res.json(sanitizedUsers);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -548,17 +548,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid user ID" });
       }
-
+      
       const { role } = req.body;
       if (!role || !["user", "admin", "property_manager"].includes(role)) {
         return res.status(400).json({ message: "Invalid role. Must be 'user', 'admin', or 'property_manager'" });
       }
-
+      
       const updatedUser = await storage.updateUserRole(id, role);
-
+      
       // Remove password before sending back to client
       const { password, ...userWithoutPassword } = updatedUser;
-
+      
       res.json(userWithoutPassword);
     } catch (error: any) {
       res.status(404).json({ message: error.message });
@@ -571,28 +571,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { transaction_id, propertyId } = req.body;
 
       if (!transaction_id || !propertyId) {
-        return res.status(400).json({
-          status: "error",
-          message: "Transaction ID and Property ID are required"
+        return res.status(400).json({ 
+          status: "error", 
+          message: "Transaction ID and Property ID are required" 
         });
       }
 
       const flutterwaveSecretKey = process.env.FLUTTERWAVE_SECRET_KEY;
-
+      
       if (!flutterwaveSecretKey) {
-        return res.status(500).json({
-          status: "error",
-          message: "Flutterwave secret key is not configured"
+        return res.status(500).json({ 
+          status: "error", 
+          message: "Flutterwave secret key is not configured" 
         });
       }
 
       // Get the property details
       const property = await storage.getProperty(parseInt(propertyId));
-
+      
       if (!property) {
-        return res.status(404).json({
-          status: "error",
-          message: "Property not found"
+        return res.status(404).json({ 
+          status: "error", 
+          message: "Property not found" 
         });
       }
 
@@ -608,11 +608,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       );
 
-      const data = await response.json() as {
-        status: string;
-        data: {
-          status: string;
-          amount: number;
+      const data = await response.json() as { 
+        status: string; 
+        data: { 
+          status: string; 
+          amount: number; 
           currency: string;
           // Add other fields as needed
         }
@@ -622,15 +622,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (data.status === "success" && data.data.status === "successful") {
         // Calculate 5% of the property price as the deposit (or use fixed deposit amount)
         const expectedDepositAmount = property.price * 0.05;
-
+        
         // Verify the amount matches the expected deposit
         const amount = data.data.amount;
         const currency = data.data.currency;
-
+        
         // Allow some flexibility in the deposit amount (±5%)
         const lowerBound = expectedDepositAmount * 0.95;
         const upperBound = expectedDepositAmount * 1.05;
-
+        
         if (amount >= lowerBound && amount <= upperBound && currency === "UGX") {
           // Here you would typically store this in a database
           // For this example we'll just return success
@@ -672,95 +672,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Setup routes to serve static files
   setupStaticFileRoutes(app);
-
+  
   // Upload property image (admin only)
-  app.post("/api/upload/property-image", (req, res) => {
-    // Check if user is authenticated
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
-    // Get user from request
-    const user = req.user;
-
-    // Only check role if user is not an admin
-    if (!user.role || (user.role !== "admin" && user.role !== "property_manager")) {
-      return res.status(403).json({ message: "Unauthorized. Admin or property manager role required." });
-    }
-
-    console.log(`Received property image upload request from ${user.role}`);
-
+  app.post("/api/upload/property-image", adminMiddleware, (req, res) => {
     uploadPropertyImage(req, res, (err: any) => {
       if (err) {
-        return res.status(400).json({
-          status: "error",
-          message: err.message
+        return res.status(400).json({ 
+          status: "error", 
+          message: err.message 
         });
       }
-
+      
       if (!req.file) {
-        return res.status(400).json({
-          status: "error",
-          message: "No file uploaded"
+        return res.status(400).json({ 
+          status: "error", 
+          message: "No file uploaded" 
         });
       }
-
+      
       // Return the path to the uploaded image
       const imagePath = `/uploads/images/${req.file.filename}`;
-
-      res.json({
-        status: "success",
+      
+      res.json({ 
+        status: "success", 
         message: "Image uploaded successfully",
-        imagePath
+        imagePath 
       });
     });
   });
-
+  
   // Upload virtual tour zip (admin only)
-  app.post("/api/upload/virtual-tour/:propertyId", (req, res) => {
-    // Check if user is authenticated
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
-    // Get user from request
-    const user = req.user;
-
-    // Only check role if user is not an admin
-    if (!user.role || (user.role !== "admin" && user.role !== "property_manager")) {
-      return res.status(403).json({ message: "Unauthorized. Admin or property manager role required." });
-    }
-
+  app.post("/api/upload/virtual-tour/:propertyId", adminMiddleware, (req, res) => {
     const propertyId = parseInt(req.params.propertyId);
-
+    
     if (isNaN(propertyId)) {
-      return res.status(400).json({
-        status: "error",
-        message: "Invalid property ID"
+      return res.status(400).json({ 
+        status: "error", 
+        message: "Invalid property ID" 
       });
     }
 
-    console.log(`Received virtual tour upload request for property ${propertyId} from ${user.role}`);
-
+    console.log(`Received virtual tour upload request for property ${propertyId}`);
+    
     uploadVirtualTour(req, res, async (err: any) => {
       if (err) {
         console.error(`Upload error: ${err.message}`);
-        return res.status(400).json({
-          status: "error",
-          message: err.message
+        return res.status(400).json({ 
+          status: "error", 
+          message: err.message 
         });
       }
-
+      
       if (!req.file) {
         console.error('No file was uploaded');
-        return res.status(400).json({
-          status: "error",
-          message: "No file uploaded"
+        return res.status(400).json({ 
+          status: "error", 
+          message: "No file uploaded" 
         });
       }
-
+      
       console.log(`File received: ${req.file.originalname}, mimetype: ${req.file.mimetype}, size: ${req.file.size} bytes`);
-
+      
       try {
         // Verify that the property exists
         const property = await storage.getProperty(propertyId);
@@ -771,29 +743,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: "Property not found"
           });
         }
-
+        
         // Extract the tour files
         console.log(`Starting extraction of tour file from ${req.file.path}`);
         const extractedPath = await extractTourZip(req.file.path, propertyId);
         console.log(`Tour extracted to ${extractedPath}`);
-
+        
         // Check for index.htm file directly
         const directory = path.join(process.cwd(), extractedPath);
         const directoryContents = fs.readdirSync(directory);
         console.log(`Directory contents:`, directoryContents);
-
+        
         let indexFile = directoryContents.find(f => f.toLowerCase() === 'index.htm');
-
+        
         // If not found at root level, try to find it in subdirectories
         if (!indexFile) {
           console.log('No index.htm found at root level, checking subdirectories...');
-
+          
           for (const item of directoryContents) {
             const itemPath = path.join(directory, item);
             if (fs.statSync(itemPath).isDirectory()) {
               const subDirContents = fs.readdirSync(itemPath);
               console.log(`Contents of ${item}:`, subDirContents);
-
+              
               if (subDirContents.includes('index.htm')) {
                 indexFile = `${item}/index.htm`;
                 console.log(`Found index.htm in subdirectory: ${indexFile}`);
@@ -802,21 +774,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
         }
-
+        
         // Determine the correct tour URL
         let tourUrl = `/uploads/tours/property_${propertyId}_tour/index.htm`;
         if (indexFile && indexFile.includes('/')) {
           tourUrl = `/uploads/tours/property_${propertyId}_tour/${indexFile}`;
         }
-
+        
         console.log(`Setting tour URL to: ${tourUrl}`);
-
+        
         // Update the property with the tour URL
-        const updatedProperty = await storage.updateProperty(propertyId, {
+        const updatedProperty = await storage.updateProperty(propertyId, { 
           hasTour: true,
           tourUrl: tourUrl
         });
-
+        
         res.json({
           status: "success",
           message: "Virtual tour uploaded and extracted successfully",

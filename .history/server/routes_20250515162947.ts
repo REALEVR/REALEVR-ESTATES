@@ -674,22 +674,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupStaticFileRoutes(app);
 
   // Upload property image (admin only)
-  app.post("/api/upload/property-image", (req, res) => {
-    // Check if user is authenticated
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
-    // Get user from request
-    const user = req.user;
-
-    // Only check role if user is not an admin
-    if (!user.role || (user.role !== "admin" && user.role !== "property_manager")) {
-      return res.status(403).json({ message: "Unauthorized. Admin or property manager role required." });
-    }
-
-    console.log(`Received property image upload request from ${user.role}`);
-
+  app.post("/api/upload/property-image", adminMiddleware, (req, res) => {
     uploadPropertyImage(req, res, (err: any) => {
       if (err) {
         return res.status(400).json({
