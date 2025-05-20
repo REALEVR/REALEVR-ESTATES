@@ -1319,7 +1319,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                     <h3 className="text-lg font-semibold mb-2">Upload Virtual Tour</h3>
                     <p className="text-sm text-muted-foreground mb-4">
                       Upload a 3D Vista tour export (ZIP file). This will extract the tour files and make them available
-                      for viewing. Maximum file size: 5GB.
+                      for viewing. Maximum file size: 100MB.
                     </p>
 
                     <div className="flex items-center space-x-2 mt-2">

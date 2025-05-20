@@ -51,7 +51,6 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Extend the insertPropertySchema with additional validations
@@ -458,11 +457,11 @@ const onSubmit = async (data: PropertyFormValues) => {
       return;
     }
 
-    // Check file size (max 5GB)
-    if (file.size > 5 * 1024 * 1024 * 1024) {
+    // Check file size (max 100MB)
+    if (file.size > 100 * 1024 * 1024) {
       toast({
         title: "Error",
-        description: "File is too large. Maximum allowed size is 5GB",
+        description: "File is too large. Maximum allowed size is 100MB",
         variant: "destructive",
       });
       return;
@@ -1319,7 +1318,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                     <h3 className="text-lg font-semibold mb-2">Upload Virtual Tour</h3>
                     <p className="text-sm text-muted-foreground mb-4">
                       Upload a 3D Vista tour export (ZIP file). This will extract the tour files and make them available
-                      for viewing. Maximum file size: 5GB.
+                      for viewing. Maximum file size: 100MB.
                     </p>
 
                     <div className="flex items-center space-x-2 mt-2">
@@ -1377,7 +1376,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                         <div className="aspect-video bg-gray-100 rounded-md overflow-hidden">
                           <iframe
                             src={tourPreviewUrl || property?.tourUrl || ""}
-                            className="w-full h-full tour-preview-section"
+                            className="w-full h-full "
                             title={`Virtual tour of ${property?.title}`}
                             sandbox="allow-same-origin allow-scripts allow-forms"
                           />

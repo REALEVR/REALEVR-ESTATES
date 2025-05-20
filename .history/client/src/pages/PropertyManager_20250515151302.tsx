@@ -57,18 +57,16 @@ export default function PropertyManager() {
 
   const filteredProperties = properties?.filter(property => {
     // Filter by search query
-    const matchesSearch = !searchQuery ||
+    const matchesSearch = !searchQuery || 
       property.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       property.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
       property.description.toLowerCase().includes(searchQuery.toLowerCase());
-
+    
     // Filter by selected category
     const matchesCategory = !selectedCategory || property.category === selectedCategory;
-
+    
     return matchesSearch && matchesCategory;
-  })
-  // Sort by ID in descending order (newest first)
-  .sort((a, b) => b.id - a.id);
+  });
 
   const handleOpenEditDialog = (property: Property) => {
     setSelectedProperty(property);
@@ -79,16 +77,16 @@ export default function PropertyManager() {
     if (!confirm('Are you sure you want to delete this property? This action cannot be undone.')) {
       return;
     }
-
+    
     try {
       const response = await apiRequest('DELETE', `/api/properties/${propertyId}`);
-
+      
       if (response.ok) {
         toast({
           title: "Property Deleted",
           description: "The property has been successfully deleted",
         });
-
+        
         // Refresh the properties list
         queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
       } else {
@@ -103,18 +101,18 @@ export default function PropertyManager() {
       });
     }
   };
-
+  
   const handleToggleAvailability = async (propertyId: number) => {
     try {
       const response = await apiRequest('POST', `/api/properties/${propertyId}/toggle-availability`);
-
+      
       if (response.ok) {
         const updatedProperty = await response.json();
         toast({
           title: updatedProperty.isAvailable ? "Property Available" : "Property Unavailable",
           description: `The property is now ${updatedProperty.isAvailable ? 'available' : 'unavailable'} for booking.`,
         });
-
+        
         // Refresh the properties list
         queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
       } else {
@@ -148,7 +146,7 @@ export default function PropertyManager() {
   const getCategoryBadge = (category: string) => {
     let variant = "outline";
     let label = "";
-
+    
     switch (category) {
       case 'rental':
         variant = "secondary";
@@ -169,7 +167,7 @@ export default function PropertyManager() {
       default:
         label = category;
     }
-
+    
     return (
       <Badge variant={variant as any} className="capitalize flex items-center">
         {getCategoryIcon(category)}
@@ -238,7 +236,7 @@ export default function PropertyManager() {
                 )}
               </TableCell>
               <TableCell>
-                <Button
+                <Button 
                   variant={property.isAvailable ? "outline" : "secondary"}
                   size="sm"
                   onClick={() => handleToggleAvailability(property.id)}
@@ -258,16 +256,16 @@ export default function PropertyManager() {
                 </Button>
               </TableCell>
               <TableCell className="text-right space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
+                <Button 
+                  variant="outline" 
+                  size="sm" 
                   onClick={() => handleOpenEditDialog(property)}
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
                 {property.hasTour ? (
-                  <Button
-                    variant="outline"
+                  <Button 
+                    variant="outline" 
                     size="sm"
                     asChild
                   >
@@ -276,8 +274,8 @@ export default function PropertyManager() {
                     </a>
                   </Button>
                 ) : (
-                  <Button
-                    variant="outline"
+                  <Button 
+                    variant="outline" 
                     size="sm"
                     onClick={() => {
                       // Set tab selection first, then open dialog
@@ -295,8 +293,8 @@ export default function PropertyManager() {
                     <Box className="h-4 w-4" />
                   </Button>
                 )}
-                <Button
-                  variant="destructive"
+                <Button 
+                  variant="destructive" 
                   size="sm"
                   onClick={() => handleDeleteProperty(property.id)}
                 >
@@ -313,7 +311,7 @@ export default function PropertyManager() {
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-6">Property Manager</h1>
-
+      
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-6">
         <div className="flex items-center w-full md:w-auto">
           <div className="relative w-full md:w-80">
@@ -326,7 +324,7 @@ export default function PropertyManager() {
             />
           </div>
         </div>
-
+        
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center md:ml-auto w-full md:w-auto">
           <Button variant="outline" onClick={() => setSelectedCategory(null)} className={!selectedCategory ? 'bg-primary/10' : ''}>
             All Properties
@@ -347,14 +345,14 @@ export default function PropertyManager() {
             <BadgePercent className="mr-2 h-4 w-4" />
             Bank Sales
           </Button>
-
+          
           <Button onClick={() => setIsAddPropertyOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Add Property
           </Button>
         </div>
       </div>
-
+      
       <Card>
         <CardHeader>
           <CardTitle>All Properties</CardTitle>
@@ -371,7 +369,7 @@ export default function PropertyManager() {
           </p>
         </CardFooter>
       </Card>
-
+      
       {/* Add Property Dialog */}
       <Dialog open={isAddPropertyOpen} onOpenChange={setIsAddPropertyOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -381,7 +379,7 @@ export default function PropertyManager() {
               Create a new property listing with all details
             </DialogDescription>
           </DialogHeader>
-          <PropertyForm
+          <PropertyForm 
             onSuccess={() => {
               // Clear localStorage tab selection when done
               try {
@@ -393,11 +391,11 @@ export default function PropertyManager() {
               }
               setIsAddPropertyOpen(false);
               queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
-            }}
+            }} 
           />
         </DialogContent>
       </Dialog>
-
+      
       {/* Edit Property Dialog */}
       <Dialog open={isEditPropertyOpen} onOpenChange={setIsEditPropertyOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -408,7 +406,7 @@ export default function PropertyManager() {
             </DialogDescription>
           </DialogHeader>
           {selectedProperty && (
-            <PropertyForm
+            <PropertyForm 
               property={selectedProperty}
               onSuccess={() => {
                 // Clear localStorage tab selection when done
@@ -422,7 +420,7 @@ export default function PropertyManager() {
                 setIsEditPropertyOpen(false);
                 setSelectedProperty(null);
                 queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
-              }}
+              }} 
             />
           )}
         </DialogContent>

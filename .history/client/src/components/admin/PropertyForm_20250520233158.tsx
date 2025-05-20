@@ -793,7 +793,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
           </Button>
         </form>
       </Form>
-   
+   <Tabs/>
     </div>
   );
 }

@@ -64,10 +64,10 @@ export const uploadPropertyImage = multer({
 export const uploadVirtualTour = multer({
   storage: tourStorage,
   limits: {
-    fileSize: 5 * 1024 * 1024 * 1024, // 5GB limit for tour zip files
+    fileSize: 100 * 1024 * 1024, // 100MB limit for tour zip files
   },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/zip' ||
+    if (file.mimetype === 'application/zip' || 
         file.mimetype === 'application/x-zip-compressed' ||
         file.mimetype === 'application/octet-stream' ||
         file.originalname.endsWith('.zip')) {
@@ -87,28 +87,28 @@ export async function extractTourZip(zipPath: string, propertyId: number): Promi
   try {
     console.log(`Extracting tour zip from ${zipPath} for property ${propertyId}`);
     const zip = new AdmZip(zipPath);
-
+    
     // Create a directory for the extracted tour
     const extractDir = path.join(tourDir, `property_${propertyId}_tour`);
-
+    
     // If the directory already exists, remove it
     if (fs.existsSync(extractDir)) {
       console.log(`Removing existing tour directory: ${extractDir}`);
       fs.rmSync(extractDir, { recursive: true, force: true });
     }
-
+    
     // Create the directory
     console.log(`Creating tour directory: ${extractDir}`);
     await mkdirAsync(extractDir, { recursive: true });
-
+    
     // Extract the zip file
     console.log('Extracting zip file...');
     zip.extractAllTo(extractDir, true);
-
+    
     // List extracted files (for debugging)
     const files = fs.readdirSync(extractDir);
     console.log(`Extracted ${files.length} files/directories: `, files);
-
+    
     // Check if index.htm file exists
     const indexFile = files.find(file => file.toLowerCase() === 'index.htm');
     if (!indexFile) {
@@ -116,16 +116,16 @@ export async function extractTourZip(zipPath: string, propertyId: number): Promi
     } else {
       console.log(`Found index file: ${indexFile}`);
     }
-
+    
     // Delete the zip file to save space
     console.log(`Deleting zip file: ${zipPath}`);
     await unlinkAsync(zipPath);
-
+    
     // Return the path to the extracted tour directory
     const relativePath = path.relative(process.cwd(), extractDir);
     console.log(`Tour extraction complete. Relative path: ${relativePath}`);
     return relativePath;
-
+    
   } catch (error) {
     console.error('Error extracting tour zip:', error);
     throw new Error('Failed to extract virtual tour files: ' + (error as Error).message);
@@ -140,11 +140,11 @@ export function handleUploadErrors(err: any, req: Request, res: Response, next: 
     }
     return res.status(400).json({ error: err.message });
   }
-
+  
   if (err) {
     return res.status(400).json({ error: err.message });
   }
-
+  
   next();
 }
 
@@ -156,7 +156,7 @@ export function setupStaticFileRoutes(app: any) {
     res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 day
     next();
   }, express.static(imageDir));
-
+  
   // Serve virtual tours
   app.use('/uploads/tours', (req: Request, res: Response, next: NextFunction) => {
     // Set cache headers for tour files

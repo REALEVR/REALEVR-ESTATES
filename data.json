@@ -644,8 +644,8 @@
       "viewCount": 0
     },
     {
-      "title": "Test",
-      "description": "Property may have been created, but encountered an error: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"http://localhost:5000\" from accessing a cross-origin frame.. Please check the property list.",
+      "title": "Test ",
+      "description": "moving mechanical parts, which provides advantages such as resistance to physical shock, quieter operation, and faster access times. Their lower latency results in higher input/output rates (IOPS) than HD",
       "location": "Kiwatule",
       "price": "10",
       "bedrooms": "10",
@@ -660,7 +660,7 @@
       "hasTour": "false",
       "category": "furnished_houses",
       "currency": "UGX",
-      "amenities": "[\"Pool Access\",\"Pet Friendly\"]",
+      "amenities": "[\"Fitness Center\",\"High-Speed Internet\"]",
       "id": 22,
       "viewCount": 0
     }

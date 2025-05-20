@@ -26,15 +26,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Loader2,
-  Upload,
-  Check,
-  AlertCircle,
-  Home,
-  DollarSign,
-  Map,
-  Bed,
+import { 
+  Loader2, 
+  Upload, 
+  Check, 
+  AlertCircle, 
+  Home, 
+  DollarSign, 
+  Map, 
+  Bed, 
   Bath,
   SquareCode,
   Eye,
@@ -82,7 +82,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
   const { data: amenities } = useQuery<Amenity[]>({
     queryKey: ['/api/amenities'],
   });
-
+  
   // Get default values from existing property or use empty defaults
   const defaultValues: Partial<PropertyFormValues> = property ? {
     ...property,
@@ -136,15 +136,15 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
           title: property ? "Property Updated" : "Property Created",
           description: property ? "Property has been updated successfully" : "New property has been created",
         });
-
+        
         // Invalidate queries to refresh data
         queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
-
+        
         // Call onSuccess callback if provided
         if (onSuccess) {
           onSuccess();
         }
-
+        
         if (!property) {
           // Reset form if creating a new property
           form.reset(defaultValues);
@@ -169,7 +169,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
 
   const handleImageUpload = async () => {
     const fileInput = fileInputRef.current;
-
+    
     if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
       toast({
         title: "Error",
@@ -178,9 +178,9 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
       });
       return;
     }
-
+    
     const image = fileInput.files[0];
-
+    
     // Check if file is an image
     if (!image.type.startsWith('image/')) {
       toast({
@@ -190,7 +190,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
       });
       return;
     }
-
+    
     // Check file size (max 5MB)
     if (image.size > 5 * 1024 * 1024) {
       toast({
@@ -200,39 +200,39 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
       });
       return;
     }
-
+    
     setIsUploading(true);
     setUploadSuccess(false);
     setUploadError("");
-
+    
     try {
       // Create FormData
       const formData = new FormData();
       formData.append('image', image);
-
+      
       // Upload the image
       const response = await fetch('/api/upload/property-image', {
         method: 'POST',
         body: formData,
         credentials: 'include',
       });
-
+      
       const result = await response.json();
-
+      
       if (response.ok && result.status === 'success') {
         setUploadSuccess(true);
         setImagePreview(result.imagePath);
-
+        
         // Update form with the returned image URL
         form.setValue('imageUrl', result.imagePath);
-
+        
         toast({
           title: "Success",
           description: "Image uploaded successfully",
         });
       } else {
         setUploadError(result.message || "Failed to upload image");
-
+        
         toast({
           title: "Error",
           description: result.message || "Failed to upload image",
@@ -241,7 +241,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
       }
     } catch (error: any) {
       setUploadError(error.message || "Failed to upload image");
-
+      
       toast({
         title: "Error",
         description: "Failed to upload image: " + (error.message || "Unknown error"),
@@ -261,7 +261,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
 
   const handleTourUpload = async () => {
     const fileInput = tourFileInputRef.current;
-
+    
     if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
       toast({
         title: "Error",
@@ -270,7 +270,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
       });
       return;
     }
-
+    
     if (!property?.id) {
       toast({
         title: "Error",
@@ -279,9 +279,9 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
       });
       return;
     }
-
+    
     const file = fileInput.files[0];
-
+    
     // Check if file is a zip
     if (!file.name.endsWith('.zip')) {
       toast({
@@ -291,49 +291,49 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
       });
       return;
     }
-
-    // Check file size (max 5GB)
-    if (file.size > 5 * 1024 * 1024 * 1024) {
+    
+    // Check file size (max 100MB)
+    if (file.size > 100 * 1024 * 1024) {
       toast({
         title: "Error",
-        description: "File is too large. Maximum allowed size is 5GB",
+        description: "File is too large. Maximum allowed size is 100MB",
         variant: "destructive",
       });
       return;
     }
-
+    
     setTourUploading(true);
     setTourUploadSuccess(false);
     setTourUploadError("");
-
+    
     try {
       // Create FormData
       const formData = new FormData();
       formData.append('tourZip', file);
-
+      
       // Upload the virtual tour zip
       const response = await fetch(`/api/upload/virtual-tour/${property.id}`, {
         method: 'POST',
         body: formData,
         credentials: 'include',
       });
-
+      
       const result = await response.json();
-
+      
       if (response.ok && result.status === 'success') {
         setTourUploadSuccess(true);
         setTourPreviewUrl(result.tourUrl);
-
+        
         toast({
           title: "Success",
           description: "Virtual tour uploaded and extracted successfully",
         });
-
+        
         // Refresh the property data
         queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
       } else {
         setTourUploadError(result.message || "Failed to upload virtual tour");
-
+        
         toast({
           title: "Error",
           description: result.message || "Failed to upload virtual tour",
@@ -342,7 +342,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
       }
     } catch (error: any) {
       setTourUploadError(error.message || "Failed to upload virtual tour");
-
+      
       toast({
         title: "Error",
         description: "Failed to upload virtual tour: " + (error.message || "Unknown error"),
@@ -358,13 +358,13 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
       <h1 className="text-2xl font-bold">
         {property ? "Edit Property" : "Create New Property"}
       </h1>
-
+      
       <Tabs defaultValue="details" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="details">Property Details</TabsTrigger>
           <TabsTrigger value="tour" disabled={!property?.id}>Virtual Tour</TabsTrigger>
         </TabsList>
-
+        
         <TabsContent value="details" className="mt-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -387,7 +387,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                   </FormItem>
                 )}
               />
-
+              
               <FormField
                 control={form.control}
                 name="location"
@@ -404,7 +404,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                   </FormItem>
                 )}
               />
-
+              
               <FormField
                 control={form.control}
                 name="description"
@@ -412,17 +412,17 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea
-                        placeholder="Describe the property in detail"
+                      <Textarea 
+                        placeholder="Describe the property in detail" 
                         className="min-h-[120px]"
-                        {...field}
+                        {...field} 
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -440,14 +440,14 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                     </FormItem>
                   )}
                 />
-
+                
                 <FormField
                   control={form.control}
                   name="category"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Category</FormLabel>
-                      <Select
+                      <Select 
                         onValueChange={field.onChange}
                         defaultValue={field.value}
                       >
@@ -468,7 +468,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                   )}
                 />
               </div>
-
+              
               <div className="grid grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
@@ -486,7 +486,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                     </FormItem>
                   )}
                 />
-
+                
                 <FormField
                   control={form.control}
                   name="bathrooms"
@@ -503,7 +503,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                     </FormItem>
                   )}
                 />
-
+                
                 <FormField
                   control={form.control}
                   name="squareFeet"
@@ -521,14 +521,14 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                   )}
                 />
               </div>
-
+              
               <FormField
                 control={form.control}
                 name="propertyType"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Property Type</FormLabel>
-                    <Select
+                    <Select 
                       onValueChange={field.onChange}
                       defaultValue={field.value}
                     >
@@ -557,7 +557,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                   </FormItem>
                 )}
               />
-
+              
               <FormField
                 control={form.control}
                 name="ownerContactInfo"
@@ -568,9 +568,9 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                       This will only be visible to users who have paid the required fees
                     </FormDescription>
                     <FormControl>
-                      <Textarea
+                      <Textarea 
                         placeholder="Name: John Doe, Phone: +256 700 123456, Email: john@example.com"
-                        {...field}
+                        {...field} 
                       />
                     </FormControl>
                     <FormMessage />
@@ -578,7 +578,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                 )}
               />
             </div>
-
+            
             <div className="space-y-6">
               {/* Image Upload */}
               <Card>
@@ -588,17 +588,17 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                     <FormDescription>
                       Upload a high-quality image of the property (max 5MB)
                     </FormDescription>
-
+                    
                     {imagePreview && (
                       <div className="mt-2 mb-4 aspect-video bg-gray-100 rounded-md overflow-hidden">
-                        <img
-                          src={imagePreview}
-                          alt="Property preview"
+                        <img 
+                          src={imagePreview} 
+                          alt="Property preview" 
                           className="w-full h-full object-cover"
                         />
                       </div>
                     )}
-
+                    
                     <div className="flex items-center space-x-2 mt-2">
                       <Input
                         ref={fileInputRef}
@@ -606,8 +606,8 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                         accept="image/*"
                         className="flex-1"
                       />
-                      <Button
-                        type="button"
+                      <Button 
+                        type="button" 
                         onClick={handleImageUpload}
                         disabled={isUploading}
                       >
@@ -624,7 +624,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                         )}
                       </Button>
                     </div>
-
+                    
                     {uploadSuccess && (
                       <Alert className="mt-4 bg-green-50 border-green-300">
                         <Check className="h-4 w-4 text-green-500" />
@@ -634,7 +634,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                         </AlertDescription>
                       </Alert>
                     )}
-
+                    
                     {uploadError && (
                       <Alert className="mt-4" variant="destructive">
                         <AlertCircle className="h-4 w-4" />
@@ -647,7 +647,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                   </FormItem>
                 </CardContent>
               </Card>
-
+              
               {/* Feature Flags */}
               <div className="space-y-4">
                 <FormField
@@ -673,7 +673,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                   )}
                 />
               </div>
-
+              
               {/* Amenities Checklist */}
               <FormField
                 control={form.control}
@@ -703,7 +703,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                                     checked={field.value?.includes(amenity.name)}
                                     onCheckedChange={(checked) => {
                                       const currentAmenities = field.value || [];
-
+                                      
                                       if (checked) {
                                         field.onChange([...currentAmenities, amenity.name]);
                                       } else {
@@ -756,7 +756,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                   </FormItem>
                 )}
               />
-
+              
               {form.getValues('category') === 'bank-sale' && (
                 <FormField
                   control={form.control}
@@ -764,7 +764,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Auction Status</FormLabel>
-                      <Select
+                      <Select 
                         onValueChange={field.onChange}
                         defaultValue={field.value || ""}
                       >
@@ -787,13 +787,12 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
               )}
             </div>
           </div>
-
+          
           <Button type="submit" className="w-full md:w-auto">
             {property ? "Update Property" : "Create Property"}
           </Button>
         </form>
       </Form>
-   
     </div>
   );
 }

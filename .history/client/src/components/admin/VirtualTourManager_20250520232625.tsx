@@ -58,15 +58,15 @@ export default function VirtualTourManager() {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [tourPreviewUrl, setTourPreviewUrl] = useState<string | null>(null);
-
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [location, navigate] = useLocation();
-
+  
   // Extract propertyId from URL search params
   const params = new URLSearchParams(window.location.search);
   const propertyId = params.get('propertyId') ? parseInt(params.get('propertyId')!) : null;
-
+  
   // Fetch property details if propertyId is provided
   const { data: propertyData, isLoading: isLoadingProperty } = useQuery<Property>({
     queryKey: ['/api/properties', propertyId || 'none'],
@@ -78,12 +78,12 @@ export default function VirtualTourManager() {
     },
     enabled: !!propertyId,
   });
-
+  
   // Get all properties for selection dropdown
   const { data: properties, isLoading: isLoadingProperties } = useQuery<Property[]>({
     queryKey: ['/api/properties'],
   });
-
+  
   // Update property state when data is loaded
   useEffect(() => {
     if (propertyData) {
@@ -93,13 +93,13 @@ export default function VirtualTourManager() {
       }
     }
   }, [propertyData]);
-
+  
   const handlePropertySelect = (id: string) => {
     const selectedProperty = properties?.find(p => p.id === parseInt(id));
     if (selectedProperty) {
       setProperty(selectedProperty);
       navigate(`/admin/virtual-tours?propertyId=${id}`);
-
+      
       if (selectedProperty.tourUrl) {
         setTourPreviewUrl(selectedProperty.tourUrl);
       } else {
@@ -107,7 +107,7 @@ export default function VirtualTourManager() {
       }
     }
   };
-
+  
   const handleTourUpload = async () => {
     if (!property) {
       toast({
@@ -117,7 +117,7 @@ export default function VirtualTourManager() {
       });
       return;
     }
-
+    
     const fileInput = fileInputRef.current;
     if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
       toast({
@@ -127,9 +127,9 @@ export default function VirtualTourManager() {
       });
       return;
     }
-
+    
     const file = fileInput.files[0];
-
+    
     // Check if file is a zip
     if (!file.name.endsWith('.zip')) {
       toast({
@@ -139,49 +139,49 @@ export default function VirtualTourManager() {
       });
       return;
     }
-
+    
     // Check file size (max 5GB)
     if (file.size > 5 * 1024 * 1024 * 1024) {
       toast({
         title: "Error",
-        description: "Tour file is too large. Maximum allowed size is 5GB",
+        description: "Tour file is too large. Maximum allowed size is 100MB",
         variant: "destructive",
       });
       return;
     }
-
+    
     setIsUploading(true);
     setUploadSuccess(false);
     setUploadError("");
-
+    
     try {
       // Create FormData
       const formData = new FormData();
       formData.append('tourZip', file);
-
+      
       // Upload the virtual tour zip
       const response = await fetch(`/api/upload/virtual-tour/${property.id}`, {
         method: 'POST',
         body: formData,
         credentials: 'include',
       });
-
+      
       const result = await response.json();
-
+      
       if (response.ok && result.status === 'success') {
         setUploadSuccess(true);
         setTourPreviewUrl(result.tourUrl);
-
+        
         toast({
           title: "Success",
           description: "Virtual tour uploaded and extracted successfully",
         });
-
+        
         // Refresh the property data
         queryClient.invalidateQueries({ queryKey: ['/api/properties', property.id] });
       } else {
         setUploadError(result.message || "Failed to upload virtual tour");
-
+        
         toast({
           title: "Error",
           description: result.message || "Failed to upload virtual tour",
@@ -190,7 +190,7 @@ export default function VirtualTourManager() {
       }
     } catch (error: any) {
       setUploadError(error.message || "Failed to upload virtual tour");
-
+      
       toast({
         title: "Error",
         description: "Failed to upload virtual tour: " + (error.message || "Unknown error"),
@@ -200,7 +200,7 @@ export default function VirtualTourManager() {
       setIsUploading(false);
     }
   };
-
+  
   if (isLoadingProperties || (propertyId && isLoadingProperty)) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -208,7 +208,7 @@ export default function VirtualTourManager() {
       </div>
     );
   }
-
+  
   return (
     <div className="container mx-auto py-8">
       {/* Breadcrumb navigation */}
@@ -237,7 +237,7 @@ export default function VirtualTourManager() {
           )}
         </BreadcrumbList>
       </Breadcrumb>
-
+      
       <div className="grid grid-cols-1 gap-6">
         <Card>
           <CardHeader>
@@ -249,8 +249,8 @@ export default function VirtualTourManager() {
           <CardContent className="space-y-6">
             <div>
               <Label htmlFor="property-select">Select Property</Label>
-              <Select
-                value={property?.id?.toString() || ''}
+              <Select 
+                value={property?.id?.toString() || ''} 
                 onValueChange={handlePropertySelect}
               >
                 <SelectTrigger className="w-full">
@@ -265,7 +265,7 @@ export default function VirtualTourManager() {
                 </SelectContent>
               </Select>
             </div>
-
+            
             {property && (
               <>
                 <div className="border rounded-lg p-4 bg-muted/20">
@@ -291,14 +291,14 @@ export default function VirtualTourManager() {
                     </div>
                   </div>
                 </div>
-
+                
                 <div className="rounded-lg border bg-card p-4">
                   <h3 className="text-lg font-semibold mb-2">Upload Virtual Tour</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Upload a 3D Vista tour export (ZIP file). This will extract the tour files and make them available
-                    for viewing. Maximum file size: 5GB.
+                    Upload a 3D Vista tour export (ZIP file). This will extract the tour files and make them available 
+                    for viewing. Maximum file size: 100MB.
                   </p>
-
+                  
                   <div className="flex items-center space-x-2 mt-2">
                     <Input
                       ref={fileInputRef}
@@ -306,8 +306,8 @@ export default function VirtualTourManager() {
                       accept=".zip"
                       className="flex-1"
                     />
-                    <Button
-                      type="button"
+                    <Button 
+                      type="button" 
                       onClick={handleTourUpload}
                       disabled={isUploading}
                     >
@@ -324,7 +324,7 @@ export default function VirtualTourManager() {
                       )}
                     </Button>
                   </div>
-
+                  
                   {uploadSuccess && (
                     <Alert className="mt-4 bg-green-50 border-green-300">
                       <Check className="h-4 w-4 text-green-500" />
@@ -334,7 +334,7 @@ export default function VirtualTourManager() {
                       </AlertDescription>
                     </Alert>
                   )}
-
+                  
                   {uploadError && (
                     <Alert className="mt-4" variant="destructive">
                       <AlertCircle className="h-4 w-4" />
@@ -345,14 +345,14 @@ export default function VirtualTourManager() {
                     </Alert>
                   )}
                 </div>
-
+                
                 {tourPreviewUrl && (
                   <div className="border rounded-lg p-4">
                     <h3 className="text-lg font-semibold mb-2">Virtual Tour Preview</h3>
                     <div className="space-y-4">
                       <div className="aspect-video bg-gray-100 rounded-md overflow-hidden">
-                        <iframe
-                          src={tourPreviewUrl}
+                        <iframe 
+                          src={tourPreviewUrl} 
                           className="w-full h-full"
                           title={`Virtual tour of ${property.title}`}
                           sandbox="allow-same-origin allow-scripts"
@@ -363,8 +363,8 @@ export default function VirtualTourManager() {
                           <Eye className="mr-2 h-4 w-4" />
                           Open in New Tab
                         </Button>
-                        <Button
-                          variant="default"
+                        <Button 
+                          variant="default" 
                           onClick={() => {
                             navigate(`/admin/properties`);
                           }}
