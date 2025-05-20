@@ -642,6 +642,27 @@
       "isAvailable": true,
       "currency": "UGX",
       "viewCount": 0
+    },
+    {
+      "title": "Test",
+      "description": "Property may have been created, but encountered an error: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"http://localhost:5000\" from accessing a cross-origin frame.. Please check the property list.",
+      "location": "Kiwatule",
+      "price": "10",
+      "bedrooms": "10",
+      "bathrooms": "10",
+      "squareMeters": "10",
+      "imageUrl": "/uploads/images/default-property.jpg",
+      "rating": "0",
+      "reviewCount": "0",
+      "propertyType": "Apartments",
+      "isAvailable": "true",
+      "isFeatured": "true",
+      "hasTour": "false",
+      "category": "furnished_houses",
+      "currency": "UGX",
+      "amenities": "[\"Pool Access\",\"Pet Friendly\"]",
+      "id": 22,
+      "viewCount": 0
     }
   ],
   "amenities": [
@@ -708,7 +729,7 @@
     }
   ],
   "userCurrentId": 4,
-  "propertyCurrentId": 22,
+  "propertyCurrentId": 23,
   "amenityCurrentId": 5,
   "propertyTypeCurrentId": 8
 }
