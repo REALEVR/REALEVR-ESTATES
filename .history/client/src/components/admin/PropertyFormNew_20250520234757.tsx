@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Property, insertPropertySchema, PropertyType, Amenity } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
-import { sqftToSqm } from '@/lib/utils';
 import {
   Form,
   FormControl,
@@ -138,7 +137,7 @@ const onSubmit = async (data: PropertyFormValues) => {
     price: Number(data.price),
     bedrooms: Number(data.bedrooms),
     bathrooms: Number(data.bathrooms),
-    squareMeters: sqftToSqm(Number(data.squareFeet)), // Convert square feet to square meters
+    squareMeters: Math.round(Number(data.squareFeet) * 0.093), // Convert square feet to square meters
     monthlyPrice: data.monthlyPrice !== undefined ? Number(data.monthlyPrice) : undefined,
     imageUrl: imagePreview || data.imageUrl,
     // Add required fields that might be missing
@@ -175,7 +174,7 @@ const onSubmit = async (data: PropertyFormValues) => {
         price: String(data.price),
         bedrooms: String(data.bedrooms),
         bathrooms: String(data.bathrooms),
-        squareMeters: String(sqftToSqm(Number(data.squareFeet))), // Convert square feet to square meters
+        squareMeters: String(Math.round(Number(data.squareFeet) * 0.093)), // Convert square feet to square meters
         imageUrl: imagePreview || data.imageUrl || '/uploads/images/default-property.jpg',
         rating: data.rating || '0',
         reviewCount: String(data.reviewCount || 0),

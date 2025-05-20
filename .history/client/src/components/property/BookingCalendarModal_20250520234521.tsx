@@ -25,8 +25,7 @@ export default function BookingCalendarModal({
   propertyId,
   propertyTitle,
   propertyCategory = "rental",
-  propertyPrice = 0,
-  propertyCurrency = "UGX"
+  propertyPrice = 0
 }: BookingCalendarModalProps) {
   const { toast } = useToast();
   const [date, setDate] = useState<Date | undefined>(new Date());
@@ -132,7 +131,7 @@ export default function BookingCalendarModal({
     toast({
       title: isBnB ? "Booking Confirmed!" : "Viewing Booked!",
       description: isBnB
-        ? `Your booking for ${propertyTitle} has been confirmed. You've paid a ${depositAmount.toLocaleString()} ${propertyCurrency} deposit. Transaction ID: ${response.transaction_id}`
+        ? `Your booking for ${propertyTitle} has been confirmed. You've paid a ${depositAmount.toLocaleString()} UGX deposit. Transaction ID: ${response.transaction_id}`
         : `Your viewing for ${propertyTitle} has been scheduled on ${format(date!, "PPP")} at ${selectedTimeSlot}.`,
       duration: 5000,
     });
@@ -196,7 +195,7 @@ export default function BookingCalendarModal({
 
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setTab("calendar")}>Back</Button>
-                  <Button onClick={handleBookNow}>Book Viewing (15,000 {propertyCurrency})</Button>
+                  <Button onClick={handleBookNow}>Book Viewing (15,000 UGX)</Button>
                 </DialogFooter>
               </TabsContent>
             )}
@@ -240,7 +239,7 @@ export default function BookingCalendarModal({
                   <div className="bg-gray-50 p-4 rounded-lg space-y-2">
                     <div className="flex justify-between">
                       <span>Price per night:</span>
-                      <span>{propertyPrice?.toLocaleString()} {propertyCurrency}</span>
+                      <span>{propertyPrice?.toLocaleString()} UGX</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Number of nights:</span>
@@ -248,11 +247,11 @@ export default function BookingCalendarModal({
                     </div>
                     <div className="flex justify-between font-medium">
                       <span>Total:</span>
-                      <span>{totalAmount.toLocaleString()} {propertyCurrency}</span>
+                      <span>{totalAmount.toLocaleString()} UGX</span>
                     </div>
                     <div className="flex justify-between text-[#FF5A5F] font-medium border-t pt-2">
                       <span>Required deposit (20%):</span>
-                      <span>{depositAmount.toLocaleString()} {propertyCurrency}</span>
+                      <span>{depositAmount.toLocaleString()} UGX</span>
                     </div>
 
                     {/* Payment button directly under deposit amount */}
@@ -260,7 +259,7 @@ export default function BookingCalendarModal({
                       onClick={handleBookNow}
                       className="w-full mt-3 bg-[#FF5A5F] hover:bg-[#FF7478] text-white"
                     >
-                      Pay {depositAmount.toLocaleString()} {propertyCurrency} Deposit Now
+                      Pay {depositAmount.toLocaleString()} UGX Deposit Now
                     </Button>
                   </div>
 

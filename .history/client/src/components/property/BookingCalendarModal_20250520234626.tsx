@@ -132,7 +132,7 @@ export default function BookingCalendarModal({
     toast({
       title: isBnB ? "Booking Confirmed!" : "Viewing Booked!",
       description: isBnB
-        ? `Your booking for ${propertyTitle} has been confirmed. You've paid a ${depositAmount.toLocaleString()} ${propertyCurrency} deposit. Transaction ID: ${response.transaction_id}`
+        ? `Your booking for ${propertyTitle} has been confirmed. You've paid a ${depositAmount.toLocaleString()} UGX deposit. Transaction ID: ${response.transaction_id}`
         : `Your viewing for ${propertyTitle} has been scheduled on ${format(date!, "PPP")} at ${selectedTimeSlot}.`,
       duration: 5000,
     });

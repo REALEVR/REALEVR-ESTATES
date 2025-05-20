@@ -35,13 +35,13 @@ const { viewedProperties, hasValidPayment } = usePropertyViews();
 const handlePropertyView = (e: React.MouseEvent) => {
   e.preventDefault();
   e.stopPropagation();
-
+  
   // For rental units, always require payment before viewing (not just after 5 views)
   if (!hasValidPayment && property.category === 'rental_units') {
     setIsPaymentModalOpen(true);
     return;
   }
-
+  
   // For other property types (except furnished houses which are paid upon booking),
   // allow direct viewing
   window.location.href = `/property/${property.id}`;
@@ -68,14 +68,14 @@ const handlePaymentConfirm = async (response: any) => {
       <AnimatedCard className="property-card bg-white rounded-xl overflow-hidden shadow-md">
         <div className="relative">
           <FadeIn>
-            <img
-              src={property.imageUrl}
-              alt={property.title}
+            <img 
+              src={property.imageUrl} 
+              alt={property.title} 
               className="w-full h-52 object-cover transition-transform duration-500 hover:scale-110"
             />
           </FadeIn>
           <div className="absolute top-3 right-3 flex space-x-2 z-10">
-            <button
+            <button 
               className="p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white transition-colors"
               onClick={handleShareClick}
               aria-label="Share this property"
@@ -83,7 +83,7 @@ const handlePaymentConfirm = async (response: any) => {
             >
               <i className="fas fa-share-alt"></i>
             </button>
-            <button
+            <button 
               className="p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white transition-colors"
               onClick={handleFavoriteClick}
               aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
@@ -120,7 +120,7 @@ const handlePaymentConfirm = async (response: any) => {
           </p>
           <div className="flex justify-between items-center mb-3">
             <div>
-              <span className="font-bold">{property.price.toLocaleString()} {property.currency || 'UGX'}</span>
+              <span className="font-bold">${property.price}</span>
               {property.category === 'rental_units' && (
                 <span className="text-gray-500 text-sm"> / month</span>
               )}
@@ -128,15 +128,15 @@ const handlePaymentConfirm = async (response: any) => {
                 <span className="text-gray-500 text-sm"> / day</span>
               )}
             </div>
-            <Link
-              href={`/property/${property.id}`}
+            <Link 
+              href={`/property/${property.id}`} 
               className="text-[#00A699] hover:underline text-sm font-medium"
             >
               View Tour
             </Link>
           </div>
-          <Button
-            variant="outline"
+          <Button 
+            variant="outline" 
             className="w-full text-sm h-8 border-[#FF5A5F] text-[#FF5A5F] hover:bg-[#FF5A5F]/5 transition-colors"
             onClick={handleScheduleClick}
           >
@@ -147,7 +147,7 @@ const handlePaymentConfirm = async (response: any) => {
       </AnimatedCard>
 
       {/* Modals */}
-      <SharePropertyModal
+      <SharePropertyModal 
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
         propertyId={property.id}
@@ -161,7 +161,7 @@ const handlePaymentConfirm = async (response: any) => {
         propertyTitle={property.title}
         propertyCategory={property.category}
       />
-
+      
       <PaymentModal
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}

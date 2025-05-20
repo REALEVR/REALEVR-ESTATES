@@ -34,7 +34,7 @@ export default function Header() {
         {/* Logo */}
         <Link href="/" className="flex items-center">
           <img src={logoPath} alt="RealEVR Estates Logo" className="h-10 mr-2" />
-          {/* <span className="text-black text-2xl font-bold">RealEVR Estates</span> */}
+          <span className="text-black text-2xl font-bold">RealEVR Estates</span>
         </Link>
         
         {/* Search Bar */}

@@ -18,10 +18,10 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [location] = useLocation();
   const { toast } = useToast();
-
+  
   // Check if this is a BnB property
   const isBnB = property.category === "BnB" || property.category === "furnished_houses";
-
+  
   // Check for booking confirmation in URL
   useEffect(() => {
     if (location.includes("booking=confirmed")) {
@@ -38,8 +38,8 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
     setIsFavorite(!isFavorite);
     toast({
       title: isFavorite ? "Removed from favorites" : "Added to favorites",
-      description: isFavorite
-        ? `${property.title} has been removed from your favorites.`
+      description: isFavorite 
+        ? `${property.title} has been removed from your favorites.` 
         : `${property.title} has been added to your favorites.`,
       duration: 3000,
     });
@@ -59,7 +59,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
       });
       return;
     }
-
+    
     toast({
       title: "Agent contacted",
       description: "An agent will reach out to you shortly regarding this property.",
@@ -70,7 +70,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
   const handleScheduleVisit = () => {
     setIsBookingModalOpen(true);
   };
-
+  
   const handleBookingSuccess = () => {
     setBookingConfirmed(true);
     toast({
@@ -93,16 +93,16 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
             <span className="text-gray-500 underline">{property.reviewCount} reviews</span>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
+        <Button 
+          variant="ghost" 
+          size="icon" 
           className="p-2 hover:bg-gray-100 rounded-full"
           onClick={handleFavoriteClick}
         >
           <i className={`${isFavorite ? 'fas text-[#FF5A5F]' : 'far'} fa-heart text-xl`}></i>
         </Button>
       </div>
-
+      
       <div className="border-t border-b border-gray-200 py-6 my-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
@@ -118,7 +118,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
               </li>
               <li className="flex items-center">
                 <i className="fas fa-vector-square w-6"></i>
-                <span>{property.squareMeters} sq m ({Math.round(property.squareMeters / 0.093)} sq ft)</span>
+                <span>{property.squareMeters} sq m</span>
               </li>
               <li className="flex items-center">
                 <i className="fas fa-building w-6"></i>
@@ -138,7 +138,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
               {property.amenities && property.amenities.map((amenity, index) => (
                 <li key={index} className="flex items-center">
                   <i className={`fas fa-${
-                    amenity.includes("Pool") ? "swimming-pool" :
+                    amenity.includes("Pool") ? "swimming-pool" : 
                     amenity.includes("Fitness") ? "dumbbell" :
                     amenity.includes("Pet") ? "paw" :
                     amenity.includes("Internet") ? "wifi" :
@@ -151,16 +151,16 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
           </div>
         </div>
       </div>
-
+      
       <div className="mb-6">
         <h4 className="font-semibold mb-2">About this property</h4>
         <p className="text-gray-500">{property.description}</p>
       </div>
-
+      
       {/* Display price differently for BnBs (per night) vs other properties (per month) */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
         <div className="mb-4 md:mb-0">
-          <span className="text-2xl font-bold">{property.price.toLocaleString()} {property.currency || 'UGX'}</span>
+          <span className="text-2xl font-bold">{property.price.toLocaleString()} UGX</span>
           {property.category === 'rental_units' && (
             <span className="text-gray-500"> / month</span>
           )}
@@ -169,15 +169,15 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
           )}
         </div>
         <div className="flex space-x-3">
-          <Button
-            variant="outline"
+          <Button 
+            variant="outline" 
             className="border-gray-800"
             onClick={handleScheduleVisit}
           >
             {isBnB ? "Book Now" : "Schedule Visit"}
           </Button>
-          <Button
-            variant="default"
+          <Button 
+            variant="default" 
             className="bg-[#FF5A5F] hover:bg-[#FF7478]"
             onClick={isBnB ? handleViewTour : handleContactAgent}
           >
@@ -185,18 +185,18 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
           </Button>
         </div>
       </div>
-
+      
       {/* Show owner contact details section for BnBs */}
       {isBnB && (
         <div className="mt-8 border-t border-gray-200 pt-8">
           <h3 className="text-xl font-semibold mb-4">Property Owner</h3>
-          <OwnerContactDetails
+          <OwnerContactDetails 
             property={property}
             bookingConfirmed={bookingConfirmed}
           />
         </div>
       )}
-
+      
       {/* Booking Calendar Modal */}
       <BookingCalendarModal
         isOpen={isBookingModalOpen}
@@ -205,9 +205,8 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
         propertyTitle={property.title}
         propertyCategory={isBnB ? "BnB" : property.category || "rental"}
         propertyPrice={property.price}
-        propertyCurrency={property.currency || "UGX"}
       />
-
+      
       {/* Virtual Tour Modal */}
       <VirtualTourModal
         isOpen={isTourModalOpen}

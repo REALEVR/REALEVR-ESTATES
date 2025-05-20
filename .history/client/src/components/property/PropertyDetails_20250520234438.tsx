@@ -118,7 +118,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
               </li>
               <li className="flex items-center">
                 <i className="fas fa-vector-square w-6"></i>
-                <span>{property.squareMeters} sq m ({Math.round(property.squareMeters / 0.093)} sq ft)</span>
+                <span>{property.squareMeters} sq m</span>
               </li>
               <li className="flex items-center">
                 <i className="fas fa-building w-6"></i>
@@ -205,7 +205,6 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
         propertyTitle={property.title}
         propertyCategory={isBnB ? "BnB" : property.category || "rental"}
         propertyPrice={property.price}
-        propertyCurrency={property.currency || "UGX"}
       />
 
       {/* Virtual Tour Modal */}

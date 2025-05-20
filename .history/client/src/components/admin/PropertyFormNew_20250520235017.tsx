@@ -175,7 +175,7 @@ const onSubmit = async (data: PropertyFormValues) => {
         price: String(data.price),
         bedrooms: String(data.bedrooms),
         bathrooms: String(data.bathrooms),
-        squareMeters: String(sqftToSqm(Number(data.squareFeet))), // Convert square feet to square meters
+        squareMeters: String(Math.round(Number(data.squareFeet) * 0.093)), // Convert square feet to square meters
         imageUrl: imagePreview || data.imageUrl || '/uploads/images/default-property.jpg',
         rating: data.rating || '0',
         reviewCount: String(data.reviewCount || 0),

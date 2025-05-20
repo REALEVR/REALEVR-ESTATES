@@ -210,8 +210,6 @@ export default function FeaturedTour() {
         onClose={() => setIsBookingModalOpen(false)}
         propertyId={featuredProperty.id}
         propertyTitle={featuredProperty.title}
-        propertyPrice={featuredProperty.price}
-        propertyCurrency={featuredProperty.currency || "UGX"}
       />
 
       <SharePropertyModal

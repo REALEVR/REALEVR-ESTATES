@@ -120,7 +120,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
       const propertyData = {
         ...data,
         // Convert square feet to square meters
-        squareMeters: sqftToSqm(Number(data.squareFeet)),
+        squareMeters: Math.round(Number(data.squareFeet) * 0.093),
         // Add image URL if it was uploaded
         imageUrl: imagePreview || data.imageUrl,
       };

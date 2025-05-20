@@ -152,7 +152,7 @@ export default function FeaturedTour() {
 
               <div className="flex flex-col md:flex-row md:items-center justify-between">
                 <div className="mb-4 md:mb-0">
-                  <span className="text-2xl font-bold">{featuredProperty.price.toLocaleString()} {featuredProperty.currency || 'UGX'}</span>
+                  <span className="text-2xl font-bold">${featuredProperty.price}</span>
                   <span className="text-gray-500"> / month</span>
                 </div>
                 <div className="flex flex-col gap-3">
@@ -210,8 +210,6 @@ export default function FeaturedTour() {
         onClose={() => setIsBookingModalOpen(false)}
         propertyId={featuredProperty.id}
         propertyTitle={featuredProperty.title}
-        propertyPrice={featuredProperty.price}
-        propertyCurrency={featuredProperty.currency || "UGX"}
       />
 
       <SharePropertyModal

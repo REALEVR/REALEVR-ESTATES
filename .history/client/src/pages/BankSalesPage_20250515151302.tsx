@@ -14,21 +14,21 @@ import { useToast } from "@/hooks/use-toast";
 export default function BankSalesPage() {
   const [activeBankTab, setActiveBankTab] = useState<string>("all");
   const { toast } = useToast();
-
+  
   // Get all bank sales properties
   const { data: allProperties, isLoading, error } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
   });
-
+  
   // Filter for only bank sales properties
-  const bankSalesProperties = allProperties?.filter(property =>
+  const bankSalesProperties = allProperties?.filter(property => 
     property.category === "bank_sales"
   ) || [];
-
+  
   // Get unique bank names
   const banks = Array.from(new Set(bankSalesProperties.map(prop => prop.bankName || "")
     .filter(bank => bank !== ""))); // Filter out empty banks and convert to string array
-
+  
   // Group properties by bank name
   const propertiesByBank = bankSalesProperties.reduce((acc, property) => {
     if (property.bankName) {
@@ -45,41 +45,41 @@ export default function BankSalesPage() {
     if (!property.currentBid || !property.bidIncrement) {
       return;
     }
-
+    
     const newBid = property.currentBid + property.bidIncrement;
-
+    
     toast({
       title: "Bid Placed",
       description: `Your bid of UGX ${newBid.toLocaleString()} has been placed for ${property.title}`,
     });
   };
-
+  
   // Format auction status including time remaining
   const formatAuctionStatus = (property: Property) => {
     if (!property.auctionDate || !property.auctionStatus) {
       return "No auction scheduled";
     }
-
+    
     const auctionDate = parseISO(property.auctionDate);
     const isAuctionPast = isPast(auctionDate);
-
+    
     if (isAuctionPast) {
       return property.auctionStatus === "active" ? "Auction in progress" : "Auction ended";
     }
-
+    
     return `Auction on ${format(auctionDate, "MMM dd, yyyy 'at' h:mm a")}`;
   };
-
+  
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Bank Property Auctions</h1>
         <p className="text-gray-600 max-w-3xl">
-          Browse bank-owned properties available at auction. These properties represent excellent value and
+          Browse bank-owned properties available at auction. These properties represent excellent value and 
           investment opportunities. Participate in auctions held by Uganda's leading banks.
         </p>
       </div>
-
+      
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {[...Array(8)].map((_, index) => (
@@ -108,19 +108,19 @@ export default function BankSalesPage() {
               </TabsTrigger>
             ))}
           </TabsList>
-
+          
           <TabsContent value="all">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {bankSalesProperties.map(property => (
-                <AuctionPropertyCard
-                  key={property.id}
-                  property={property}
-                  onPlaceBid={handlePlaceBid}
+                <AuctionPropertyCard 
+                  key={property.id} 
+                  property={property} 
+                  onPlaceBid={handlePlaceBid} 
                 />
               ))}
             </div>
           </TabsContent>
-
+          
           {banks.map(bank => (
             <TabsContent key={bank} value={bank}>
               <div className="mb-6">
@@ -129,13 +129,13 @@ export default function BankSalesPage() {
                   Properties being auctioned by {bank}. Each property has its own auction schedule and bidding requirements.
                 </p>
               </div>
-
+              
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {propertiesByBank[bank]?.map(property => (
-                  <AuctionPropertyCard
-                    key={property.id}
-                    property={property}
-                    onPlaceBid={handlePlaceBid}
+                  <AuctionPropertyCard 
+                    key={property.id} 
+                    property={property} 
+                    onPlaceBid={handlePlaceBid} 
                   />
                 ))}
               </div>
@@ -161,34 +161,34 @@ function AuctionPropertyCard({ property, onPlaceBid }: AuctionPropertyCardProps)
   return (
     <Card className="overflow-hidden transition-all hover:shadow-lg">
       <div className="relative h-48 overflow-hidden">
-        <img
-          src={property.imageUrl}
+        <img 
+          src={property.imageUrl} 
           alt={property.title}
           className="w-full h-full object-cover transition-transform hover:scale-105"
         />
         <Badge className="absolute top-3 left-3 bg-black/70 text-white">
           {property.propertyType}
         </Badge>
-
+        
         {isAuctionActive && (
           <Badge className="absolute bottom-3 right-3 bg-green-600 text-white">
             Bidding Open
           </Badge>
         )}
-
+        
         {isAuctionUpcoming && (
           <Badge className="absolute bottom-3 right-3 bg-blue-600 text-white">
             Upcoming Auction
           </Badge>
         )}
-
+        
         {isAuctionEnded && (
           <Badge className="absolute bottom-3 right-3 bg-red-600 text-white">
             Auction Ended
           </Badge>
         )}
       </div>
-
+      
       <CardHeader className="pb-2">
         <CardTitle className="text-xl font-bold line-clamp-1">{property.title}</CardTitle>
         <CardDescription className="flex items-center text-sm">
@@ -196,7 +196,7 @@ function AuctionPropertyCard({ property, onPlaceBid }: AuctionPropertyCardProps)
           {property.location}
         </CardDescription>
       </CardHeader>
-
+      
       <CardContent className="pb-3">
         <div className="grid grid-cols-3 gap-2 mb-3">
           <div className="flex flex-col items-center p-2 bg-gray-50 rounded-md">
@@ -209,10 +209,10 @@ function AuctionPropertyCard({ property, onPlaceBid }: AuctionPropertyCardProps)
           </div>
           <div className="flex flex-col items-center p-2 bg-gray-50 rounded-md">
             <Maximize className="h-4 w-4 text-gray-500 mb-1" />
-            <span className="text-sm">{property.squareMeters} sq m</span>
+            <span className="text-sm">{property.squareFeet} sqft</span>
           </div>
         </div>
-
+        
         <div className="mt-3 space-y-2">
           <div className="flex items-center text-sm text-gray-600">
             <Home className="h-4 w-4 mr-2 text-gray-500" />
@@ -225,7 +225,7 @@ function AuctionPropertyCard({ property, onPlaceBid }: AuctionPropertyCardProps)
             </span>
           </div>
         </div>
-
+        
         <div className="mt-4 p-3 bg-gray-50 rounded-md">
           <div className="flex justify-between mb-2">
             <div className="text-sm text-gray-600">Starting Bid</div>
@@ -237,13 +237,13 @@ function AuctionPropertyCard({ property, onPlaceBid }: AuctionPropertyCardProps)
           </div>
         </div>
       </CardContent>
-
+      
       <CardFooter className="pt-0 flex justify-between">
         <Link href={`/property/${property.id}`}>
           <Button variant="outline" size="sm">View Details</Button>
         </Link>
-        <Button
-          onClick={() => onPlaceBid(property)}
+        <Button 
+          onClick={() => onPlaceBid(property)} 
           disabled={!isAuctionActive}
           className="bg-amber-600 hover:bg-amber-700 text-white"
           size="sm"

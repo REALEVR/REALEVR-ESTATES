@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Property, insertPropertySchema, PropertyType, Amenity } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
-import { sqftToSqm } from '@/lib/utils';
 import {
   Form,
   FormControl,
@@ -120,7 +119,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
       const propertyData = {
         ...data,
         // Convert square feet to square meters
-        squareMeters: sqftToSqm(Number(data.squareFeet)),
+        squareMeters: Math.round(Number(data.squareFeet) * 0.093),
         // Add image URL if it was uploaded
         imageUrl: imagePreview || data.imageUrl,
       };
