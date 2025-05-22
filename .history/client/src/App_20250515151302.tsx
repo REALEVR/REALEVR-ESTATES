@@ -40,41 +40,41 @@ function Router() {
       <Route path="/rental-units" component={RentalUnitsPage} />
       <Route path="/for-sale" component={ForSalePage} />
       <Route path="/featured-properties" component={FeaturedPropertiesPage} />
-
+      
       {/* Legal and Information Pages */}
       <Route path="/privacy" component={PrivacyPolicy} />
       <Route path="/terms" component={TermsOfService} />
       <Route path="/host-responsibly" component={HostResponsibly} />
-
+      
       {/* Authentication and User Pages */}
       <Route path="/auth" component={AuthPage} />
       <Route path="/profile" component={ProfilePage} />
       <Route path="/test-page" component={TestPage} />
-
+      
       {/* Admin routes - protected by role */}
-      <ProtectedAdminRoute
-        path="/admin/virtual-tours"
-        component={VirtualTourManager}
+      <ProtectedAdminRoute 
+        path="/admin/virtual-tours" 
+        component={VirtualTourManager} 
         allowedRoles={["admin", "property_manager"]}
       />
-      <ProtectedAdminRoute
-        path="/admin/virtual-tour-manager"
-        component={VirtualTourManager}
+      <ProtectedAdminRoute 
+        path="/admin/virtual-tour-manager" 
+        component={VirtualTourManager} 
         allowedRoles={["admin", "property_manager"]}
       />
-
-      <ProtectedAdminRoute
-        path="/admin/properties"
-        component={PropertyManager}
+      
+      <ProtectedAdminRoute 
+        path="/admin/properties" 
+        component={PropertyManager} 
         allowedRoles={["admin", "property_manager"]}
       />
-
-      <ProtectedAdminRoute
-        path="/admin/users"
-        component={AdminUserManager}
+      
+      <ProtectedAdminRoute 
+        path="/admin/users" 
+        component={AdminUserManager} 
         allowedRoles={["admin"]}
       />
-
+      
       <Route path="/category/:categorySlug" component={() => (
         <div className="container mx-auto px-4 py-8">
           <h1 className="text-3xl font-bold mb-4">Property Category</h1>

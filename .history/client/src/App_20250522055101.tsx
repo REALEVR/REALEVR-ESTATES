@@ -103,6 +103,7 @@ function App() {
               <Footer />
             </div>
             <Toaster />
+            <ConnectionStatus />
           </TooltipProvider>
         </PaymentProvider>
       </AuthProvider>

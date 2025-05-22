@@ -28,6 +28,7 @@ import { PaymentProvider } from "@/contexts/PaymentContext";
 import VirtualTourManager from "@/components/admin/VirtualTourManager";
 import { Check } from "lucide-react";
 import { ProtectedAdminRoute } from "./lib/protected-admin-route";
+import { ConnectionStatus } from "@/components/ui/ConnectionStatus";
 
 function Router() {
   return (

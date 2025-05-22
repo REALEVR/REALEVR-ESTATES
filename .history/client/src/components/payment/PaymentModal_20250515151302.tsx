@@ -14,7 +14,6 @@ interface PaymentModalProps {
   propertyTitle?: string;
   paymentType: PaymentType;
   amount: number;
-  currency?: string;
   successCallback?: (response: any) => void;
 }
 
@@ -25,36 +24,35 @@ export default function PaymentModal({
   propertyTitle,
   paymentType,
   amount,
-  currency = "UGX",
   successCallback
 }: PaymentModalProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-
+  
   // Get the Flutterwave public key from environment variables
   const publicKey = import.meta.env.FLUTTERWAVE_PUBLIC_KEY || "";
-
+  
   // Generate a random transaction reference for tracking
   const txRef = `tx-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
-
+  
   const handlePaymentSuccess = async (response: any) => {
     if (response.status === "successful") {
       setIsLoading(true);
-
+      
       try {
         // In a production app, you would verify this payment with your backend
         // But for now, we'll just simulate a successful payment verification
         await new Promise(resolve => setTimeout(resolve, 1000));
-
+        
         setIsSuccess(true);
-
+        
         if (successCallback) {
           await successCallback(response);
         } else {
           toast({
             title: "Payment Successful",
-            description: `Your payment of ${amount.toLocaleString()} ${currency} has been processed successfully.`,
+            description: `Your payment of ${amount.toLocaleString()} UGX has been processed successfully.`,
             duration: 5000,
           });
         }
@@ -75,7 +73,7 @@ export default function PaymentModal({
       });
     }
   };
-
+  
   const handlePaymentClose = () => {
     toast({
       title: "Payment Cancelled",
@@ -83,18 +81,18 @@ export default function PaymentModal({
       variant: "destructive",
     });
   };
-
+  
   // Fallback payment method when Flutterwave isn't available
   const handlePayNow = async () => {
     setIsLoading(true);
-
+    
     try {
       // Simulate payment processing
       await new Promise(resolve => setTimeout(resolve, 1500));
-
+      
       // Mock successful payment
       setIsSuccess(true);
-
+      
       // If there's a success callback, call it with mock payment data
       if (successCallback) {
         await successCallback({
@@ -102,13 +100,13 @@ export default function PaymentModal({
           transaction_id: `sim-${Date.now()}`,
           tx_ref: txRef,
           amount: amount,
-          currency: currency
+          currency: "UGX"
         });
       } else {
         // Otherwise show a toast
         toast({
           title: "Payment Successful",
-          description: `Your payment of ${amount.toLocaleString()} ${currency} has been processed successfully.`,
+          description: `Your payment of ${amount.toLocaleString()} UGX has been processed successfully.`,
           duration: 5000,
         });
       }
@@ -122,13 +120,13 @@ export default function PaymentModal({
       setIsLoading(false);
     }
   };
-
+  
   // Configuration for Flutterwave
   const config = {
     public_key: publicKey,
     tx_ref: txRef,
     amount: amount,
-    currency: currency,
+    currency: "UGX",
     payment_options: "card,mobilemoney,ussd",
     customer: {
       email: "user@example.com",  // In a real app, this would be the user's email
@@ -137,8 +135,8 @@ export default function PaymentModal({
     },
     customizations: {
       title: "RealEVR Estates",
-      description: paymentType === "BnBBookingDeposit"
-        ? `Booking Deposit for ${propertyTitle}`
+      description: paymentType === "BnBBookingDeposit" 
+        ? `Booking Deposit for ${propertyTitle}` 
         : paymentType === "ViewingFee"
         ? `Viewing Fee for ${propertyTitle}`
         : "Payment",
@@ -154,17 +152,17 @@ export default function PaymentModal({
             {isSuccess ? "Payment Successful" : "Complete Payment"}
           </DialogTitle>
           <DialogDescription>
-            {isSuccess
+            {isSuccess 
               ? "Your payment has been processed successfully."
               : paymentType === "BnBBookingDeposit"
-              ? `Pay a 20% deposit (${amount.toLocaleString()} ${currency}) to secure your booking.`
+              ? `Pay a 20% deposit (${amount.toLocaleString()} UGX) to secure your booking.`
               : paymentType === "ViewingFee"
-              ? `Pay the standard viewing fee of ${amount.toLocaleString()} ${currency}.`
-              : `Complete your payment of ${amount.toLocaleString()} ${currency}.`
+              ? `Pay the standard viewing fee of ${amount.toLocaleString()} UGX.`
+              : `Complete your payment of ${amount.toLocaleString()} UGX.`
             }
           </DialogDescription>
         </DialogHeader>
-
+        
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-8">
             <Loader2 className="h-10 w-10 text-[#FF5A5F] animate-spin mb-4" />
@@ -181,7 +179,7 @@ export default function PaymentModal({
               Thank you for your payment!
             </p>
             <p className="text-center text-gray-500 max-w-sm">
-              {paymentType === "BnBBookingDeposit"
+              {paymentType === "BnBBookingDeposit" 
                 ? "Owner contact details are now available. You can contact them directly to arrange your stay."
                 : paymentType === "ViewingFee"
                 ? "You can now view up to 10 properties for the next 24 hours."
@@ -192,16 +190,16 @@ export default function PaymentModal({
         ) : (
           <div className="space-y-6 py-4">
             <div className="bg-gray-50 rounded-lg p-4 text-center">
-              <p className="text-2xl font-bold">{amount.toLocaleString()} {currency}</p>
+              <p className="text-2xl font-bold">{amount.toLocaleString()} UGX</p>
               <p className="text-gray-500 text-sm">
-                {paymentType === "BnBBookingDeposit"
-                  ? "20% Booking Deposit"
+                {paymentType === "BnBBookingDeposit" 
+                  ? "20% Booking Deposit" 
                   : paymentType === "ViewingFee"
                   ? "Property Viewing Fee (24 hours)"
                   : "Total Amount"}
               </p>
             </div>
-
+            
             <div className="flex flex-col space-y-4">
               <div className="flex items-center justify-center">
                 {publicKey ? (
@@ -213,28 +211,28 @@ export default function PaymentModal({
                     text={
                       <div className="flex items-center">
                         <CreditCard className="mr-2 h-5 w-5" />
-                        Pay {amount.toLocaleString()} {currency} Now
+                        Pay {amount.toLocaleString()} UGX Now
                       </div>
                     }
                   />
                 ) : (
-                  <Button
+                  <Button 
                     onClick={handlePayNow}
                     className="w-full bg-[#FF5A5F] hover:bg-[#FF7478] text-white"
                   >
                     <CreditCard className="mr-2 h-5 w-5" />
-                    Pay {amount.toLocaleString()} {currency} Now
+                    Pay {amount.toLocaleString()} UGX Now
                   </Button>
                 )}
               </div>
-
+              
               <p className="text-center text-gray-500 text-xs">
                 By clicking "Pay Now", you agree to our terms of service and payment policies.
               </p>
             </div>
           </div>
         )}
-
+        
         <DialogFooter>
           {isSuccess ? (
             <Button onClick={onClose} className="w-full">

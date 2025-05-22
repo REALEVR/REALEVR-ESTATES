@@ -223,7 +223,7 @@ export default function PaymentModal({
                     className="w-full bg-[#FF5A5F] hover:bg-[#FF7478] text-white"
                   >
                     <CreditCard className="mr-2 h-5 w-5" />
-                    Pay {amount.toLocaleString()} {currency} Now
+                    Pay {amount.toLocaleString()} UGX Now
                   </Button>
                 )}
               </div>

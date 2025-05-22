@@ -642,27 +642,6 @@
       "isAvailable": true,
       "currency": "UGX",
       "viewCount": 0
-    },
-    {
-      "title": "Test ",
-      "description": "moving mechanical parts, which provides advantages such as resistance to physical shock, quieter operation, and faster access times. Their lower latency results in higher input/output rates (IOPS) than HD",
-      "location": "Kiwatule",
-      "price": "10",
-      "bedrooms": "10",
-      "bathrooms": "10",
-      "squareMeters": "10",
-      "imageUrl": "/uploads/images/default-property.jpg",
-      "rating": "0",
-      "reviewCount": "0",
-      "propertyType": "Apartments",
-      "isAvailable": "true",
-      "isFeatured": "true",
-      "hasTour": "false",
-      "category": "furnished_houses",
-      "currency": "UGX",
-      "amenities": "[\"Fitness Center\",\"High-Speed Internet\"]",
-      "id": 22,
-      "viewCount": 0
     }
   ],
   "amenities": [
@@ -729,7 +708,7 @@
     }
   ],
   "userCurrentId": 4,
-  "propertyCurrentId": 23,
+  "propertyCurrentId": 22,
   "amenityCurrentId": 5,
   "propertyTypeCurrentId": 8
 }

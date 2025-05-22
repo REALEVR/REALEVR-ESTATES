@@ -25,7 +25,6 @@ export default function PaymentModal({
   propertyTitle,
   paymentType,
   amount,
-  currency = "UGX",
   successCallback
 }: PaymentModalProps) {
   const { toast } = useToast();
@@ -54,7 +53,7 @@ export default function PaymentModal({
         } else {
           toast({
             title: "Payment Successful",
-            description: `Your payment of ${amount.toLocaleString()} ${currency} has been processed successfully.`,
+            description: `Your payment of ${amount.toLocaleString()} UGX has been processed successfully.`,
             duration: 5000,
           });
         }
@@ -102,13 +101,13 @@ export default function PaymentModal({
           transaction_id: `sim-${Date.now()}`,
           tx_ref: txRef,
           amount: amount,
-          currency: currency
+          currency: "UGX"
         });
       } else {
         // Otherwise show a toast
         toast({
           title: "Payment Successful",
-          description: `Your payment of ${amount.toLocaleString()} ${currency} has been processed successfully.`,
+          description: `Your payment of ${amount.toLocaleString()} UGX has been processed successfully.`,
           duration: 5000,
         });
       }
@@ -128,7 +127,7 @@ export default function PaymentModal({
     public_key: publicKey,
     tx_ref: txRef,
     amount: amount,
-    currency: currency,
+    currency: "UGX",
     payment_options: "card,mobilemoney,ussd",
     customer: {
       email: "user@example.com",  // In a real app, this would be the user's email
@@ -157,10 +156,10 @@ export default function PaymentModal({
             {isSuccess
               ? "Your payment has been processed successfully."
               : paymentType === "BnBBookingDeposit"
-              ? `Pay a 20% deposit (${amount.toLocaleString()} ${currency}) to secure your booking.`
+              ? `Pay a 20% deposit (${amount.toLocaleString()} UGX) to secure your booking.`
               : paymentType === "ViewingFee"
-              ? `Pay the standard viewing fee of ${amount.toLocaleString()} ${currency}.`
-              : `Complete your payment of ${amount.toLocaleString()} ${currency}.`
+              ? `Pay the standard viewing fee of ${amount.toLocaleString()} UGX.`
+              : `Complete your payment of ${amount.toLocaleString()} UGX.`
             }
           </DialogDescription>
         </DialogHeader>
@@ -192,7 +191,7 @@ export default function PaymentModal({
         ) : (
           <div className="space-y-6 py-4">
             <div className="bg-gray-50 rounded-lg p-4 text-center">
-              <p className="text-2xl font-bold">{amount.toLocaleString()} {currency}</p>
+              <p className="text-2xl font-bold">{amount.toLocaleString()} UGX</p>
               <p className="text-gray-500 text-sm">
                 {paymentType === "BnBBookingDeposit"
                   ? "20% Booking Deposit"
@@ -213,7 +212,7 @@ export default function PaymentModal({
                     text={
                       <div className="flex items-center">
                         <CreditCard className="mr-2 h-5 w-5" />
-                        Pay {amount.toLocaleString()} {currency} Now
+                        Pay {amount.toLocaleString()} UGX Now
                       </div>
                     }
                   />
@@ -223,7 +222,7 @@ export default function PaymentModal({
                     className="w-full bg-[#FF5A5F] hover:bg-[#FF7478] text-white"
                   >
                     <CreditCard className="mr-2 h-5 w-5" />
-                    Pay {amount.toLocaleString()} {currency} Now
+                    Pay {amount.toLocaleString()} UGX Now
                   </Button>
                 )}
               </div>
