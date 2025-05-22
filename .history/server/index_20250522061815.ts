@@ -96,7 +96,7 @@ app.use((req, res, next) => {
 // In your server/index.ts file
 try {
   const port = process.env.PORT || 5001;
-  app.listen(Number(port), '0.0.0.0', () => {
+  app.listen(port, '0.0.0.0', () => {
     console.log(`Server running at http://0.0.0.0:${port}`);
   });
 } catch (error) {
@@ -105,4 +105,3 @@ try {
   console.error(JSON.stringify(error, null, 2));
 }
 })();
-2

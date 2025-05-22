@@ -94,15 +94,8 @@ app.use((req, res, next) => {
   // Use the PORT environment variable provided by the cloud platform
   // with a fallback to port 5001 for local development (changed from 5000 to avoid conflicts)
 // In your server/index.ts file
-try {
-  const port = process.env.PORT || 5001;
-  app.listen(Number(port), '0.0.0.0', () => {
-    console.log(`Server running at http://0.0.0.0:${port}`);
-  });
-} catch (error) {
-  console.error('Failed to start server:', error);
-  // Log more details about the error
-  console.error(JSON.stringify(error, null, 2));
-}
+const port_ = process.env.PORT || 5001;
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Server running at http://0.0.0.0:${port}`);
+});
 })();
-2

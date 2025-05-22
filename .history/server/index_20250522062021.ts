@@ -105,4 +105,3 @@ try {
   console.error(JSON.stringify(error, null, 2));
 }
 })();
-2

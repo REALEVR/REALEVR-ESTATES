@@ -12,7 +12,7 @@ build = ["sh", "-c", "npm run build"]
 run = ["sh", "-c", "NODE_ENV=production node dist/index.js"]
 
 [[ports]]
-localPort = 5001
+localPort = 5000
 externalPort = 80
 
 [workflows]
@@ -40,4 +40,4 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
-waitForPort = 5001
+waitForPort = 5000
