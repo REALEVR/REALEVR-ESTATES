@@ -122,6 +122,16 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
           await unlinkAsync((req.file as Express.Multer.File).path);
 
           const tourUrl = `https://${process.env.FTP_HOST}/tours/property_${propertyId}_tour/${indexFile}`;
+          
+          // Save tour configuration for persistence across deployments
+          const { addTourConfig } = await import('./tour-config');
+          addTourConfig({
+            propertyId,
+            tourUrl,
+            uploadedAt: new Date().toISOString(),
+            ftpPath: `/tours/property_${propertyId}_tour/${indexFile}`
+          });
+          
           sendProgress(jobId, { progress: 100, message: 'Done!', done: true, tourUrl });
         } catch (e: any) {
           sendProgress(jobId, { error: e.message, done: true });

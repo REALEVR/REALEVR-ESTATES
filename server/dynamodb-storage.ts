@@ -687,6 +687,19 @@ export class DynamoDBStorage implements IStorage {
       ownerId: item.ownerId ? toNumericId(item.ownerId) : undefined
     };
 
+    // Check if property has a tour but no tourUrl, try to get from config
+    if (property.hasTour && !property.tourUrl) {
+      try {
+        const { getTourConfig } = require('./tour-config');
+        const tourConfig = getTourConfig(property.id.toString());
+        if (tourConfig) {
+          property.tourUrl = tourConfig.tourUrl;
+        }
+      } catch (error) {
+        console.error('Failed to load tour config for property', property.id, error);
+      }
+    }
+
     // Ensure amenities is always an array
     if (property.amenities === undefined || property.amenities === null) {
       property.amenities = [];

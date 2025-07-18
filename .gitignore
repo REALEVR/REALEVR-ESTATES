@@ -19,6 +19,9 @@ attached_assets/
 *.mov
 *.avi
 
+# Tour configurations (persist across deployments)
+tour-configs.json
+
 # Logs
 *.log
 npm-debug.log*
