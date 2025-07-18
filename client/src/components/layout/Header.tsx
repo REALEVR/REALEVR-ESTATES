@@ -73,7 +73,7 @@ export default function Header() {
           {/* <Button variant="outline" onClick={triggerDynamoDBSetup} className="bg-yellow-200 text-black font-bold mr-2">
             Setup DynamoDB
           </Button> */}
-          {!user && (
+          {/* {!user && (
             <>
               <Link href="/membership" className="hidden md:block text-gray-800 hover:text-[#FF5A5F] font-medium">
                 Become a Member
@@ -82,7 +82,7 @@ export default function Header() {
                 Become an Agent
               </Link>
             </>
-          )}
+          )} */}
 
           {user && (
             <span className="hidden md:block text-gray-800 font-medium">

@@ -157,7 +157,7 @@ const handleCardClick = (e: React.MouseEvent) => {
           </div>
           <Button
             variant="outline"
-            className="w-full text-sm h-8 border-[#00A699] text-[#00A699] hover:bg-[#00A699]/5 transition-colors"
+            className="w-full text-sm h-8 border-[#00A699] text-[#00A699] hover:bg-[#00A699]/5 hover:text-gray-800 transition-colors"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
