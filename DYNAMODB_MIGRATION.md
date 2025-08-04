@@ -71,6 +71,20 @@ AWS_ACCESS_KEY_ID=your_access_key_here
 AWS_SECRET_ACCESS_KEY=your_secret_key_here
 ```
 
+### FTP Configuration for Virtual Tours
+
+For virtual tours to work correctly, you need to configure the FTP settings in your `.env` file. This includes the public-facing URL for your FTP content.
+
+```env
+# FTP Configuration
+FTP_HOST=your_ftp_host
+FTP_USER=your_ftp_username
+FTP_PASSWORD=your_ftp_password
+FTP_PUBLIC_URL=https://your-cdn-or-web-accessible-url.com
+```
+
+**Important:** The `FTP_PUBLIC_URL` is the base URL from which your tour content is served. This might be different from your `FTP_HOST`. For example, your `FTP_HOST` might be `ftp.yourdomain.com`, but the content might be served from `https://cdn.yourdomain.com`. The tour URL will be constructed as `${FTP_PUBLIC_URL}/tours/property_{propertyId}_tour/index.html`.
+
 ### 3. Set Up DynamoDB Tables
 
 Run the setup script to create the required tables:
