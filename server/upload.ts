@@ -5,6 +5,7 @@ import path from 'path';
 import { promisify } from 'util';
 import { nanoid } from 'nanoid';
 import AdmZip from 'adm-zip';
+import { uploadFileToS3, getS3FileUrl } from './s3-util';
 // @ts-ignore
 import { uploadTourDirToFTP } from "./ftp-upload";
 // Dynamically import CommonJS tour-progress-manager for ESM compatibility
@@ -33,17 +34,8 @@ if (!fs.existsSync(tourDir)) {
   fs.mkdirSync(tourDir);
 }
 
-// Configure storage for property images
-const imageStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, imageDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueId = nanoid(8);
-    const extension = path.extname(file.originalname);
-    cb(null, `${uniqueId}${extension}`);
-  }
-});
+// Use memory storage to keep the file as a buffer
+const imageStorage = multer.memoryStorage();
 
 // Configure storage for virtual tour zip files
 const tourStorage = multer.diskStorage({
@@ -57,8 +49,8 @@ const tourStorage = multer.diskStorage({
   }
 });
 
-// Property image upload middleware
-export const uploadPropertyImage = multer({
+// Multer configuration for property images
+const multerUpload = multer({
   storage: imageStorage,
   limits: {
     fileSize: 20 * 1024 * 1024, // 20MB limit
@@ -70,7 +62,47 @@ export const uploadPropertyImage = multer({
       cb(new Error('Not an image! Please upload an image file.') as any);
     }
   }
-}).single('image');
+});
+
+// Middleware to upload property image to S3
+const s3UploadMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+  if (!req.file) {
+    return next(); // No file to upload, proceed to next middleware
+  }
+
+  try {
+    const file = req.file;
+    const uniqueId = nanoid(16);
+    const extension = path.extname(file.originalname);
+    const key = `images/${uniqueId}${extension}`;
+
+    // Upload to S3
+    await uploadFileToS3(key, file.buffer, file.mimetype);
+
+    // Get S3 URL
+    const s3Url = getS3FileUrl(key);
+
+    // Attach S3 URL to the file object for downstream use
+    (req.file as any).s3Url = s3Url;
+
+    next();
+  } catch (error) {
+    console.error('S3 upload error:', error);
+    next(error);
+  }
+};
+
+// Chain multer middleware with S3 upload middleware
+export const uploadPropertyImage = (req: Request, res: Response, next: NextFunction) => {
+  const uploader = multerUpload.single('image');
+  uploader(req, res, (err: any) => {
+    if (err) {
+      return next(err);
+    }
+    // After multer has processed the file, call the S3 upload middleware
+    s3UploadMiddleware(req, res, next);
+  });
+};
 
 // --- Virtual Tour Upload with SSE Progress ---
 export const uploadVirtualTour = (req: Request, res: Response, next: NextFunction) => {
