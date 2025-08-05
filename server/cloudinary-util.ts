@@ -75,7 +75,7 @@ export async function uploadTourToCloudinary(extractedFolderPath: string, proper
         return tourUrl;
 
     } catch (error) {
-        console.error('Cloudinary upload error:', error);
+        console.error('Cloudinary upload error:', JSON.stringify(error, null, 2));
         throw new Error('Failed to upload tour to Cloudinary.');
     }
 }
