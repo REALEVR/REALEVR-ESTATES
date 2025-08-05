@@ -5,8 +5,9 @@ import path from 'path';
 import { promisify } from 'util';
 import { nanoid } from 'nanoid';
 import AdmZip from 'adm-zip';
-// @ts-ignore
-import { uploadTourDirToFTP } from "./ftp-upload";
+import { uploadFileToS3, getS3FileUrl } from './s3-util';
+import { uploadTourToCloudinary } from './cloudinary-util';
+
 // Dynamically import CommonJS tour-progress-manager for ESM compatibility
 // @ts-ignore
 let createJob: any, sendProgress: any, addListener: any;
@@ -33,17 +34,8 @@ if (!fs.existsSync(tourDir)) {
   fs.mkdirSync(tourDir);
 }
 
-// Configure storage for property images
-const imageStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, imageDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueId = nanoid(8);
-    const extension = path.extname(file.originalname);
-    cb(null, `${uniqueId}${extension}`);
-  }
-});
+// Use memory storage to keep the file as a buffer
+const imageStorage = multer.memoryStorage();
 
 // Configure storage for virtual tour zip files
 const tourStorage = multer.diskStorage({
@@ -57,8 +49,8 @@ const tourStorage = multer.diskStorage({
   }
 });
 
-// Property image upload middleware
-export const uploadPropertyImage = multer({
+// Multer configuration for property images
+const multerUpload = multer({
   storage: imageStorage,
   limits: {
     fileSize: 20 * 1024 * 1024, // 20MB limit
@@ -70,7 +62,47 @@ export const uploadPropertyImage = multer({
       cb(new Error('Not an image! Please upload an image file.') as any);
     }
   }
-}).single('image');
+});
+
+// Middleware to upload property image to S3
+const s3UploadMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+  if (!req.file) {
+    return next(); // No file to upload, proceed to next middleware
+  }
+
+  try {
+    const file = req.file;
+    const uniqueId = nanoid(16);
+    const extension = path.extname(file.originalname);
+    const key = `images/${uniqueId}${extension}`;
+
+    // Upload to S3
+    await uploadFileToS3(key, file.buffer, file.mimetype);
+
+    // Get S3 URL
+    const s3Url = getS3FileUrl(key);
+
+    // Attach S3 URL to the file object for downstream use
+    (req.file as any).s3Url = s3Url;
+
+    next();
+  } catch (error) {
+    console.error('S3 upload error:', error);
+    next(error);
+  }
+};
+
+// Chain multer middleware with S3 upload middleware
+export const uploadPropertyImage = (req: Request, res: Response, next: NextFunction) => {
+  const uploader = multerUpload.single('image');
+  uploader(req, res, (err: any) => {
+    if (err) {
+      return next(err);
+    }
+    // After multer has processed the file, call the S3 upload middleware
+    s3UploadMiddleware(req, res, next);
+  });
+};
 
 // --- Virtual Tour Upload with SSE Progress ---
 export const uploadVirtualTour = (req: Request, res: Response, next: NextFunction) => {
@@ -83,7 +115,7 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
       const jobId = createJob();
       res.status(200).json({ jobId }); // Respond immediately with jobId
 
-      // Start extraction/FTP in background
+      // Start extraction and upload in background
       (async () => {
         try {
           sendProgress(jobId, { progress: 5, message: 'Extracting ZIP...' });
@@ -94,34 +126,14 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
           }
           await mkdirAsync(extractDir, { recursive: true });
           zip.extractAllTo(extractDir, true);
-          sendProgress(jobId, { progress: 20, message: 'ZIP extracted. Scanning for index file...' });
+          sendProgress(jobId, { progress: 20, message: 'ZIP extracted. Uploading to Cloudinary...' });
 
-          // Recursively find index.html or index.htm
-          const findIndexFile = (dir: string): string | null => {
-            const entries = fs.readdirSync(dir, { withFileTypes: true });
-            for (const entry of entries) {
-              const fullPath = path.join(dir, entry.name);
-              if (entry.isFile() && (entry.name.toLowerCase() === 'index.html' || entry.name.toLowerCase() === 'index.htm')) {
-                return path.relative(extractDir, fullPath).replace(/\\/g, '/');
-              } else if (entry.isDirectory()) {
-                const found = findIndexFile(fullPath);
-                if (found) return path.join(entry.name, found).replace(/\\/g, '/');
-              }
-            }
-            return null;
-          };
-          const indexFile = findIndexFile(extractDir) || 'index.html';
-          sendProgress(jobId, { progress: 30, message: `Uploading files to FTP...` });
-
-          // Upload to FTP, optionally update progress inside uploadTourDirToFTP
-          await uploadTourDirToFTP(extractDir, propertyId, (percent: number, msg: string) => {
-            sendProgress(jobId, { progress: 30 + Math.round(percent * 0.6), message: msg });
+          const tourUrl = await uploadTourToCloudinary(extractDir, propertyId, (progress) => {
+            sendProgress(jobId, { progress: 20 + Math.round(progress * 75), message: 'Uploading to Cloudinary...' });
           });
 
           sendProgress(jobId, { progress: 95, message: 'Cleaning up...' });
           await unlinkAsync((req.file as Express.Multer.File).path);
-
-          const tourUrl = `https://${process.env.FTP_HOST}/tours/property_${propertyId}_tour/${indexFile}`;
           
           // Save tour configuration for persistence across deployments
           const { addTourConfig } = await import('./tour-config');
@@ -129,7 +141,7 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
             propertyId,
             tourUrl,
             uploadedAt: new Date().toISOString(),
-            ftpPath: `/tours/property_${propertyId}_tour/${indexFile}`
+            ftpPath: null // No longer using FTP
           });
           
           sendProgress(jobId, { progress: 100, message: 'Done!', done: true, tourUrl });
@@ -163,131 +175,15 @@ export const sseTourProgress = (req: Request, res: Response) => {
   });
 };
 
-// --- Test endpoint: upload a single file to FTP tour folder with SSE progress ---
-export const uploadTestFileToFTP = async (req: Request, res: Response) => {
-  try {
-    const multerDisk = multer({ storage: tourStorage }).single('testFile');
-    multerDisk(req, res, async (err: any) => {
-      if (err) return res.status(400).json({ error: err.message });
-      if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-      const propertyId = req.body.propertyId || nanoid(8);
-      const jobId = createJob();
-      const file = req.file; // assign to local variable for type safety
-      res.status(200).json({ jobId }); // Respond immediately with jobId
-
-      // Start FTP upload in background
-      (async () => {
-        try {
-          sendProgress(jobId, { progress: 5, message: 'Preparing test upload...' });
-          // Create a temp folder for this test
-          const tempDir = path.join(tourDir, `test_${propertyId}_${Date.now()}`);
-          await mkdirAsync(tempDir, { recursive: true });
-          const destPath = path.join(tempDir, file.originalname);
-          fs.copyFileSync(file.path, destPath);
-          sendProgress(jobId, { progress: 20, message: 'Uploading file to FTP...' });
-          // Upload to FTP
-          await uploadTourDirToFTP(tempDir, propertyId, (percent: number, msg: string) => {
-            sendProgress(jobId, { progress: 20 + Math.round(percent * 0.7), message: msg });
-          });
-          sendProgress(jobId, { progress: 95, message: 'Cleaning up...' });
-          fs.rmSync(tempDir, { recursive: true, force: true });
-          await unlinkAsync(file.path);
-          sendProgress(jobId, { progress: 100, message: 'Test file uploaded to FTP', done: true, propertyId });
-        } catch (e: any) {
-          sendProgress(jobId, { error: e.message, done: true });
-        }
-      })();
-    });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-};
-
-// --- SSE Progress Endpoint for test FTP upload ---
-export const sseTestFtpProgress = (req: Request, res: Response) => {
-  res.set({
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    Connection: 'keep-alive',
-  });
-  res.flushHeaders();
-  const { jobId } = req.params;
-  const ok = addListener(jobId, res);
-  if (!ok) {
-    res.write(`data: ${JSON.stringify({ error: 'Invalid jobId' })}\n\n`);
-    res.end();
-    return;
-  }
-  req.on('close', () => {
-    // Optionally clean up listeners
-  });
-};
-
 // Register routes (add to your Express app)
 export function registerTourUploadRoutes(app: express.Application) {
   app.post('/api/upload/virtual-tour/:propertyId', uploadVirtualTour);
   app.get('/api/upload/virtual-tour/progress/:jobId', sseTourProgress);
-  // Register test FTP upload endpoints
-  app.post('/api/upload/test-ftp', uploadTestFileToFTP);
-  app.get('/api/upload/test-ftp/progress/:jobId', sseTestFtpProgress);
 }
 
 // Helper functions for file operations
 const unlinkAsync = promisify(fs.unlink);
 const mkdirAsync = promisify(fs.mkdir);
-
-// Function to extract a zip file
-export async function extractTourZip(zipPath: string, propertyId: string): Promise<string> {
-  try {
-    console.log(`Extracting tour zip from ${zipPath} for property ${propertyId}`);
-    const zip = new AdmZip(zipPath);
-
-    // Create a directory for the extracted tour
-    const extractDir = path.join(tourDir, `property_${propertyId}_tour`);
-
-    // If the directory already exists, remove it
-    if (fs.existsSync(extractDir)) {
-      console.log(`Removing existing tour directory: ${extractDir}`);
-      fs.rmSync(extractDir, { recursive: true, force: true });
-    }
-
-    // Create the directory
-    console.log(`Creating tour directory: ${extractDir}`);
-    await mkdirAsync(extractDir, { recursive: true });
-
-    // Extract the zip file
-    console.log('Extracting zip file...');
-    zip.extractAllTo(extractDir, true);
-
-    // List extracted files (for debugging)
-    const files = fs.readdirSync(extractDir);
-    console.log(`Extracted ${files.length} files/directories: `, files);
-
-    // Check if index.htm or index.html file exists
-    const indexFile = files.find(file => file.toLowerCase() === 'index.htm' || file.toLowerCase() === 'index.html') || 'index.html';
-    if (!files.includes(indexFile)) {
-      console.warn('Warning: No index.htm or index.html file found in the extracted tour');
-    } else {
-      console.log(`Found index file: ${indexFile}`);
-    }
-
-    // Upload the extracted directory to FTP
-    console.log(`Uploading extracted tour to FTP for property ${propertyId}...`);
-    await uploadTourDirToFTP(extractDir, propertyId);
-    console.log(`Tour uploaded to FTP at: /tours/property_${propertyId}_tour`);
-
-    // Delete the zip file to save space
-    console.log(`Deleting zip file: ${zipPath}`);
-    await unlinkAsync(zipPath);
-
-    // Return the public FTP URL to the uploaded tour's index file
-    return `https://${process.env.FTP_HOST}/tours/property_${propertyId}_tour/${indexFile}`;
-
-  } catch (error) {
-    console.error('Error extracting tour zip:', error);
-    throw new Error('Failed to extract virtual tour files: ' + (error as Error).message);
-  }
-}
 
 // Middleware to handle upload errors
 export function handleUploadErrors(err: any, req: Request, res: Response, next: NextFunction) {
