@@ -148,9 +148,10 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
 
           // Upload to Firebase Storage
           sendProgress(jobId, { progress: 30, message: `Uploading files to Firebase Storage...` });
+          let tourUrl: string;
           try {
             const { uploadTourToFirebase } = await import('./firebase-storage');
-            const tourUrl = await uploadTourToFirebase(extractDir, propertyId);
+            tourUrl = await uploadTourToFirebase(extractDir, propertyId);
             sendProgress(jobId, { progress: 95, message: 'Cleaning up...' });
           } catch (error: any) {
             sendProgress(jobId, { 
