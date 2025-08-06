@@ -146,16 +146,16 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
           const indexFile = findIndexFile(extractDir) || 'index.html';
           sendProgress(jobId, { progress: 30, message: `Uploading files to FTP...` });
 
-          // Upload to Cloudinary
-          sendProgress(jobId, { progress: 30, message: `Uploading files to Cloudinary...` });
+          // Upload to Firebase Storage
+          sendProgress(jobId, { progress: 30, message: `Uploading files to Firebase Storage...` });
           try {
-            const tourUrl = await uploadTourToCloudinary(extractDir, propertyId);
+            const { uploadTourToFirebase } = await import('./firebase-storage');
+            const tourUrl = await uploadTourToFirebase(extractDir, propertyId);
             sendProgress(jobId, { progress: 95, message: 'Cleaning up...' });
           } catch (error: any) {
             sendProgress(jobId, { 
               error: error.message,
-              done: true,
-              details: 'Please check that your tour contains only valid image files (JPG, PNG, GIF, WEBP, SVG)'
+              done: true
             });
             return;
           }
@@ -163,7 +163,7 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
           
           // Save tour configuration for persistence across deployments
           const { addTourConfig } = await import('./tour-config');
-          addTourConfig({
+           addTourConfig({
             propertyId,
             tourUrl,
             uploadedAt: new Date().toISOString(),

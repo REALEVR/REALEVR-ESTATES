@@ -33,27 +33,14 @@ async function uploadFolder(localFolderPath: string, cloudinaryFolderPath: strin
             //     continue;
             // }
             
-            // For images, apply strict validation
-            if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'].includes(ext)) {
-                const result = await cloudinary.uploader.upload(localFilePath, {
-                    folder: cloudinaryFolderPath,
-                    resource_type: 'auto',
-                    use_filename: true,
-                    unique_filename: false,
-                    validate_parameters: true,
-                    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']
-                });
-                uploads.push(result);
-            } else {
-                // Allow other tour files (html, js, css, etc) with basic upload
-                const result = await cloudinary.uploader.upload(localFilePath, {
-                    folder: cloudinaryFolderPath,
-                    resource_type: 'auto',
-                    use_filename: true,
-                    unique_filename: false
-                });
-                uploads.push(result);
-             }
+            // Upload all files with basic configuration
+            const result = await cloudinary.uploader.upload(localFilePath, {
+                folder: cloudinaryFolderPath,
+                resource_type: 'auto',
+                use_filename: true,
+                unique_filename: false
+            });
+            uploads.push(result);
         }
     }
 
