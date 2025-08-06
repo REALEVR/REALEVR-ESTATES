@@ -149,6 +149,8 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
     defaultValues,
   });
 
+
+  
 const onSubmit = async (data: PropertyFormValues) => {
   console.log('Save Property button submitted', data); // Log from onSubmit
   // Coerce all numeric fields to numbers before sending to API
