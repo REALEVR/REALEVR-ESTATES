@@ -48,7 +48,7 @@ export async function uploadFolderToFirebase(localFolderPath: string, remoteFold
   return uploads;
 }
 
-export async function uploadTourToFirebase(extractedFolderPath: string, propertyId: string): Promise<string> {
+export async function uploadTourToFirebase(extractedFolderPath: string, propertyId: string, p0: (progress: any) => void): Promise<string> {
   try {
     const remoteFolderPath = `tours/property_${propertyId}`;
     

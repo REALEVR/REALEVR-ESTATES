@@ -1594,6 +1594,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Property update endpoint
+  app.patch('/api/properties/:id', async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      if (isNaN(propertyId)) {
+        return res.status(400).json({ message: 'Invalid property ID' });
+      }
+
+      const updates = req.body;
+      if (!updates || Object.keys(updates).length === 0) {
+        return res.status(400).json({ message: 'No update data provided' });
+      }
+
+      // If updating tour status, ensure tourUrl is provided or exists in tour-config
+      if (updates.hasTour) {
+        if (!updates.tourUrl) {
+          const tourConfig = await getTourConfig(propertyId);
+          if (!tourConfig || !tourConfig.tourUrl) {
+            return res.status(400).json({ 
+              message: 'Cannot enable tour - no tour URL provided or found in tour-config' 
+            });
+          }
+          updates.tourUrl = tourConfig.tourUrl;
+        }
+        
+        // Ensure tour exists in storage
+        try {
+          const tourExists = await firebaseStorage.tourExists(propertyId);
+          if (!tourExists) {
+            return res.status(404).json({ message: 'Tour not found in storage' });
+          }
+        } catch (err) {
+          console.error('Error verifying tour:', err);
+          return res.status(500).json({ message: 'Error verifying tour existence' });
+        }
+      }
+
+      const updatedProperty = await storage.updateProperty(propertyId, updates);
+      res.json(updatedProperty);
+    } catch (error: any) {
+      console.error('Error updating property:', error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Setup routes to serve static files
   setupStaticFileRoutes(app);
 

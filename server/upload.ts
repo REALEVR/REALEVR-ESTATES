@@ -111,25 +111,44 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
   multerDisk(req, res, async (err: any) => {
     if (err) return next(err);
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
     try {
-      const propertyId = req.body.propertyId || nanoid(8); // fallback if not provided
+      const propertyId = req.body.propertyId || nanoid(8);
       const jobId = createJob();
       res.status(200).json({ jobId }); // Respond immediately with jobId
 
-      // Start extraction/FTP in background
       (async () => {
         try {
-          sendProgress(jobId, { progress: 5, message: 'Extracting ZIP...' });
           const zip = new AdmZip((req.file as Express.Multer.File).path);
           const extractDir = path.join(tourDir, `property_${propertyId}_tour`);
           if (fs.existsSync(extractDir)) {
             fs.rmSync(extractDir, { recursive: true, force: true });
           }
           await mkdirAsync(extractDir, { recursive: true });
-          zip.extractAllTo(extractDir, true);
-          sendProgress(jobId, { progress: 20, message: 'ZIP extracted. Scanning for index file...' });
 
-          // Recursively find index.html or index.htm
+          const zipEntries = zip.getEntries();
+          const totalEntries = zipEntries.length;
+          let extracted = 0;
+
+          for (const entry of zipEntries) {
+            const entryPath = path.join(extractDir, entry.entryName);
+            if (entry.isDirectory) {
+              fs.mkdirSync(entryPath, { recursive: true });
+            } else {
+              fs.mkdirSync(path.dirname(entryPath), { recursive: true });
+              fs.writeFileSync(entryPath, entry.getData());
+            }
+
+            extracted++;
+            const extractionProgress = Math.round((extracted / totalEntries) * 30); // Extraction is 0-30%
+            sendProgress(jobId, {
+              progress: extractionProgress,
+              message: `Extracting ZIP (${extracted}/${totalEntries})...`,
+            });
+          }
+
+          sendProgress(jobId, { progress: 35, message: 'Scanning for index file...' });
+
           const findIndexFile = (dir: string): string | null => {
             const entries = fs.readdirSync(dir, { withFileTypes: true });
             for (const entry of entries) {
@@ -143,35 +162,33 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
             }
             return null;
           };
-          const indexFile = findIndexFile(extractDir) || 'index.html';
-          sendProgress(jobId, { progress: 30, message: `Uploading files to FTP...` });
 
-          // Upload to Firebase Storage
-          sendProgress(jobId, { progress: 30, message: `Uploading files to Firebase Storage...` });
-          let tourUrl: string;
-          try {
-            const { uploadTourToFirebase } = await import('./firebase-storage');
-            tourUrl = await uploadTourToFirebase(extractDir, propertyId);
-            sendProgress(jobId, { progress: 95, message: 'Cleaning up...' });
-          } catch (error: any) {
-            sendProgress(jobId, { 
-              error: error.message,
-              done: true
+          const indexFile = findIndexFile(extractDir) || 'index.html';
+
+          sendProgress(jobId, { progress: 40, message: `Uploading files to Firebase Storage...` });
+
+          const { uploadTourToFirebase } = await import('./firebase-storage');
+          const tourUrl = await uploadTourToFirebase(extractDir, propertyId, (uploadProgress) => {
+            // Map upload progress (0–1) to 40–95%
+            sendProgress(jobId, {
+              progress: Math.floor(40 + (uploadProgress * 55)),
+              message: 'Uploading virtual tour files...'
             });
-            return;
-          }
+          });
+
+          sendProgress(jobId, { progress: 97, message: 'Finalizing upload...' });
+
           await unlinkAsync((req.file as Express.Multer.File).path);
-          
-          // Save tour configuration for persistence across deployments
+
           const { addTourConfig } = await import('./tour-config');
-           addTourConfig({
+          await addTourConfig({
             propertyId,
             tourUrl,
             uploadedAt: new Date().toISOString(),
-            ftpPath: null // No longer using FTP
+            ftpPath: null
           });
-          
-          sendProgress(jobId, { progress: 100, message: 'Done!', done: true, tourUrl });
+
+          sendProgress(jobId, { progress: 100, message: 'Upload complete!', done: true, tourUrl });
         } catch (e: any) {
           sendProgress(jobId, { error: e.message, done: true });
         }
@@ -181,6 +198,7 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
     }
   });
 };
+
 
 // --- SSE Progress Endpoint ---
 export const sseTourProgress = (req: Request, res: Response) => {
