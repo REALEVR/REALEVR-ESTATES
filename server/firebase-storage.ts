@@ -91,25 +91,32 @@ async function uploadFolderRecursive(localFolderPath: string, remoteFolderPath: 
 
 export async function uploadTourToFirebase(extractedFolderPath: string, propertyId: string, onProgress: (progress: number) => void): Promise<string> {
   try {
-    const remoteFolderPath = `tours/property_${propertyId}`;
+    let uploadRoot = extractedFolderPath;
+    const entries = fs.readdirSync(extractedFolderPath);
+    // If the extracted folder contains a single directory, we'll treat that as the root.
+    if (entries.length === 1 && fs.statSync(path.join(extractedFolderPath, entries[0])).isDirectory()) {
+      uploadRoot = path.join(extractedFolderPath, entries[0]);
+    }
+
+    const tourName = path.basename(extractedFolderPath);
+    const remoteFolderPath = `tours/property_${propertyId}/${tourName}`;
     
-    // Find index file
     const findIndexFile = (dir: string): string | null => {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
       for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
         if (entry.isFile() && (entry.name.toLowerCase() === 'index.html' || entry.name.toLowerCase() === 'index.htm')) {
-          return path.relative(extractedFolderPath, fullPath).replace(/\\/g, '/');
+          return path.relative(uploadRoot, fullPath).replace(/\\/g, '/');
         } else if (entry.isDirectory()) {
           const found = findIndexFile(fullPath);
-          if (found) return path.join(entry.name, found).replace(/\\/g, '/');
+          if (found) return found; // Corrected recursive return
         }
       }
       return null;
     };
 
-    const indexFile = findIndexFile(extractedFolderPath) || 'index.html';
-    const totalFiles = countFilesRecursive(extractedFolderPath);
+    const indexFile = findIndexFile(uploadRoot) || 'index.html';
+    const totalFiles = countFilesRecursive(uploadRoot);
     const uploadState: UploadState = {
         uploadedFiles: 0,
         totalFiles: totalFiles,
@@ -118,7 +125,7 @@ export async function uploadTourToFirebase(extractedFolderPath: string, property
     if (totalFiles === 0) {
       onProgress(1); // Nothing to upload, progress is 100%
     }
-    await uploadFolderRecursive(extractedFolderPath, remoteFolderPath, uploadState);
+    await uploadFolderRecursive(uploadRoot, remoteFolderPath, uploadState);
     
     const indexRef = ref(storage, `${remoteFolderPath}/${indexFile}`);
     return await getDownloadURL(indexRef);
