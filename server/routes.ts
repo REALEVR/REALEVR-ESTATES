@@ -16,7 +16,6 @@ import {
   handleUploadErrors,
   extractTourZip,
   setupStaticFileRoutes,
-  uploadTestFileToFTP
 } from "./upload";
 
 // Middleware to check if user is an admin or property manager
@@ -1542,7 +1541,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test endpoint: upload a single file to FTP tour folder
-  app.post("/api/upload/test-ftp", uploadTestFileToFTP);
+  // app.post("/api/upload/test-ftp", uploadTestFileToFTP);
 
   // Test endpoint to add more amenities
   app.get("/api/test/add-amenities", async (req, res) => {
