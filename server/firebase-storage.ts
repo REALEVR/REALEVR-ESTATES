@@ -26,29 +26,70 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const storage = getStorage(app);
 
-export async function uploadFolderToFirebase(localFolderPath: string, remoteFolderPath: string): Promise<{ file: string; url: string; }[]> {
-  const files = fs.readdirSync(localFolderPath);
-  const uploads = [];
-
-  for (const file of files) {
-    const localFilePath = path.join(localFolderPath, file);
-    const stats = fs.statSync(localFilePath);
-
-    if (stats.isDirectory()) {
-      uploads.push(...await uploadFolderToFirebase(localFilePath, `${remoteFolderPath}/${file}`));
-    } else {
-      const fileRef = ref(storage, `${remoteFolderPath}/${file}`);
-      const fileContent = fs.readFileSync(localFilePath);
-      await uploadBytes(fileRef, fileContent);
-      const downloadURL = await getDownloadURL(fileRef);
-      uploads.push({ file, url: downloadURL });
+const countFilesRecursive = (dir: string): number => {
+  let count = 0;
+  try {
+    const files = fs.readdirSync(dir);
+    for (const file of files) {
+      const filePath = path.join(dir, file);
+      const stat = fs.statSync(filePath);
+      if (stat.isDirectory()) {
+        count += countFilesRecursive(filePath);
+      } else {
+        count++;
+      }
     }
+  } catch (error) {
+    console.error(`Error counting files in ${dir}:`, error);
   }
+  return count;
+};
 
+interface UploadState {
+  uploadedFiles: number;
+  totalFiles: number;
+  onProgress: (progress: number) => void;
+}
+
+async function uploadFolderRecursive(localFolderPath: string, remoteFolderPath: string, state: UploadState): Promise<{ file: string; url: string; }[]> {
+  let uploads: { file: string; url: string; }[] = [];
+  try {
+    const files = fs.readdirSync(localFolderPath);
+    const uploadPromises: Promise<void>[] = [];
+
+    for (const file of files) {
+      const localFilePath = path.join(localFolderPath, file);
+      const stats = fs.statSync(localFilePath);
+
+      if (stats.isDirectory()) {
+        const nestedUploads = await uploadFolderRecursive(localFilePath, `${remoteFolderPath}/${file}`, state);
+        uploads.push(...nestedUploads);
+      } else {
+        const fileRef = ref(storage, `${remoteFolderPath}/${file}`);
+        const fileContent = fs.readFileSync(localFilePath);
+        
+        const uploadPromise = uploadBytes(fileRef, fileContent).then(async () => {
+          const downloadURL = await getDownloadURL(fileRef);
+          uploads.push({ file, url: downloadURL });
+          state.uploadedFiles++;
+          if (state.totalFiles > 0) {
+            state.onProgress(state.uploadedFiles / state.totalFiles);
+          }
+        });
+        uploadPromises.push(uploadPromise);
+      }
+    }
+
+    await Promise.all(uploadPromises);
+
+  } catch (error) {
+    console.error(`Error uploading folder ${localFolderPath}:`, error);
+    // Optionally re-throw or handle error as needed
+  }
   return uploads;
 }
 
-export async function uploadTourToFirebase(extractedFolderPath: string, propertyId: string, p0: (progress: any) => void): Promise<string> {
+export async function uploadTourToFirebase(extractedFolderPath: string, propertyId: string, onProgress: (progress: number) => void): Promise<string> {
   try {
     const remoteFolderPath = `tours/property_${propertyId}`;
     
@@ -68,7 +109,16 @@ export async function uploadTourToFirebase(extractedFolderPath: string, property
     };
 
     const indexFile = findIndexFile(extractedFolderPath) || 'index.html';
-    await uploadFolderToFirebase(extractedFolderPath, remoteFolderPath);
+    const totalFiles = countFilesRecursive(extractedFolderPath);
+    const uploadState: UploadState = {
+        uploadedFiles: 0,
+        totalFiles: totalFiles,
+        onProgress: onProgress
+    };
+    if (totalFiles === 0) {
+      onProgress(1); // Nothing to upload, progress is 100%
+    }
+    await uploadFolderRecursive(extractedFolderPath, remoteFolderPath, uploadState);
     
     const indexRef = ref(storage, `${remoteFolderPath}/${indexFile}`);
     return await getDownloadURL(indexRef);

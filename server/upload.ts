@@ -124,7 +124,7 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
           if (fs.existsSync(extractDir)) {
             fs.rmSync(extractDir, { recursive: true, force: true });
           }
-          await mkdirAsync(extractDir, { recursive: true });
+          fs.mkdirSync(extractDir, { recursive: true });
 
           const zipEntries = zip.getEntries();
           const totalEntries = zipEntries.length;
@@ -178,7 +178,7 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
 
           sendProgress(jobId, { progress: 97, message: 'Finalizing upload...' });
 
-          await unlinkAsync((req.file as Express.Multer.File).path);
+          fs.unlinkSync((req.file as Express.Multer.File).path);
 
           const { addTourConfig } = await import('./tour-config');
           await addTourConfig({
