@@ -14,7 +14,6 @@ import {
   uploadPropertyImage,
   uploadVirtualTour,
   handleUploadErrors,
-  extractTourZip,
   setupStaticFileRoutes,
 } from "./upload";
 
@@ -1654,32 +1653,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // Upload virtual tour zip (admin, agent, or property manager only)
+  // Upload virtual tour zip
   app.post("/api/upload/virtual-tour/:propertyId", (req, res) => {
-    console.log("=== VIRTUAL TOUR UPLOAD ENDPOINT ===");
-    console.log("User:", req.user);
-    console.log("User role:", req.user?.role);
-    console.log("Is authenticated:", req.isAuthenticated());
+    // console.log("=== VIRTUAL TOUR UPLOAD ENDPOINT ===");
     console.log("Property ID:", req.params.propertyId);
-    
-    // Check if user is authenticated
-    if (!req.isAuthenticated()) {
-      console.log("User not authenticated");
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
-    // Get user from request
-    const user = req.user;
-    console.log("User object:", user);
-    // const propertyId_ = parseInt(req.params.propertyId);
-
-    // Only check role if user is not an admin, agent, or property manager
-    if (!user.role || (user.role !== "admin" && user.role !== "agent" && user.role !== "property_manager")) {
-      console.log("Unauthorized role:", user.role);
-      return res.status(403).json({ message: "Unauthorized. Admin, agent, or property manager role required." });
-    }
-
-    console.log("User authorized for virtual tour upload");
 
     const propertyId = req.params.propertyId; // Use string ID
     if (!propertyId) {

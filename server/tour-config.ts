@@ -31,25 +31,25 @@ export function removeTourConfig(propertyId: string) {
 }
 
 // Save to file for persistence across deployments
-function saveTourConfigs() {
+async function saveTourConfigs() {
   try {
-    const fs = require('fs');
-    const path = require('path');
-    const configPath = path.join(process.cwd(), 'tour-configs.json');
-    fs.writeFileSync(configPath, JSON.stringify(tourConfigs, null, 2));
+    const { writeFileSync } = await import('fs');
+    const { join } = await import('path');
+    const configPath = join(process.cwd(), 'tour-configs.json');
+    writeFileSync(configPath, JSON.stringify(tourConfigs, null, 2));
   } catch (error) {
     console.error('Failed to save tour configs:', error);
   }
 }
 
 // Load from file on startup
-export function loadTourConfigs() {
+export async function loadTourConfigs() {
   try {
-    const fs = require('fs');
-    const path = require('path');
-    const configPath = path.join(process.cwd(), 'tour-configs.json');
-    if (fs.existsSync(configPath)) {
-      const data = fs.readFileSync(configPath, 'utf8');
+    const { existsSync, readFileSync } = await import('fs');
+    const { join } = await import('path');
+    const configPath = join(process.cwd(), 'tour-configs.json');
+    if (existsSync(configPath)) {
+      const data = readFileSync(configPath, 'utf8');
       tourConfigs = JSON.parse(data);
       console.log(`Loaded ${tourConfigs.length} tour configurations`);
     }
@@ -59,4 +59,6 @@ export function loadTourConfigs() {
 }
 
 // Initialize on module load
-loadTourConfigs(); 
+(async () => {
+  await loadTourConfigs();
+})();

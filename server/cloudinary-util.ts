@@ -26,13 +26,34 @@ async function uploadFolder(localFolderPath: string, cloudinaryFolderPath: strin
         if (stats.isDirectory()) {
             uploads.push(...await uploadFolder(localFilePath, `${cloudinaryFolderPath}/${file}`));
         } else {
-            const result = await cloudinary.uploader.upload(localFilePath, {
-                folder: cloudinaryFolderPath,
-                resource_type: 'auto',
-                use_filename: true,
-                unique_filename: false,
-            });
-            uploads.push(result);
+            const ext = path.extname(localFilePath).toLowerCase();
+            
+            // // Skip system files
+            // if (['.ds_store', '.thumbs.db'].includes(ext)) {
+            //     continue;
+            // }
+            
+            // For images, apply strict validation
+            if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'].includes(ext)) {
+                const result = await cloudinary.uploader.upload(localFilePath, {
+                    folder: cloudinaryFolderPath,
+                    resource_type: 'auto',
+                    use_filename: true,
+                    unique_filename: false,
+                    validate_parameters: true,
+                    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']
+                });
+                uploads.push(result);
+            } else {
+                // Allow other tour files (html, js, css, etc) with basic upload
+                const result = await cloudinary.uploader.upload(localFilePath, {
+                    folder: cloudinaryFolderPath,
+                    resource_type: 'auto',
+                    use_filename: true,
+                    unique_filename: false
+                });
+                uploads.push(result);
+             }
         }
     }
 
@@ -73,8 +94,11 @@ export async function uploadTourToCloudinary(extractedFolderPath: string, proper
 
         return tourUrl;
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Cloudinary upload error:', error);
-        throw new Error('Failed to upload tour to Cloudinary.');
+        if (error.message.includes('Invalid image file')) {
+            throw new Error('Invalid image file detected. Please ensure all files in the tour are valid images (JPG, PNG, GIF, WEBP, SVG).');
+        }
+        throw new Error(`Failed to upload tour to Cloudinary: ${error.message}`);
     }
 }

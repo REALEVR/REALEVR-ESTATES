@@ -83,9 +83,8 @@ export class DynamoDBStorage implements IStorage {
     return executeWithRetry(async () => {
       try {
         const items = await DynamoDBUtils.scanTable(TABLES.PROPERTIES);
-        return items
-          .map(item => this.convertPropertyFromDynamoDB(item))
-          .sort((a, b) => b.id - a.id); // Sort by ID descending (newest first)
+        const convertedItems = await Promise.all(items.map(item => this.convertPropertyFromDynamoDB(item)));
+        return convertedItems.sort((a, b) => b.id - a.id); // Sort by ID descending (newest first)
       } catch (error) {
         console.error('Error in getAllProperties:', error);
         throw error;
@@ -109,10 +108,8 @@ export class DynamoDBStorage implements IStorage {
           { ":isFeatured": true },
           { "#isFeatured": "isFeatured" }
         );
-        return items
-          .map(item => this.convertPropertyFromDynamoDB(item))
-          .sort((a, b) => b.id - a.id)
-          .slice(0, 4);
+        const convertedItems = await Promise.all(items.map(item => this.convertPropertyFromDynamoDB(item)));
+      return convertedItems.sort((a, b) => b.id - a.id).slice(0, 4);
       } catch (error) {
         console.error('Error in getFeaturedProperties:', error);
         throw error;
@@ -128,9 +125,8 @@ export class DynamoDBStorage implements IStorage {
         { ":category": category },
         { "#category": "category" }
       );
-      return items
-        .map(item => this.convertPropertyFromDynamoDB(item))
-        .sort((a, b) => b.id - a.id);
+      const convertedItems = await Promise.all(items.map(item => this.convertPropertyFromDynamoDB(item)));
+      return convertedItems.sort((a, b) => b.id - a.id);
     });
   }
 
@@ -147,9 +143,8 @@ export class DynamoDBStorage implements IStorage {
           "#description": "description" 
         }
       );
-      return items
-        .map(item => this.convertPropertyFromDynamoDB(item))
-        .sort((a, b) => b.id - a.id);
+      const convertedItems = await Promise.all(items.map(item => this.convertPropertyFromDynamoDB(item)));
+      return convertedItems.sort((a, b) => b.id - a.id);
     });
   }
 
@@ -203,7 +198,7 @@ export class DynamoDBStorage implements IStorage {
         Object.keys(expressionAttributeNames).length > 0 ? expressionAttributeNames : undefined
       );
 
-      let results = items.map(item => this.convertPropertyFromDynamoDB(item));
+      let results = await Promise.all(items.map(item => this.convertPropertyFromDynamoDB(item)));
 
       // Handle amenities filtering (DynamoDB doesn't support array contains operations easily)
       if (filters.amenities && Array.isArray(filters.amenities)) {
@@ -230,7 +225,7 @@ export class DynamoDBStorage implements IStorage {
       };
       
       await DynamoDBUtils.putItem(TABLES.PROPERTIES, property);
-      return this.convertPropertyFromDynamoDB(property);
+      return await this.convertPropertyFromDynamoDB(property);
     });
   }
 
@@ -259,7 +254,7 @@ export class DynamoDBStorage implements IStorage {
         expressionAttributeNames
       );
 
-      return updatedItem ? this.convertPropertyFromDynamoDB(updatedItem) : undefined;
+      return updatedItem ? await this.convertPropertyFromDynamoDB(updatedItem) : undefined;
     });
   }
 
@@ -679,7 +674,7 @@ export class DynamoDBStorage implements IStorage {
     };
   }
 
-  private convertPropertyFromDynamoDB(item: any): Property {
+  private async convertPropertyFromDynamoDB(item: any): Promise<Property> {
     const property = {
       ...item,
       id: toNumericId(item.id),
@@ -690,8 +685,8 @@ export class DynamoDBStorage implements IStorage {
     // Check if property has a tour but no tourUrl, try to get from config
     if (property.hasTour && !property.tourUrl) {
       try {
-        const { getTourConfig } = require('./tour-config');
-        const tourConfig = getTourConfig(property.id.toString());
+        const { getTourConfig } = await import('./tour-config');
+        const tourConfig = await getTourConfig(property.id.toString());
         if (tourConfig) {
           property.tourUrl = tourConfig.tourUrl;
         }

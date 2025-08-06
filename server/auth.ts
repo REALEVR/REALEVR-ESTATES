@@ -74,14 +74,14 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        console.log("=== PASSPORT AUTHENTICATION ===");
-        console.log("Attempting login for username:", username);
-        console.log("Password provided:", password ? "***" : "NO PASSWORD");
+        // console.log("=== PASSPORT AUTHENTICATION ===");
+        // console.log("Attempting login for username:", username);
+        // console.log("Password provided:", password ? "***" : "NO PASSWORD");
 
         const user = await storage.getUserByUsername(username);
-        console.log("User found:", user ? `${user.username} (ID: ${user.id})` : "NO USER FOUND");
+        // console.log("User found:", user ? `${user.username} (ID: ${user.id})` : "NO USER FOUND");
         if (user) {
-          console.log("User details:", { id: user.id, username: user.username, email: user.email, role: user.role });
+          // console.log("User details:", { id: user.id, username: user.username, email: user.email, role: user.role });
         }
 
         if (!user) {
@@ -89,15 +89,15 @@ export function setupAuth(app: Express) {
           return done(null, false);
         }
 
-        console.log("Stored password:", user.password ? "***" : "NO PASSWORD");
+        // console.log("Stored password:", user.password ? "***" : "NO PASSWORD");
         const passwordMatch = await comparePasswords(password, user.password);
-        console.log("Password match:", passwordMatch);
+        // console.log("Password match:", passwordMatch);
 
         if (!passwordMatch) {
           console.log("Authentication failed: Password mismatch");
           return done(null, false);
         } else {
-          console.log("Authentication successful for user:", user.username);
+          // console.log("Authentication successful for user:", user.username);
           return done(null, user);
         }
       } catch (error) {
@@ -108,12 +108,12 @@ export function setupAuth(app: Express) {
   );
 
   passport.serializeUser((user: any, done) => {
-    console.log("SERIALIZE USER: User ID being serialized:", user.id, "(Type:", typeof user.id + ")");
+    // console.log("SERIALIZE USER: User ID being serialized:", user.id, "(Type:", typeof user.id + ")");
     done(null, user.id);
   });
 
   passport.deserializeUser(async (id: string, done) => {
-    console.log("DESERIALIZE USER: ID received for deserialization:", id, "(Type:", typeof id + ")");
+    // console.log("DESERIALIZE USER: ID received for deserialization:", id, "(Type:", typeof id + ")");
     try {
       const userId = parseInt(id, 10);
       if (isNaN(userId)) {
@@ -125,7 +125,7 @@ export function setupAuth(app: Express) {
         console.warn("Deserialization warning: User not found for ID:", userId);
         return done(null, false); // User not found
       }
-      console.log("DESERIALIZE USER: User found:", user.username, "(ID:", user.id + ")");
+      // console.log("DESERIALIZE USER: User found:", user.username, "(ID:", user.id + ")");
       done(null, user);
     } catch (error) {
       console.error("Deserialization error for user ID:", id, error);
@@ -165,9 +165,9 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
-    console.log("=== LOGIN ENDPOINT HIT ===");
-    console.log("Request body:", req.body);
-    console.log("Content-Type:", req.headers['content-type']);
+    // console.log("=== LOGIN ENDPOINT HIT ===");
+    // console.log("Request body:", req.body);
+    // console.log("Content-Type:", req.headers['content-type']);
 
     passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) {
@@ -190,7 +190,7 @@ export function setupAuth(app: Express) {
           if (err) {
             console.error("Session save error:", err);
           } else {
-            console.log("Session saved successfully");
+            // console.log("Session saved successfully");
             // console.log("Session after save:", req.session);
             // console.log("Passport session after save:", (req.session as any)?.passport);
           }
@@ -211,15 +211,15 @@ export function setupAuth(app: Express) {
   });
 
   app.get("/api/user", (req, res) => {
-    console.log("=== GET /api/user REQUEST ===");
-    console.log("Request origin:", req.headers.origin);
-    console.log("Request host:", req.headers.host);
-    console.log("Cookies:", req.headers.cookie);
-    console.log("Session ID:", req.sessionID);
-    console.log("Session data:", req.session);
-    console.log("Is authenticated:", req.isAuthenticated());
-    console.log("User:", req.user?.username);
-    console.log("Passport session:", (req.session as any)?.passport);
+    // console.log("=== GET /api/user REQUEST ===");
+    // console.log("Request origin:", req.headers.origin);
+    // console.log("Request host:", req.headers.host);
+    // console.log("Cookies:", req.headers.cookie);
+    // console.log("Session ID:", req.sessionID);
+    // console.log("Session data:", req.session);
+    // console.log("Is authenticated:", req.isAuthenticated());
+    // console.log("User:", req.user?.username);
+    // console.log("Passport session:", (req.session as any)?.passport);
 
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
     // Return user without password

@@ -148,9 +148,17 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
 
           // Upload to Cloudinary
           sendProgress(jobId, { progress: 30, message: `Uploading files to Cloudinary...` });
-          const tourUrl = await uploadTourToCloudinary(extractDir, propertyId);
-
-          sendProgress(jobId, { progress: 95, message: 'Cleaning up...' });
+          try {
+            const tourUrl = await uploadTourToCloudinary(extractDir, propertyId);
+            sendProgress(jobId, { progress: 95, message: 'Cleaning up...' });
+          } catch (error: any) {
+            sendProgress(jobId, { 
+              error: error.message,
+              done: true,
+              details: 'Please check that your tour contains only valid image files (JPG, PNG, GIF, WEBP, SVG)'
+            });
+            return;
+          }
           await unlinkAsync((req.file as Express.Multer.File).path);
           
           // Save tour configuration for persistence across deployments
