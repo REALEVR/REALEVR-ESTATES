@@ -26,7 +26,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const storage = getStorage(app);
 
-export async function uploadFolderToFirebase(localFolderPath: string, remoteFolderPath: string) {
+export async function uploadFolderToFirebase(localFolderPath: string, remoteFolderPath: string): Promise<{ file: string; url: string; }[]> {
   const files = fs.readdirSync(localFolderPath);
   const uploads = [];
 
@@ -76,5 +76,20 @@ export async function uploadTourToFirebase(extractedFolderPath: string, property
   } catch (error: any) {
     console.error('Firebase upload error:', error);
     throw new Error(`Failed to upload tour to Firebase: ${error.message}`);
+  }
+}
+
+export async function tourExists(propertyId: string): Promise<boolean> {
+  try {
+    const remoteFolderPath = `tours/property_${propertyId}`;
+    const indexRef = ref(storage, `${remoteFolderPath}/index.html`);
+    await getDownloadURL(indexRef);
+    return true; // If getDownloadURL succeeds, the file exists
+  } catch (error: any) {
+    if (error.code === 'storage/object-not-found') {
+      return false; // The file does not exist
+    }
+    console.error('Error checking for tour existence:', error);
+    throw new Error(`Failed to check for tour existence: ${error.message}`);
   }
 }

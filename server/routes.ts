@@ -1612,7 +1612,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If updating tour status, ensure tourUrl is provided or exists in tour-config
       if (updates.hasTour) {
         if (!updates.tourUrl) {
-          const tourConfig = await getTourConfig(propertyId);
+          const tourConfig = await getTourConfig(req.params.id);
           if (!tourConfig || !tourConfig.tourUrl) {
             return res.status(400).json({ 
               message: 'Cannot enable tour - no tour URL provided or found in tour-config' 
@@ -1623,7 +1623,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Ensure tour exists in storage
         try {
-          const tourExists = await firebaseStorage.tourExists(propertyId);
+          const tourExists = await firebaseStorage.tourExists(req.params.id);
           if (!tourExists) {
             return res.status(404).json({ message: 'Tour not found in storage' });
           }
