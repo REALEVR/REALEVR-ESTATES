@@ -6,6 +6,8 @@ import { z } from "zod";
 import fetch from "node-fetch";
 import path from "path";
 import {sseTourProgress} from './upload';
+import { getTourConfig } from './tour-config';
+import * as firebaseStorage from './firebase-storage';
 
 import fs from "fs";
 import { createTablesIfNotExist, DynamoDBUtils, TABLES, toNumericId } from "./dynamodb";
