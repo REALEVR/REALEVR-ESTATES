@@ -178,15 +178,12 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
 
           sendProgress(jobId, { progress: 97, message: 'Finalizing upload...' });
 
-          fs.unlinkSync((req.file as Express.Multer.File).path);
 
-          const { addTourConfig } = await import('./tour-config');
-          await addTourConfig({
-            propertyId,
-            tourUrl,
-            uploadedAt: new Date().toISOString(),
-            ftpPath: null
-          });
+
+          const { storage } = await import('./storage');
+          await storage.updateProperty(parseInt(propertyId), { hasTour: true, tourUrl });
+
+          fs.unlinkSync((req.file as Express.Multer.File).path);
 
           sendProgress(jobId, { progress: 100, message: 'Upload complete!', done: true, tourUrl });
         } catch (e: any) {

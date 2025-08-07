@@ -13,6 +13,7 @@ import {
   toNumericId,
   generateTimestamp 
 } from "./dynamodb";
+// import { getTourUrl } from "./tour-config";
 import type { IStorage } from "./storage";
 
 export class DynamoDBStorage implements IStorage {
@@ -682,18 +683,11 @@ export class DynamoDBStorage implements IStorage {
       ownerId: item.ownerId ? toNumericId(item.ownerId) : undefined
     };
 
-    // Check if property has a tour but no tourUrl, try to get from config
-    if (property.hasTour && !property.tourUrl) {
-      try {
-        const { getTourConfig } = await import('./tour-config');
-        const tourConfig = await getTourConfig(property.id.toString());
-        if (tourConfig) {
-          property.tourUrl = tourConfig.tourUrl;
-        }
-      } catch (error) {
-        console.error('Failed to load tour config for property', property.id, error);
-      }
-    }
+    // // if hasTour is true, but tourUrl is not set, we can assume it's an old property
+    // // and we need to load the tourUrl from the tour-config.json file
+    // if (property.hasTour && !property.tourUrl) {
+    //     property.tourUrl = getTourUrl(property.id!);
+    // }
 
     // Ensure amenities is always an array
     if (property.amenities === undefined || property.amenities === null) {
