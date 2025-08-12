@@ -16,7 +16,6 @@ function uploadFileToS3(key, body, contentType) {
         Key: key,
         Body: body,
         ContentType: contentType,
-        ACL: 'public-read',
     }).promise();
 }
 function getS3FileUrl(key) {

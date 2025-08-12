@@ -924,6 +924,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
             </div>
           </div>
 
+          </form>
           <Button type="submit" className="w-full md:w-auto">
             {property ? "Update Property" : "Create Property"}
           </Button>

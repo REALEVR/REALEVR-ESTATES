@@ -67,10 +67,29 @@ export async function setupS3TourBucket(): Promise<void> {
       console.warn('Could not set CORS configuration (this may not be critical):', corsError);
     }
 
-    // Skip bucket policy setup since block public access is enabled
-    // We'll rely on individual object ACLs instead
-    console.log('Skipping bucket policy due to block public access settings');
-    console.log('Individual files will be made public using object ACLs');
+    // Set bucket policy to make all objects public
+    try {
+      const bucketPolicy = {
+        Version: '2012-10-17',
+        Statement: [
+          {
+            Sid: 'PublicReadGetObject',
+            Effect: 'Allow',
+            Principal: '*',
+            Action: 's3:GetObject',
+            Resource: `arn:aws:s3:::${BUCKET_NAME}/*`
+          }
+        ]
+      };
+
+      await s3Client.send(new PutBucketPolicyCommand({
+        Bucket: BUCKET_NAME,
+        Policy: JSON.stringify(bucketPolicy)
+      }));
+      console.log('Bucket policy set for public read access');
+    } catch (policyError) {
+      console.warn('Could not set bucket policy (this may be critical for public access):', policyError);
+    }
 
     console.log('S3 bucket configured successfully for tour hosting');
 
@@ -147,16 +166,12 @@ async function uploadFileToS3(
     }
   };
 
-  // Try to upload with public-read ACL first
+  // Upload the file. The bucket policy will make it public.
   try {
-    await s3Client.send(new PutObjectCommand({
-      ...uploadParams,
-      ACL: 'public-read'
-    }));
-  } catch (error: any) {
-    // If ACL fails, try without ACL (files will be private but accessible via presigned URLs)
-    console.warn(`Could not set public-read ACL for ${s3Key}, uploading without ACL:`, error.message);
     await s3Client.send(new PutObjectCommand(uploadParams));
+  } catch (error: any) {
+    console.error(`Failed to upload ${s3Key}:`, error);
+    throw error;
   }
 }
 
