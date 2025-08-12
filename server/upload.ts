@@ -165,10 +165,10 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
 
           const indexFile = findIndexFile(extractDir) || 'index.html';
 
-          sendProgress(jobId, { progress: 40, message: `Uploading files to S3...` });
+          sendProgress(jobId, { progress: 40, message: `Uploading files to Firebase Storage...` });
 
-          const { uploadTourToS3 } = await import('./s3-tour-hosting.js');
-          const tourUrl = await uploadTourToS3(extractDir, propertyId, (uploadProgress) => {
+          const { uploadTourToFirebase } = await import('./firebase-storage');
+          const tourUrl = await uploadTourToFirebase(extractDir, propertyId, (uploadProgress) => {
             // Map upload progress (0–1) to 40–95%
             sendProgress(jobId, {
               progress: Math.floor(40 + (uploadProgress * 55)),

@@ -717,7 +717,7 @@ const onSubmit = async (data: PropertyFormValues) => {
 
         <TabsContent value="details" className="mt-6">
           <Form {...form}>
-            <form onSubmit={(e) => {
+            <form onSubmit={(e: { preventDefault: () => void; }) => {
               e.preventDefault(); // Prevent default form submission
               console.log('Save Property button submitted (form onSubmit event)', form.getValues());
 
@@ -1015,7 +1015,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                         <FormItem>
                           <FormLabel>Category</FormLabel>
                           <Select
-                            onValueChange={(value) => {
+                            onValueChange={(value: string) => {
                               field.onChange(value);
                               // If changing to "for_sale" or "bank_sales", clear the monthly price field
                               if (value === "for_sale" || value === "bank_sales") {
@@ -1103,7 +1103,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                                     placeholder="Monthly rent amount"
                                     {...field}
                                     value={field.value === undefined ? '' : field.value}
-                                    onChange={(e) => {
+                                    onChange={(e: { target: { value: string; }; }) => {
                                       const value = e.target.value === '' ? undefined : Number(e.target.value);
                                       field.onChange(value);
                                     }}
@@ -1184,7 +1184,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {propertyTypes?.map(type => (
+                            {propertyTypes?.map((type: { id: any; name: any; }) => (
                               <SelectItem key={type.id} value={type.name}>
                                 {type.name}
                               </SelectItem>
@@ -1320,7 +1320,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                     </FormDescription>
 
                     <div className="grid grid-cols-2 gap-4">
-                      {amenities?.map((amenity) => (
+                      {amenities?.map((amenity: { id: any; name: any; }) => (
                         <FormField
                           key={amenity.id}
                           control={form.control}
@@ -1334,12 +1334,12 @@ const onSubmit = async (data: PropertyFormValues) => {
                                 <FormControl>
                                   <Checkbox
                                     checked={field.value?.includes(amenity.name)}
-                                    onCheckedChange={(checked) => {
+                                    onCheckedChange={(checked: any) => {
                                       return checked
                                         ? field.onChange([...field.value || [], amenity.name])
                                         : field.onChange(
                                             field.value?.filter(
-                                              (value) => value !== amenity.name
+                                              (value: any) => value !== amenity.name
                                             )
                                           )
                                     }}
