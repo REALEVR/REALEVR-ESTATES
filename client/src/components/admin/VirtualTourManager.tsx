@@ -277,10 +277,16 @@ export default function VirtualTourManager() {
                     </div>
                     <div>
                       <p className="text-sm font-medium">Current Tour Status:</p>
-                      {property.hasTour ? (
-                        <div className="flex items-center text-green-600">
-                          <Check className="mr-2 h-4 w-4" />
-                          <span>Virtual tour available</span>
+                      {property.hasTour && property.tourUrl ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center text-green-600">
+                            <Check className="mr-2 h-4 w-4" />
+                            <span>Virtual tour available</span>
+                          </div>
+                          <div className="bg-green-50 border border-green-200 rounded-md p-2">
+                            <p className="text-xs font-medium text-green-800 mb-1">Tour URL:</p>
+                            <p className="text-xs text-green-700 font-mono break-all">{property.tourUrl}</p>
+                          </div>
                         </div>
                       ) : (
                         <div className="flex items-center text-amber-600">

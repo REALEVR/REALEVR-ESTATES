@@ -7,7 +7,7 @@ import fetch from "node-fetch";
 import path from "path";
 import {sseTourProgress} from './upload';
 import { getTourConfig } from './tour-config';
-import * as firebaseStorage from './firebase-storage';
+import * as dropboxStorage from './dropbox-storage';
 
 import fs from "fs";
 import { createTablesIfNotExist, DynamoDBUtils, TABLES, toNumericId } from "./dynamodb";
@@ -1560,29 +1560,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { name: "Elevator", icon: "arrow-up", description: "Building elevator access" },
         { name: "Storage", icon: "box", description: "Storage space available" },
         { name: "Laundry", icon: "washing-machine", description: "In-unit or shared laundry" },
-        // { name: "Dishwasher", icon: "utensils", description: "Dishwasher in kitchen" },
-        // { name: "Fireplace", icon: "flame", description: "Fireplace or heating" },
-        // { name: "Gym", icon: "dumbbell", description: "On-site gym facilities" },
-        // { name: "Spa", icon: "spa", description: "Spa or wellness facilities" },
-        // { name: "Tennis Court", icon: "tennis", description: "Tennis court access" },
-        // { name: "Basketball Court", icon: "basketball", description: "Basketball court access" },
-        // { name: "Playground", icon: "child", description: "Children's playground" },
-        // { name: "BBQ Area", icon: "grill", description: "BBQ or outdoor cooking area" },
-        // { name: "Bike Storage", icon: "bike", description: "Bicycle storage facility" },
-        // { name: "Electric Car Charging", icon: "charging-station", description: "Electric vehicle charging" },
-        // { name: "Smart Home", icon: "smartphone", description: "Smart home technology" },
-        // { name: "Wine Cellar", icon: "wine", description: "Wine storage facility" },
-        // { name: "Home Theater", icon: "tv", description: "Home theater system" },
-        // { name: "Wine Cellar", icon: "wine", description: "Wine storage facility" },
-        // { name: "Home Theater", icon: "tv", description: "Home theater system" },
-        // { name: "Library", icon: "book", description: "Private library or study" },
-        // { name: "Art Studio", icon: "palette", description: "Art studio or creative space" },
-        // { name: "Music Room", icon: "music", description: "Music room or studio" },
-        // { name: "Wine Cellar", icon: "wine", description: "Wine storage facility" },
-        // { name: "Home Theater", icon: "tv", description: "Home theater system" },
-        // { name: "Library", icon: "book", description: "Private library or study" },
-        // { name: "Art Studio", icon: "palette", description: "Art studio or creative space" },
-        // { name: "Music Room", icon: "music", description: "Music room or studio" }
+        { name: "Wine Cellar", icon: "wine", description: "Wine storage facility" },
+        { name: "Home Theater", icon: "tv", description: "Home theater system" },
+        { name: "Library", icon: "book", description: "Private library or study" },
+        { name: "Art Studio", icon: "palette", description: "Art studio or creative space" },
+        { name: "Music Room", icon: "music", description: "Music room or studio" },
+        { name: "Wine Cellar", icon: "wine", description: "Wine storage facility" },
+        { name: "Home Theater", icon: "tv", description: "Home theater system" },
+        { name: "Library", icon: "book", description: "Private library or study" },
+        { name: "Art Studio", icon: "palette", description: "Art studio or creative space" },
+        { name: "Music Room", icon: "music", description: "Music room or studio" }
       ];
 
       for (const amenity of amenities) {
@@ -1623,7 +1610,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Ensure tour exists in storage
         try {
-          const tourExists = await firebaseStorage.tourExists(req.params.id);
+          const tourExists = await dropboxStorage.tourExists(req.params.id);
           if (!tourExists) {
             return res.status(404).json({ message: 'Tour not found in storage' });
           }
@@ -1727,6 +1714,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // SSE endpoint for tour progress
   app.get('/api/upload/virtual-tour/progress/:jobId', sseTourProgress);
+
+  // Get tour preview endpoint
+  app.get("/api/tours/preview/:propertyId", async (req, res) => {
+    try {
+      const propertyId = req.params.propertyId;
+      if (!propertyId) {
+        return res.status(400).json({ message: "Property ID is required" });
+      }
+
+      // Get property to check if it has a tour
+      const property = await storage.getProperty(parseInt(propertyId));
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+
+      if (!property.hasTour || !property.tourUrl) {
+        return res.status(404).json({ message: "No tour available for this property" });
+      }
+
+      // Return tour information for preview
+      res.json({
+        propertyId: property.id,
+        propertyTitle: property.title,
+        tourUrl: property.tourUrl,
+        previewHtml: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Virtual Tour - ${property.title}</title>
+            <style>
+              body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+              .tour-container { width: 100%; height: 100vh; position: relative; }
+              .tour-iframe { width: 100%; height: 100%; border: none; }
+              .loading { 
+                position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 8px;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="tour-container">
+              <div class="loading" id="loading">Loading Virtual Tour...</div>
+              <iframe class="tour-iframe" src="${property.tourUrl}" 
+                      onload="document.getElementById('loading').style.display='none'"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowfullscreen>
+              </iframe>
+            </div>
+          </body>
+          </html>
+        `
+      });
+    } catch (error: any) {
+      console.error("Error getting tour preview:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   app.post("/api/setup-dynamodb", async (req, res) => {
     try {
