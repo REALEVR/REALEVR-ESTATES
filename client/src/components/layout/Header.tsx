@@ -45,7 +45,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-light">
-      <div className="ann_div"><p>platform still under development!</p></div>
+      <div className="ann_div"><p>platform v.0.1 under development</p></div>
       <div className="container mx-auto px-6 py-4 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center">

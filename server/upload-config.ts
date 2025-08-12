@@ -106,6 +106,7 @@ export function getOptimizedConfig() {
   return config;
 }
 
+
 // Utility functions for file filtering
 export function shouldSkipFile(filePath: string): boolean {
   const fileName = path.basename(filePath);

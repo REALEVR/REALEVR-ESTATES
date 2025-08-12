@@ -34,7 +34,6 @@ import TrustSafetyPage from "@/pages/TrustSafetyPage";
 import { AuthProvider } from "@/hooks/use-auth";
 import { PaymentProvider } from "@/contexts/PaymentContext";
 import VirtualTourManager from "@/components/admin/VirtualTourManager";
-import { Check } from "lucide-react";
 import { ProtectedAdminRoute } from "./lib/protected-admin-route";
 import Hero from './components/home/Hero';
 import ScrollToTop from './components/ui/ScrollToTop';
