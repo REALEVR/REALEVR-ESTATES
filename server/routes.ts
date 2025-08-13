@@ -10,7 +10,7 @@ import { getTourConfig } from './tour-config';
 import * as dropboxStorage from './dropbox-storage';
 
 import fs from "fs";
-import { createTablesIfNotExist, DynamoDBUtils, TABLES, toNumericId } from "./dynamodb";
+import { createTablesIfNotExist, DynamoDBUtils, TABLES, toNumericId, toStringId } from "./dynamodb";
 
 import {
   uploadPropertyImage,
@@ -95,6 +95,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/properties", async (req, res) => {
     try {
       const properties = await storage.getAllProperties();
+
+      // Debug logging for property IDs and types
+      console.log('[DEBUG] Properties from storage:');
+      properties.slice(0, 5).forEach(prop => {
+        console.log(`  - ID: ${prop.id} (type: ${typeof prop.id}), Title: ${prop.title}`);
+      });
 
       // Set cache control headers to prevent caching
       res.set({
@@ -1095,16 +1101,191 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete all test properties - GET endpoint for easy browser access (admin only)
+  app.get("/api/admin/delete-test-properties", adminMiddleware, async (req, res) => {
+    try {
+      const testPropertyNames = [
+        "Test Property",
+        "Kira Condos", 
+        "Nalya Condos",
+        "Kyanja Dixon Condos",
+        "Brand New Test Property"
+      ];
+
+      console.log(`[DEBUG] Deleting test properties: ${testPropertyNames.join(', ')}`);
+
+      // Get all properties to find the test ones
+      const allProperties = await storage.getAllProperties();
+      const testProperties = allProperties.filter(p => 
+        testPropertyNames.some(name => 
+          p.title && p.title.toLowerCase().includes(name.toLowerCase())
+        )
+      );
+
+      console.log(`[DEBUG] Found ${testProperties.length} test properties to delete:`);
+      testProperties.forEach(p => console.log(`  - ${p.title} (ID: ${p.id})`));
+      
+      const results = [];
+      for (const property of testProperties) {
+        try {
+          const deleted = await storage.deleteProperty(property.id);
+          if (deleted) {
+            console.log(`[DEBUG] Deleted property: ${property.title} (ID: ${property.id})`);
+            results.push({
+              id: property.id,
+              title: property.title,
+              status: 'deleted'
+            });
+          } else {
+            console.log(`[DEBUG] Failed to delete property: ${property.title} (ID: ${property.id})`);
+            results.push({
+              id: property.id,
+              title: property.title,
+              status: 'not_found'
+            });
+          }
+        } catch (error) {
+          console.error(`[ERROR] Failed to delete property ${property.title}:`, error);
+          results.push({
+            id: property.id,
+            title: property.title,
+            status: 'error',
+            error: error.message
+          });
+        }
+      }
+
+      res.json({
+        message: `${results.filter(r => r.status === 'deleted').length} test properties deleted successfully`,
+        deleted: results.filter(r => r.status === 'deleted').length,
+        total_found: testProperties.length,
+        results
+      });
+    } catch (error: any) {
+      console.error(`[ERROR] Failed to delete test properties:`, error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Delete all test properties (admin only)
+  app.delete("/api/admin/delete-test-properties", adminMiddleware, async (req, res) => {
+    try {
+      const testPropertyNames = [
+        "Test Property",
+        "Kira Condos", 
+        "Nalya Condos",
+        "Kyanja Dixon Condos",
+        "Brand New Test Property"
+      ];
+
+      console.log(`[DEBUG] Deleting test properties: ${testPropertyNames.join(', ')}`);
+
+      // Get all properties to find the test ones
+      const allProperties = await storage.getAllProperties();
+      const testProperties = allProperties.filter(p => 
+        testPropertyNames.some(name => 
+          p.title && p.title.toLowerCase().includes(name.toLowerCase())
+        )
+      );
+
+      console.log(`[DEBUG] Found ${testProperties.length} test properties to delete:`);
+      testProperties.forEach(p => console.log(`  - ${p.title} (ID: ${p.id})`));
+      
+      const results = [];
+      for (const property of testProperties) {
+        try {
+          const deleted = await storage.deleteProperty(property.id);
+          if (deleted) {
+            console.log(`[DEBUG] Deleted property: ${property.title} (ID: ${property.id})`);
+            results.push({
+              id: property.id,
+              title: property.title,
+              status: 'deleted'
+            });
+          } else {
+            console.log(`[DEBUG] Failed to delete property: ${property.title} (ID: ${property.id})`);
+            results.push({
+              id: property.id,
+              title: property.title,
+              status: 'not_found'
+            });
+          }
+        } catch (error) {
+          console.error(`[ERROR] Failed to delete property ${property.title}:`, error);
+          results.push({
+            id: property.id,
+            title: property.title,
+            status: 'error',
+            error: error.message
+          });
+        }
+      }
+
+      res.json({
+        message: `${results.filter(r => r.status === 'deleted').length} test properties deleted successfully`,
+        deleted: results.filter(r => r.status === 'deleted').length,
+        total_found: testProperties.length,
+        results
+      });
+    } catch (error: any) {
+      console.error(`[ERROR] Failed to delete test properties:`, error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Delete a property (no auth required)
   app.delete("/api/properties/:id", async (req, res) => {
     try {
-      const id = toNumericId(req.params.id); // Convert to number
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid property ID" });
+      console.log(`[DEBUG] DELETE request for property with ID: ${req.params.id}`);
+      
+      const idParam = req.params.id;
+      if (!idParam) {
+        console.log(`[DEBUG] No property ID provided`);
+        return res.status(400).json({ message: "Property ID is required" });
       }
 
-      const property = await storage.getProperty(id);
+      // Debug: Log the exact key being used for direct lookup
+      console.log(`[DEBUG] Direct lookup key:`, { id: idParam });
+      console.log(`[DEBUG] Direct lookup key type:`, typeof idParam);
+
+      // First try direct DynamoDB lookup with string ID to avoid precision issues
+      console.log(`[DEBUG] Trying direct DynamoDB lookup with string ID: ${idParam}`);
+      let property: any = null;
+      
+      try {
+        const directItem = await DynamoDBUtils.getItem(TABLES.PROPERTIES, { id: idParam });
+        console.log(`[DEBUG] Direct lookup result:`, directItem);
+        
+        if (directItem) {
+          property = {
+            id: parseInt(idParam),
+            hasTour: directItem.hasTour || false,
+            tourUrl: directItem.tourUrl || "",
+            title: directItem.title || "Unknown"
+          };
+          console.log(`[DEBUG] Found property via direct lookup:`, property.title);
+        }
+      } catch (directError) {
+        console.log(`[DEBUG] Direct lookup failed:`, directError);
+      }
+      
+      // If direct lookup failed, try the normal storage method as fallback
       if (!property) {
+        const id = toNumericId(idParam);
+        console.log(`[DEBUG] Direct lookup failed, trying normal method with numeric ID: ${id}`);
+        console.log(`[DEBUG] Normal lookup key:`, { id: toStringId(id) });
+        
+        if (isNaN(id)) {
+          console.log(`[DEBUG] Invalid property ID: ${idParam}`);
+          return res.status(400).json({ message: "Invalid property ID" });
+        }
+
+        property = await storage.getProperty(id);
+        console.log(`[DEBUG] Normal storage lookup result:`, property);
+      }
+      
+      if (!property) {
+        console.log(`[DEBUG] Property not found through any method`);
         return res.status(404).json({ message: "Property not found" });
       }
 
@@ -1128,7 +1309,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Delete the property from storage
-      const success = await storage.deleteProperty(id);
+      let success = false;
+      
+      // Try normal deletion first if we have a valid numeric ID from the normal lookup
+      if (property && typeof property.id === 'number') {
+        try {
+          success = await storage.deleteProperty(property.id);
+          console.log(`[DEBUG] Normal deletion result: ${success}`);
+        } catch (normalDeleteError) {
+          console.log(`[DEBUG] Normal deletion failed:`, normalDeleteError);
+        }
+      }
+      
+      // If normal deletion failed, try direct DynamoDB deletion
+      if (!success) {
+        console.log(`[DEBUG] Trying direct DynamoDB deletion with string ID: ${idParam}`);
+        try {
+          const directDeleteResult = await DynamoDBUtils.deleteItem(TABLES.PROPERTIES, { id: idParam });
+          success = !!directDeleteResult;
+          console.log(`[DEBUG] Direct deletion result: ${success}`);
+        } catch (directDeleteError) {
+          console.log(`[DEBUG] Direct deletion also failed:`, directDeleteError);
+        }
+      }
+      
       if (!success) {
         return res.status(500).json({ message: "Failed to delete property" });
       }
@@ -1797,6 +2001,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       const errorMessage = (error && typeof error === 'object' && 'message' in error) ? (error as any).message : String(error);
       res.status(500).json({ error: errorMessage || "Failed to setup DynamoDB" });
+    }
+  });
+
+  // Debug endpoint to check DynamoDB property keys
+  app.get("/api/debug/property-keys", async (req, res) => {
+    try {
+      console.log('[DEBUG] Scanning DynamoDB properties table for all keys...');
+      const items = await DynamoDBUtils.scanTable(TABLES.PROPERTIES);
+      
+      const keyInfo = items.map(item => ({
+        id: item.id,
+        idType: typeof item.id,
+        title: item.title || 'Unknown',
+        // Show first few properties of the item
+        sample: Object.keys(item).slice(0, 5)
+      }));
+      
+      console.log('[DEBUG] Found property keys:', keyInfo);
+      
+      res.json({
+        message: `Found ${items.length} properties`,
+        keys: keyInfo,
+        searchingFor: req.query.search || null
+      });
+    } catch (error: any) {
+      console.error('[ERROR] Failed to scan property keys:', error);
+      res.status(500).json({ error: error.message });
     }
   });
 

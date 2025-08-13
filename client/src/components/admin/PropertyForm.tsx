@@ -491,7 +491,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                     )}
                   />
 
-                  {form.watch('category') === 'bank-sale' && (
+                  {form.watch('category') === 'bank_sales' && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
@@ -584,10 +584,10 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="rental">Rental Unit</SelectItem>
-                              <SelectItem value="bnb">BnB</SelectItem>
-                              <SelectItem value="sale">For Sale</SelectItem>
-                              <SelectItem value="bank-sale">Bank Sale</SelectItem>
+                              <SelectItem value="rental_units">Rental Unit</SelectItem>
+                              <SelectItem value="furnished_houses">BnB</SelectItem>
+                              <SelectItem value="for_sale">For Sale</SelectItem>
+                              <SelectItem value="bank_sales">Bank Sale</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -893,7 +893,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
                 )}
               />
 
-              {form.getValues('category') === 'bank-sale' && (
+              {form.getValues('category') === 'bank_sales' && (
                 <FormField
                   control={form.control}
                   name="auctionStatus"

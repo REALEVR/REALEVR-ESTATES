@@ -12,6 +12,49 @@ import { getSafeAmenities } from "@/lib/property-utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+interface PropertyDescriptionProps {
+  description: string;
+}
+
+function PropertyDescription({ description }: PropertyDescriptionProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Split description into sentences using a simpler approach
+  const sentences = description.split(/[.!?]+\s+/).filter(s => s.trim().length > 0);
+  
+  // Show first 3 sentences by default
+  const previewSentences = sentences.slice(0, 3);
+  const remainingSentences = sentences.slice(3);
+  
+  const hasMoreContent = remainingSentences.length > 0;
+  // Reconstruct the preview text with proper punctuation
+  const previewText = previewSentences.map((sentence, index) => {
+    // Add back punctuation if it's missing
+    if (index < previewSentences.length - 1 && !sentence.match(/[.!?]$/)) {
+      return sentence + '.';
+    }
+    return sentence;
+  }).join(' ');
+  const fullText = description;
+  
+  return (
+    <div className="text-gray-500">
+      <p className="leading-relaxed">
+        {isExpanded ? fullText : previewText}
+        {!isExpanded && hasMoreContent && '...'}
+      </p>
+      {hasMoreContent && (
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="mt-2 text-[#FF5A5F] hover:text-[#FF7478] font-medium text-sm transition-colors"
+        >
+          {isExpanded ? 'Show less' : 'Read more'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 interface PropertyDetailsProps {
   property: Property;
 }
@@ -183,7 +226,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
 
           <div className="mb-6">
             <h4 className="font-semibold mb-2">About this property</h4>
-            <p className="text-gray-500">{property.description}</p>
+            <PropertyDescription description={property.description} />
           </div>
         </TabsContent>
 

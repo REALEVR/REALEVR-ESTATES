@@ -153,20 +153,32 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
   
 const onSubmit = async (data: PropertyFormValues) => {
   console.log('Save Property button submitted', data); // Log from onSubmit
+  // Helper function to safely convert to number, avoiding NaN
+  const safeNumber = (value: any, defaultValue: number = 0): number => {
+    if (value === null || value === undefined || value === '') {
+      return defaultValue;
+    }
+    const num = Number(value);
+    return isNaN(num) ? defaultValue : num;
+  };
+
   // Coerce all numeric fields to numbers before sending to API
   const propertyData = {
     ...data,
-    price: Number(data.price),
-    bedrooms: Number(data.bedrooms),
-    bathrooms: Number(data.bathrooms),
-    squareMeters: sqftToSqm(Number(data.squareFeet)), // Convert square feet to square meters
-    monthlyPrice: data.monthlyPrice !== undefined ? Number(data.monthlyPrice) : undefined,
+    price: safeNumber(data.price, 0),
+    bedrooms: safeNumber(data.bedrooms, 0),
+    bathrooms: safeNumber(data.bathrooms, 0),
+    squareMeters: safeNumber(sqftToSqm(safeNumber(data.squareFeet, 0)), 0), // Convert square feet to square meters
+    monthlyPrice: data.monthlyPrice !== undefined ? safeNumber(data.monthlyPrice) : undefined,
     imageUrl: imagePreview || data.imageUrl,
     // Add required fields that might be missing
     rating: data.rating || '0',
-    reviewCount: Number(data.reviewCount) || 0,
+    reviewCount: safeNumber(data.reviewCount, 0),
     hasTour: data.hasTour || false,
     isFeatured: data.isFeatured || false,
+    // Ensure other numeric fields are safe
+    yearOfConstruction: data.yearOfConstruction ? safeNumber(data.yearOfConstruction) : undefined,
+    buildingAge: data.buildingAge ? safeNumber(data.buildingAge) : undefined,
   };
 
   console.log('Prepared property data for API:', propertyData);
@@ -179,6 +191,10 @@ const onSubmit = async (data: PropertyFormValues) => {
 
     if (property) {
       console.log('Updating existing property with ID:', property.id);
+      console.log('Property data being sent for update:', JSON.stringify({
+        ...propertyData,
+        imageUrl: propertyData.imageUrl // Log the specific imageUrl being sent
+      }));
       response = await apiRequest('PATCH', `/api/properties/${property.id}`, propertyData);
     } else {
       console.log('Creating new property with direct form submission');
@@ -348,11 +364,28 @@ const onSubmit = async (data: PropertyFormValues) => {
           setLocalStorageItem('propertyFormTab', 'tour');
           setTabValue('tour');
         }
+      } else {
+        // For property updates, get the updated property data
+        console.log('Property update successful, refreshing data...');
+        const updatedProperty = await response.json();
+        console.log('Updated property received:', updatedProperty);
+        
+        if (updatedProperty) {
+          // Update the property state with the returned data
+          setProperty(updatedProperty);
+          // Also update the image preview to match what was saved
+          if (updatedProperty.imageUrl && updatedProperty.imageUrl !== imagePreview) {
+            console.log('Updating image preview to match saved property:', updatedProperty.imageUrl);
+            setImagePreview(updatedProperty.imageUrl);
+          }
+        }
       }
       toast({
         title: property ? "Property Updated" : "Property Created",
         description: property ? "Property has been updated successfully" : "New property has been created",
       });
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries();
       if (onSuccess) {
         onSuccess();
       }
@@ -1378,10 +1411,14 @@ const onSubmit = async (data: PropertyFormValues) => {
                   </Button>
 
                   <Button
-                    type="submit"
+                    type="button"
                     size="lg"
                     disabled={form.formState.isSubmitting}
                     className="min-w-[150px]"
+                    onClick={() => {
+                      console.log('Save Property button clicked');
+                      form.handleSubmit(onSubmit)();
+                    }}
                   >
                     {form.formState.isSubmitting ? (
                       <>

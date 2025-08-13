@@ -30,6 +30,14 @@ export default function Home() {
   
   const { data: properties, isLoading, error } = useProperties();
 
+  // Debug logging for properties
+  console.log('Home page properties debug:', {
+    propertiesCount: properties?.length || 0,
+    isLoading,
+    error,
+    sampleProperties: properties?.slice(0, 2).map(p => ({ id: p.id, title: p.title, createdAt: p.createdAt })) || []
+  });
+
   useEffect(() => {
     // Set page title
     document.title = "RealEVR Estates - Virtual Property Tours";
