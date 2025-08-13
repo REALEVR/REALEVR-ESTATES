@@ -1796,6 +1796,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Initialize S3 tour hosting on server startup
+  try {
+    const { initializeS3 } = await import('./s3-tour-hosting');
+    await initializeS3();
+    console.log('✅ S3 tour hosting initialized successfully');
+  } catch (error) {
+    console.warn('⚠️ Failed to initialize S3 tour hosting:', error);
+    console.warn('Virtual tour uploads may not work properly');
+  }
+
   const httpServer = createServer(app);
   return httpServer;
 }
