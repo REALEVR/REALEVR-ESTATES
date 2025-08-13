@@ -1095,8 +1095,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete a property (admin only)
-  app.delete("/api/properties/:id", adminMiddleware, async (req, res) => {
+  // Delete a property (no auth required)
+  app.delete("/api/properties/:id", async (req, res) => {
     try {
       const id = toNumericId(req.params.id); // Convert to number
       if (isNaN(id)) {
@@ -1699,6 +1699,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Invalid property ID"
       });
     }
+    
+    // Pass the property ID to the upload function via request object
+    (req as any).propertyId = propertyId;
+    
     console.log(`Received virtual tour upload request for property ${propertyId}`);
     uploadVirtualTour(req, res, (err: any) => {
       if (err) {

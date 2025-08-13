@@ -113,7 +113,8 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
     try {
-      const propertyId = req.body.propertyId || nanoid(8);
+      // Get property ID from URL parameter instead of body
+      const propertyId = (req as any).propertyId || req.body.propertyId || nanoid(8);
       const jobId = createJob();
       res.status(200).json({ jobId }); // Respond immediately with jobId
 
