@@ -56,28 +56,30 @@ import { Checkbox } from '@/components/ui/checkbox';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-// Extend the insertPropertySchema with additional validations
-const propertyFormSchema = insertPropertySchema.extend({
-  title: z.string().min(3, "Title must be at least 3 characters"),
-  location: z.string().min(3, "Location is required"),
-  price: z.coerce.number().positive("Price must be positive"),
-  currency: z.string().default("UGX"),
-  description: z.string().min(20, "Description must be at least 20 characters"),
-  bedrooms: z.coerce.number().int().min(0, "Bedrooms must be a positive number"),
-  bathrooms: z.coerce.number().min(0, "Bathrooms must be a positive number"),
-  squareFeet: z.coerce.number().min(1, "Square feet must be positive"),
-  amenities: z.array(z.string()).optional(),
-  propertyType: z.string().min(1, "Property type is required"),
-  category: z.string().min(1, "Category is required"),
-  monthlyPrice: z.coerce.number().optional(),
-  ownerContactInfo: z.string().optional(),
-  // New property fields
-  yearOfConstruction: z.coerce.number().optional(),
-  buildingAge: z.coerce.number().optional(),
-  propertyCondition: z.string().optional(),
-  auctionStart: z.string().optional(),
-  auctionEnd: z.string().optional(),
-});
+// Create a form schema that replaces squareMeters with squareFeet for the UI
+const propertyFormSchema = insertPropertySchema
+  .omit({ squareMeters: true }) // Remove squareMeters from the base schema
+  .extend({
+    title: z.string().min(3, "Title must be at least 3 characters"),
+    location: z.string().min(3, "Location is required"),
+    price: z.coerce.number().positive("Price must be positive"),
+    currency: z.string().default("UGX"),
+    description: z.string().min(20, "Description must be at least 20 characters"),
+    bedrooms: z.coerce.number().int().min(0, "Bedrooms must be a positive number"),
+    bathrooms: z.coerce.number().min(0, "Bathrooms must be a positive number"),
+    squareFeet: z.coerce.number().min(1, "Square feet must be positive"), // Use squareFeet for the form
+    amenities: z.array(z.string()).optional(),
+    propertyType: z.string().min(1, "Property type is required"),
+    category: z.string().min(1, "Category is required"),
+    monthlyPrice: z.coerce.number().optional(),
+    ownerContactInfo: z.string().optional(),
+    // New property fields
+    yearOfConstruction: z.coerce.number().optional(),
+    buildingAge: z.coerce.number().optional(),
+    propertyCondition: z.string().optional(),
+    auctionStart: z.string().optional(),
+    auctionEnd: z.string().optional(),
+  });
 
 type PropertyFormValues = z.infer<typeof propertyFormSchema>;
 
@@ -105,9 +107,15 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
     queryKey: ['/api/amenities'],
   });
 
+  // Helper function to convert square meters to square feet for display
+  const sqmToSqft = (squareMeters: number): number => {
+    return Math.round(squareMeters * 10.764); // 1 sq m = 10.764 sq ft
+  };
+
   // Get default values from existing property or use empty defaults
   const defaultValues: Partial<PropertyFormValues> = property ? {
     ...property,
+    squareFeet: property.squareMeters ? sqmToSqft(property.squareMeters) : 0, // Convert squareMeters to squareFeet for the form
     amenities: property.amenities || [],
     monthlyPrice: property.monthlyPrice === null ? undefined : property.monthlyPrice,
     ownerContactInfo: property.ownerContactInfo === null ? '' : property.ownerContactInfo,
@@ -153,6 +161,7 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
   
 const onSubmit = async (data: PropertyFormValues) => {
   console.log('Save Property button submitted', data); // Log from onSubmit
+  
   // Helper function to safely convert to number, avoiding NaN
   const safeNumber = (value: any, defaultValue: number = 0): number => {
     if (value === null || value === undefined || value === '') {
@@ -162,32 +171,43 @@ const onSubmit = async (data: PropertyFormValues) => {
     return isNaN(num) ? defaultValue : num;
   };
 
-  // Coerce all numeric fields to numbers before sending to API
-  const propertyData = {
-    ...data,
-    price: safeNumber(data.price, 0),
-    bedrooms: safeNumber(data.bedrooms, 0),
-    bathrooms: safeNumber(data.bathrooms, 0),
-    squareMeters: safeNumber(sqftToSqm(safeNumber(data.squareFeet, 0)), 0), // Convert square feet to square meters
-    monthlyPrice: data.monthlyPrice !== undefined ? safeNumber(data.monthlyPrice) : undefined,
-    imageUrl: imagePreview || data.imageUrl,
-    // Add required fields that might be missing
-    rating: data.rating || '0',
-    reviewCount: safeNumber(data.reviewCount, 0),
-    hasTour: data.hasTour || false,
-    isFeatured: data.isFeatured || false,
-    // Ensure other numeric fields are safe
-    yearOfConstruction: data.yearOfConstruction ? safeNumber(data.yearOfConstruction) : undefined,
-    buildingAge: data.buildingAge ? safeNumber(data.buildingAge) : undefined,
-  };
+  let propertyData: any;
+  try {
+    console.log('Processing form data...');
+    
+    // Coerce all numeric fields to numbers before sending to API
+    propertyData = {
+      ...data,
+      price: safeNumber(data.price, 0),
+      bedrooms: safeNumber(data.bedrooms, 0),
+      bathrooms: safeNumber(data.bathrooms, 0),
+      squareMeters: safeNumber(sqftToSqm(safeNumber(data.squareFeet, 0)), 0), // Convert square feet to square meters
+      monthlyPrice: data.monthlyPrice !== undefined ? safeNumber(data.monthlyPrice) : undefined,
+      imageUrl: imagePreview || data.imageUrl,
+      // Add required fields that might be missing
+      rating: data.rating || '0',
+      reviewCount: safeNumber(data.reviewCount, 0),
+      hasTour: data.hasTour || false,
+      isFeatured: data.isFeatured || false,
+      // Ensure other numeric fields are safe
+      yearOfConstruction: data.yearOfConstruction ? safeNumber(data.yearOfConstruction) : undefined,
+      buildingAge: data.buildingAge ? safeNumber(data.buildingAge) : undefined,
+    };
 
-  console.log('Prepared property data for API:', propertyData);
+    console.log('Prepared property data for API:', propertyData);
 
+  } catch (error: any) {
+    console.error('Error processing form data:', error);
+    alert('Error processing form data: ' + (error.message || JSON.stringify(error)));
+    return;
+  }
 
   try {
     let response: Response | null = null;
     let newProperty: Property | undefined = property;
     console.log('Property data:', propertyData);
+    
+    console.log('API request starting...');
 
     if (property) {
       console.log('Updating existing property with ID:', property.id);
@@ -412,11 +432,15 @@ const onSubmit = async (data: PropertyFormValues) => {
       alert('Property creation failed: ' + (errorData.message || JSON.stringify(errorData)));
     }
   } catch (error: any) {
+    console.error('Error in property submission:', error);
     toast({
       title: "Error",
       description: error.message || "Failed to save property",
       variant: "destructive",
     });
+    
+    // Show more detailed error in the alert for debugging
+    alert('Failed to save property: ' + (error.message || JSON.stringify(error)));
   }
 };
 
@@ -1417,7 +1441,37 @@ const onSubmit = async (data: PropertyFormValues) => {
                     className="min-w-[150px]"
                     onClick={() => {
                       console.log('Save Property button clicked');
-                      form.handleSubmit(onSubmit)();
+                      
+                      // Check for form validation errors first
+                      const formData = form.getValues();
+                      console.log('Current form values:', formData);
+                      console.log('Form errors:', form.formState.errors);
+                      console.log('Form is valid:', form.formState.isValid);
+                      
+                      // Try to trigger validation
+                      form.trigger().then((isValid) => {
+                        console.log('Validation result:', isValid);
+                        if (!isValid) {
+                          console.log('Form validation failed:', form.formState.errors);
+                          // Show validation errors to user
+                          const errorMessages = Object.entries(form.formState.errors)
+                            .map(([field, error]: [string, any]) => `${field}: ${error.message}`)
+                            .join('\n');
+                          alert('Please fix the following errors:\n' + errorMessages);
+                          return;
+                        }
+                        
+                        try {
+                          console.log('Calling onSubmit directly since validation passed');
+                          onSubmit(formData);
+                        } catch (e) {
+                          console.error('Error calling onSubmit:', e);
+                          alert('Error when submitting form: ' + (e as Error).message);
+                        }
+                      }).catch((e) => {
+                        console.error('Error during validation:', e);
+                        alert('Error during form validation: ' + e.message);
+                      });
                     }}
                   >
                     {form.formState.isSubmitting ? (
