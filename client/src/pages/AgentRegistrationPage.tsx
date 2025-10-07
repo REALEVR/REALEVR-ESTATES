@@ -24,7 +24,7 @@ import {
   Calendar,
   Shield
 } from "lucide-react";
-import { useFlutterwave, FlutterwaveConfig } from "flutterwave-react-v3";
+import { useFlutterwave, FlutterWaveTypes } from "flutterwave-react-v3";
 
 const AgentRegistrationSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
@@ -130,7 +130,7 @@ export default function AgentRegistrationPage() {
   const selectedPlanDetails = planDetails[selectedPlan];
 
   // Flutterwave configuration
-  const config: FlutterwaveConfig = {
+  const config: FlutterWaveTypes.FlutterwaveConfig = {
     public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
     tx_ref: `agent-reg-${Date.now()}`,
     amount: selectedPlanDetails.price,

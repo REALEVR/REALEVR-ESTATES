@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { useFlutterwave, FlutterwaveConfig } from "flutterwave-react-v3";
+import { useFlutterwave, FlutterWaveTypes } from "flutterwave-react-v3";
 import { Loader2, Eye, CreditCard, UserPlus } from "lucide-react";
 import type { Property } from "@shared/schema";
 import Logo from "../../assets/logo.png";
@@ -52,7 +52,7 @@ export default function TourPaymentModal({
   const publicKey = import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY;
   // console.log('Flutterwave Public Key:', publicKey); // Debug log
 
-  const config: FlutterwaveConfig = {
+  const config: FlutterWaveTypes.FlutterwaveConfig = {
     public_key: publicKey, // Fallback to test key
     tx_ref: `tour-view-${property.id}-${Date.now()}`,
     amount: 15000, // 15,000 UGX
