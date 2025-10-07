@@ -46,7 +46,16 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
   // Convert YouTube URL to embed URL
   const getVideoUrl = (url: string) => {
     if (url.includes('youtube.com') || url.includes('youtu.be')) {
-      const videoId = url.includes('youtube.com') 
+      // Check if it's a playlist URL
+      if (url.includes('playlist?list=') || url.includes('&list=')) {
+        const playlistId = url.includes('playlist?list=')
+          ? url.split('playlist?list=')[1]?.split('&')[0]
+          : url.split('&list=')[1]?.split('&')[0];
+        return `https://www.youtube.com/embed/videoseries?list=${playlistId}&autoplay=1&mute=1&loop=1&controls=0&showinfo=0&rel=0&enablejsapi=1&origin=${window.location.origin}`;
+      }
+
+      // Regular single video
+      const videoId = url.includes('youtube.com')
         ? url.split('v=')[1]?.split('&')[0]
         : url.split('youtu.be/')[1]?.split('?')[0];
       return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&showinfo=0&rel=0&enablejsapi=1&origin=${window.location.origin}`;
@@ -224,17 +233,25 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             
             {/* YouTube iframe */}
             {videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be') ? (
-              <iframe
-                ref={iframeRef}
-                src={getVideoUrl(videoUrl)}
-                className="w-full h-full object-cover"
-                style={{ objectFit: 'cover', width: '100%', height: '100%', display: 'block' }}
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                onLoad={handleVideoLoad}
-                onError={handleVideoError}
-              />
+              <div className="absolute inset-0 w-full h-full overflow-hidden">
+                <iframe
+                  ref={iframeRef}
+                  src={getVideoUrl(videoUrl)}
+                  className="w-full h-full"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    minWidth: '100%',
+                    minHeight: '100%',
+                    border: 'none'
+                  }}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  onLoad={handleVideoLoad}
+                  onError={handleVideoError}
+                />
+              </div>
             ) : (
               // Regular video element
               <video

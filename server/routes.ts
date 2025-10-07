@@ -703,7 +703,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Tour payment verification
   app.post("/api/verify-tour-payment", async (req, res) => {
     try {
-      const { transaction_id, property_id, user_id } = req.body;
+      const { transaction_id, property_id, user_id, customer_email, customer_name } = req.body;
       
       if (!transaction_id || !property_id) {
         return res.status(400).json({ 
@@ -752,7 +752,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.recordTourPayment({
               transactionId: transaction_id,
               propertyId: property_id,
-              userId: user_id,
+              userId: user_id || null,
+              customerEmail: customer_email,
+              customerName: customer_name,
               amount: amount,
               currency: currency,
               timestamp: new Date().toISOString()
@@ -761,7 +763,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.error('Error recording tour payment:', dbError);
             // Don't fail the verification if database recording fails
           }
-          
+
           return res.json({
             status: "success",
             message: "Tour payment verified successfully",
@@ -1579,6 +1581,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const tours = await storage.getUserViewedTours(user.id);
       res.json(tours);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Video settings management
+  app.get("/api/admin/video-settings", async (req, res) => {
+    try {
+      const user = req.user;
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const settings = await storage.getVideoSettings();
+      res.json(settings);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Public endpoint for getting video settings (for homepage)
+  app.get("/api/video-settings", async (req, res) => {
+    try {
+      const settings = await storage.getVideoSettings();
+      res.json(settings);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/video-settings", async (req, res) => {
+    try {
+      const user = req.user;
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { heroVideoUrl } = req.body;
+      if (!heroVideoUrl) {
+        return res.status(400).json({ message: "Video URL is required" });
+      }
+
+      const settings = await storage.saveVideoSettings({
+        heroVideoUrl,
+        lastUpdated: new Date().toISOString()
+      });
+
+      res.json(settings);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

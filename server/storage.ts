@@ -100,6 +100,10 @@ export interface IStorage {
   getAllPropertyTypes(): Promise<PropertyType[]>;
   getPropertyType(id: number): Promise<PropertyType | undefined>;
   createPropertyType(propertyType: InsertPropertyType): Promise<PropertyType>;
+
+  // Video settings methods
+  getVideoSettings(): Promise<{ heroVideoUrl: string; lastUpdated?: string }>;
+  saveVideoSettings(settings: { heroVideoUrl: string; lastUpdated: string }): Promise<{ heroVideoUrl: string; lastUpdated: string }>;
 }
 
 

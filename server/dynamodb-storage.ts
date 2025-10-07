@@ -906,4 +906,39 @@ export class DynamoDBStorage implements IStorage {
       }));
     });
   }
+
+  // Video settings methods
+  async getVideoSettings(): Promise<{ heroVideoUrl: string; lastUpdated?: string }> {
+    return executeWithRetry(async () => {
+      try {
+        const item = await DynamoDBUtils.getItem(TABLES.SETTINGS, { id: 'video-settings' });
+        if (item) {
+          return {
+            heroVideoUrl: item.heroVideoUrl || "https://youtu.be/cgM6poO2JmY?t=9",
+            lastUpdated: item.lastUpdated
+          };
+        }
+      } catch (error) {
+        console.log('Video settings not found, returning default');
+      }
+
+      // Return default if not found
+      return {
+        heroVideoUrl: "https://youtu.be/cgM6poO2JmY?t=9"
+      };
+    });
+  }
+
+  async saveVideoSettings(settings: { heroVideoUrl: string; lastUpdated: string }): Promise<{ heroVideoUrl: string; lastUpdated: string }> {
+    return executeWithRetry(async () => {
+      const item = {
+        id: 'video-settings',
+        heroVideoUrl: settings.heroVideoUrl,
+        lastUpdated: settings.lastUpdated
+      };
+
+      await DynamoDBUtils.putItem(TABLES.SETTINGS, item);
+      return settings;
+    });
+  }
 }

@@ -11,16 +11,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { useFlutterwave, FlutterwaveConfig } from "flutterwave-react-v3";
 import { Loader2, Eye, CreditCard, UserPlus } from "lucide-react";
 import type { Property } from "@shared/schema";
+import Logo from "../../assets/logo.png";
 
 const tourPaymentSchema = z.object({
   email: z.string().email("Invalid email address"),
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   phoneNumber: z.string().min(10, "Phone number must be at least 10 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
 });
 
 type TourPaymentFormValues = z.infer<typeof tourPaymentSchema>;
@@ -49,14 +45,15 @@ export default function TourPaymentModal({
       email: "",
       fullName: "",
       phoneNumber: "",
-      password: "",
-      confirmPassword: "",
     },
   });
 
   // Flutterwave configuration
+  const publicKey = import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY;
+  // console.log('Flutterwave Public Key:', publicKey); // Debug log
+
   const config: FlutterwaveConfig = {
-    public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
+    public_key: publicKey, // Fallback to test key
     tx_ref: `tour-view-${property.id}-${Date.now()}`,
     amount: 15000, // 15,000 UGX
     currency: "UGX",
@@ -123,74 +120,74 @@ export default function TourPaymentModal({
     }
   };
 
-  const handleCreateAccountAndPay = async (data: TourPaymentFormValues) => {
+  const handlePayForTour = async (data: TourPaymentFormValues) => {
+    console.log('Processing payment for tour access...', data);
     setIsProcessing(true);
-    try {
-      // Create user account with user-provided password
-      const registerResponse = await fetch("/api/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username: data.email.split('@')[0], // Use email prefix as username
-          email: data.email,
-          password: data.password,
-          fullName: data.fullName,
-          role: "normal"
-        })
-      });
 
-      if (registerResponse.ok) {
-        // Auto-login the user with their password
-        const loginResponse = await fetch("/api/login", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            username: data.email.split('@')[0],
-            password: data.password,
-          })
-        });
+    // Proceed with payment
+    handleFlutterPayment({
+      callback: async (response) => {
+        if (response.status === 'successful') {
+          try {
+            // Verify payment
+            const verificationResponse = await fetch("/api/verify-tour-payment", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                transaction_id: response.transaction_id,
+                property_id: property.id,
+                customer_email: data.email,
+                customer_name: data.fullName
+              })
+            });
 
-        if (loginResponse.ok) {
-          // Proceed with payment
-          handleFlutterPayment({
-            callback: handlePaymentSuccess,
-            onClose: () => setIsProcessing(false),
-          });
+            const verificationData = await verificationResponse.json();
+
+            if (verificationData.status === "success") {
+              toast({
+                title: "Payment Successful!",
+                description: "You can now view the virtual tour.",
+              });
+              onPaymentSuccess(); // This will open the tour
+              onClose();
+            } else {
+              toast({
+                title: "Payment Verification Failed",
+                description: "Payment could not be verified. Please contact support.",
+                variant: "destructive"
+              });
+            }
+          } catch (error) {
+            toast({
+              title: "Payment Error",
+              description: "Failed to process payment. Please try again.",
+              variant: "destructive"
+            });
+          }
         } else {
           toast({
-            title: "Login Failed",
-            description: "Account created but login failed. Please try logging in manually.",
+            title: "Payment Failed",
+            description: "Payment was not successful. Please try again.",
             variant: "destructive"
           });
         }
-      } else {
-        const errorData = await registerResponse.json();
-        toast({
-          title: "Account Creation Failed",
-          description: errorData.message || "Failed to create account. Please try again.",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('Error creating account:', error);
-      toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+        setIsProcessing(false);
+      },
+      onClose: () => setIsProcessing(false),
+    });
   };
 
   const handleExistingUserPayment = () => {
+    console.log('Starting payment for existing user...', config); // Debug log
+    setIsProcessing(true);
     handleFlutterPayment({
       callback: handlePaymentSuccess,
-      onClose: () => setIsProcessing(false),
+      onClose: () => {
+        console.log('Payment modal closed'); // Debug log
+        setIsProcessing(false);
+      },
     });
   };
 
@@ -213,7 +210,7 @@ export default function TourPaymentModal({
           <div className="p-4 bg-blue-50 rounded-lg">
             <h4 className="font-semibold text-blue-900 mb-2">Tour Access Required</h4>
             <p className="text-sm text-blue-800">
-              To view the virtual tour for this rental property, a one-time payment of <strong>15,000 UGX</strong> is required.
+              To view the virtual tour for this property, a one-time payment of <strong>15,000 UGX</strong> is required.
             </p>
           </div>
 
@@ -268,7 +265,7 @@ export default function TourPaymentModal({
               {!showLoginForm ? (
                 // Create account form
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(handleCreateAccountAndPay)} className="space-y-4">
+                  <form onSubmit={form.handleSubmit(handlePayForTour)} className="space-y-4">
                     <FormField
                       control={form.control}
                       name="fullName"
@@ -310,36 +307,8 @@ export default function TourPaymentModal({
                         </FormItem>
                       )}
                     />
-                    
-                    <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password *</FormLabel>
-                          <FormControl>
-                            <Input type="password" placeholder="Enter your password" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="confirmPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Confirm Password *</FormLabel>
-                          <FormControl>
-                            <Input type="password" placeholder="Confirm your password" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
 
-                    <Button 
+                    <Button
                       type="submit" 
                       disabled={isProcessing}
                       className="w-full"
@@ -347,12 +316,12 @@ export default function TourPaymentModal({
                       {isProcessing ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Creating Account & Processing Payment...
+                          Processing Payment...
                         </>
                       ) : (
                         <>
-                          <UserPlus className="mr-2 h-4 w-4" />
-                          Create Account & Pay 15,000 UGX
+                          <CreditCard className="mr-2 h-4 w-4" />
+                          Pay 15,000 UGX to View Tour
                         </>
                       )}
                     </Button>

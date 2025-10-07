@@ -27,8 +27,27 @@ const categoryLabels = {
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("all");
+  const [heroVideoUrl, setHeroVideoUrl] = useState("https://youtu.be/cgM6poO2JmY?t=9");
   
   const { data: properties, isLoading, error } = useProperties();
+
+  // Fetch video settings
+  useEffect(() => {
+    const fetchVideoSettings = async () => {
+      try {
+        const response = await fetch("/api/video-settings");
+        if (response.ok) {
+          const data = await response.json();
+          setHeroVideoUrl(data.heroVideoUrl);
+          console.log("Video URL updated:", data.heroVideoUrl);
+        }
+      } catch (error) {
+        console.log("Using default video URL", error);
+      }
+    };
+
+    fetchVideoSettings();
+  }, []);
 
   // Debug logging for properties
   console.log('Home page properties debug:', {
@@ -55,7 +74,7 @@ export default function Home() {
 
   return (
     <>
-      <Hero videoUrl="https://youtu.be/cgM6poO2JmY?t=9" />
+      <Hero videoUrl={heroVideoUrl} />
       
       {/* Agent Registration Call-to-Action */}
       <section className="py-16 bg-gradient-to-r from-blue-50 to-indigo-50">

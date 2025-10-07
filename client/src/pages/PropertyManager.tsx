@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { Link } from 'wouter';
 import { Property } from '@shared/schema';
+import VideoManager from '@/components/admin/VideoManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Card,
@@ -501,6 +502,11 @@ export default function PropertyManager() {
           </CardContent>
         </Card>
       )}
+
+      {/* Video Manager Section */}
+      <div className="mb-6">
+        <VideoManager />
+      </div>
 
       <Card>
         <CardHeader>

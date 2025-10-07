@@ -39,12 +39,13 @@ export const dynamoDb = DynamoDBDocumentClient.from(client);
 // Table names
 export const TABLES = {
   USERS: process.env.DYNAMODB_USERS_TABLE || "realevr-users",
-  PROPERTIES: process.env.DYNAMODB_PROPERTIES_TABLE || "realevr-properties", 
+  PROPERTIES: process.env.DYNAMODB_PROPERTIES_TABLE || "realevr-properties",
   AMENITIES: process.env.DYNAMODB_AMENITIES_TABLE || "realevr-amenities",
   PROPERTY_TYPES: process.env.DYNAMODB_PROPERTY_TYPES_TABLE || "realevr-property-types",
   USER_TOURS: process.env.DYNAMODB_USER_TOURS_TABLE || "realevr-user-tours",
   PROPERTY_VIEWS: process.env.DYNAMODB_PROPERTY_VIEWS_TABLE || "realevr-property-views",
   TOUR_PAYMENTS: process.env.DYNAMODB_TOUR_PAYMENTS_TABLE || "realevr-tour-payments",
+  SETTINGS: process.env.DYNAMODB_SETTINGS_TABLE || "realevr-settings",
 } as const;
 
 // Maximum number of retry attempts
@@ -259,6 +260,12 @@ export async function createTablesIfNotExist(): Promise<void> {
     },
     {
       TableName: TABLES.TOUR_PAYMENTS,
+      KeySchema: [{ AttributeName: "id", KeyType: "HASH" }],
+      AttributeDefinitions: [{ AttributeName: "id", AttributeType: "S" }],
+      BillingMode: "PAY_PER_REQUEST"
+    },
+    {
+      TableName: TABLES.SETTINGS,
       KeySchema: [{ AttributeName: "id", KeyType: "HASH" }],
       AttributeDefinitions: [{ AttributeName: "id", AttributeType: "S" }],
       BillingMode: "PAY_PER_REQUEST"

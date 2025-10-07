@@ -96,14 +96,17 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
   };
 
   const handleViewTour = () => {
-    // Check if this is a rental property that requires payment
-    const isRentalProperty = property.category === 'rental_units';
-    
-    if (isRentalProperty) {
+    // Only rental properties require payment to view tours
+    // BnBs can view tours for free, but need to pay 20% to book
+    const requiresPayment = property.category === 'rental_units' ||
+                           property.category === 'furnished_houses' ||
+                           property.propertyType === "Furnished Rental";
+
+    if (requiresPayment) {
       // For rental properties, show payment modal
       setIsTourPaymentModalOpen(true);
     } else {
-      // For other properties (BnB, for_sale, etc.), show tour directly
+      // For BnBs, for_sale, etc., show tour directly
       setIsTourModalOpen(true);
     }
   };

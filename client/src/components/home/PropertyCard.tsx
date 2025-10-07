@@ -38,14 +38,18 @@ const handlePropertyView = (e: React.MouseEvent) => {
   e.preventDefault();
   e.stopPropagation();
 
-  // For rental units, always require payment before viewing (not just after 5 views)
-  if (!hasValidPayment && property.category === 'rental_units') {
+  // Only rental properties require payment for tour viewing
+  // BnBs can view tours for free, but need to pay 20% to book
+  const requiresPayment = property.category === 'rental_units' ||
+                         property.category === 'furnished_houses' ||
+                         property.propertyType === "Furnished Rental";
+
+  if (!hasValidPayment && requiresPayment) {
     setIsPaymentModalOpen(true);
     return;
   }
 
-  // For other property types (except furnished houses which are paid upon booking),
-  // allow direct viewing
+  // For other property types, allow direct viewing
   window.location.href = `/property/${property.id}`;
 };
 
@@ -76,12 +80,17 @@ const handleCardClick = (e: React.MouseEvent) => {
   if ((e.target as HTMLElement).closest('button')) {
     return;
   }
-  
-  // Check if this is a rental property that requires payment
-  if (property.category === 'rental_units') {
+
+  // Only rental properties require payment for tour viewing
+  // BnBs can view tours for free, but need to pay 20% to book
+  const requiresPayment = property.category === 'rental_units' ||
+                         property.category === 'furnished_houses' ||
+                         property.propertyType === "Furnished Rental";
+
+  if (requiresPayment) {
     setIsTourPaymentModalOpen(true);
   } else {
-    // For other properties (BnB, for_sale, etc.), navigate directly
+    // For BnBs, for_sale, etc., navigate directly to property page
     window.location.href = `/property/${property.id}`;
   }
 };
@@ -161,11 +170,16 @@ const handleCardClick = (e: React.MouseEvent) => {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              // Check if this is a rental property that requires payment
-              if (property.category === 'rental_units') {
+              // Only rental properties require payment for tour viewing
+              // BnBs can view tours for free, but need to pay 20% to book
+              const requiresPayment = property.category === 'rental_units' ||
+                                     property.category === 'furnished_houses' ||
+                                     property.propertyType === "Furnished Rental";
+
+              if (requiresPayment) {
                 setIsTourPaymentModalOpen(true);
               } else {
-                // For other properties (BnB, for_sale, etc.), navigate directly
+                // For BnBs, for_sale, etc., navigate directly to property page
                 window.location.href = `/property/${property.id}`;
               }
             }}
