@@ -36,6 +36,30 @@ export class DynamoDBStorage implements IStorage {
     });
   }
 
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return executeWithRetry(async () => {
+      const items = await DynamoDBUtils.scanTable(
+        TABLES.USERS,
+        "#email = :email",
+        { ":email": email },
+        { "#email": "email" }
+      );
+      return items.length > 0 ? this.convertUserFromDynamoDB(items[0]) : undefined;
+    });
+  }
+
+  async getUserByVerificationToken(token: string): Promise<User | undefined> {
+    return executeWithRetry(async () => {
+      const items = await DynamoDBUtils.scanTable(
+        TABLES.USERS,
+        "#emailVerificationToken = :token",
+        { ":token": token },
+        { "#emailVerificationToken": "emailVerificationToken" }
+      );
+      return items.length > 0 ? this.convertUserFromDynamoDB(items[0]) : undefined;
+    });
+  }
+
   async getAllUsers(): Promise<User[]> {
     return executeWithRetry(async () => {
       const items = await DynamoDBUtils.scanTable(TABLES.USERS);
@@ -60,6 +84,39 @@ export class DynamoDBStorage implements IStorage {
     });
   }
 
+  async updateUser(userId: number, userUpdate: Partial<User>): Promise<User> {
+    return executeWithRetry(async () => {
+      // Build update expression
+      const updateExpressions: string[] = [];
+      const expressionAttributeValues: any = { ":updatedAt": generateTimestamp() };
+      const expressionAttributeNames: any = { "#updatedAt": "updatedAt" };
+
+      Object.entries(userUpdate).forEach(([key, value]) => {
+        if (key !== 'id' && value !== undefined) {
+          updateExpressions.push(`#${key} = :${key}`);
+          expressionAttributeValues[`:${key}`] = value;
+          expressionAttributeNames[`#${key}`] = key;
+        }
+      });
+
+      updateExpressions.push("#updatedAt = :updatedAt");
+
+      const updatedItem = await DynamoDBUtils.updateItem(
+        TABLES.USERS,
+        { id: toStringId(userId) },
+        `SET ${updateExpressions.join(", ")}`,
+        expressionAttributeValues,
+        expressionAttributeNames
+      );
+
+      if (!updatedItem) {
+        throw new Error(`User with ID ${userId} not found`);
+      }
+
+      return this.convertUserFromDynamoDB(updatedItem);
+    });
+  }
+
   async updateUserRole(userId: number, role: string): Promise<User> {
     return executeWithRetry(async () => {
       const updatedItem = await DynamoDBUtils.updateItem(
@@ -68,6 +125,60 @@ export class DynamoDBStorage implements IStorage {
         "SET #role = :role, #updatedAt = :updatedAt",
         { ":role": role, ":updatedAt": generateTimestamp() },
         { "#role": "role", "#updatedAt": "updatedAt" }
+      );
+
+      if (!updatedItem) {
+        throw new Error(`User with ID ${userId} not found`);
+      }
+
+      return this.convertUserFromDynamoDB(updatedItem);
+    });
+  }
+
+  async verifyUser(userId: number): Promise<User> {
+    return executeWithRetry(async () => {
+      const updatedItem = await DynamoDBUtils.updateItem(
+        TABLES.USERS,
+        { id: toStringId(userId) },
+        "SET #isVerified = :isVerified, #emailVerificationToken = :token, #emailVerificationExpires = :expires, #updatedAt = :updatedAt",
+        {
+          ":isVerified": true,
+          ":token": null,
+          ":expires": null,
+          ":updatedAt": generateTimestamp()
+        },
+        {
+          "#isVerified": "isVerified",
+          "#emailVerificationToken": "emailVerificationToken",
+          "#emailVerificationExpires": "emailVerificationExpires",
+          "#updatedAt": "updatedAt"
+        }
+      );
+
+      if (!updatedItem) {
+        throw new Error(`User with ID ${userId} not found`);
+      }
+
+      return this.convertUserFromDynamoDB(updatedItem);
+    });
+  }
+
+  async updateVerificationToken(userId: number, token: string, expiry: string): Promise<User> {
+    return executeWithRetry(async () => {
+      const updatedItem = await DynamoDBUtils.updateItem(
+        TABLES.USERS,
+        { id: toStringId(userId) },
+        "SET #emailVerificationToken = :token, #emailVerificationExpires = :expires, #updatedAt = :updatedAt",
+        {
+          ":token": token,
+          ":expires": expiry,
+          ":updatedAt": generateTimestamp()
+        },
+        {
+          "#emailVerificationToken": "emailVerificationToken",
+          "#emailVerificationExpires": "emailVerificationExpires",
+          "#updatedAt": "updatedAt"
+        }
       );
 
       if (!updatedItem) {

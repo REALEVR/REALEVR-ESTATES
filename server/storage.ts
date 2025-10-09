@@ -10,9 +10,14 @@ export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByVerificationToken(token: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(userId: number, userUpdate: Partial<User>): Promise<User>;
   updateUserRole(userId: number, role: string): Promise<User>;
+  verifyUser(userId: number): Promise<User>;
+  updateVerificationToken(userId: number, token: string, expiry: string): Promise<User>;
 
   // Property methods
   getAllProperties(): Promise<Property[]>;

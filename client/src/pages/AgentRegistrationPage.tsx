@@ -244,7 +244,7 @@ export default function AgentRegistrationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12 -mx-4 sm:-mx-6 lg:-mx-8">
       <div className="container mx-auto px-6">
         <div className="max-w-6xl mx-auto">
           {/* Header */}

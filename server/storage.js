@@ -18,6 +18,16 @@ export class DatabaseStorage {
         const result = await db.insert(users).values(insertUser).returning();
         return result[0];
     }
+    async updateUser(userId, userUpdate) {
+        const result = await db.update(users)
+            .set(userUpdate)
+            .where(eq(users.id, userId))
+            .returning();
+        if (result.length === 0) {
+            throw new Error(`User with ID ${userId} not found`);
+        }
+        return result[0];
+    }
     async updateUserRole(userId, role) {
         const result = await db.update(users)
             .set({ role })

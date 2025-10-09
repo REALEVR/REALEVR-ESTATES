@@ -14,7 +14,8 @@ type AuthContextType = {
   error: Error | null;
   loginMutation: UseMutationResult<Omit<User, "password">, Error, LoginData>;
   logoutMutation: UseMutationResult<void, Error, void>;
-  registerMutation: UseMutationResult<Omit<User, "password">, Error, RegisterData>;
+  registerMutation: UseMutationResult<any, Error, RegisterData>;
+  resendVerificationMutation: UseMutationResult<any, Error, string>;
 };
 
 type LoginData = {
@@ -41,7 +42,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
       const res = await apiRequest("POST", "/api/login", credentials);
-      return await res.json();
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Login failed");
+      }
+
+      return data;
     },
     onSuccess: (user: Omit<User, "password">) => {
       queryClient.setQueryData(["/api/user"], user);
@@ -52,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Redirect to profile page after successful login
       window.location.href = "/profile";
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       toast({
         title: "Login failed",
         description: error.message || "Invalid username or password",
@@ -66,14 +73,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest("POST", "/api/register", data);
       return await res.json();
     },
-    onSuccess: (user: Omit<User, "password">) => {
-      queryClient.setQueryData(["/api/user"], user);
+    onSuccess: (response: any) => {
+      // Don't set user data since they're not logged in yet
       toast({
-        title: "Registration successful",
-        description: `Welcome to RealEVR Estates, ${user.username}!`,
+        title: "Registration successful!",
+        description: response.message || "Please check your email for the verification code.",
       });
-      // Redirect to profile page after successful registration
-      window.location.href = "/profile";
+      // Redirect to verification page
+      window.location.href = "/verify-email";
     },
     onError: (error: Error) => {
       toast({
@@ -104,6 +111,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  const resendVerificationMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const res = await apiRequest("POST", "/api/resend-verification", { email });
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Verification email sent",
+        description: "Please check your email for the verification link.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to send verification email",
+        description: error.message || "Please try again later",
+        variant: "destructive",
+      });
+    },
+  });
+
   return (
     <AuthContext.Provider
       value={{
@@ -113,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginMutation,
         logoutMutation,
         registerMutation,
+        resendVerificationMutation,
       }}
     >
       {children}

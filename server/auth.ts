@@ -6,6 +6,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
+import { sendEmail, generateVerificationEmailHTML, generateVerificationEmailText } from "./email-service";
 
 
 declare global {
@@ -42,6 +43,31 @@ async function comparePasswords(supplied: string, stored: string) {
     }
     return false;
   }
+}
+
+// Email verification helper functions
+function generateVerificationToken(): string {
+  return randomBytes(32).toString('hex');
+}
+
+function generateVerificationExpiry(): string {
+  const expiry = new Date();
+  expiry.setHours(expiry.getHours() + 24); // 24 hours from now
+  return expiry.toISOString();
+}
+
+async function sendVerificationEmail(email: string, fullName: string, token: string): Promise<boolean> {
+  const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+  const verificationUrl = `${baseUrl}/api/verify-email?token=${token}`;
+
+  const emailOptions = {
+    to: email,
+    subject: 'Verify Your Email - RealEVR Estates',
+    html: generateVerificationEmailHTML(verificationUrl, fullName, token),
+    text: generateVerificationEmailText(verificationUrl, fullName, token),
+  };
+
+  return await sendEmail(emailOptions);
 }
 
 export function setupAuth(app: Express) {
@@ -140,27 +166,168 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ error: "Username already exists" });
       }
 
+      // Check if email already exists
+      const existingEmailUser = await storage.getUserByEmail(req.body.email);
+      if (existingEmailUser) {
+        return res.status(400).json({ error: "Email already exists" });
+      }
+
+      // Generate verification token
+      const verificationToken = generateVerificationToken();
+      const verificationExpiry = generateVerificationExpiry();
+
       const hashedPassword = await hashPassword(req.body.password);
       const user = await storage.createUser({
         ...req.body,
         password: hashedPassword,
         membershipPlan: req.body.membershipPlan || null,
         role: req.body.role || "normal",
+        isVerified: false,
+        emailVerificationToken: verificationToken,
+        emailVerificationExpires: verificationExpiry,
       });
 
-      console.log("REGISTER ENDPOINT: User created, attempting login:", user.id, "(Type:", typeof user.id + ")");
-      req.login(user, (err) => {
-        if (err) {
-          console.error("REGISTER ENDPOINT: Error during req.login:", err);
-          return next(err);
-        }
-        console.log("REGISTER ENDPOINT: User successfully logged in after registration.");
-        // Return user without password
-        const { password, ...userWithoutPassword } = user;
-        res.status(201).json(userWithoutPassword);
+      // Send verification email
+      const emailSent = await sendVerificationEmail(user.email, user.fullName, verificationToken);
+
+      if (!emailSent) {
+        console.warn("Failed to send verification email to:", user.email);
+        // If email fails, we could optionally still allow the user to register
+        // but they'll need to use the resend verification feature
+      }
+
+      console.log("REGISTER ENDPOINT: User created with verification token:", user.id);
+
+      // Return success message without user data (don't auto-login)
+      res.status(201).json({
+        success: true,
+        message: "Registration successful! Please check your email to verify your account before logging in.",
+        emailSent,
+        requiresVerification: true
       });
     } catch (error) {
       next(error);
+    }
+  });
+
+  // Email verification endpoint (for email links)
+  app.get("/api/verify-email", async (req, res) => {
+    try {
+      const { token } = req.query;
+
+      if (!token || typeof token !== 'string') {
+        return res.status(400).json({ error: "Invalid verification token" });
+      }
+
+      const user = await storage.getUserByVerificationToken(token);
+
+      if (!user) {
+        return res.status(400).json({ error: "Invalid or expired verification token" });
+      }
+
+      // Check if token has expired
+      const now = new Date();
+      const expiry = new Date(user.emailVerificationExpires!);
+
+      if (now > expiry) {
+        return res.status(400).json({ error: "Verification token has expired" });
+      }
+
+      // Update user as verified
+      await storage.verifyUser(user.id);
+
+      // Redirect to login page after successful verification
+      res.redirect('/auth?verified=true');
+    } catch (error) {
+      console.error("Email verification error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Token verification endpoint (for manual token input)
+  app.post("/api/verify-token", async (req, res) => {
+    try {
+      const { token } = req.body;
+
+      if (!token) {
+        return res.status(400).json({ error: "Verification token is required" });
+      }
+
+      const user = await storage.getUserByVerificationToken(token);
+
+      if (!user) {
+        return res.status(400).json({ error: "Invalid or expired verification token" });
+      }
+
+      // Check if token has expired
+      const now = new Date();
+      const expiry = new Date(user.emailVerificationExpires!);
+
+      if (now > expiry) {
+        return res.status(400).json({ error: "Verification token has expired" });
+      }
+
+      // Update user as verified and log them in
+      await storage.verifyUser(user.id);
+
+      // Auto-login the verified user
+      req.login(user, (err) => {
+        if (err) {
+          console.error("Auto-login error after verification:", err);
+          return res.status(500).json({ error: "Failed to log in after verification" });
+        }
+
+        // Return user data (they're now logged in)
+        const { password, emailVerificationToken, ...userWithoutPassword } = user;
+        res.json({
+          success: true,
+          message: "Email verified successfully! Welcome to RealEVR Estates.",
+          user: userWithoutPassword
+        });
+      });
+    } catch (error) {
+      console.error("Token verification error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Resend verification email endpoint
+  app.post("/api/resend-verification", async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+
+      if (!user) {
+        return res.status(400).json({ error: "User not found" });
+      }
+
+      if (user.isVerified) {
+        return res.status(400).json({ error: "Email is already verified" });
+      }
+
+      // Generate new verification token
+      const verificationToken = generateVerificationToken();
+      const verificationExpiry = generateVerificationExpiry();
+
+      // Update user with new token
+      await storage.updateVerificationToken(user.id, verificationToken, verificationExpiry);
+
+      // Send verification email
+      const emailSent = await sendVerificationEmail(user.email, user.fullName, verificationToken);
+
+      if (emailSent) {
+        res.json({ message: "Verification email sent successfully" });
+      } else {
+        res.status(500).json({ error: "Failed to send verification email" });
+      }
+    } catch (error) {
+      console.error("Resend verification error:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
   });
 

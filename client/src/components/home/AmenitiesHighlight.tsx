@@ -8,7 +8,7 @@ export default function AmenitiesHighlight() {
 
   if (isLoading) {
     return (
-      <section className="py-10 bg-gray-50">
+      <section className="py-10 bg-gray-50 -mx-4 sm:-mx-6 lg:-mx-8">
         <div className="container mx-auto px-6 ann">
           <h2 className="text-2xl md:text-3xl font-bold mb-8">Popular Amenities</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -33,7 +33,7 @@ export default function AmenitiesHighlight() {
   const limitedAmenities = amenities.slice(0, 12);
 
   return (
-    <section className="py-10 bg-gray-50">
+    <section className="py-10 bg-gray-50 -mx-4 sm:-mx-6 lg:-mx-8">
       <div className="container mx-auto px-6 ann">
         <h2 className="text-2xl md:text-3xl font-bold mb-8">Popular Amenities</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">

@@ -795,6 +795,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user by ID (for property owner details)
+  app.get("/api/users/:id", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Return user without sensitive information
+      const { password, emailVerificationToken, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error: any) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Test endpoint to verify connectivity
   app.post("/api/test-endpoint", (req, res) => {
     console.log("[DEBUG] Test endpoint hit with data:", req.body);
@@ -1662,6 +1684,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(sanitizedUsers);
     } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Update user profile (authenticated users can update their own profile)
+  app.patch("/api/users/profile", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || !req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { phoneNumber, companyName, fullName } = req.body;
+      const userId = req.user.id;
+
+      // Prepare update data
+      const updateData: any = {};
+      if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+      if (companyName !== undefined) updateData.companyName = companyName;
+      if (fullName !== undefined) updateData.fullName = fullName;
+
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "No valid fields to update" });
+      }
+
+      const updatedUser = await storage.updateUser(userId, updateData);
+
+      // Remove password before sending back to client
+      const { password, emailVerificationToken, ...userWithoutPassword } = updatedUser;
+
+      res.json(userWithoutPassword);
+    } catch (error: any) {
+      console.error("Error updating user profile:", error);
       res.status(500).json({ message: error.message });
     }
   });

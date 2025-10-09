@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 import { Redirect } from "wouter";
 import { 
   Card, 
@@ -49,8 +50,33 @@ type LoginFormValues = z.infer<typeof LoginSchema>;
 type RegisterFormValues = z.infer<typeof RegisterSchema>;
 
 export default function AuthPage() {
-  const { user, loginMutation, registerMutation } = useAuth();
+  const { user, loginMutation, registerMutation, resendVerificationMutation } = useAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<string>("login");
+  const [showVerificationMessage, setShowVerificationMessage] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+
+  // Check URL parameters for verification status
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const registered = urlParams.get('registered');
+    const verified = urlParams.get('verified');
+
+    if (registered === 'true') {
+      setActiveTab("login");
+      toast({
+        title: "Registration successful!",
+        description: "You can now log in to your account.",
+      });
+    }
+
+    if (verified === 'true') {
+      toast({
+        title: "Email verified successfully!",
+        description: "You can now log in to your account.",
+      });
+    }
+  }, []);
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(LoginSchema),
@@ -143,7 +169,58 @@ export default function AuthPage() {
               <TabsTrigger value="login">Login</TabsTrigger>
               <TabsTrigger value="register">Register</TabsTrigger>
             </TabsList>
-            
+
+            {/* Email Verification Message - Hidden for now */}
+            {false && showVerificationMessage && (
+              <Card className="mb-6 border-blue-200 bg-blue-50">
+                <CardContent className="pt-6">
+                  <div className="flex items-start space-x-3">
+                    <div className="bg-blue-500 text-white p-2 rounded-full">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <polyline points="22,6 12,13 2,6"/>
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-medium text-blue-900">Check your email</h3>
+                      <p className="text-blue-700 text-sm mt-1">
+                        We've sent a verification link to your email address. Please click the link to verify your account before logging in.
+                      </p>
+                      <div className="mt-3 flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const email = prompt("Enter your email address to resend verification:");
+                            if (email) {
+                              resendVerificationMutation.mutate(email);
+                            }
+                          }}
+                          disabled={resendVerificationMutation.isPending}
+                        >
+                          {resendVerificationMutation.isPending ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Sending...
+                            </>
+                          ) : (
+                            "Resend verification email"
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowVerificationMessage(false)}
+                        >
+                          Dismiss
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <TabsContent value="login" className="space-y-4">
               <Card>
                 <CardHeader>

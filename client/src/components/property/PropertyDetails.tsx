@@ -7,10 +7,11 @@ import OwnerContactDetails from "./OwnerContactDetails";
 import BookingCalendarModal from "./BookingCalendarModal";
 import VirtualTourModal from "./VirtualTourModal";
 import TourPaymentModal from "./TourPaymentModal";
-import type { Property } from "@shared/schema";
+import type { Property, User } from "@shared/schema";
 import { getSafeAmenities } from "@/lib/property-utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Phone, User as UserIcon } from "lucide-react";
 
 interface PropertyDescriptionProps {
   description: string;
@@ -65,12 +66,32 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
   const [isTourModalOpen, setIsTourModalOpen] = useState(false);
   const [isTourPaymentModalOpen, setIsTourPaymentModalOpen] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
+  const [propertyOwner, setPropertyOwner] = useState<User | null>(null);
   const [location] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
 
   // Check if this is a BnB property
   const isBnB = property.category === "BnB" || property.category === "furnished_houses";
+
+  // Fetch property owner details
+  useEffect(() => {
+    const fetchPropertyOwner = async () => {
+      if (property.ownerId) {
+        try {
+          const response = await fetch(`/api/users/${property.ownerId}`);
+          if (response.ok) {
+            const owner = await response.json();
+            setPropertyOwner(owner);
+          }
+        } catch (error) {
+          console.error("Error fetching property owner:", error);
+        }
+      }
+    };
+
+    fetchPropertyOwner();
+  }, [property.ownerId]);
 
   // Check for booking confirmation in URL
   useEffect(() => {
@@ -227,13 +248,53 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
             </div>
           </div>
 
-          <div className="mb-6">
-            <h4 className="font-semibold mb-2">About this property</h4>
-            <PropertyDescription description={property.description} />
-          </div>
+          {/* Property Owner Contact Information */}
+          {propertyOwner && (
+            <div className="mb-6">
+              <h4 className="font-semibold mb-3">Property Contact</h4>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center">
+                      <UserIcon className="h-6 w-6 text-gray-500" />
+                    </div>
+                    <div className="flex-1">
+                      <h5 className="font-medium">{propertyOwner.fullName}</h5>
+                      <p className="text-sm text-gray-500">
+                        {propertyOwner.role === 'agent' ? 'Property Agent' : 'Property Manager'}
+                      </p>
+                    </div>
+                    {propertyOwner.phoneNumber && (
+                      <div className="flex items-center space-x-2">
+                        <Phone className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm font-medium">{propertyOwner.phoneNumber}</span>
+                      </div>
+                    )}
+                  </div>
+                  {propertyOwner.companyName && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">Company:</span> {propertyOwner.companyName}
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="details" className="space-y-6">
+          {/* Property Description */}
+          <Card>
+            <CardHeader>
+              <CardTitle>About this property</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PropertyDescription description={property.description} />
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Additional Property Information</CardTitle>

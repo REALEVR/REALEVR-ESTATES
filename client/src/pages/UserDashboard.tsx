@@ -48,11 +48,6 @@ export function UserDashboard() {
     thisMonthSpent: 0
   });
 
-  // Redirect if not a normal user
-  if (!user || user.role !== "normal") {
-    return <Redirect to="/auth" />;
-  }
-
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -100,6 +95,11 @@ export function UserDashboard() {
     };
     fetchUserData();
   }, [toast]);
+
+  // Redirect if not a normal user (after all hooks)
+  if (!user || user.role !== "normal") {
+    return <Redirect to="/auth" />;
+  }
 
   if (loading) {
     return (

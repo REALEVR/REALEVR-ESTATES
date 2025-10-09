@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import VirtualTour from "@/components/property/VirtualTour";
 import BookingCalendarModal from "../property/BookingCalendarModal";
 import SharePropertyModal from "../property/SharePropertyModal";
 import { useQuery } from "@tanstack/react-query";
-import type { Property } from "@shared/schema";
+import type { Property, User } from "@shared/schema";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { Phone, User as UserIcon, Building } from "lucide-react";
 
 interface PropertyDescriptionProps {
   description: string;
@@ -89,10 +90,30 @@ export default function FeaturedTour() {
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [propertyOwner, setPropertyOwner] = useState<User | null>(null);
+
+  // Fetch property owner details
+  useEffect(() => {
+    const fetchPropertyOwner = async () => {
+      if (featuredProperty?.ownerId) {
+        try {
+          const response = await fetch(`/api/users/${featuredProperty.ownerId}`);
+          if (response.ok) {
+            const owner = await response.json();
+            setPropertyOwner(owner);
+          }
+        } catch (error) {
+          console.error("Error fetching property owner:", error);
+        }
+      }
+    };
+
+    fetchPropertyOwner();
+  }, [featuredProperty?.ownerId]);
 
   if (isLoading) {
     return (
-      <section id="featured" className="py-10 bg-gray-50">
+      <section id="featured" className="py-10 bg-gray-50 -mx-4 sm:-mx-6 lg:-mx-8">
         <div className="container mx-auto px-4">
           <h2 className="text-2xl md:text-3xl font-bold mb-6">Featured Virtual Tour</h2>
           <div className="h-[400px] bg-gray-200 animate-pulse rounded-xl"></div>
@@ -103,7 +124,7 @@ export default function FeaturedTour() {
 
   if (error || !featuredProperty) {
     return (
-      <section id="featured" className="py-10 bg-gray-50">
+      <section id="featured" className="py-10 bg-gray-50 -mx-4 sm:-mx-6 lg:-mx-8">
         <div className="container mx-auto px-4">
           <h2 className="text-2xl md:text-3xl font-bold mb-6">Featured Virtual Tour</h2>
           <div className="bg-white rounded-xl p-8 text-center">
@@ -115,7 +136,7 @@ export default function FeaturedTour() {
   }
 
   return (
-    <section id="featured" className="py-10 bg-gray-50">
+    <section id="featured" className="py-10 bg-gray-50 -mx-4 sm:-mx-6 lg:-mx-8">
       <div className="container mx-auto px-4">
         <h2 className="text-2xl md:text-3xl font-bold mb-6">Featured Virtual Tour</h2>
         <div className="bg-white rounded-xl overflow-hidden shadow-lg">
@@ -253,35 +274,81 @@ export default function FeaturedTour() {
                       <i className="far fa-calendar-alt mr-2"></i>
                       Schedule Visit
                     </Button>
-                    <Button asChild className="bg-[#FF5A5F] hover:bg-[#FF7478]">
+                    {/* <Button asChild className="bg-[#FF5A5F] hover:bg-[#FF7478]">
                       <a
                         href="tel:+256771891323"
                         className="flex items-center"
                       >
                         <i className="fas fa-phone mr-2"></i> Call Agent
                       </a>
-                    </Button>
-                    <Button asChild variant="outline" className="border-gray-800 border-green-500 text-green-500 hover:bg-green-50">
-                      <a
-                        href="https://wa.me/256771891323?text=Hello%2C%20I'm%20interested%20in%20the%20property%20I%20saw%20on%20RealEVR%20Estates.%20Can%20you%20provide%20more%20details%3F"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center"
-                      >
-                        <i className="fab fa-whatsapp mr-2"></i> WhatsApp Agent 1
-                      </a>
-                    </Button>
-                    <Button asChild variant="outline" className="border-gray-800 border-green-500 text-green-500 hover:bg-green-50">
-                      <a
-                        href="https://wa.me/256702742333?text=Hello%2C%20I'm%20interested%20in%20the%20property%20I%20saw%20on%20RealEVR%20Estates.%20Can%20you%20provide%20more%20details%3F"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center"
-                      >
-                        <i className="fab fa-whatsapp mr-2"></i> WhatsApp Agent 2
-                      </a>
-                    </Button>
+                    </Button> */}
+
                   </div>
+
+                  {/* Property Manager/Agent Contact Information */}
+                  {propertyOwner && (
+                    <div className="rounded-lg p-6 mb-6 border border-blue-100">
+                      <h4 className="font-semibold mb-4 text-gray-800 flex items-center">
+                        <UserIcon className="mr-2 h-5 w-5 text-blue-600" />
+                        Property Contact
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <div className="flex items-center mb-3">
+                            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mr-4">
+                              <span className="text-lg font-bold text-blue-600">
+                                {propertyOwner.fullName?.charAt(0)?.toUpperCase() || 'A'}
+                              </span>
+                            </div>
+                            <div>
+                              <h5 className="font-semibold text-gray-800">{propertyOwner.fullName}</h5>
+                              <p className="text-blue-600 font-medium">
+                                {propertyOwner.role === 'agent' ? 'Property Agent' : 'Property Manager'}
+                              </p>
+                            </div>
+                          </div>
+                          {propertyOwner.companyName && (
+                            <div className="flex items-center mb-2">
+                              <Building className="h-4 w-4 text-gray-500 mr-2" />
+                              <span className="text-gray-700">{propertyOwner.companyName}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          {propertyOwner.phoneNumber && (
+                            <div className="flex items-center mb-3">
+                              <Phone className="h-4 w-4 text-green-600 mr-2" />
+                              <span className="text-green-700 font-medium">{propertyOwner.phoneNumber}</span>
+                            </div>
+                          )}
+                          <div className="flex flex-col gap-2">
+                            {propertyOwner.phoneNumber && (
+                              <Button asChild size="sm" className="bg-green-600 hover:bg-green-700">
+                                <a href={`tel:${propertyOwner.phoneNumber}`} className="flex items-center">
+                                  <Phone className="mr-2 h-4 w-4" />
+                                  Call Now
+                                </a>
+                              </Button>
+                            )}
+                            {propertyOwner.phoneNumber && (
+                              <Button asChild size="sm" variant="outline" className="border-green-500 text-green-600 hover:bg-green-50">
+                                <a
+                                  href={`https://wa.me/${propertyOwner.phoneNumber.replace(/[^0-9]/g, '')}?text=Hello%2C%20I'm%20interested%20in%20the%20property%20${encodeURIComponent(featuredProperty?.title || '')}%20I%20saw%20on%20RealEVR%20Estates.%20Can%20you%20provide%20more%20details%3F`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center"
+                                >
+                                  <i className="fab fa-whatsapp mr-2"></i>
+                                  WhatsApp
+                                </a>
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="border-t border-b border-gray-200 py-6 my-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>

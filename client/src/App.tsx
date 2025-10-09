@@ -31,6 +31,7 @@ import HowItWorksPage from "@/pages/HowItWorksPage";
 import HelpCenterPage from "@/pages/HelpCenterPage";
 import ContactUsPage from "@/pages/ContactUsPage";
 import TrustSafetyPage from "@/pages/TrustSafetyPage";
+import VerifyEmailPage from "@/pages/VerifyEmailPage";
 import { AuthProvider } from "@/hooks/use-auth";
 import { PaymentProvider } from "@/contexts/PaymentContext";
 import VirtualTourManager from "@/components/admin/VirtualTourManager";
@@ -64,6 +65,7 @@ function Router() {
 
       {/* Authentication and User Pages */}
       <Route path="/auth" component={AuthPage} />
+      <Route path="/verify-email" component={VerifyEmailPage} />
       <Route path="/profile" component={ProfilePage} />
       <Route path="/test-page" component={TestPage} />
       <Route path="/agent/register" component={AgentRegistrationPage} />
@@ -114,7 +116,7 @@ function App() {
           <TooltipProvider>
             <div className="flex flex-col min-h-screen">
               <Header />
-              <main className="flex-grow">
+              <main className="flex-grow px-4 sm:px-6 lg:px-8">
                 <AnimatedLayout>
                   <Router />
                 </AnimatedLayout>

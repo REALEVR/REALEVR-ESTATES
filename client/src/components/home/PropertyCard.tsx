@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import type { Property } from "@shared/schema";
+import type { Property, User } from "@shared/schema";
 import SharePropertyModal from "../property/SharePropertyModal";
 import BookingCalendarModal from "../property/BookingCalendarModal";
 import PaymentModal from "../property/PaymentModal";
@@ -8,6 +8,7 @@ import TourPaymentModal from "../property/TourPaymentModal";
 import { usePropertyViews } from "@/hooks/usePropertyViews";
 import { Button } from "@/components/ui/button";
 import { AnimatedCard, FadeIn } from "@/components/ui/animated-components";
+import { Phone } from "lucide-react";
 
 interface PropertyCardProps {
   property: Property;
@@ -18,6 +19,26 @@ export default function PropertyCard({ property }: PropertyCardProps) {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isTourPaymentModalOpen, setIsTourPaymentModalOpen] = useState(false);
+  const [propertyOwner, setPropertyOwner] = useState<User | null>(null);
+
+  // Fetch property owner details
+  useEffect(() => {
+    const fetchPropertyOwner = async () => {
+      if (property.ownerId) {
+        try {
+          const response = await fetch(`/api/users/${property.ownerId}`);
+          if (response.ok) {
+            const owner = await response.json();
+            setPropertyOwner(owner);
+          }
+        } catch (error) {
+          console.error("Error fetching property owner:", error);
+        }
+      }
+    };
+
+    fetchPropertyOwner();
+  }, [property.ownerId]);
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -153,6 +174,39 @@ const handleCardClick = (e: React.MouseEvent) => {
           <p className="text-gray-500 text-sm mb-3">
             {property.bedrooms} bed • {property.bathrooms} bath • {property.squareMeters} sq m
           </p>
+
+          {/* Property Owner Contact */}
+          {propertyOwner && (
+            <div className="mb-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center mb-1">
+                    <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center mr-2">
+                      <span className="text-xs font-semibold text-blue-600">
+                        {propertyOwner.fullName?.charAt(0)?.toUpperCase() || 'A'}
+                      </span>
+                    </div>
+                    <span className="text-xs font-semibold text-gray-800">{propertyOwner.fullName}</span>
+                  </div>
+                  <div className="text-xs text-blue-600 font-medium mb-1">
+                    {propertyOwner.role === 'agent' ? 'Property Agent' : 'Property Manager'}
+                  </div>
+                  {propertyOwner.companyName && (
+                    <div className="text-xs text-gray-600 mb-1">
+                      {propertyOwner.companyName}
+                    </div>
+                  )}
+                  {propertyOwner.phoneNumber && (
+                    <div className="flex items-center">
+                      <Phone className="h-3 w-3 text-green-600 mr-1" />
+                      <span className="text-xs text-green-700 font-medium">{propertyOwner.phoneNumber}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-between items-center mb-3">
             <div>
               <span className="font-bold">{property.price != null ? property.price.toLocaleString() : <span className="text-gray-400">N/A</span>} {property.currency || 'UGX'}</span>

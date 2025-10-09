@@ -13,15 +13,98 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Settings, User, Home, Calendar, Bell, LogOut } from "lucide-react";
+import { Loader2, Settings, User, Home, Calendar, Bell, LogOut, Phone, Edit, Save, X } from "lucide-react";
 import { format } from "date-fns";
+import { Input } from "@/components/ui/input";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function ProfilePage() {
   const { user, logoutMutation } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>("profile");
   const [location] = useLocation();
-  
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    fullName: "",
+    phoneNumber: "",
+    companyName: ""
+  });
+
+  // Initialize form with user data
+  useEffect(() => {
+    if (user) {
+      setEditForm({
+        fullName: user.fullName || "",
+        phoneNumber: user.phoneNumber || "",
+        companyName: user.companyName || ""
+      });
+    }
+  }, [user]);
+
+  // Update profile mutation
+  const updateProfileMutation = useMutation({
+    mutationFn: async (profileData: { fullName?: string; phoneNumber?: string; companyName?: string }) => {
+      const response = await fetch("/api/users/profile", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(profileData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update profile");
+      }
+
+      return response.json();
+    },
+    onSuccess: (updatedUser) => {
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been updated successfully.",
+      });
+      setIsEditing(false);
+      // Update the user data in the auth context
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update profile",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handlers
+  const handleEditClick = () => {
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    // Reset form to original values
+    if (user) {
+      setEditForm({
+        fullName: user.fullName || "",
+        phoneNumber: user.phoneNumber || "",
+        companyName: user.companyName || ""
+      });
+    }
+  };
+
+  const handleSaveEdit = () => {
+    updateProfileMutation.mutate(editForm);
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   // Extract tab from URL query parameters
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -172,16 +255,59 @@ export default function ProfilePage() {
             <TabsContent value="profile">
               <Card>
                 <CardHeader>
-                  <CardTitle>Personal Information</CardTitle>
-                  <CardDescription>
-                    View and manage your personal information
-                  </CardDescription>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle>Personal Information</CardTitle>
+                      <CardDescription>
+                        View and manage your personal information
+                      </CardDescription>
+                    </div>
+                    {!isEditing ? (
+                      <Button variant="outline" size="sm" onClick={handleEditClick}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                      </Button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCancelEdit}
+                          disabled={updateProfileMutation.isPending}
+                        >
+                          <X className="mr-2 h-4 w-4" />
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleSaveEdit}
+                          disabled={updateProfileMutation.isPending}
+                        >
+                          {updateProfileMutation.isPending ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Save className="mr-2 h-4 w-4" />
+                          )}
+                          Save
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div>
                       <h3 className="text-sm font-medium text-gray-500">Full Name</h3>
-                      <p className="mt-1">{user.fullName}</p>
+                      {isEditing ? (
+                        <Input
+                          value={editForm.fullName}
+                          onChange={(e) => handleInputChange("fullName", e.target.value)}
+                          placeholder="Enter your full name"
+                          className="mt-1"
+                        />
+                      ) : (
+                        <p className="mt-1">{user.fullName}</p>
+                      )}
                     </div>
                     <div>
                       <h3 className="text-sm font-medium text-gray-500">Username</h3>
@@ -191,6 +317,43 @@ export default function ProfilePage() {
                       <h3 className="text-sm font-medium text-gray-500">Email</h3>
                       <p className="mt-1">{user.email}</p>
                     </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Phone Number</h3>
+                      {isEditing ? (
+                        <Input
+                          value={editForm.phoneNumber}
+                          onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
+                          placeholder="Enter your phone number"
+                          className="mt-1"
+                        />
+                      ) : (
+                        <div className="mt-1 flex items-center">
+                          {user.phoneNumber ? (
+                            <>
+                              <Phone className="mr-2 h-4 w-4 text-gray-500" />
+                              <span>{user.phoneNumber}</span>
+                            </>
+                          ) : (
+                            <span className="text-gray-400 italic">No phone number added</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {(user.role === 'agent' || user.role === 'admin') && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Company Name</h3>
+                        {isEditing ? (
+                          <Input
+                            value={editForm.companyName}
+                            onChange={(e) => handleInputChange("companyName", e.target.value)}
+                            placeholder="Enter your company name"
+                            className="mt-1"
+                          />
+                        ) : (
+                          <p className="mt-1">{user.companyName || "Not specified"}</p>
+                        )}
+                      </div>
+                    )}
                     <div>
                       <h3 className="text-sm font-medium text-gray-500">Role</h3>
                       <p className="mt-1 capitalize">{user.role}</p>

@@ -81,33 +81,33 @@ export default function FilterBar() {
 
   return (
     <section className="py-4 border-b border-gray-200 overflow-x-auto whitespace-nowrap hide-scrollbar px-6">
-      <AnimatedContainer className="container mx-auto flex items-center space-x-4 md:space-x-6">
+      <AnimatedContainer className="container mx-auto flex items-center space-x-6 md:space-x-8">
         <AnimatedItem>
-          <h2 className="font-bold text-lg mr-2 md:mr-4">Browse by:</h2>
+          <h2 className="font-bold text-lg mr-4 md:mr-6">Browse by:</h2>
         </AnimatedItem>
         {categories.map((category, index) => (
           <AnimatedItem key={category.name} delay={index * 0.1}>
-            <button 
+            <button
               onClick={() => toggleCategory(index)}
-              className={`flex flex-col items-center opacity-70 hover:opacity-100 transition-all duration-300 pb-2 border-b-2 min-w-[60px] md:min-w-auto ${
-                category.isActive 
-                  ? 'border-gray-800 opacity-100' 
+              className={`flex flex-col items-center opacity-70 hover:opacity-100 transition-all duration-300 pb-2 border-b-2 min-w-[80px] md:min-w-[100px] px-2 ${
+                category.isActive
+                  ? 'border-gray-800 opacity-100'
                   : 'border-transparent hover:border-gray-800'
               } focus:outline-none`}
             >
-              <i className={`fas fa-${category.icon} mb-1 text-sm md:text-base`}></i>
-              <span className="text-xs md:text-sm">{category.name}</span>
+              <i className={`fas fa-${category.icon} mb-1 text-base md:text-lg`}></i>
+              <span className="text-sm md:text-base font-medium">{category.name}</span>
             </button>
           </AnimatedItem>
         ))}
         <AnimatedItem delay={0.4}>
-          <Button 
-            variant="outline" 
-            className="bg-white border border-gray-200 rounded-lg px-3 md:px-4 py-2 ml-2 md:ml-4 flex items-center hover:bg-gray-50 transition-colors"
+          <Button
+            variant="outline"
+            className="bg-white border border-gray-200 rounded-lg px-4 md:px-6 py-2 ml-4 md:ml-6 flex items-center hover:bg-gray-50 transition-colors min-w-[100px]"
             onClick={() => setIsFilterDialogOpen(true)}
           >
-            <i className="fas fa-sliders-h mr-1 md:mr-2 text-sm md:text-base"></i>
-            <span className="text-xs md:text-sm">Filters</span>
+            <i className="fas fa-sliders-h mr-2 text-base md:text-lg"></i>
+            <span className="text-sm md:text-base font-medium">Filters</span>
           </Button>
         </AnimatedItem>
       </AnimatedContainer>

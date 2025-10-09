@@ -86,6 +86,8 @@ export const users = pgTable("users", {
   membershipEndDate: text("membership_end_date"),
   role: text("role").default("normal").notNull(), // Possible values: "admin", "agent", "normal"
   isVerified: boolean("is_verified").default(false),
+  emailVerificationToken: text("email_verification_token"),
+  emailVerificationExpires: text("email_verification_expires"),
   // Agent-specific fields
   phoneNumber: text("phone_number"),
   companyName: text("company_name"),

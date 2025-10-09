@@ -16,7 +16,7 @@ export default function DownloadApp() {
   };
   
   return (
-    <section className="py-12 bg-gray-900 text-white">
+    <section className="py-12 bg-gray-900 text-white -mx-4 sm:-mx-6 lg:-mx-8">
       <div className="container mx-auto px-4">
         <div className="md:flex items-center">
           <div className="md:w-1/2 mb-8 md:mb-0">

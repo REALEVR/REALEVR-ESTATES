@@ -187,7 +187,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
   };
 
   return (
-    <section className='bg-[#faf8f6]'>
+    <section className='bg-[#faf8f6] -mx-4 sm:-mx-6 lg:-mx-8'>
  <section className="w-full mdx_hero p-8 md:p-12 mt-6 flex flex-col gap-8 hero-video-wrapper  newHero">
 
       {/* Main hero content */}
