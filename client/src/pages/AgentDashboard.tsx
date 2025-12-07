@@ -55,7 +55,7 @@ export function AgentDashboard() {
       // Fetch agent's properties
       console.log("Fetching agent properties...");
       console.log("Cookies:", document.cookie);
-      const propertiesResponse = await fetch("/api/agent/properties", {
+      const propertiesResponse = await fetch(import.meta.env.VITE_BACKEND_URL +"/api/agent/properties", {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
@@ -105,7 +105,7 @@ export function AgentDashboard() {
     }
 
     try {
-      const response = await fetch(`/api/agent/properties/${propertyId}`, {
+      const response = await fetch(import.meta.env.VITE_BACKEND_URL +`/api/agent/properties/${propertyId}`, {
         method: 'DELETE',
         credentials: 'include',
         headers: {

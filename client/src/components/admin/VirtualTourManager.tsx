@@ -72,7 +72,7 @@ export default function VirtualTourManager() {
     queryKey: ['/api/properties', propertyId || 'none'],
     queryFn: async () => {
       if (!propertyId) return null as any;
-      const res = await fetch(`/api/properties/${propertyId}`);
+      const res = await fetch(import.meta.env.VITE_BACKEND_URL +`/api/properties/${propertyId}`);
       if (!res.ok) throw new Error('Failed to fetch property');
       return res.json();
     },
@@ -160,7 +160,7 @@ export default function VirtualTourManager() {
       formData.append('tourZip', file);
 
       // Upload the virtual tour zip
-      const response = await fetch(`/api/upload/virtual-tour/${property.id}`, {
+      const response = await fetch(import.meta.env.VITE_BACKEND_URL +`/api/upload/virtual-tour/${property.id}`, {
         method: 'POST',
         body: formData,
         credentials: 'include',

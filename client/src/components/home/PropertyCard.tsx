@@ -26,7 +26,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
     const fetchPropertyOwner = async () => {
       if (property.ownerId) {
         try {
-          const response = await fetch(`/api/users/${property.ownerId}`);
+          const response = await fetch(import.meta.env.VITE_BACKEND_URL +`/api/users/${property.ownerId}`);
           if (response.ok) {
             const owner = await response.json();
             setPropertyOwner(owner);

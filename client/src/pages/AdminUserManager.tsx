@@ -85,7 +85,7 @@ export default function AdminUserManager() {
         setLoading(true);
         
         // Fetch users
-        const usersResponse = await fetch("/api/users", {
+        const usersResponse = await fetch(import.meta.env.VITE_BACKEND_URL +"/api/users", {
           credentials: "include",
         });
         
@@ -95,7 +95,7 @@ export default function AdminUserManager() {
         }
 
         // Fetch admin analytics
-        const analyticsResponse = await fetch("/api/analytics/admin-overview", {
+        const analyticsResponse = await fetch(import.meta.env.VITE_BACKEND_URL +"/api/analytics/admin-overview", {
           credentials: "include",
         });
         
@@ -105,7 +105,7 @@ export default function AdminUserManager() {
         }
 
         // Fetch agent subscriptions
-        const subscriptionsResponse = await fetch("/api/admin/agent-subscriptions", {
+        const subscriptionsResponse = await fetch(import.meta.env.VITE_BACKEND_URL +"/api/admin/agent-subscriptions", {
           credentials: "include",
         });
         
@@ -130,7 +130,7 @@ export default function AdminUserManager() {
 
   const handleRoleUpdate = async (userId: number, newRole: string) => {
     try {
-      const response = await fetch(`/api/users/${userId}/role`, {
+      const response = await fetch(import.meta.env.VITE_BACKEND_URL +`/api/users/${userId}/role`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -146,7 +146,7 @@ export default function AdminUserManager() {
         });
         
         // Refresh users list
-        const usersResponse = await fetch("/api/users", {
+        const usersResponse = await fetch(import.meta.env.VITE_BACKEND_URL +"/api/users", {
           credentials: "include",
         });
         if (usersResponse.ok) {
@@ -213,7 +213,7 @@ export default function AdminUserManager() {
       setSelectedAgent(agent);
       
       // Fetch agent's properties
-      const propertiesResponse = await fetch(`/api/admin/agent-properties/${agent.agentId}`, {
+      const propertiesResponse = await fetch(import.meta.env.VITE_BACKEND_URL +`/api/admin/agent-properties/${agent.agentId}`, {
         credentials: "include",
       });
       

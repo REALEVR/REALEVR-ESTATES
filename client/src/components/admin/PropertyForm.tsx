@@ -226,7 +226,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
       formData.append('image', image);
 
       // Upload the image
-      const response = await fetch('/api/upload/property-image', {
+      const response = await fetch(import.meta.env.VITE_BACKEND_URL +'/api/upload/property-image', {
         method: 'POST',
         body: formData,
         credentials: 'include',
@@ -327,7 +327,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
       formData.append('tourZip', file);
 
       // Upload the virtual tour zip
-      const response = await fetch(`/api/upload/virtual-tour/${property.id}`, {
+      const response = await fetch(import.meta.env.VITE_BACKEND_URL +`/api/upload/virtual-tour/${property.id}`, {
         method: 'POST',
         body: formData,
         credentials: 'include',

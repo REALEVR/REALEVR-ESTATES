@@ -45,7 +45,7 @@ export default function ProfilePage() {
   // Update profile mutation
   const updateProfileMutation = useMutation({
     mutationFn: async (profileData: { fullName?: string; phoneNumber?: string; companyName?: string }) => {
-      const response = await fetch("/api/users/profile", {
+      const response = await fetch(import.meta.env.VITE_BACKEND_URL +"/api/users/profile", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

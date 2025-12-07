@@ -13,7 +13,7 @@ export function ConnectionStatus() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        const response = await fetch('/api/test-endpoint', {
+        const response = await fetch(import.meta.env.VITE_BACKEND_URL +'/api/test-endpoint', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ timestamp: Date.now() }),

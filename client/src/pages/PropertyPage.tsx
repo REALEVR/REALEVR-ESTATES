@@ -26,7 +26,7 @@ export default function PropertyPage() {
           console.log(`Property ${propertyId} view tracked, new count: ${viewCountResponse}`);
           
           // Then track detailed analytics
-          const analyticsResponse = await fetch('/api/analytics/track-view', {
+          const analyticsResponse = await fetch(import.meta.env.VITE_BACKEND_URL +'/api/analytics/track-view', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -55,7 +55,7 @@ export default function PropertyPage() {
       // Record this tour as viewed by the user
       const recordUserTour = async () => {
         try {
-          await fetch('/api/user/tours', {
+          await fetch(import.meta.env.VITE_BACKEND_URL +'/api/user/tours', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',

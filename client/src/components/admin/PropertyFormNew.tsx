@@ -487,7 +487,7 @@ const onSubmit = async (data: PropertyFormValues) => {
       formData.append('image', image);
 
       // Upload the image
-      const response = await fetch('/api/upload/property-image', {
+      const response = await fetch(import.meta.env.VITE_BACKEND_URL +'/api/upload/property-image', {
         method: 'POST',
         body: formData,
         credentials: 'include',

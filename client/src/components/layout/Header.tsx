@@ -31,7 +31,7 @@ export default function Header() {
 
   async function triggerDynamoDBSetup() {
     try {
-      const res = await fetch("/api/setup-dynamodb", { method: "POST" });
+      const res = await fetch(import.meta.env.VITE_BACKEND_URL +"/api/setup-dynamodb", { method: "POST" });
       const data = await res.json();
       if (res.ok) {
         toast({ title: "DynamoDB setup complete!", description: data.message || "Tables created." });

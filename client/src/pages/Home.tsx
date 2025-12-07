@@ -35,7 +35,7 @@ export default function Home() {
   useEffect(() => {
     const fetchVideoSettings = async () => {
       try {
-        const response = await fetch("/api/video-settings");
+        const response = await fetch(import.meta.env.VITE_BACKEND_URL +"/api/video-settings");
         if (response.ok) {
           const data = await response.json();
           setHeroVideoUrl(data.heroVideoUrl);

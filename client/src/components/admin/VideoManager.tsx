@@ -27,7 +27,7 @@ export default function VideoManager() {
 
   const fetchVideoSettings = async () => {
     try {
-      const response = await fetch("/api/admin/video-settings");
+      const response = await fetch(import.meta.env.VITE_BACKEND_URL +"/api/admin/video-settings");
       if (response.ok) {
         const data = await response.json();
         setVideoSettings(data);
@@ -64,7 +64,7 @@ export default function VideoManager() {
 
     setIsSaving(true);
     try {
-      const response = await fetch("/api/admin/video-settings", {
+      const response = await fetch(import.meta.env.VITE_BACKEND_URL +"/api/admin/video-settings", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

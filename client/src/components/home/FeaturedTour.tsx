@@ -97,7 +97,7 @@ export default function FeaturedTour() {
     const fetchPropertyOwner = async () => {
       if (featuredProperty?.ownerId) {
         try {
-          const response = await fetch(`/api/users/${featuredProperty.ownerId}`);
+          const response = await fetch(import.meta.env.VITE_BACKEND_URL +`/api/users/${featuredProperty.ownerId}`);
           if (response.ok) {
             const owner = await response.json();
             setPropertyOwner(owner);

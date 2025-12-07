@@ -53,7 +53,7 @@ export function UserDashboard() {
       try {
         setLoading(true);
         // Fetch user's viewed tours
-        const toursResponse = await fetch("/api/user/tours");
+        const toursResponse = await fetch(import.meta.env.VITE_BACKEND_URL +"/api/user/tours");
         let tours = [];
         if (toursResponse.ok) {
           tours = await toursResponse.json();
@@ -62,7 +62,7 @@ export function UserDashboard() {
         const propertyDetails = await Promise.all(
           tours.map(async (tour: any) => {
             try {
-              const propRes = await fetch(`/api/properties/${tour.propertyId}`);
+              const propRes = await fetch(import.meta.env.VITE_BACKEND_URL +`/api/properties/${tour.propertyId}`);
               if (propRes.ok) {
                 const property = await propRes.json();
                 return { ...tour, property };

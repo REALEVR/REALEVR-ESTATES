@@ -159,7 +159,7 @@ export default function AgentRegistrationPage() {
     if (response.status === 'successful') {
       try {
         // Verify the payment with our backend
-        const verificationResponse = await fetch("/api/verify-agent-subscription", {
+        const verificationResponse = await fetch(import.meta.env.VITE_BACKEND_URL +"/api/verify-agent-subscription", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

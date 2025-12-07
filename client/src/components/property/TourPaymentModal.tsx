@@ -76,7 +76,7 @@ export default function TourPaymentModal({
     if (response.status === 'successful') {
       try {
         // Verify the payment with our backend
-        const verificationResponse = await fetch("/api/verify-tour-payment", {
+        const verificationResponse = await fetch(import.meta.env.VITE_BACKEND_URL +"/api/verify-tour-payment", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -130,7 +130,7 @@ export default function TourPaymentModal({
         if (response.status === 'successful') {
           try {
             // Verify payment
-            const verificationResponse = await fetch("/api/verify-tour-payment", {
+            const verificationResponse = await fetch(import.meta.env.VITE_BACKEND_URL +"/api/verify-tour-payment", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",

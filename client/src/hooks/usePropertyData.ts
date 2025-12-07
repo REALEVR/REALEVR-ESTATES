@@ -42,7 +42,7 @@ export function useProperties() {
   const result = useQuery<Property[]>({
     queryKey: ["/api/properties"],
     ...PROPERTY_QUERY_OPTIONS,
-    queryFn: () => freshFetch("/api/properties")
+    queryFn: () => freshfetch(import.meta.env.VITE_BACKEND_URL +"/api/properties")
   });
   
   return result;
@@ -52,7 +52,7 @@ export function useProperty(id: number) {
   const result = useQuery<Property>({
     queryKey: [`/api/properties/${id}`],
     ...PROPERTY_QUERY_OPTIONS,
-    queryFn: () => freshFetch(`/api/properties/${id}`)
+    queryFn: () => freshfetch(import.meta.env.VITE_BACKEND_URL +`/api/properties/${id}`)
   });
   
   return result;
@@ -62,7 +62,7 @@ export function useFeaturedProperties() {
   const result = useQuery<Property[]>({
     queryKey: ["/api/properties/featured"],
     ...PROPERTY_QUERY_OPTIONS,
-    queryFn: () => freshFetch("/api/properties/featured")
+    queryFn: () => freshfetch(import.meta.env.VITE_BACKEND_URL +"/api/properties/featured")
   });
   
   return result;
@@ -73,7 +73,7 @@ export function usePropertiesByCategory(category: string) {
     queryKey: ["/api/properties/category", category],
     enabled: !!category,
     ...PROPERTY_QUERY_OPTIONS,
-    queryFn: () => freshFetch(`/api/properties/category/${category}`)
+    queryFn: () => freshfetch(import.meta.env.VITE_BACKEND_URL +`/api/properties/category/${category}`)
   });
   
   return result;
@@ -86,7 +86,7 @@ export function usePropertySearch(query: string) {
     ...PROPERTY_QUERY_OPTIONS,
     queryFn: () => {
       const params = new URLSearchParams({ q: query }).toString();
-      return freshFetch(`/api/properties/search?${params}`);
+      return freshfetch(import.meta.env.VITE_BACKEND_URL +`/api/properties/search?${params}`);
     }
   });
   
@@ -98,7 +98,7 @@ export function usePopularProperties(limit?: number) {
   const result = useQuery<Property[]>({
     queryKey: ["/api/properties/popular", { limit }],
     ...PROPERTY_QUERY_OPTIONS,
-    queryFn: () => freshFetch(`/api/properties/popular${queryParams}`)
+    queryFn: () => freshfetch(import.meta.env.VITE_BACKEND_URL +`/api/properties/popular${queryParams}`)
   });
   
   return result;
@@ -109,7 +109,7 @@ export function useRecentProperties(limit?: number) {
   const result = useQuery<Property[]>({
     queryKey: ["/api/properties/recent", { limit }],
     ...PROPERTY_QUERY_OPTIONS,
-    queryFn: () => freshFetch(`/api/properties/recent${queryParams}`)
+    queryFn: () => freshfetch(import.meta.env.VITE_BACKEND_URL +`/api/properties/recent${queryParams}`)
   });
   
   return result;
@@ -118,7 +118,7 @@ export function useRecentProperties(limit?: number) {
 export async function trackPropertyView(propertyId: number) {
   try {
     console.log(`Tracking view for property ${propertyId}`);
-    const response = await fetch(`/api/properties/${propertyId}/view`, {
+    const response = await fetch(import.meta.env.VITE_BACKEND_URL +`/api/properties/${propertyId}/view`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

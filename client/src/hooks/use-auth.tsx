@@ -29,7 +29,7 @@ export const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
-  
+
   const {
     data: user,
     error,
@@ -77,7 +77,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Don't set user data since they're not logged in yet
       toast({
         title: "Registration successful!",
-        description: response.message || "Please check your email for the verification code.",
+        description:
+          response.message ||
+          "Please check your email for the verification code.",
       });
       // Redirect to verification page
       window.location.href = "/verify-email";
@@ -113,7 +115,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resendVerificationMutation = useMutation({
     mutationFn: async (email: string) => {
-      const res = await apiRequest("POST", "/api/resend-verification", { email });
+      const res = await apiRequest("POST", "/api/resend-verification", {
+        email,
+      });
       return await res.json();
     },
     onSuccess: () => {
