@@ -7,7 +7,7 @@ const createTransporter = () => {
   
   if (process.env.NODE_ENV === 'production') {
     // Production email configuration
-    return nodemailer.createTransporter({
+    return nodemailer.createTransport({
       service: 'gmail', // or your preferred service
       auth: {
         user: process.env.EMAIL_USER,
@@ -16,7 +16,7 @@ const createTransporter = () => {
     });
   } else {
     // Development configuration - using Ethereal Email for testing
-    return nodemailer.createTransporter({
+    return nodemailer.createTransport({
       host: 'smtp.ethereal.email',
       port: 587,
       auth: {
