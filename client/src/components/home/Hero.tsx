@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import "../Hero.css"
 
 import houseImg from '../../assets/images/hero.jpg';
+import FilterBar from './FilterBar';
 
 // Custom hook for mobile detection
 const useIsMobile = () => {
@@ -217,6 +218,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           </div>
         </div>
       </div>
+       <FilterBar />
 
       {/* House image/video and search bar */}
       <div className="relative mt-4">

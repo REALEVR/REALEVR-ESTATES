@@ -1,68 +1,58 @@
-import nodemailer from 'nodemailer';
+import nodemailer from 'nodemailer'
 
 // Email configuration
 const createTransporter = () => {
-  // For development, you can use a service like Gmail, SendGrid, or Mailgun
-  // For production, use a proper email service
-  
-  if (process.env.NODE_ENV === 'production') {
-    // Production email configuration
+    // For development, you can use a service like Gmail, SendGrid, or Mailgun
+    // For production, use a proper email service
     return nodemailer.createTransport({
-      service: 'gmail', // or your preferred service
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD, // Use app password for Gmail
-      },
-    });
-  } else {
-    // Development configuration - using Ethereal Email for testing
-    return nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      auth: {
-        user: 'ethereal.user@ethereal.email',
-        pass: 'ethereal.pass'
-      }
-    });
-  }
-};
+        service: 'gmail',
+        // or your preferred service
+        auth: {
+            type: 'OAUTH2',
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASSWORD, // Use app password for Gmail
+            clientId: process.env.GOOGLE_EMAIL_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_EMAIL_CLIENT_SECRET,
+        },
+    })
+}
 
 export interface EmailOptions {
-  to: string;
-  subject: string;
-  html: string;
-  text?: string;
+    to: string
+    subject: string
+    html: string
+    text?: string
 }
 
 export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
-  try {
-    const transporter = createTransporter();
-    
-    const mailOptions = {
-      from: process.env.EMAIL_FROM || 'noreply@realevr.com',
-      to: options.to,
-      subject: options.subject,
-      html: options.html,
-      text: options.text,
-    };
+    try {
+        const transporter = createTransporter()
 
-    const result = await transporter.sendMail(mailOptions);
-    console.log('Email sent successfully:', result.messageId);
-    
-    // For development, log the preview URL
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Preview URL:', nodemailer.getTestMessageUrl(result));
+        const mailOptions = {
+            from: process.env.EMAIL_FROM || 'noreply@realevr.com',
+            to: options.to,
+            subject: options.subject,
+            html: options.html,
+            text: options.text,
+        }
+
+        const result = await transporter.sendMail(mailOptions)
+        console.log('Email sent successfully:', result.messageId)
+
+        // For development, log the preview URL
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('Preview URL:', nodemailer.getTestMessageUrl(result))
+        }
+
+        return true
+    } catch (error) {
+        console.error('Error sending email:', error)
+        return false
     }
-    
-    return true;
-  } catch (error) {
-    console.error('Error sending email:', error);
-    return false;
-  }
-};
+}
 
 export const generateVerificationEmailHTML = (verificationUrl: string, userName: string, token: string): string => {
-  return `
+    return `
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -159,11 +149,11 @@ export const generateVerificationEmailHTML = (verificationUrl: string, userName:
         </div>
     </body>
     </html>
-  `;
-};
+  `
+}
 
 export const generateVerificationEmailText = (verificationUrl: string, userName: string, token: string): string => {
-  return `
+    return `
 Hello ${userName},
 
 Thank you for registering with RealEVR Estates! To complete your registration and start exploring virtual property tours, please verify your email address.
@@ -184,5 +174,5 @@ The RealEVR Estates Team
 
 © ${new Date().getFullYear()} RealEVR Estates. All rights reserved.
 This is an automated email. Please do not reply to this message.
-  `;
-};
+  `
+}
