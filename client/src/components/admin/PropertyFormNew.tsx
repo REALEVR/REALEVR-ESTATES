@@ -55,6 +55,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Checkbox } from '@/components/ui/checkbox';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import Result_ from 'postcss/lib/result';
 
 // Create a form schema that replaces squareMeters with squareFeet for the UI
 const propertyFormSchema = insertPropertySchema
@@ -482,9 +483,14 @@ const onSubmit = async (data: PropertyFormValues) => {
     setUploadError("");
 
     try {
+      console.log("WillCreateFormDataForImage",image)
       // Create FormData
       const formData = new FormData();
       formData.append('image', image);
+
+      console.log("DidCreateFormDataForImage",formData)
+
+      console.log("WillMakeImageResponsePost")
 
       // Upload the image
       const response = await fetch('/api/upload/property-image', {
@@ -493,7 +499,12 @@ const onSubmit = async (data: PropertyFormValues) => {
         credentials: 'include',
       });
 
+      console.log("WillMakeImageResponsePost")
+
+
       const result = await response.json();
+
+      console.log("DidGetImageResponseResult",result)
 
       if (response.ok && result.status === 'success') {
         setUploadSuccess(true);

@@ -32,10 +32,8 @@ export function ProtectedAdminRoute({
         )
     }
 
-   
     // Check if user has the required role
     if (!allowedRoles.includes(user.role)) {
-
         return (
             <Route path={path}>
                 <div className="container mx-auto py-12 px-4">
@@ -45,9 +43,7 @@ export function ProtectedAdminRoute({
                             You don't have permission to access this page. This area is reserved for administrators and
                             property managers.
                         </p>
-                        <div className="flex justify-center">
-                            {/* <Redirect to="/" /> */}
-                        </div>
+                        <div className="flex justify-center">{/* <Redirect to="/" /> */}</div>
                     </div>
                 </div>
             </Route>

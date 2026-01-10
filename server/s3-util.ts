@@ -8,9 +8,9 @@ const s3 = new S3Client({
   },
 });
 
-const BUCKET = process.env.AWS_S3_BUCKET;
-
+const BUCKET = process.env.AWS_S3_BUCKET_NAME
 export async function uploadFileToS3(key: string, body: Buffer | Uint8Array | Blob | string, contentType: string) {
+
   const command = new PutObjectCommand({
     Bucket: BUCKET!,
     Key: key,
