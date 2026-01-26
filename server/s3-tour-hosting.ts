@@ -15,6 +15,7 @@ const s3Client = new S3Client({
 });
 
 const BUCKET_NAME = process.env.S3_TOURS_BUCKET || 'realevr-tours';
+const REGION = process.env.AWS_REGION || 'us-east-1';
 
 interface UploadState {
   uploadedFiles: number;
@@ -22,80 +23,81 @@ interface UploadState {
   onProgress: (progress: number) => void;
 }
 
-// Setup S3 bucket with proper configuration for hosting HTML tours
 export async function setupS3TourBucket(): Promise<void> {
   try {
-    // Check if bucket exists
+    // 1️⃣ Check if bucket exists
     try {
-      await s3Client.send(new HeadBucketCommand({ Bucket: BUCKET_NAME }));
+      await s3Client.send(
+        new HeadBucketCommand({ Bucket: BUCKET_NAME })
+      );
       console.log(`Bucket ${BUCKET_NAME} already exists`);
-    } catch (error: any) {
-      if (error.name === 'NotFound') {
-        // Create bucket
-        await s3Client.send(new CreateBucketCommand({ 
-          Bucket: BUCKET_NAME,
-          CreateBucketConfiguration: {
-            LocationConstraint: process.env.AWS_REGION !== 'us-east-1' ? process.env.AWS_REGION || 'us-east-1' : undefined
-          }
-        }));
+    } catch (err: any) {
+      if (err.name === "NotFound" || err.$metadata?.httpStatusCode === 404) {
+        await s3Client.send(
+          new CreateBucketCommand({
+            Bucket: BUCKET_NAME,
+            ...(REGION !== "us-east-1" && {
+              CreateBucketConfiguration: {
+                LocationConstraint: REGION
+              }
+            })
+          })
+        );
         console.log(`Created bucket: ${BUCKET_NAME}`);
       } else {
-        throw error;
+        throw err;
       }
     }
 
-    // Try to set CORS configuration (this usually works even with block public access)
-    try {
-      const corsConfiguration = {
-        CORSRules: [
-          {
-            AllowedHeaders: ['*'],
-            AllowedMethods: ['GET', 'HEAD'],
-            AllowedOrigins: ['*'],
-            ExposeHeaders: ['Content-Length', 'Date'],
-            MaxAgeSeconds: 3600
-          }
-        ]
-      };
-
-      await s3Client.send(new PutBucketCorsCommand({
+    // 2️⃣ Set proper CORS (THIS FIXES YOUR ISSUE)
+    await s3Client.send(
+      new PutBucketCorsCommand({
         Bucket: BUCKET_NAME,
-        CORSConfiguration: corsConfiguration
-      }));
-      console.log('CORS configuration set successfully');
-    } catch (corsError) {
-      console.warn('Could not set CORS configuration (this may not be critical):', corsError);
-    }
+        CORSConfiguration: {
+          CORSRules: [
+            {
+              AllowedOrigins: ["*"],
+              AllowedMethods: ["GET", "HEAD", "PUT", "POST"],
+              AllowedHeaders: ["*"],
+              ExposeHeaders: [
+                "ETag",
+                "Content-Length",
+                "x-amz-request-id"
+              ],
+              MaxAgeSeconds: 3600
+            }
+          ]
+        }
+      })
+    );
 
-    // Set bucket policy to make all objects public
-    try {
-      const bucketPolicy = {
-        Version: '2012-10-17',
-        Statement: [
-          {
-            Sid: 'PublicReadGetObject',
-            Effect: 'Allow',
-            Principal: '*',
-            Action: 's3:GetObject',
-            Resource: `arn:aws:s3:::${BUCKET_NAME}/*`
-          }
-        ]
-      };
+    console.log("S3 CORS configuration set successfully");
 
-      await s3Client.send(new PutBucketPolicyCommand({
+    // 3️⃣ Public READ policy (safe)
+    await s3Client.send(
+      new PutBucketPolicyCommand({
         Bucket: BUCKET_NAME,
-        Policy: JSON.stringify(bucketPolicy)
-      }));
-      console.log('Bucket policy set for public read access');
-    } catch (policyError) {
-      console.warn('Could not set bucket policy (this may be critical for public access):', policyError);
-    }
+        Policy: JSON.stringify({
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Sid: "PublicReadGetObject",
+              Effect: "Allow",
+              Principal: "*",
+              Action: "s3:GetObject",
+              Resource: `arn:aws:s3:::${BUCKET_NAME}/*`
+            }
+          ]
+        })
+      })
+    );
 
-    console.log('S3 bucket configured successfully for tour hosting');
+    console.log("Bucket policy set for public read access");
+    console.log("S3 bucket configured successfully ✅");
 
   } catch (error) {
-    console.error('Error setting up S3 bucket:', error);
-    throw new Error(`Failed to setup S3 bucket: ${error}`);
+    console.error("S3 bucket setup failed:", error);
+    throw error;
   }
 }
 
