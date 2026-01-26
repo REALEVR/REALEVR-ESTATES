@@ -216,7 +216,10 @@ const onSubmit = async (data: PropertyFormValues) => {
         ...propertyData,
         imageUrl: propertyData.imageUrl // Log the specific imageUrl being sent
       }));
+      console.log("WILL-TRY-TO-UPDATE-PROPERTY")
       response = await apiRequest('PATCH', `/api/properties/${property.id}`, propertyData);
+      console.log("DID-UPDATE-PROPERTY")
+
     } else {
       console.log('Creating new property with direct form submission');
 

@@ -340,34 +340,58 @@ export class DynamoDBStorage implements IStorage {
     });
   }
 
-  async updateProperty(id: number, propertyUpdate: Partial<Property>): Promise<Property | undefined> {
-    return executeWithRetry(async () => {
-      // Build update expression
-      const updateExpressions: string[] = [];
-      const expressionAttributeValues: any = { ":updatedAt": generateTimestamp() };
-      const expressionAttributeNames: any = { "#updatedAt": "updatedAt" };
+async updateProperty(
+  id: number,
+  propertyUpdate: Partial<Property>
+): Promise<Property | undefined> {
+  return executeWithRetry(async () => {
+    const updateExpressions: string[] = [];
 
-      Object.entries(propertyUpdate).forEach(([key, value]) => {
-        if (key !== 'id' && value !== undefined) {
-          updateExpressions.push(`#${key} = :${key}`);
-          expressionAttributeValues[`:${key}`] = value;
-          expressionAttributeNames[`#${key}`] = key;
-        }
-      });
+    // System-managed fields
+    const expressionAttributeValues: Record<string, any> = {
+      ":updatedAt": generateTimestamp(),
+    };
 
-      updateExpressions.push("#updatedAt = :updatedAt");
+    const expressionAttributeNames: Record<string, string> = {
+      "#updatedAt": "updatedAt",
+    };
 
-      const updatedItem = await DynamoDBUtils.updateItem(
-        TABLES.PROPERTIES,
-        { id: toStringId(id) },
-        `SET ${updateExpressions.join(", ")}`,
-        expressionAttributeValues,
-        expressionAttributeNames
-      );
+    // Build updates from user-provided fields
+    Object.entries(propertyUpdate).forEach(([key, value]) => {
+      // Block fields that must not be user-controlled
+      if (
+        key === "id" ||
+        key === "updatedAt" ||
+        value === undefined
+      ) {
+        return;
+      }
 
-      return updatedItem ? await this.convertPropertyFromDynamoDB(updatedItem) : undefined;
+      updateExpressions.push(`#${key} = :${key}`);
+      expressionAttributeValues[`:${key}`] = value;
+      expressionAttributeNames[`#${key}`] = key;
     });
-  }
+
+    // Always update timestamp
+    updateExpressions.push("#updatedAt = :updatedAt");
+
+    // If nothing to update besides updatedAt, still allow timestamp update
+    const UpdateExpression = `SET ${updateExpressions.join(", ")}`;
+
+    const updatedItem = await DynamoDBUtils.updateItem(
+      TABLES.PROPERTIES,
+      { id: toStringId(id) },
+      UpdateExpression,
+      expressionAttributeValues,
+      expressionAttributeNames
+    );
+
+    return updatedItem
+      ? await this.convertPropertyFromDynamoDB(updatedItem)
+      : undefined;
+  });
+}
+
 
   async deleteProperty(id: number): Promise<boolean> {
     return executeWithRetry(async () => {

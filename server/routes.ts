@@ -344,6 +344,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return res.status(404).json({ message: 'Property not found' })
             }
 
+            
+
             console.log(`[DEBUG] Found property ${id}: ${property.title}`)
 
             // Set cache control headers to prevent caching
@@ -1061,8 +1063,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
 
             console.log(`[DEBUG] PATCH request for property ${id} with data:`, JSON.stringify(req.body))
+            
+            console.log("DATE-OF-PROPERTY-TO-BE-UPDATED",id)
+            const updatedProperty = await storage.updateProperty(id, req.body);
 
-            const updatedProperty = await storage.updateProperty(id, req.body)
+
             if (!updatedProperty) {
                 console.log(`[DEBUG] Property with ID ${id} not found for update`)
                 return res.status(404).json({ message: 'Property not found' })
