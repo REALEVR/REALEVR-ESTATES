@@ -138,7 +138,7 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
                                 </p>
                             </div>
 
-                            <Button onClick={form.handleSubmit(handleExistingUserPayment)} disabled={isProcessing} className="w-full">
+                            <Button onClick={handleExistingUserPayment} disabled={isProcessing} className="w-full">
                                 {isProcessing ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
