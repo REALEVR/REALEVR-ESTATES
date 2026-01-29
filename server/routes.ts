@@ -8,11 +8,13 @@ import path from 'path'
 import { sseTourProgress } from './upload'
 import { getTourConfig } from './tour-config'
 import * as dropboxStorage from './dropbox-storage'
+import { request as request7 } from 'undici'
 
 import fs from 'fs'
 import { createTablesIfNotExist, DynamoDBUtils, TABLES, toNumericId, toStringId } from './dynamodb'
 
 import { uploadPropertyImage, uploadVirtualTour, handleUploadErrors, setupStaticFileRoutes } from './upload'
+import { registerPaymentGateWayForApp } from './payment/payment-new'
 
 // Middleware to check if user is an admin or property manager
 const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -81,11 +83,104 @@ const noCacheMiddleware = (req: Request, res: Response, next: NextFunction) => {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+    /**
+     * IoTec Payments
+     */
+
     // Setup authentication routes
     setupAuth(app)
 
     // Apply no-cache middleware to all API routes
     app.use('/api', noCacheMiddleware)
+
+    /**
+     *Used to Payment token;
+     */
+
+    app.post('/api/payment/iotec/token', async (_req: any, res: any) => {
+        try {
+            console.log('credentials', process.env.IOTEC_CLIENT_ID, process.env.IOTEC_CLIENT_SECRET)
+            const body = new URLSearchParams({
+                client_id: process.env.IOTEC_CLIENT_ID!,
+                client_secret: process.env.IOTEC_CLIENT_SECRET!,
+                grant_type: 'client_credentials',
+            })
+
+            const response = await fetch('https://id.iotec.io/connect/token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body,
+            })
+
+            const data = await response.json()
+
+            res.status(response.status).json(data)
+        } catch (err) {
+            console.error(err)
+            res.status(500).json({ error: 'Failed to fetch token' })
+        }
+    })
+
+    /**
+     * Make Mobile Money Intergation
+     */
+
+    app.post('/api/payment/iotec/collect', async (req: any, res: any) => {
+        const {
+            access_token, // required
+            payer,
+            payerNote,
+            amount,
+            payeeNote,
+            externalId = '001', // optional override
+        } = req.body
+
+        // Hard validation
+        if (!access_token) {
+            return res.status(400).json({ error: 'access_token is required' })
+        }
+
+        if (!payer || !amount) {
+            return res.status(400).json({
+                error: 'payer and amount are required',
+            })
+        }
+
+        try {
+            const { statusCode, body } = await request7('https://pay.iotec.io/api/collections/collect', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${access_token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    // fixed / system-controlled
+                    category: 'MobileMoney',
+                    currency: 'UGX',
+                    walletId: process.env.IOTEC_WALLET_ID,
+                    transactionChargesCategory: 'ChargeWallet',
+                    channel: null,
+
+                    // identifiers
+                    externalId,
+
+                    // client-provided
+                    payer,
+                    payerNote,
+                    amount,
+                    payeeNote,
+                }),
+            })
+
+            const data = await body.json()
+            res.status(statusCode).json(data)
+        } catch (err) {
+            console.error('IOTEC collection error:', err)
+            res.status(500).json({ error: 'Collection request failed' })
+        }
+    })
 
     // Get all properties
     app.get('/api/properties', async (req, res) => {
@@ -343,8 +438,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 console.log(`[DEBUG] Property with ID ${id} not found`)
                 return res.status(404).json({ message: 'Property not found' })
             }
-
-            
 
             console.log(`[DEBUG] Found property ${id}: ${property.title}`)
 
@@ -1063,10 +1156,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
 
             console.log(`[DEBUG] PATCH request for property ${id} with data:`, JSON.stringify(req.body))
-            
-            console.log("DATE-OF-PROPERTY-TO-BE-UPDATED",id)
-            const updatedProperty = await storage.updateProperty(id, req.body);
 
+            console.log('DATE-OF-PROPERTY-TO-BE-UPDATED', id)
+            const updatedProperty = await storage.updateProperty(id, req.body)
 
             if (!updatedProperty) {
                 console.log(`[DEBUG] Property with ID ${id} not found for update`)
@@ -1683,14 +1775,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return res.status(401).json({ message: 'Not authenticated' })
             }
 
-            const { phoneNumber, companyName, fullName } = req.body
             const userId = req.user.id
+            const { phoneNumber, companyName, fullName } = req.body
 
-            // Prepare update data
-            const updateData: any = {}
-            if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber
-            if (companyName !== undefined) updateData.companyName = companyName
-            if (fullName !== undefined) updateData.fullName = fullName
+            // Explicit whitelist (NO role, NO membership, NO isVerified)
+            const updateData: Partial<{
+                phoneNumber: string
+                companyName: string
+                fullName: string
+            }> = {}
+
+            if (typeof phoneNumber === 'string') updateData.phoneNumber = phoneNumber
+            if (typeof companyName === 'string') updateData.companyName = companyName
+            if (typeof fullName === 'string') updateData.fullName = fullName
 
             if (Object.keys(updateData).length === 0) {
                 return res.status(400).json({ message: 'No valid fields to update' })
@@ -1698,10 +1795,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             const updatedUser = await storage.updateUser(userId, updateData)
 
-            // Remove password before sending back to client
-            const { password, emailVerificationToken, ...userWithoutPassword } = updatedUser
+            // Remove sensitive fields
+            const { password, emailVerificationToken, role, ...safeUser } = updatedUser
 
-            res.json(userWithoutPassword)
+            // Send role from session, not DB mutation
+            res.json({ ...safeUser, role })
         } catch (error: any) {
             console.error('Error updating user profile:', error)
             res.status(500).json({ message: error.message })

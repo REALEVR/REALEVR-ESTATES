@@ -117,7 +117,7 @@ export const insertUserSchema = createInsertSchema(users)
     password: z.string().min(6, "Password must be at least 6 characters"),
     email: z.string().email("Invalid email address"),
     confirmPassword: z.string(),
-    role: z.enum(["admin", "agent", "normal"]).optional().default("normal"),
+    role: z.enum(["admin", "agent", "normal"]).default("normal"),
     isVerified: z.boolean().optional().default(false),
     membershipStartDate: z.string().nullable().optional(),
     membershipEndDate: z.string().nullable().optional(),

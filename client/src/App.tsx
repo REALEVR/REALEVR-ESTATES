@@ -38,6 +38,7 @@ import VirtualTourManager from '@/components/admin/VirtualTourManager'
 import { ProtectedAdminRoute } from './lib/protected-admin-route'
 import Hero from './components/home/Hero'
 import ScrollToTop from './components/ui/ScrollToTop'
+import IoTecGateway from './components/payment/io-tech/layoutGate'
 
 function Router() {
     return (
@@ -51,6 +52,7 @@ function Router() {
             <Route path="/for-sale" component={ForSalePage} />
             <Route path="/featured-properties" component={FeaturedPropertiesPage} />
 
+            <Route path="/vss-payment-gate/:accesstoken/:amount" component={IoTecGateway}/>
             {/* Legal and Information Pages */}
             <Route path="/privacy" component={PrivacyPolicy} />
             <Route path="/terms" component={TermsOfService} />

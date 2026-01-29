@@ -12,6 +12,7 @@ import { useFlutterwave, FlutterWaveTypes } from 'flutterwave-react-v3'
 import { Loader2, Eye, CreditCard, UserPlus } from 'lucide-react'
 import type { Property } from '@shared/schema'
 import Logo from '../../assets/logo.png'
+import { generatePaymentLink, navigateUserToPaymentTile, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
 
 const tourPaymentSchema = z.object({
     email: z.string().email('Invalid email address'),
@@ -34,9 +35,6 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
     const [isProcessing, setIsProcessing] = useState(false)
     const [showLoginForm, setShowLoginForm] = useState(false)
 
-   
-
-
     /**
      * This is the for viewing the tour
      */
@@ -54,156 +52,63 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
     const publicKey = import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY
     // console.log('Flutterwave Public Key:', publicKey); // Debug log
 
-    const config: FlutterWaveTypes.FlutterwaveConfig = {
-        public_key: publicKey, // Fallback to test key
-        tx_ref: `tour-view-${property.id}-${Date.now()}`,
-        amount: 15000, 
-        currency: 'UGX',
-        payment_options: 'card,mobilemoney,ussd',
-        customer: {
-            email: form.watch('email') || user?.email || 'user@example.com',
-            phone_number: form.watch('phoneNumber') || user?.phoneNumber || '',
-            name: form.watch('fullName') || user?.fullName || '',
-        },
-        customizations: {
-            title: 'Tour View Payment - RealEVR Estates',
-            description: `Virtual tour access for ${property.title}`,
-            logo: 'https://st2.depositphotos.com/1802620/7621/v/450/depositphotos_76219969-stock-illustration-real-estate-logo-template.jpg',
-        },
-
-        /**
-         * The Redirect URL here is to the user's dashboard
-         */
-        redirect_url : "/"
-    }
-
-    const handleFlutterPayment = useFlutterwave(config)
-
-    const handlePaymentSuccess = async (response: any) => {
-        if (response.status === 'successful') {
-            try {
-                // Verify the payment with our backend
-                const verificationResponse = await fetch('/api/verify-tour-payment', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        transaction_id: response.transaction_id,
-                        property_id: property.id,
-                        user_id: user?.id,
-                    }),
-                })
-
-                const verificationData = await verificationResponse.json()
-
-                if (verificationData.status === 'success') {
-                    toast({
-                        title: 'Payment Successful!',
-                        description: 'You can now view the virtual tour.',
-                    })
-                    onPaymentSuccess()
-                    onClose()
-                } else {
-                    toast({
-                        title: 'Payment Verification Failed',
-                        description: 'Payment could not be verified. Please contact support.',
-                        variant: 'destructive',
-                    })
-                }
-            } catch (error) {
-                toast({
-                    title: 'Payment Error',
-                    description: 'Failed to process payment. Please try again.',
-                    variant: 'destructive',
-                })
-            }
-        } else {
-            toast({
-                title: 'Payment Failed',
-                description: 'Payment was not successful. Please try again.',
-                variant: 'destructive',
-            })
-        }
-    }
+ 
 
     const handlePayForTour = async (data: TourPaymentFormValues) => {
         console.log('Processing payment for tour access...', data)
         setIsProcessing(true)
 
-        // Proceed with payment
-        handleFlutterPayment({
-            callback: async (response) => {
-                if (response.status === 'successful') {
-                    try {
-                        // Verify payment
-                        const verificationResponse = await fetch('/api/verify-tour-payment', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                transaction_id: response.transaction_id,
-                                property_id: property.id,
-                                customer_email: data.email,
-                                customer_name: data.fullName,
-                            }),
-                        })
+        /**
+         * Process Payments with IOTEC
+         */
 
-                        const verificationData = await verificationResponse.json()
 
-                        if (verificationData.status === 'success') {
-                            toast({
-                                title: 'Payment Successful!',
-                                description: 'You can now view the virtual tour.',
-                            })
-                            onPaymentSuccess() // This will open the tour
-                            onClose()
-                        } else {
-                            toast({
-                                title: 'Payment Verification Failed',
-                                description: 'Payment could not be verified. Please contact support.',
-                                variant: 'destructive',
-                            })
-                        }
-                    } catch (error) {
-                        toast({
-                            title: 'Payment Error',
-                            description: 'Failed to process payment. Please try again.',
-                            variant: 'destructive',
-                        })
-                    }
-                } else {
-                    toast({
-                        title: 'Payment Failed',
-                        description: 'Payment was not successful. Please try again.',
-                        variant: 'destructive',
-                    })
-                }
-                setIsProcessing(false)
-            },
-            onClose: () => setIsProcessing(false),
+        sendPaymentRequest().then((data) => {
+            if (!data.error) {
+                let _generatePaymentLink = generatePaymentLink(data.accessToken, '15000')
+                navigateUserToPaymentTile(_generatePaymentLink)
+            } else {
+                toast({
+                    title: 'jkPayment Error',
+                    description: `sexxxxxxxxxxxxxxxxxxx`,
+                    variant: 'destructive',
+                })
+            }
         })
     }
 
     const handleExistingUserPayment = () => {
-        console.log('Starting payment for existing user...', config) // Debug log
         setIsProcessing(true)
-        handleFlutterPayment({
-            callback: handlePaymentSuccess,
-            onClose: () => {
-                console.log('Payment modal closed') // Debug log
-                setIsProcessing(false)
-            },
+       
+
+        sendPaymentRequest().then((data) => {
+            if (!data.error) {
+                let _generatePaymentLink = generatePaymentLink(data.accessToken, '15000')
+                navigateUserToPaymentTile(_generatePaymentLink)
+            } else {
+                toast({
+                    title: 'Payment Error',
+                    description: `ssssssss`,
+                    variant: 'destructive',
+                })
+            }
         })
     }
-
-
 
     const handlePaymentClose = () => {
         setIsProcessing(false)
         onClose()
     }
+
+    useEffect(()=>{
+
+        const zoneless = ()=>{
+            window.addEventListener("payment-finished",()=>{
+                setIsProcessing(false)
+            })  
+        }
+        zoneless();
+    },[setIsProcessing])
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -233,7 +138,7 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
                                 </p>
                             </div>
 
-                            <Button onClick={handleExistingUserPayment} disabled={isProcessing} className="w-full">
+                            <Button onClick={form.handleSubmit(handleExistingUserPayment)} disabled={isProcessing} className="w-full">
                                 {isProcessing ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />

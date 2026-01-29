@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CheckIcon, BriefcaseIcon, HomeIcon, KeyIcon } from 'lucide-react'
+import { generatePaymentLink, navigateUserToPaymentTile, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
 
 interface PropertyViewingPaymentPromptProps {
     isOpen: boolean
@@ -44,33 +45,17 @@ export default function PropertyViewingPaymentPrompt({ isOpen, onClose }: Proper
     const handleFlutterPayment = useFlutterwave(config)
 
     const handlePayment = () => {
-        handleFlutterPayment({
-            callback: (response) => {
-                if (response.status === 'successful') {
-                    // Register the successful payment
-                    registerPayment()
-
-                    // Show success message
-                    toast({
-                        title: 'Payment Successful!',
-                        description: 'You now have access to view furnished rental properties for 7 days.',
-                    })
-
-                    onClose()
-                } else {
-                    // Show error toast
-                    toast({
-                        title: 'Payment Failed',
-                        description: 'There was an issue processing your payment. Please try again.',
-                        variant: 'destructive',
-                    })
-                }
-
-                closePaymentModal()
-            },
-            onClose: () => {
-                // Payment modal closed without completing
-            },
+        sendPaymentRequest().then((data) => {
+            if (!data.error) {
+                let _generatePaymentLink = generatePaymentLink(data.accessToken, '10000')
+                navigateUserToPaymentTile(_generatePaymentLink)
+            } else {
+                 toast({
+                    title: 'jkPayment Error',
+                    description: `sexxxxxxxxxxxxxxxxxxx`,
+                    variant: 'destructive',
+                })
+            }
         })
     }
 
