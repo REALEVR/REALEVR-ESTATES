@@ -52,7 +52,7 @@ export default function PropertyViewingPaymentPrompt({ isOpen, onClose }: Proper
             } else {
                  toast({
                     title: 'jkPayment Error',
-                    description: `sexxxxxxxxxxxxxxxxxxx`,
+                    description: `data.errorMessage`,
                     variant: 'destructive',
                 })
             }

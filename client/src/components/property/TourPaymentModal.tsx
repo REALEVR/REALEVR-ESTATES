@@ -70,7 +70,7 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
             } else {
                 toast({
                     title: 'jkPayment Error',
-                    description: `sexxxxxxxxxxxxxxxxxxx`,
+                    description: `data.errorMessage`,
                     variant: 'destructive',
                 })
             }
@@ -245,7 +245,7 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
                                         variant="outline"
                                         onClick={() =>
                                             (window.location.href =
-                                                '/login?redirect=' + encodeURIComponent(window.location.pathname))
+                                                '/auth')
                                         }
                                         className="mt-3 w-full"
                                     >
