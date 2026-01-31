@@ -41,10 +41,8 @@ export default function PaymentModal({
     const [isSuccess, setIsSuccess] = useState(false)
 
     // Get the Flutterwave public key from environment variables
-    const publicKey = import.meta.env.FLUTTERWAVE_PUBLIC_KEY || ''
 
     // Generate a random transaction reference for tracking
-    const txRef = `tx-${Date.now()}-${Math.floor(Math.random() * 1000000)}`
 
     const handlePaymentSuccess = async (response: any) => {
         if (response.status === 'successful') {
@@ -94,6 +92,7 @@ export default function PaymentModal({
 
     // Fallback payment method when Flutterwave isn't available
     const handlePayNow = async () => {
+        console.log("PROVIDED-AMOUNT",amount.toLocaleString())
         setIsLoading(true)
 
         /**
@@ -102,7 +101,7 @@ export default function PaymentModal({
 
         sendPaymentRequest().then((data) => {
             if (!data.error) {
-                let _generatePaymentLink = generatePaymentLink(data.accessToken, amount.toLocaleString())
+                let _generatePaymentLink = generatePaymentLink(data.accessToken, `${amount}`)
                 navigateUserToPaymentTile(_generatePaymentLink)
             } else {
                 toast({
