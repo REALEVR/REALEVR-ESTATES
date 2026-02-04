@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
     Dialog,
     DialogContent,
@@ -92,7 +92,7 @@ export default function PaymentModal({
 
     // Fallback payment method when Flutterwave isn't available
     const handlePayNow = async () => {
-        console.log("PROVIDED-AMOUNT",amount.toLocaleString())
+        console.log('PROVIDED-AMOUNT', amount.toLocaleString())
         setIsLoading(true)
 
         /**
@@ -112,6 +112,15 @@ export default function PaymentModal({
             }
         })
     }
+
+    useEffect(() => {
+        const zoneless = () => {
+            window.addEventListener('payment-finished', () => {
+                handlePaymentClose()
+            })
+        }
+        zoneless()
+    }, [])
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>

@@ -13,6 +13,12 @@ const IoTecGatewayLight: React.FC = () => {
     const [error, setError] = useState<string | null>(null)
 
     /**
+     * For the redirectURL
+     */
+    const searchParams = new URLSearchParams(window.location.search)
+    const redirectUrl = searchParams.get('redirect')
+
+    /**
      * Close the gateway
      */
     const handleClose = () => {
@@ -20,13 +26,14 @@ const IoTecGatewayLight: React.FC = () => {
         /**
          * Lets go back to the homepage
          */
-        window.location.href = "/"
 
-        window.dispatchEvent(new CustomEvent("payment-finished",{
-            detail : {
-                message : "Payment Completed"
-            }
-        }))
+        window.dispatchEvent(
+            new CustomEvent('payment-finished', {
+                detail: {
+                    message: 'Payment Completed',
+                },
+            })
+        )
     }
 
     const collectPayment = async () => {
@@ -48,7 +55,15 @@ const IoTecGatewayLight: React.FC = () => {
             const data = await res.json()
 
             if (res.ok) {
-                setStep('pending')
+                setStep('pending');
+
+                /**
+                 * Set a particular timeout
+                 */
+                setTimeout(()=>{
+
+                },3000)
+
             } else {
                 setError(data.message || 'Transaction failed. Please try again.')
             }
@@ -60,9 +75,10 @@ const IoTecGatewayLight: React.FC = () => {
     }
 
     const getCarrier = (num: string) => {
-        if (num.startsWith('077') || num.startsWith('078') || num.startsWith('076') || num.startsWith('074')) return 'MTN'
+        if (num.startsWith('077') || num.startsWith('078') || num.startsWith('076') || num.startsWith('074'))
+            return 'MTN'
         if (num.startsWith('075') || num.startsWith('070')) return 'Airtel'
-        return null 
+        return null
     }
 
     const carrier = getCarrier(phoneNumber)
@@ -70,9 +86,8 @@ const IoTecGatewayLight: React.FC = () => {
     return (
         <div className="fixed z-50 top-0 h-full w-full left-0 bg-gray-100/80 backdrop-blur-sm text-gray-900 flex items-center justify-center p-4 font-sans">
             <div className="relative max-w-4xl w-full grid grid-cols-1 md:grid-cols-12 gap-8 bg-white rounded-3xl p-8 border border-gray-200 shadow-2xl">
-                
                 {/* Top Close Button */}
-                <button 
+                <button
                     onClick={handleClose}
                     className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
                 >
@@ -83,14 +98,14 @@ const IoTecGatewayLight: React.FC = () => {
                 <div className="md:col-span-7 space-y-8">
                     <header className="space-y-2">
                         <div className="flex items-center gap-2 font-bold text-xl mb-4">
-                            <span className="bg-black text-white px-2 py-1 rounded text-sm">REALEVR-ESTATES</span> 
+                            <span className="bg-black text-white px-2 py-1 rounded text-sm">REALEVR-ESTATES</span>
                         </div>
                         <h1 className="text-3xl font-semibold tracking-tight text-gray-900">
                             {step === 'input' ? 'Complete Payment' : 'Authorize Payment'}
                         </h1>
                         <p className="text-gray-500">
-                            {step === 'input' 
-                                ? 'Enter your Mobile Money number to initiate the payment.' 
+                            {step === 'input'
+                                ? 'Enter your Mobile Money number to initiate the payment.'
                                 : 'Finalize the transaction on your mobile device.'}
                         </p>
                     </header>
@@ -122,7 +137,13 @@ const IoTecGatewayLight: React.FC = () => {
                                     />
                                     {carrier && (
                                         <div className="absolute inset-y-0 right-4 flex items-center">
-                                            <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${carrier === 'MTN' ? 'bg-yellow-400 text-black' : 'bg-red-600 text-white'}`}>
+                                            <span
+                                                className={`text-[10px] font-bold px-2 py-1 rounded-md ${
+                                                    carrier === 'MTN'
+                                                        ? 'bg-yellow-400 text-black'
+                                                        : 'bg-red-600 text-white'
+                                                }`}
+                                            >
                                                 {carrier}
                                             </span>
                                         </div>
@@ -133,7 +154,8 @@ const IoTecGatewayLight: React.FC = () => {
                             <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3">
                                 <Info className="h-5 w-5 text-blue-600 shrink-0" />
                                 <p className="text-sm text-blue-800">
-                                    A USSD prompt will be sent to <strong>{phoneNumber || 'your phone'}</strong> to authorize <strong>UGX {Number(amount).toLocaleString()}</strong>.
+                                    A USSD prompt will be sent to <strong>{phoneNumber || 'your phone'}</strong> to
+                                    authorize <strong>UGX {Number(amount).toLocaleString()}</strong>.
                                 </p>
                             </div>
 
@@ -152,7 +174,9 @@ const IoTecGatewayLight: React.FC = () => {
                             <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 space-y-4">
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">Payee Name</p>
+                                        <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">
+                                            Payee Name
+                                        </p>
                                         <p className="text-lg font-bold text-gray-900">ioTec Services Ltd</p>
                                     </div>
                                     <span className="px-3 py-1 bg-yellow-100 text-yellow-700 border border-yellow-200 rounded-full text-xs font-bold animate-pulse">
@@ -160,14 +184,20 @@ const IoTecGatewayLight: React.FC = () => {
                                     </span>
                                 </div>
                                 <div>
-                                    <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">Amount to Pay</p>
-                                    <p className="text-3xl font-bold text-gray-900 font-mono">UGX {Number(amount).toLocaleString()}</p>
+                                    <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">
+                                        Amount to Pay
+                                    </p>
+                                    <p className="text-3xl font-bold text-gray-900 font-mono">
+                                        UGX {Number(amount).toLocaleString()}
+                                    </p>
                                 </div>
                             </div>
 
                             <div className="text-center space-y-2">
                                 <p className="text-blue-600 font-bold">Complete payment on phone</p>
-                                <p className="text-sm text-gray-500 font-medium">Check your phone for the PIN prompt to authorize.</p>
+                                <p className="text-sm text-gray-500 font-medium">
+                                    Check your phone for the PIN prompt to authorize.
+                                </p>
                             </div>
 
                             <div className="space-y-3">
@@ -178,7 +208,7 @@ const IoTecGatewayLight: React.FC = () => {
                                     <CheckCircle2 className="h-5 w-5" />
                                     Confirm Payment
                                 </button>
-                                
+
                                 {/* New Option to Close once complete */}
                                 <button
                                     onClick={handleClose}
@@ -202,15 +232,23 @@ const IoTecGatewayLight: React.FC = () => {
                 {/* Right Column: Order Summary */}
                 <div className="md:col-span-5 bg-gray-50 rounded-2xl p-6 flex flex-col justify-between border border-gray-200">
                     <div className="space-y-6">
-                        <h2 className="text-lg font-bold text-gray-800 border-b border-gray-200 pb-4">Payment Details</h2>
+                        <h2 className="text-lg font-bold text-gray-800 border-b border-gray-200 pb-4">
+                            Payment Details
+                        </h2>
                         <div className="space-y-4">
                             <div className="flex justify-between items-center text-sm">
                                 <span className="text-gray-500 font-medium">Transaction Token</span>
-                                <span className="font-mono text-[10px] text-gray-400 truncate ml-4 max-w-[100px]">{accessToken}</span>
+                                <span className="font-mono text-[10px] text-gray-400 truncate ml-4 max-w-[100px]">
+                                    {accessToken}
+                                </span>
                             </div>
                             <div className="flex justify-between items-center">
                                 <span className="text-gray-500 font-medium">Status</span>
-                                <span className={`font-bold text-sm uppercase ${step === 'pending' ? 'text-yellow-600' : 'text-blue-600'}`}>
+                                <span
+                                    className={`font-bold text-sm uppercase ${
+                                        step === 'pending' ? 'text-yellow-600' : 'text-blue-600'
+                                    }`}
+                                >
                                     {step === 'pending' ? 'Awaiting Auth' : 'Initialized'}
                                 </span>
                             </div>
@@ -221,8 +259,12 @@ const IoTecGatewayLight: React.FC = () => {
                         <div className="flex justify-between items-end">
                             <span className="text-gray-500 font-bold text-sm">Total Due</span>
                             <div className="text-right">
-                                <p className="text-3xl font-black text-gray-900 leading-none tracking-tight">UGX {Number(amount).toLocaleString()}</p>
-                                <p className="text-[10px] text-gray-400 mt-1 font-bold uppercase tracking-widest">Local Currency</p>
+                                <p className="text-3xl font-black text-gray-900 leading-none tracking-tight">
+                                    UGX {Number(amount).toLocaleString()}
+                                </p>
+                                <p className="text-[10px] text-gray-400 mt-1 font-bold uppercase tracking-widest">
+                                    Local Currency
+                                </p>
                             </div>
                         </div>
                     </div>

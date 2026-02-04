@@ -63,3 +63,13 @@ export function generatePaymentLink(accessToken:string,amount:string){
 export function navigateUserToPaymentTile(link:string){
     window.location.href = link;
 }
+
+
+/**
+ * goto a property based on the id
+ */
+
+export function gotoProperty(id:string){
+    let propertyString = `/property/${id}`;
+    window.location.href = propertyString;
+}

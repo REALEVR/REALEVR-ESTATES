@@ -80,6 +80,7 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
     const handleExistingUserPayment = () => {
         setIsProcessing(true)
        
+        
 
         sendPaymentRequest().then((data) => {
             if (!data.error) {
@@ -104,7 +105,7 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
 
         const zoneless = ()=>{
             window.addEventListener("payment-finished",()=>{
-                setIsProcessing(false)
+               handlePaymentClose()
             })  
         }
         zoneless();
