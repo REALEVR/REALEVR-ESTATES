@@ -258,8 +258,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
             variant="outline"
             className="w-full text-sm h-8 border-[#00A699] text-[#00A699] hover:bg-[#00A699]/5 hover:text-gray-800 transition-colors"
             onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
+              
               // Only rental properties require payment for tour viewing
               // BnBs can view tours for free, but need to pay 20% to book
               const requiresPayment =

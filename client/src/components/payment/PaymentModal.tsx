@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Loader2, CreditCard, CheckCircle2 } from 'lucide-react'
 import { FlutterWaveButton } from 'flutterwave-react-v3'
 import { generatePaymentLink, navigateUserToPaymentTile, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
+import { eventBus } from '@/lib/eventBus'
 
 type PaymentType = 'PropertyDeposit' | 'ViewingFee' | 'Subscription' | 'BnBBookingDeposit'
 
@@ -95,31 +96,39 @@ export default function PaymentModal({
         console.log('PROVIDED-AMOUNT', amount.toLocaleString())
         setIsLoading(true)
 
-        /**
-         * Process Payments with IOTEC
-         */
-
+        console.log('Processing payment for tour access...')
         sendPaymentRequest().then((data) => {
             if (!data.error) {
                 let _generatePaymentLink = generatePaymentLink(data.accessToken, `${amount}`)
                 navigateUserToPaymentTile(_generatePaymentLink)
             } else {
-                toast({
-                    title: 'Payment Error',
-                    description: data.errorMessage,
-                    variant: 'destructive',
+                eventBus.emit('PAYMENT_MODEL', {
+                    status: 'FAILED',
                 })
             }
         })
     }
 
     useEffect(() => {
-        const zoneless = () => {
-            window.addEventListener('payment-finished', () => {
-                handlePaymentClose()
-            })
-        }
-        zoneless()
+        const off = eventBus.on('PAYMENT_MODEL', (data) => {
+            if (data.status == 'PAID') {
+                eventBus.emit('PAYMENT_MODEL', { status: 'RESPONDED-BACK' })
+
+                /**
+                 * This time lag is to allow the page to navigate back smoothly
+                 */
+                setTimeout(() => {
+                    handlePaymentSuccess('successful')
+                }, 3500)
+            } else {
+                toast({
+                    title: 'Payment Error',
+                    description: 'An Unknown Happening is refusing Payment, Please try again Later',
+                    variant: 'destructive',
+                })
+            }
+        })
+        return off
     }, [])
 
     return (

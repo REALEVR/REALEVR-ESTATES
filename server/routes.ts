@@ -182,6 +182,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
     })
 
+    app.post('/api/payment/iotect/record', async (req: any, res: any) => {
+        const { transaction_id, property_id, user_id, customer_email, customer_name, currency, amount } = req.body
+
+        try {
+            await storage.recordTourPayment({
+                transactionId: transaction_id,
+                propertyId: property_id,
+                userId: user_id || null,
+                customerEmail: customer_email,
+                customerName: customer_name,
+                amount: amount,
+                currency: currency,
+                timestamp: new Date().toISOString(),
+            })
+        } catch (error) {
+            console.error('Error recording tour payment:', dbError)
+        }
+    })
+
     // Get all properties
     app.get('/api/properties', async (req, res) => {
         try {

@@ -13,6 +13,7 @@ import { Loader2, Eye, CreditCard, UserPlus } from 'lucide-react'
 import type { Property } from '@shared/schema'
 import Logo from '../../assets/logo.png'
 import { generatePaymentLink, navigateUserToPaymentTile, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
+import { eventBus } from '@/lib/eventBus'
 
 const tourPaymentSchema = z.object({
     email: z.string().email('Invalid email address'),
@@ -52,26 +53,16 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
     const publicKey = import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY
     // console.log('Flutterwave Public Key:', publicKey); // Debug log
 
- 
-
     const handlePayForTour = async (data: TourPaymentFormValues) => {
         console.log('Processing payment for tour access...', data)
         setIsProcessing(true)
-
-        /**
-         * Process Payments with IOTEC
-         */
-
-
         sendPaymentRequest().then((data) => {
             if (!data.error) {
                 let _generatePaymentLink = generatePaymentLink(data.accessToken, '15000')
                 navigateUserToPaymentTile(_generatePaymentLink)
             } else {
-                toast({
-                    title: 'jkPayment Error',
-                    description: `data.errorMessage`,
-                    variant: 'destructive',
+                eventBus.emit('PAYMENT_MODEL', {
+                    status: 'FAILED',
                 })
             }
         })
@@ -79,18 +70,14 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
 
     const handleExistingUserPayment = () => {
         setIsProcessing(true)
-       
-        
 
         sendPaymentRequest().then((data) => {
             if (!data.error) {
                 let _generatePaymentLink = generatePaymentLink(data.accessToken, '15000')
                 navigateUserToPaymentTile(_generatePaymentLink)
             } else {
-                toast({
-                    title: 'Payment Error',
-                    description: `ssssssss`,
-                    variant: 'destructive',
+                eventBus.emit('PAYMENT_MODEL', {
+                    status: 'FAILED',
                 })
             }
         })
@@ -99,17 +86,44 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
     const handlePaymentClose = () => {
         setIsProcessing(false)
         onClose()
+        onPaymentSuccess()
     }
 
-    useEffect(()=>{
+    useEffect(() => {
+        const off = eventBus.on('PAYMENT_MODEL', (data) => {
+            if (data.status == 'PAID') {
 
-        const zoneless = ()=>{
-            window.addEventListener("payment-finished",()=>{
-               handlePaymentClose()
-            })  
-        }
-        zoneless();
-    },[setIsProcessing])
+                /**
+                 * Now that we have been notified that payment has been
+                 * carried out, we get the transactionID from the eventBus
+                 */
+                recordTourPayment({
+                    propertyId :`${ property.id}`,
+                    userId : user!.id,
+                    customerName : user!.fullName,
+                    amount : 15000,
+                    currency : 'UGX',
+                    customerEmail: user!.email,
+                    transactionId : data.transactionID!
+                })
+                eventBus.emit('PAYMENT_MODEL', { status: 'RESPONDED-BACK' })
+
+                /**
+                 * This time lag is to allow the page to navigate back smoothly 
+                 */
+                setTimeout(() => {
+                    handlePaymentClose()
+                }, 3500)
+            } else {
+                toast({
+                    title: 'Payment Error',
+                    description: 'An Unknown Happening is refusing Payment, Please try again Later',
+                    variant: 'destructive',
+                })
+            }
+        })
+        return off
+    }, [])
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -244,10 +258,7 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
                                     </p>
                                     <Button
                                         variant="outline"
-                                        onClick={() =>
-                                            (window.location.href =
-                                                '/auth')
-                                        }
+                                        onClick={() => (window.location.href = '/auth')}
                                         className="mt-3 w-full"
                                     >
                                         Go to Login

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,15 @@ export default function BookingCalendarModal({
   const isBnB = propertyCategory === "BnB" || propertyCategory === "furnished_houses";
   const totalAmount = isBnB ? propertyPrice * numNights : 15000; // 15,000 UGX viewing fee for rentals
   const depositAmount = isBnB ? Math.round(totalAmount * 0.2) : totalAmount;
+
+
+
+  useEffect(()=>{
+      console.log("isBnb:",isBnB);
+      console.log("depositAmount:",depositAmount);
+
+  })
+
 
   const timeSlots = [
     "9:00 AM", "10:00 AM", "11:00 AM",
