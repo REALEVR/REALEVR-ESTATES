@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { generatePaymentLink, navigateUserToPaymentTile, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
 import { toast } from '@/hooks/use-toast'
+import { eventBus } from '@/lib/eventBus'
 
 interface PaymentModalProps {
     isOpen: boolean
@@ -14,9 +15,8 @@ interface PaymentModalProps {
     successCallback: (response: any) => void
 }
 
-export default function PaymentModal({ isOpen, onClose, successCallback }: PaymentModalProps) {
+export default function PaymentModal({ isOpen, onClose, successCallback,propertyId }: PaymentModalProps) {
     const handlePayNow = async () => {
-
         /**
          * Process Payments with IOTEC
          */
@@ -34,6 +34,38 @@ export default function PaymentModal({ isOpen, onClose, successCallback }: Payme
             }
         })
     }
+
+    useEffect(() => {
+        const off = eventBus.on('PAYMENT_MODEL', (data) => {
+            if (data.status == 'PAID') {
+                // /**
+                //  * Now that we have been notified that payment has been
+                //  * carried out, we get the transactionID from the eventBus
+                //  */
+                // recordTourPayment({
+                //     propertyId: `${propertyId}`,
+                //     userId: user!.id,
+                //     customerName: user!.fullName,
+                //     amount: 15000,
+                //     currency: 'UGX',
+                //     customerEmail: user!.email,
+                //     transactionId: data.transactionID!,
+                // })
+                eventBus.emit('PAYMENT_MODEL', { status: 'RESPONDED-BACK' })
+
+                ///complete payment
+                successCallback("Payment Successfull")
+                
+            } else {
+                toast({
+                    title: 'Payment Error',
+                    description: 'An Unknown Happening is refusing Payment, Please try again Later',
+                    variant: 'destructive',
+                })
+            }
+        })
+        return off
+    }, [])
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>

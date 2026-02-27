@@ -8,17 +8,7 @@ const IoTecGatewayLight: React.FC = () => {
     const [, params] = useRoute('/vss-payment-gate/:accesstoken/:amount')
     const accessToken = params?.accesstoken
     const amount = params?.amount || '0'
-
-
-    /**
-     * Store the current transaction ID
-     */
-
     const [ transactionID, setTransactionID ] = useState();
-
-
-
-
     const [phoneNumber, setPhoneNumber] = useState('')
     const [loading, setLoading] = useState(false)
     const [step, setStep] = useState<'input' | 'pending'>('input')
@@ -114,7 +104,7 @@ const IoTecGatewayLight: React.FC = () => {
     useEffect(() => {
         const off = eventBus.on('PAYMENT_MODEL', (data) => {
             if (data.status == 'RESPONDED-BACK') {
-                window.history.back()
+                console.log("Payment Officially Complete")
             }
         })
 

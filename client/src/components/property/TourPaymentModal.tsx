@@ -111,9 +111,8 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
                 /**
                  * This time lag is to allow the page to navigate back smoothly 
                  */
-                setTimeout(() => {
-                    handlePaymentClose()
-                }, 3500)
+                handlePaymentClose()
+                
             } else {
                 toast({
                     title: 'Payment Error',

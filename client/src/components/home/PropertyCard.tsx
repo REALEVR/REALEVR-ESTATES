@@ -224,10 +224,10 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                   )}
                   {propertyOwner.phoneNumber && (
                     <div className="flex items-center">
-                      <Phone className="h-3 w-3 text-green-600 mr-1" />
+                      {/* <Phone className="h-3 w-3 text-green-600 mr-1" />
                       <span className="text-xs text-green-700 font-medium">
                         {propertyOwner.phoneNumber}
-                      </span>
+                      </span> */}
                     </div>
                   )}
                 </div>
