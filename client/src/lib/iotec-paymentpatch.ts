@@ -1,3 +1,5 @@
+import { EventEmitter } from 'eventemitter3' // or mitt, tiny-emitter
+export const paymentEmitter = new EventEmitter()
 /**
  * This one will actually send the payment 
     request to actually return the access token
@@ -10,25 +12,24 @@ interface IReturnToken {
 export async function sendPaymentRequest(): Promise<IReturnToken> {
     let accessToken = null
     try {
-        console.log("WILL-FETCH-TOKEN")
+        console.log('WILL-FETCH-TOKEN')
 
         const res = await fetch('/api/payment/iotec/token', {
             method: 'POST',
         })
-        console.log("DID-SEND-REQUEST")
-        
+        console.log('DID-SEND-REQUEST')
 
         const data = await res.json()
 
-        console.log("FETCHED-DATA",data)
+        console.log('FETCHED-DATA', data)
         if (!data.access_token) {
-        console.log("NO-WILL-FETCH-TOKEN")
+            console.log('NO-WILL-FETCH-TOKEN')
 
             throw new Error('No access_token returned')
         }
 
         accessToken = data.access_token
-        console.log("DID-RECIEIVE-TOKEN",accessToken)
+        console.log('DID-RECIEIVE-TOKEN', accessToken)
 
         return {
             accessToken: accessToken,
@@ -45,31 +46,22 @@ export async function sendPaymentRequest(): Promise<IReturnToken> {
     }
 }
 
-
-/**
- * Create PaymentLink with token and amount
- */
-
-export function generatePaymentLink(accessToken:string,amount:string){
-    let urlLink = `/vss-payment-gate/${accessToken}/${amount}`;
-    return urlLink;
+export function intiateGateWay(accesstoken: string, amount: string) {
+    paymentEmitter.emit('OPEN_PAYMENT_GATEWAY', {
+        accessToken: accesstoken,
+        amount: amount,
+    })
 }
 
 /**
- * Navigate URL to Payment tile
- * This makes a forced navigation
+ * Instead of generating P
  */
-
-export function navigateUserToPaymentTile(link:string){
-    window.location.href = link;
-}
-
 
 /**
  * goto a property based on the id
  */
 
-export function gotoProperty(id:string){
-    let propertyString = `/property/${id}`;
-    window.location.href = propertyString;
+export function gotoProperty(id: string) {
+    let propertyString = `/property/${id}`
+    window.location.href = propertyString
 }

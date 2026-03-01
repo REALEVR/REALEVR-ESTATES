@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import { Phone, ArrowRight, ShieldCheck, Info, Loader2, CheckCircle2, XCircle, X } from 'lucide-react'
-import { useRoute } from 'wouter'
 import { eventBus } from '@/lib/eventBus'
 import { toast } from '@/hooks/use-toast'
+import { paymentEmitter } from '@/lib/iotec-paymentpatch'
 
-const IoTecGatewayLight: React.FC = () => {
-    const [, params] = useRoute('/vss-payment-gate/:accesstoken/:amount')
-    const accessToken = params?.accesstoken
-    const amount = params?.amount || '0'
-    const [ transactionID, setTransactionID ] = useState();
+interface IoTecGatewayProps {
+    accessToken: string
+    amount: string
+    onClose: () => void // add this
+}
+
+export function IoTecGatewayLight({ accessToken, amount, onClose }: IoTecGatewayProps) {
+    const [transactionID, setTransactionID] = useState()
     const [phoneNumber, setPhoneNumber] = useState('')
     const [loading, setLoading] = useState(false)
     const [step, setStep] = useState<'input' | 'pending'>('input')
@@ -29,7 +32,7 @@ const IoTecGatewayLight: React.FC = () => {
         /**
          * Lets go back to the homepage
          */
-        window.history.go(-1)
+        onClose()
     }
 
     const finishPayment = () => {
@@ -39,15 +42,14 @@ const IoTecGatewayLight: React.FC = () => {
              */
 
             /**
-             * Since the user is completing 
+             * Since the user is completing
              * payment we actually save and send the transactionID for record keeping
              */
-            eventBus.emit('PAYMENT_MODEL', {
-                status: 'PAID',
-                transactionID : transactionID,
-            })
-
             
+
+            paymentEmitter.emit('COMPLETED-PAYMENT', {
+                transactionID: transactionID,
+            })
         }
     }
 
@@ -68,15 +70,13 @@ const IoTecGatewayLight: React.FC = () => {
             })
 
             const data = await res.json()
-            
+
             //when the data returns what we do we actually store the transactionID:
 
-            if(data && data.id) {
-
+            if (data && data.id) {
                 setTransactionID(data.id)
-            }else{
-
-                console.error("No Transaction ID found in the Payment Process")
+            } else {
+                console.error('No Transaction ID found in the Payment Process')
             }
 
             if (res.ok) {
@@ -104,12 +104,12 @@ const IoTecGatewayLight: React.FC = () => {
     useEffect(() => {
         const off = eventBus.on('PAYMENT_MODEL', (data) => {
             if (data.status == 'RESPONDED-BACK') {
-                console.log("Payment Officially Complete")
+                console.log('Payment Officially Complete')
             }
         })
 
         return off
-    },[])
+    }, [])
 
     return (
         <div className="fixed z-50 top-0 h-full w-full left-0 bg-gray-100/80 backdrop-blur-sm text-gray-900 flex items-center justify-center p-4 font-sans">

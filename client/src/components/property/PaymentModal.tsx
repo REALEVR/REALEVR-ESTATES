@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { generatePaymentLink, navigateUserToPaymentTile, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
+import { intiateGateWay, paymentEmitter, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
 import { toast } from '@/hooks/use-toast'
 import { eventBus } from '@/lib/eventBus'
 
@@ -15,7 +15,7 @@ interface PaymentModalProps {
     successCallback: (response: any) => void
 }
 
-export default function PaymentModal({ isOpen, onClose, successCallback,propertyId }: PaymentModalProps) {
+export default function PaymentModal({ isOpen, onClose, successCallback, propertyId }: PaymentModalProps) {
     const handlePayNow = async () => {
         /**
          * Process Payments with IOTEC
@@ -23,8 +23,7 @@ export default function PaymentModal({ isOpen, onClose, successCallback,property
 
         sendPaymentRequest().then((data) => {
             if (!data.error) {
-                let _generatePaymentLink = generatePaymentLink(data.accessToken, '15000')
-                navigateUserToPaymentTile(_generatePaymentLink)
+                intiateGateWay(data.accessToken, '15000')
             } else {
                 toast({
                     title: 'Payment Error',
@@ -36,35 +35,23 @@ export default function PaymentModal({ isOpen, onClose, successCallback,property
     }
 
     useEffect(() => {
-        const off = eventBus.on('PAYMENT_MODEL', (data) => {
-            if (data.status == 'PAID') {
-                // /**
-                //  * Now that we have been notified that payment has been
-                //  * carried out, we get the transactionID from the eventBus
-                //  */
-                // recordTourPayment({
-                //     propertyId: `${propertyId}`,
-                //     userId: user!.id,
-                //     customerName: user!.fullName,
-                //     amount: 15000,
-                //     currency: 'UGX',
-                //     customerEmail: user!.email,
-                //     transactionId: data.transactionID!,
-                // })
-                eventBus.emit('PAYMENT_MODEL', { status: 'RESPONDED-BACK' })
+        const handler = (data: { transactionID: string }) => {
+            // recordTourPayment({
+            //     propertyId: `${propertyId}`,
+            //     userId: user!.id,
+            //     customerName: user!.fullName,
+            //     amount: 15000,
+            //     currency: 'UGX',
+            //     customerEmail: user!.email,
+            //     transactionId: data.transactionID!,
+            // })
+            successCallback('Payment Successfull')
+        }
 
-                ///complete payment
-                successCallback("Payment Successfull")
-                
-            } else {
-                toast({
-                    title: 'Payment Error',
-                    description: 'An Unknown Happening is refusing Payment, Please try again Later',
-                    variant: 'destructive',
-                })
-            }
-        })
-        return off
+        paymentEmitter.on('COMPLETED-PAYMENT', handler)
+        return () => {
+            paymentEmitter.off('COMPLETED-PAYMENT', handler)
+        }
     }, [])
 
     return (

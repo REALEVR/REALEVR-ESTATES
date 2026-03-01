@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { Loader2, CreditCard, CheckCircle2 } from 'lucide-react'
 import { FlutterWaveButton } from 'flutterwave-react-v3'
-import { generatePaymentLink, navigateUserToPaymentTile, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
+import { intiateGateWay, paymentEmitter, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
 import { eventBus } from '@/lib/eventBus'
 
 type PaymentType = 'PropertyDeposit' | 'ViewingFee' | 'Subscription' | 'BnBBookingDeposit'
@@ -97,13 +97,15 @@ export default function PaymentModal({
         setIsLoading(true)
 
         console.log('Processing payment for tour access...')
+
         sendPaymentRequest().then((data) => {
             if (!data.error) {
-                let _generatePaymentLink = generatePaymentLink(data.accessToken, `${amount}`)
-                navigateUserToPaymentTile(_generatePaymentLink)
+                intiateGateWay(data.accessToken, `${amount}`)
             } else {
-                eventBus.emit('PAYMENT_MODEL', {
-                    status: 'FAILED',
+                toast({
+                    title: 'Payment Error',
+                    description: data.errorMessage,
+                    variant: 'destructive',
                 })
             }
         })
@@ -129,6 +131,26 @@ export default function PaymentModal({
             }
         })
         return off
+    }, [])
+
+    useEffect(() => {
+        const handler = (data: { transactionID: string }) => {
+            // recordTourPayment({
+            //     propertyId: `${propertyId}`,
+            //     userId: user!.id,
+            //     customerName: user!.fullName,
+            //     amount: 15000,
+            //     currency: 'UGX',
+            //     customerEmail: user!.email,
+            //     transactionId: data.transactionID!,
+            // })
+            handlePaymentSuccess('successful')
+        }
+
+        paymentEmitter.on('COMPLETED-PAYMENT', handler)
+        return () => {
+            paymentEmitter.off('COMPLETED-PAYMENT', handler)
+        }
     }, [])
 
     return (

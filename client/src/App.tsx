@@ -38,7 +38,9 @@ import VirtualTourManager from '@/components/admin/VirtualTourManager'
 import { ProtectedAdminRoute } from './lib/protected-admin-route'
 import Hero from './components/home/Hero'
 import ScrollToTop from './components/ui/ScrollToTop'
-import IoTecGateway from './components/payment/io-tech/layoutGate'
+import IoTecGateway, { IoTecGatewayLight } from './components/payment/io-tech/layoutGate'
+import { useEffect, useState } from 'react'
+import { paymentEmitter } from './lib/iotec-paymentpatch'
 
 function Router() {
     return (
@@ -52,7 +54,6 @@ function Router() {
             <Route path="/for-sale" component={ForSalePage} />
             <Route path="/featured-properties" component={FeaturedPropertiesPage} />
 
-            <Route path="/vss-payment-gate/:accesstoken/:amount" component={IoTecGateway}/>
             {/* Legal and Information Pages */}
             <Route path="/privacy" component={PrivacyPolicy} />
             <Route path="/terms" component={TermsOfService} />
@@ -110,6 +111,19 @@ function Router() {
 }
 
 function App() {
+    const [gateway, setGateway] = useState<{ accessToken: string; amount: string } | null>(null)
+
+    useEffect(() => {
+        const handler = (data: { accessToken: string; amount: string }) => {
+            setGateway(data)
+        }
+
+        paymentEmitter.on('OPEN_PAYMENT_GATEWAY', handler)
+        return () => {
+           paymentEmitter.off('OPEN_PAYMENT_GATEWAY', handler)
+        }
+    }, [])
+
     return (
         <QueryClientProvider client={queryClient}>
             <AuthProvider>
@@ -122,6 +136,13 @@ function App() {
                                     <Router />
                                 </AnimatedLayout>
                             </main>
+                            {gateway && (
+                                <IoTecGatewayLight
+                                    accessToken={gateway.accessToken}
+                                    amount={gateway.amount}
+                                    onClose={() => setGateway(null)}
+                                />
+                            )}
                             <Footer />
                         </div>
                         <ScrollToTop />

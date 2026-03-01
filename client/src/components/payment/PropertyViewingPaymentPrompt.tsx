@@ -12,7 +12,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CheckIcon, BriefcaseIcon, HomeIcon, KeyIcon } from 'lucide-react'
-import { generatePaymentLink, navigateUserToPaymentTile, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
+import { intiateGateWay, paymentEmitter, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
+import { useEffect } from 'react'
 
 interface PropertyViewingPaymentPromptProps {
     isOpen: boolean
@@ -47,18 +48,36 @@ export default function PropertyViewingPaymentPrompt({ isOpen, onClose }: Proper
     const handlePayment = () => {
         sendPaymentRequest().then((data) => {
             if (!data.error) {
-                let _generatePaymentLink = generatePaymentLink(data.accessToken, '10000')
-                navigateUserToPaymentTile(_generatePaymentLink)
+                intiateGateWay(data.accessToken, '10000')
             } else {
-                 toast({
-                    title: 'jkPayment Error',
-                    description: `data.errorMessage`,
+                toast({
+                    title: 'Payment Error',
+                    description: data.errorMessage,
                     variant: 'destructive',
                 })
             }
         })
     }
 
+    useEffect(() => {
+        const handler = (data: { transactionID: string }) => {
+            // recordTourPayment({
+            //     propertyId: `${propertyId}`,
+            //     userId: user!.id,
+            //     customerName: user!.fullName,
+            //     amount: 15000,
+            //     currency: 'UGX',
+            //     customerEmail: user!.email,
+            //     transactionId: data.transactionID!,
+            // })
+            
+        }
+
+        paymentEmitter.on('COMPLETED-PAYMENT', handler)
+        return () => {
+            paymentEmitter.off('COMPLETED-PAYMENT', handler)
+        }
+    }, [])
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[500px]">

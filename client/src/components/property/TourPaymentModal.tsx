@@ -12,7 +12,7 @@ import { useFlutterwave, FlutterWaveTypes } from 'flutterwave-react-v3'
 import { Loader2, Eye, CreditCard, UserPlus } from 'lucide-react'
 import type { Property } from '@shared/schema'
 import Logo from '../../assets/logo.png'
-import { generatePaymentLink, navigateUserToPaymentTile, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
+import { intiateGateWay, paymentEmitter, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
 import { eventBus } from '@/lib/eventBus'
 
 const tourPaymentSchema = z.object({
@@ -58,11 +58,12 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
         setIsProcessing(true)
         sendPaymentRequest().then((data) => {
             if (!data.error) {
-                let _generatePaymentLink = generatePaymentLink(data.accessToken, '15000')
-                navigateUserToPaymentTile(_generatePaymentLink)
+                intiateGateWay(data.accessToken, '15000')
             } else {
-                eventBus.emit('PAYMENT_MODEL', {
-                    status: 'FAILED',
+                toast({
+                    title: 'Payment Error',
+                    description: data.errorMessage,
+                    variant: 'destructive',
                 })
             }
         })
@@ -73,11 +74,12 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
 
         sendPaymentRequest().then((data) => {
             if (!data.error) {
-                let _generatePaymentLink = generatePaymentLink(data.accessToken, '15000')
-                navigateUserToPaymentTile(_generatePaymentLink)
+                intiateGateWay(data.accessToken, '15000')
             } else {
-                eventBus.emit('PAYMENT_MODEL', {
-                    status: 'FAILED',
+                toast({
+                    title: 'Payment Error',
+                    description: data.errorMessage,
+                    variant: 'destructive',
                 })
             }
         })
@@ -90,38 +92,23 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
     }
 
     useEffect(() => {
-        const off = eventBus.on('PAYMENT_MODEL', (data) => {
-            if (data.status == 'PAID') {
+        const handler = (data: { transactionID: string }) => {
+            recordTourPayment({
+                propertyId: `${property.id}`,
+                userId: user!.id,
+                customerName: user!.fullName,
+                amount: 15000,
+                currency: 'UGX',
+                customerEmail: user!.email,
+                transactionId: data.transactionID!,
+            })
+            handlePaymentClose()
+        }
 
-                /**
-                 * Now that we have been notified that payment has been
-                 * carried out, we get the transactionID from the eventBus
-                 */
-                recordTourPayment({
-                    propertyId :`${ property.id}`,
-                    userId : user!.id,
-                    customerName : user!.fullName,
-                    amount : 15000,
-                    currency : 'UGX',
-                    customerEmail: user!.email,
-                    transactionId : data.transactionID!
-                })
-                eventBus.emit('PAYMENT_MODEL', { status: 'RESPONDED-BACK' })
-
-                /**
-                 * This time lag is to allow the page to navigate back smoothly 
-                 */
-                handlePaymentClose()
-                
-            } else {
-                toast({
-                    title: 'Payment Error',
-                    description: 'An Unknown Happening is refusing Payment, Please try again Later',
-                    variant: 'destructive',
-                })
-            }
-        })
-        return off
+        paymentEmitter.on('COMPLETED-PAYMENT', handler)
+        return () => {
+            paymentEmitter.off('COMPLETED-PAYMENT', handler)
+        }
     }, [])
 
     return (
