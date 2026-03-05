@@ -7,7 +7,7 @@ import { paymentEmitter } from '@/lib/iotec-paymentpatch'
 interface IoTecGatewayProps {
     accessToken: string
     amount: string
-    onClose: () => void // add this
+    onClose: () => void
 }
 
 export function IoTecGatewayLight({ accessToken, amount, onClose }: IoTecGatewayProps) {
@@ -18,35 +18,15 @@ export function IoTecGatewayLight({ accessToken, amount, onClose }: IoTecGateway
     const [error, setError] = useState<string | null>(null)
     const [didGetEndResult, setGotEndResult] = useState(false)
 
-    /**
-     * For the redirectURL
-     */
     const searchParams = new URLSearchParams(window.location.search)
     const redirectUrl = searchParams.get('redirect')
 
-    /**
-     * Close the gateway
-     */
     const handleClose = () => {
-        // Leave this empty as requested
-        /**
-         * Lets go back to the homepage
-         */
         onClose()
     }
 
     const finishPayment = () => {
         if (didGetEndResult) {
-            /**
-             * Here we assume the user actually entered the required options
-             */
-
-            /**
-             * Since the user is completing
-             * payment we actually save and send the transactionID for record keeping
-             */
-            
-
             paymentEmitter.emit('COMPLETED-PAYMENT', {
                 transactionID: transactionID,
             })
@@ -68,17 +48,12 @@ export function IoTecGatewayLight({ accessToken, amount, onClose }: IoTecGateway
                     currency: 'UGX',
                 }),
             })
-
             const data = await res.json()
-
-            //when the data returns what we do we actually store the transactionID:
-
             if (data && data.id) {
                 setTransactionID(data.id)
             } else {
                 console.error('No Transaction ID found in the Payment Process')
             }
-
             if (res.ok) {
                 setStep('pending')
                 setGotEndResult(true)
@@ -102,36 +77,46 @@ export function IoTecGatewayLight({ accessToken, amount, onClose }: IoTecGateway
     const carrier = getCarrier(phoneNumber)
 
     useEffect(() => {
+        // Lock body scroll when modal is open
+        document.body.style.overflow = 'hidden'
+        return () => {
+            document.body.style.overflow = ''
+        }
+    }, [])
+
+    useEffect(() => {
         const off = eventBus.on('PAYMENT_MODEL', (data) => {
             if (data.status == 'RESPONDED-BACK') {
                 console.log('Payment Officially Complete')
             }
         })
-
         return off
     }, [])
 
     return (
-        <div className="fixed z-50 top-0 h-full w-full left-0 bg-gray-100/80 backdrop-blur-sm text-gray-900 flex items-center justify-center p-4 font-sans">
-            <div className="relative max-w-4xl w-full grid grid-cols-1 md:grid-cols-12 gap-8 bg-white rounded-3xl p-8 border border-gray-200 shadow-2xl">
-                {/* Top Close Button */}
+        // Full-screen fixed overlay
+        <div className="fixed inset-0 z-50 bg-gray-100/80 backdrop-blur-sm text-gray-900 flex items-center justify-center font-sans overflow-y-auto">
+            {/* Card: full screen on mobile, centered card on md+ */}
+            <div className="relative w-full h-full md:h-auto md:max-w-4xl md:m-4 bg-white md:rounded-3xl border-0 md:border md:border-gray-200 md:shadow-2xl flex flex-col md:grid md:grid-cols-12 overflow-y-auto">
+
+                {/* Close Button */}
                 <button
                     onClick={handleClose}
-                    className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                    className="absolute top-4 right-4 z-10 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
                 >
                     <X className="h-6 w-6" />
                 </button>
 
                 {/* Left Column */}
-                <div className="md:col-span-7 space-y-8">
-                    <header className="space-y-2">
+                <div className="md:col-span-7 space-y-6 p-6 sm:p-8 flex-1">
+                    <header className="space-y-2 pr-8">
                         <div className="flex items-center gap-2 font-bold text-xl mb-4">
                             <span className="bg-black text-white px-2 py-1 rounded text-sm">REALEVR-ESTATES</span>
                         </div>
-                        <h1 className="text-3xl font-semibold tracking-tight text-gray-900">
+                        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900">
                             {step === 'input' ? 'Complete Payment' : 'Authorize Payment'}
                         </h1>
-                        <p className="text-gray-500">
+                        <p className="text-gray-500 text-sm sm:text-base">
                             {step === 'input'
                                 ? 'Enter your Mobile Money number to initiate the payment.'
                                 : 'Finalize the transaction on your mobile device.'}
@@ -146,7 +131,7 @@ export function IoTecGatewayLight({ accessToken, amount, onClose }: IoTecGateway
                     )}
 
                     {step === 'input' ? (
-                        <div className="space-y-6">
+                        <div className="space-y-5">
                             <div className="space-y-2">
                                 <label className="text-sm font-semibold text-gray-700">Phone Number</label>
                                 <div className="relative group">
@@ -180,7 +165,7 @@ export function IoTecGatewayLight({ accessToken, amount, onClose }: IoTecGateway
                             </div>
 
                             <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3">
-                                <Info className="h-5 w-5 text-blue-600 shrink-0" />
+                                <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
                                 <p className="text-sm text-blue-800">
                                     A USSD prompt will be sent to <strong>{phoneNumber || 'your phone'}</strong> to
                                     authorize <strong>UGX {Number(amount).toLocaleString()}</strong>.
@@ -197,14 +182,11 @@ export function IoTecGatewayLight({ accessToken, amount, onClose }: IoTecGateway
                             </button>
                         </div>
                     ) : (
-                        /* PENDING SCREEN */
-                        <div className="space-y-6 animate-in zoom-in-95 duration-300">
-                            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 space-y-4">
+                        <div className="space-y-5 animate-in zoom-in-95 duration-300">
+                            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-4">
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">
-                                            Payee Name
-                                        </p>
+                                        <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">Payee Name</p>
                                         <p className="text-lg font-bold text-gray-900">ioTec Services Ltd</p>
                                     </div>
                                     <span className="px-3 py-1 bg-yellow-100 text-yellow-700 border border-yellow-200 rounded-full text-xs font-bold animate-pulse">
@@ -212,16 +194,14 @@ export function IoTecGatewayLight({ accessToken, amount, onClose }: IoTecGateway
                                     </span>
                                 </div>
                                 <div>
-                                    <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">
-                                        Amount to Pay
-                                    </p>
-                                    <p className="text-3xl font-bold text-gray-900 font-mono">
+                                    <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">Amount to Pay</p>
+                                    <p className="text-2xl sm:text-3xl font-bold text-gray-900 font-mono">
                                         UGX {Number(amount).toLocaleString()}
                                     </p>
                                 </div>
                             </div>
 
-                            <div className="text-center space-y-2">
+                            <div className="text-center space-y-1">
                                 <p className="text-blue-600 font-bold">Complete payment on phone</p>
                                 <p className="text-sm text-gray-500 font-medium">
                                     Check your phone for the PIN prompt to authorize.
@@ -236,8 +216,6 @@ export function IoTecGatewayLight({ accessToken, amount, onClose }: IoTecGateway
                                     <CheckCircle2 className="h-5 w-5" />
                                     Confirm Payment
                                 </button>
-
-                                {/* New Option to Close once complete */}
                                 <button
                                     onClick={handleClose}
                                     className="w-full bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 font-semibold py-3 rounded-2xl transition-all"
@@ -258,7 +236,7 @@ export function IoTecGatewayLight({ accessToken, amount, onClose }: IoTecGateway
                 </div>
 
                 {/* Right Column: Order Summary */}
-                <div className="md:col-span-5 bg-gray-50 rounded-2xl p-6 flex flex-col justify-between border border-gray-200">
+                <div className="md:col-span-5 bg-gray-50 md:rounded-r-3xl p-6 sm:p-8 flex flex-col justify-between border-t md:border-t-0 md:border-l border-gray-200">
                     <div className="space-y-6">
                         <h2 className="text-lg font-bold text-gray-800 border-b border-gray-200 pb-4">
                             Payment Details
@@ -287,7 +265,7 @@ export function IoTecGatewayLight({ accessToken, amount, onClose }: IoTecGateway
                         <div className="flex justify-between items-end">
                             <span className="text-gray-500 font-bold text-sm">Total Due</span>
                             <div className="text-right">
-                                <p className="text-3xl font-black text-gray-900 leading-none tracking-tight">
+                                <p className="text-2xl sm:text-3xl font-black text-gray-900 leading-none tracking-tight">
                                     UGX {Number(amount).toLocaleString()}
                                 </p>
                                 <p className="text-[10px] text-gray-400 mt-1 font-bold uppercase tracking-widest">

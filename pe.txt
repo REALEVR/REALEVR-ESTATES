@@ -1,0 +1,5 @@
+fetch('https://pay.iotec.io/api/wallet-balance/', {
+  headers: {
+    Authorization: 'Bearer <jwt-token>'
+  }
+})

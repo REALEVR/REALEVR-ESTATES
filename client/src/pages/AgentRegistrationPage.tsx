@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { UserPlus, Loader2, Building, CheckIcon, Star, Crown, Zap, Users, Eye, Calendar, Shield } from 'lucide-react'
 import { useFlutterwave, FlutterWaveTypes } from 'flutterwave-react-v3'
+import { intiateGateWay, paymentEmitter, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
 
 const AgentRegistrationSchema = z
     .object({
@@ -77,6 +78,7 @@ export default function AgentRegistrationPage() {
             ],
             color: 'border-gray-300',
             badgeColor: 'bg-gray-100 text-gray-800',
+            
         },
         professional: {
             name: 'Professional Agent',
@@ -117,28 +119,26 @@ export default function AgentRegistrationPage() {
         },
     }
 
+    /** 
+     * All Subscriptions expire after 30 days
+    */
+    const expiresAtIotech =  Date.now() + 30 * 24 * 60 * 60 * 1000;
     const selectedPlanDetails = planDetails[selectedPlan]
 
-    // Flutterwave configuration
-    const config: FlutterWaveTypes.FlutterwaveConfig = {
-        public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
-        tx_ref: `agent-reg-${Date.now()}`,
-        amount: selectedPlanDetails.price,
-        currency: selectedPlanDetails.currency,
-        payment_options: 'card,mobilemoney,ussd',
-        customer: {
-            email: form.watch('email') || 'agent@example.com',
-            phone_number: form.watch('phoneNumber') || '',
-            name: form.watch('fullName') || '',
-        },
-        customizations: {
-            title: 'Agent Registration - RealEVR Estates',
-            description: `${selectedPlanDetails.name} subscription`,
-            logo: 'https://st2.depositphotos.com/1802620/7621/v/450/depositphotos_76219969-stock-illustration-real-estate-logo-template.jpg',
-        },
+    const handleIotechPayment = () => {
+        console.log('Handling payments with IOTech')
+        console.log(`Payment Plan:${selectedPlanDetails.name} Price:${selectedPlanDetails.price}`)
+        sendPaymentRequest().then((data) => {
+            intiateGateWay(data.accessToken, `${selectedPlanDetails.price}`)
+            if (data.error) {
+                toast({
+                    title: 'Payment Error',
+                    description: data.errorMessage,
+                    variant: 'destructive',
+                })
+            }
+        })
     }
-
-    const handleFlutterPayment = useFlutterwave(config)
 
     const onSubmit = async (data: AgentRegistrationFormValues) => {
         setRegistrationData(data)
@@ -148,28 +148,8 @@ export default function AgentRegistrationPage() {
     const handlePaymentSuccess = async (response: any) => {
         if (response.status === 'successful') {
             try {
-                // Verify the payment with our backend
-                const verificationResponse = await fetch('/api/verify-agent-subscription', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        transaction_id: response.transaction_id,
-                    }),
-                })
-
-                const verificationData = await verificationResponse.json()
-
-                if (verificationData.status === 'success') {
-                    await createAgentAccount(response.transaction_id, verificationData.data.expiresAt)
-                } else {
-                    toast({
-                        title: 'Payment Verification Failed',
-                        description: 'Payment could not be verified. Please contact support.',
-                        variant: 'destructive',
-                    })
-                }
+                await createAgentAccount(response.transaction_id, expiresAtIotech)
+       
             } catch (error) {
                 toast({
                     title: 'Registration Error',
@@ -227,12 +207,29 @@ export default function AgentRegistrationPage() {
     }
 
     const handlePayment = () => {
-        handleFlutterPayment({
-            callback: handlePaymentSuccess,
-            onClose: handlePaymentClose,
-        })
+        handleIotechPayment()
+        // handleFlutterPayment({
+        //     callback: handlePaymentSuccess,
+        //     onClose: handlePaymentClose,
+        // })
     }
 
+    useEffect(() => {
+        //For Handling Payments with Iotech
+        const handler = async (data: { transactionID: string }) => {
+            try {
+                handlePaymentSuccess({
+                    status : 'successful',
+                    transaction_id: data.transactionID,
+                })
+                handlePaymentClose()
+            } catch {}
+        }
+        paymentEmitter.on('COMPLETED-PAYMENT', handler)
+        return () => {
+            paymentEmitter.off('COMPLETED-PAYMENT', handler)
+        }
+    }, [])
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12 -mx-4 sm:-mx-6 lg:-mx-8">
             <div className="container mx-auto px-6">

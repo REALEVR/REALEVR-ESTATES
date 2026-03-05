@@ -17,7 +17,7 @@ export async function sendPaymentRequest(): Promise<IReturnToken> {
         const res = await fetch('/api/payment/iotec/token', {
             method: 'POST',
         })
-        console.log('DID-SEND-REQUEST')
+        console.log('DID-SEND-REQUEST') 
 
         const data = await res.json()
 
