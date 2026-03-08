@@ -120,7 +120,10 @@ export default function PaymentModal({
                  * This time lag is to allow the page to navigate back smoothly
                  */
                 setTimeout(() => {
-                    handlePaymentSuccess('successful')
+                    handlePaymentSuccess({
+                        transactionId :data.transactionID!,
+                        amount : amount,
+                    })
                 }, 3500)
             } else {
                 toast({
