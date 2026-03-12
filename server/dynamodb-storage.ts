@@ -908,7 +908,7 @@ export class DynamoDBStorage implements IStorage {
     }): Promise<void> {
         return executeWithRetry(async () => {
             const item = {
-                id: generateId(),
+                id: toStringId(generateId()),
                 transactionId: paymentData.transactionId,
                 propertyId: toStringId(paymentData.propertyId),
                 userId: paymentData.userId ? toStringId(paymentData.userId) : null,
