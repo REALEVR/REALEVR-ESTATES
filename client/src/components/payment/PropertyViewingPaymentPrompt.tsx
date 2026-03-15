@@ -18,10 +18,9 @@ import { useEffect } from 'react'
 interface PropertyViewingPaymentPromptProps {
     isOpen: boolean
     onClose: () => void,
-    propertyId:number
 }
 
-export default function PropertyViewingPaymentPrompt({ isOpen, onClose ,propertyId}: PropertyViewingPaymentPromptProps) {
+export default function PropertyViewingPaymentPrompt({ isOpen, onClose }: PropertyViewingPaymentPromptProps) {
     const { registerPayment } = usePropertyViews()
     const { toast } = useToast()
 
@@ -61,12 +60,8 @@ export default function PropertyViewingPaymentPrompt({ isOpen, onClose ,property
 
     useEffect(() => {
         const handler = (data: { transactionID: string }) => {
-            recordTourPayment({
-                propertyId: `${propertyId}`,
-                amount: 10000,
-                currency: 'UGX',
-                transactionId: data.transactionID!,
-            })
+            
+            registerPayment()
             
         }
 
