@@ -17,10 +17,11 @@ import { useEffect } from 'react'
 
 interface PropertyViewingPaymentPromptProps {
     isOpen: boolean
-    onClose: () => void
+    onClose: () => void,
+    propertyId:number
 }
 
-export default function PropertyViewingPaymentPrompt({ isOpen, onClose }: PropertyViewingPaymentPromptProps) {
+export default function PropertyViewingPaymentPrompt({ isOpen, onClose ,propertyId}: PropertyViewingPaymentPromptProps) {
     const { registerPayment } = usePropertyViews()
     const { toast } = useToast()
 
@@ -43,7 +44,6 @@ export default function PropertyViewingPaymentPrompt({ isOpen, onClose }: Proper
         },
     }
 
-    const handleFlutterPayment = useFlutterwave(config)
 
     const handlePayment = () => {
         sendPaymentRequest().then((data) => {
@@ -61,15 +61,12 @@ export default function PropertyViewingPaymentPrompt({ isOpen, onClose }: Proper
 
     useEffect(() => {
         const handler = (data: { transactionID: string }) => {
-            // recordTourPayment({
-            //     propertyId: `${propertyId}`,
-            //     userId: user!.id,
-            //     customerName: user!.fullName,
-            //     amount: 15000,
-            //     currency: 'UGX',
-            //     customerEmail: user!.email,
-            //     transactionId: data.transactionID!,
-            // })
+            recordTourPayment({
+                propertyId: `${propertyId}`,
+                amount: 10000,
+                currency: 'UGX',
+                transactionId: data.transactionID!,
+            })
             
         }
 

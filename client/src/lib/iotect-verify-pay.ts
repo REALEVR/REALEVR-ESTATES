@@ -1,9 +1,7 @@
 type PaymentRecordData = {
     transactionId: string
     propertyId: string
-    userId?: number,
-    customerEmail: string
-    customerName: string
+    userId?: number
     amount: number
     currency: string
     timestamp?: string // optional, server can also set it
@@ -46,3 +44,4 @@ async function recordTourPayment(data: PaymentRecordData) {
 // })
 //     .then((res) => console.log('Payment recorded:', res))
 //     .catch((err) => console.error(err))
+

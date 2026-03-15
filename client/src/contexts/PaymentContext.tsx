@@ -36,7 +36,11 @@ export function PaymentProvider({ children }: { children: ReactNode }) {
             {children}
 
             {/* Payment Prompt Components */}
-            <PropertyViewingPaymentPrompt isOpen={isViewingPromptOpen} onClose={() => setIsViewingPromptOpen(false)} />
+            <PropertyViewingPaymentPrompt
+                propertyId={propertyForDeposit!.id}
+                isOpen={isViewingPromptOpen}
+                onClose={() => setIsViewingPromptOpen(false)}
+            />
         </PaymentContext.Provider>
     )
 }

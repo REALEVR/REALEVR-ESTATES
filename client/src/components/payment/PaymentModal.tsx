@@ -138,15 +138,12 @@ export default function PaymentModal({
 
     useEffect(() => {
         const handler = (data: { transactionID: string }) => {
-            // recordTourPayment({
-            //     propertyId: `${propertyId}`,
-            //     userId: user!.id,
-            //     customerName: user!.fullName,
-            //     amount: 15000,
-            //     currency: 'UGX',
-            //     customerEmail: user!.email,
-            //     transactionId: data.transactionID!,
-            // })
+            recordTourPayment({
+                propertyId: `${propertyId}`,
+                amount: amount,
+                currency: 'UGX',
+                transactionId: data.transactionID!,
+            })
             handlePaymentSuccess('successful')
         }
 

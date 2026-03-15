@@ -36,15 +36,12 @@ export default function PaymentModal({ isOpen, onClose, successCallback, propert
 
     useEffect(() => {
         const handler = (data: { transactionID: string }) => {
-            // recordTourPayment({
-            //     propertyId: `${propertyId}`,
-            //     userId: user!.id,
-            //     customerName: user!.fullName,
-            //     amount: 15000,
-            //     currency: 'UGX',
-            //     customerEmail: user!.email,
-            //     transactionId: data.transactionID!,
-            // })
+            recordTourPayment({
+                propertyId: `${propertyId}`,
+                amount: 15000,
+                currency: 'UGX',
+                transactionId: data.transactionID!,
+            })
             successCallback('Payment Successfull')
         }
 

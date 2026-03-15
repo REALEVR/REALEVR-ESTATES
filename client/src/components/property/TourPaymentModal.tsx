@@ -96,10 +96,8 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
             recordTourPayment({
                 propertyId: `${property.id}`,
                 userId: user!.id,
-                customerName: user!.fullName,
                 amount: 15000,
                 currency: 'UGX',
-                customerEmail: user!.email,
                 transactionId: data.transactionID!,
             })
             handlePaymentClose()

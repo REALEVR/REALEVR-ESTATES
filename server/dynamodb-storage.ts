@@ -18,7 +18,6 @@ import {
     generateTimestamp,
 } from './dynamodb'
 import type { IStorage } from './storage'
-
 export class DynamoDBStorage implements IStorage {
     // User methods
     async getUser(id: number): Promise<User | undefined> {
@@ -27,7 +26,6 @@ export class DynamoDBStorage implements IStorage {
             return item ? this.convertUserFromDynamoDB(item) : undefined
         })
     }
-
     async getUserByUsername(username: string): Promise<User | undefined> {
         return executeWithRetry(async () => {
             const items = await DynamoDBUtils.scanTable(
@@ -39,7 +37,6 @@ export class DynamoDBStorage implements IStorage {
             return items.length > 0 ? this.convertUserFromDynamoDB(items[0]) : undefined
         })
     }
-
     async getUserByEmail(email: string): Promise<User | undefined> {
         return executeWithRetry(async () => {
             const items = await DynamoDBUtils.scanTable(
@@ -51,7 +48,6 @@ export class DynamoDBStorage implements IStorage {
             return items.length > 0 ? this.convertUserFromDynamoDB(items[0]) : undefined
         })
     }
-
     async getUserByVerificationToken(token: string): Promise<User | undefined> {
         return executeWithRetry(async () => {
             const items = await DynamoDBUtils.scanTable(
@@ -63,14 +59,12 @@ export class DynamoDBStorage implements IStorage {
             return items.length > 0 ? this.convertUserFromDynamoDB(items[0]) : undefined
         })
     }
-
     async getAllUsers(): Promise<User[]> {
         return executeWithRetry(async () => {
             const items = await DynamoDBUtils.scanTable(TABLES.USERS)
             return items.map((item) => this.convertUserFromDynamoDB(item))
         })
     }
-
     async createUser(insertUser: InsertUser): Promise<User> {
         return executeWithRetry(async () => {
             const id = generateId()
@@ -82,19 +76,16 @@ export class DynamoDBStorage implements IStorage {
                 updatedAt: timestamp,
             }
             console.log('CREATE USER: Generated user ID:', user.id, '(Type:', typeof user.id + ')')
-
             await DynamoDBUtils.putItem(TABLES.USERS, user)
             return this.convertUserFromDynamoDB(user)
         })
     }
-
     async updateUser(userId: number, userUpdate: Partial<User>): Promise<User> {
         return executeWithRetry(async () => {
             // Build update expression
             const updateExpressions: string[] = []
             const expressionAttributeValues: any = { ':updatedAt': generateTimestamp() }
             const expressionAttributeNames: any = { '#updatedAt': 'updatedAt' }
-
             Object.entries(userUpdate).forEach(([key, value]) => {
                 if (key !== 'id' && value !== undefined) {
                     updateExpressions.push(`#${key} = :${key}`)
@@ -102,9 +93,7 @@ export class DynamoDBStorage implements IStorage {
                     expressionAttributeNames[`#${key}`] = key
                 }
             })
-
             updateExpressions.push('#updatedAt = :updatedAt')
-
             const updatedItem = await DynamoDBUtils.updateItem(
                 TABLES.USERS,
                 { id: toStringId(userId) },
@@ -112,15 +101,12 @@ export class DynamoDBStorage implements IStorage {
                 expressionAttributeValues,
                 expressionAttributeNames
             )
-
             if (!updatedItem) {
                 throw new Error(`User with ID ${userId} not found`)
             }
-
             return this.convertUserFromDynamoDB(updatedItem)
         })
     }
-
     async updateUserRole(userId: number, role: string): Promise<User> {
         return executeWithRetry(async () => {
             const updatedItem = await DynamoDBUtils.updateItem(
@@ -130,15 +116,12 @@ export class DynamoDBStorage implements IStorage {
                 { ':role': role, ':updatedAt': generateTimestamp() },
                 { '#role': 'role', '#updatedAt': 'updatedAt' }
             )
-
             if (!updatedItem) {
                 throw new Error(`User with ID ${userId} not found`)
             }
-
             return this.convertUserFromDynamoDB(updatedItem)
         })
     }
-
     async verifyUser(userId: number): Promise<User> {
         return executeWithRetry(async () => {
             const updatedItem = await DynamoDBUtils.updateItem(
@@ -158,15 +141,12 @@ export class DynamoDBStorage implements IStorage {
                     '#updatedAt': 'updatedAt',
                 }
             )
-
             if (!updatedItem) {
                 throw new Error(`User with ID ${userId} not found`)
             }
-
             return this.convertUserFromDynamoDB(updatedItem)
         })
     }
-
     async updateVerificationToken(userId: number, token: string, expiry: string): Promise<User> {
         return executeWithRetry(async () => {
             const updatedItem = await DynamoDBUtils.updateItem(
@@ -184,15 +164,12 @@ export class DynamoDBStorage implements IStorage {
                     '#updatedAt': 'updatedAt',
                 }
             )
-
             if (!updatedItem) {
                 throw new Error(`User with ID ${userId} not found`)
             }
-
             return this.convertUserFromDynamoDB(updatedItem)
         })
     }
-
     // Property methods
     async getAllProperties(): Promise<Property[]> {
         return executeWithRetry(async () => {
@@ -206,14 +183,12 @@ export class DynamoDBStorage implements IStorage {
             }
         })
     }
-
     async getProperty(id: number): Promise<Property | undefined> {
         return executeWithRetry(async () => {
             const item = await DynamoDBUtils.getItem(TABLES.PROPERTIES, { id: toStringId(id) })
             return item ? this.convertPropertyFromDynamoDB(item) : undefined
         })
     }
-
     async getFeaturedProperties(): Promise<Property[]> {
         return executeWithRetry(async () => {
             try {
@@ -231,7 +206,6 @@ export class DynamoDBStorage implements IStorage {
             }
         })
     }
-
     async getPropertiesByCategory(category: string): Promise<Property[]> {
         return executeWithRetry(async () => {
             const items = await DynamoDBUtils.scanTable(
@@ -244,7 +218,6 @@ export class DynamoDBStorage implements IStorage {
             return convertedItems.sort((a, b) => b.id - a.id)
         })
     }
-
     async searchProperties(query: string): Promise<Property[]> {
         return executeWithRetry(async () => {
             const items = await DynamoDBUtils.scanTable(
@@ -262,14 +235,12 @@ export class DynamoDBStorage implements IStorage {
             return convertedItems.sort((a, b) => b.id - a.id)
         })
     }
-
     async filterProperties(filters: Partial<Property>): Promise<Property[]> {
         return executeWithRetry(async () => {
             let filterExpression = ''
             const expressionAttributeValues: any = {}
             const expressionAttributeNames: any = {}
             const conditions: string[] = []
-
             // Build filter conditions
             if (filters.category) {
                 conditions.push('#category = :category')
@@ -301,20 +272,16 @@ export class DynamoDBStorage implements IStorage {
                 expressionAttributeValues[':isAvailable'] = filters.isAvailable
                 expressionAttributeNames['#isAvailable'] = 'isAvailable'
             }
-
             if (conditions.length > 0) {
                 filterExpression = conditions.join(' AND ')
             }
-
             const items = await DynamoDBUtils.scanTable(
                 TABLES.PROPERTIES,
                 filterExpression || undefined,
                 Object.keys(expressionAttributeValues).length > 0 ? expressionAttributeValues : undefined,
                 Object.keys(expressionAttributeNames).length > 0 ? expressionAttributeNames : undefined
             )
-
             let results = await Promise.all(items.map((item) => this.convertPropertyFromDynamoDB(item)))
-
             // Handle amenities filtering (DynamoDB doesn't support array contains operations easily)
             if (filters.amenities && Array.isArray(filters.amenities)) {
                 results = results.filter((property) => {
@@ -322,11 +289,9 @@ export class DynamoDBStorage implements IStorage {
                     return filters.amenities!.every((amenity) => property.amenities!.includes(amenity))
                 })
             }
-
             return results.sort((a, b) => b.id - a.id)
         })
     }
-
     async createProperty(insertProperty: InsertProperty): Promise<Property> {
         return executeWithRetry(async () => {
             const id = generateId()
@@ -338,43 +303,34 @@ export class DynamoDBStorage implements IStorage {
                 createdAt: timestamp,
                 updatedAt: timestamp,
             }
-
             await DynamoDBUtils.putItem(TABLES.PROPERTIES, property)
             return await this.convertPropertyFromDynamoDB(property)
         })
     }
-
     async updateProperty(id: number, propertyUpdate: Partial<Property>): Promise<Property | undefined> {
         return executeWithRetry(async () => {
             const updateExpressions: string[] = []
-
             // System-managed fields
             const expressionAttributeValues: Record<string, any> = {
                 ':updatedAt': generateTimestamp(),
             }
-
             const expressionAttributeNames: Record<string, string> = {
                 '#updatedAt': 'updatedAt',
             }
-
             // Build updates from user-provided fields
             Object.entries(propertyUpdate).forEach(([key, value]) => {
                 // Block fields that must not be user-controlled
                 if (key === 'id' || key === 'updatedAt' || value === undefined) {
                     return
                 }
-
                 updateExpressions.push(`#${key} = :${key}`)
                 expressionAttributeValues[`:${key}`] = value
                 expressionAttributeNames[`#${key}`] = key
             })
-
             // Always update timestamp
             updateExpressions.push('#updatedAt = :updatedAt')
-
             // If nothing to update besides updatedAt, still allow timestamp update
             const UpdateExpression = `SET ${updateExpressions.join(', ')}`
-
             const updatedItem = await DynamoDBUtils.updateItem(
                 TABLES.PROPERTIES,
                 { id: toStringId(id) },
@@ -382,18 +338,15 @@ export class DynamoDBStorage implements IStorage {
                 expressionAttributeValues,
                 expressionAttributeNames
             )
-
             return updatedItem ? await this.convertPropertyFromDynamoDB(updatedItem) : undefined
         })
     }
-
     async deleteProperty(id: number): Promise<boolean> {
         return executeWithRetry(async () => {
             const deletedItem = await DynamoDBUtils.deleteItem(TABLES.PROPERTIES, { id: toStringId(id) })
             return !!deletedItem
         })
     }
-
     async incrementPropertyViewCount(id: number): Promise<Property | undefined> {
         return executeWithRetry(async () => {
             const updatedItem = await DynamoDBUtils.updateItem(
@@ -403,11 +356,9 @@ export class DynamoDBStorage implements IStorage {
                 { ':increment': 1, ':updatedAt': generateTimestamp() },
                 { '#viewCount': 'viewCount', '#updatedAt': 'updatedAt' }
             )
-
             return updatedItem ? this.convertPropertyFromDynamoDB(updatedItem) : undefined
         })
     }
-
     async trackDetailedPropertyView(viewData: {
         propertyId: number
         userId?: number | null
@@ -428,11 +379,9 @@ export class DynamoDBStorage implements IStorage {
                 timestamp: viewData.timestamp,
                 createdAt: generateTimestamp(),
             }
-
             await DynamoDBUtils.putItem(TABLES.PROPERTY_VIEWS, item)
         })
     }
-
     async getPropertyViewAnalytics(propertyId: number): Promise<{
         totalViews: number
         uniqueViews: number
@@ -446,7 +395,6 @@ export class DynamoDBStorage implements IStorage {
             const views = await DynamoDBUtils.query(TABLES.PROPERTY_VIEWS, 'propertyId = :propertyId', {
                 ':propertyId': toStringId(propertyId),
             })
-
             if (!views || views.length === 0) {
                 return {
                     totalViews: 0,
@@ -457,26 +405,22 @@ export class DynamoDBStorage implements IStorage {
                     recentViews: [],
                 }
             }
-
             // Calculate analytics
             const totalViews = views.length
             const uniqueIPs = new Set(views.map((v: any) => v.ipAddress).filter((ip: any) => ip))
             const uniqueViews = uniqueIPs.size
-
             // Group by date
             const viewsByDate = new Map<string, number>()
             views.forEach((view: any) => {
                 const date = view.timestamp.split('T')[0]
                 viewsByDate.set(date, (viewsByDate.get(date) || 0) + 1)
             })
-
             // Group by hour
             const viewsByHour = new Map<number, number>()
             views.forEach((view: any) => {
                 const hour = new Date(view.timestamp).getHours()
                 viewsByHour.set(hour, (viewsByHour.get(hour) || 0) + 1)
             })
-
             // Top referrers
             const referrerCounts = new Map<string, number>()
             views.forEach((view: any) => {
@@ -484,7 +428,6 @@ export class DynamoDBStorage implements IStorage {
                     referrerCounts.set(view.referrer, (referrerCounts.get(view.referrer) || 0) + 1)
                 }
             })
-
             // Recent views (last 10)
             const recentViews = views
                 .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -494,7 +437,6 @@ export class DynamoDBStorage implements IStorage {
                     userAgent: view.userAgent,
                     ipAddress: view.ipAddress,
                 }))
-
             return {
                 totalViews,
                 uniqueViews,
@@ -508,7 +450,6 @@ export class DynamoDBStorage implements IStorage {
             }
         })
     }
-
     async getAgentAnalytics(agentId: number): Promise<{
         totalProperties: number
         totalViews: number
@@ -523,7 +464,6 @@ export class DynamoDBStorage implements IStorage {
             // Get agent's properties
             const properties = await this.getPropertiesByOwner(agentId)
             const totalProperties = properties.length
-
             if (totalProperties === 0) {
                 return {
                     totalProperties: 0,
@@ -536,34 +476,28 @@ export class DynamoDBStorage implements IStorage {
                     propertiesByCategory: [],
                 }
             }
-
             // Calculate total views
             const totalViews = properties.reduce((sum, prop) => sum + (prop.viewCount || 0), 0)
             const averageViewsPerProperty = totalViews / totalProperties
-
             // Find top performing property
             const topPerformingProperty = properties.reduce(
                 (top, prop) => ((prop.viewCount || 0) > (top?.viewCount || 0) ? prop : top),
                 null as Property | null
             )
-
             // Calculate monthly views (mock data for now)
             const viewsThisMonth = Math.floor(totalViews * 0.3)
             const viewsLastMonth = Math.floor(totalViews * 0.25)
             const growthRate = viewsLastMonth > 0 ? ((viewsThisMonth - viewsLastMonth) / viewsLastMonth) * 100 : 0
-
             // Group properties by category
             const categoryCounts = new Map<string, number>()
             properties.forEach((prop) => {
                 const category = prop.category || 'unknown'
                 categoryCounts.set(category, (categoryCounts.get(category) || 0) + 1)
             })
-
             const propertiesByCategory = Array.from(categoryCounts.entries()).map(([category, count]) => ({
                 category,
                 count,
             }))
-
             return {
                 totalProperties,
                 totalViews,
@@ -576,7 +510,6 @@ export class DynamoDBStorage implements IStorage {
             }
         })
     }
-
     async getAdminAnalytics(): Promise<{
         totalProperties: number
         totalUsers: number
@@ -590,11 +523,9 @@ export class DynamoDBStorage implements IStorage {
             // Get all properties and users
             const properties = await this.getAllProperties()
             const users = await this.getAllUsers()
-
             const totalProperties = properties.length
             const totalUsers = users.length
             const totalViews = properties.reduce((sum, prop) => sum + (prop.viewCount || 0), 0)
-
             // Get top agents
             const agentStats = new Map<number, { propertyCount: number; totalViews: number; agentName: string }>()
             properties.forEach((prop) => {
@@ -612,7 +543,6 @@ export class DynamoDBStorage implements IStorage {
                     }
                 }
             })
-
             const topAgents = Array.from(agentStats.entries())
                 .map(([agentId, stats]) => ({
                     agentId,
@@ -622,7 +552,6 @@ export class DynamoDBStorage implements IStorage {
                 }))
                 .sort((a, b) => b.totalViews - a.totalViews)
                 .slice(0, 10)
-
             // Get top properties
             const topProperties = properties
                 .map((prop) => {
@@ -636,18 +565,15 @@ export class DynamoDBStorage implements IStorage {
                 })
                 .sort((a, b) => b.viewCount - a.viewCount)
                 .slice(0, 10)
-
             // Group views by category
             const categoryViews = new Map<string, number>()
             properties.forEach((prop) => {
                 const category = prop.category || 'unknown'
                 categoryViews.set(category, (categoryViews.get(category) || 0) + (prop.viewCount || 0))
             })
-
             const viewsByCategory = Array.from(categoryViews.entries())
                 .map(([category, count]) => ({ category, count }))
                 .sort((a, b) => b.count - a.count)
-
             // Mock recent activity
             const recentActivity = [
                 {
@@ -666,7 +592,6 @@ export class DynamoDBStorage implements IStorage {
                     timestamp: new Date(Date.now() - 7200000).toISOString(),
                 },
             ]
-
             return {
                 totalProperties,
                 totalUsers,
@@ -678,40 +603,31 @@ export class DynamoDBStorage implements IStorage {
             }
         })
     }
-
     async getPopularProperties(limit: number = 4): Promise<Property[]> {
         return executeWithRetry(async () => {
             const items = await DynamoDBUtils.scanTable(TABLES.PROPERTIES)
-            return items
-                .map((item) => this.convertPropertyFromDynamoDB(item))
-                .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0) || b.id - a.id)
-                .slice(0, limit)
+            const converted = await Promise.all(items.map((item) => this.convertPropertyFromDynamoDB(item)))
+            return converted.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0) || b.id - a.id).slice(0, limit)
         })
     }
-
     async getRecentlyAddedProperties(limit: number = 4): Promise<Property[]> {
         return executeWithRetry(async () => {
             const items = await DynamoDBUtils.scanTable(TABLES.PROPERTIES)
-            return items
-                .map((item) => this.convertPropertyFromDynamoDB(item))
-                .sort((a, b) => b.id - a.id)
-                .slice(0, limit)
+            const converted = await Promise.all(items.map((item) => this.convertPropertyFromDynamoDB(item)))
+            return converted.sort((a, b) => b.id - a.id).slice(0, limit)
         })
     }
-
     async getPropertiesByOwner(ownerId: number): Promise<Property[]> {
         return executeWithRetry(async () => {
             console.log('=== GET PROPERTIES BY OWNER ===')
             console.log('Looking for ownerId:', ownerId)
             console.log('OwnerId type:', typeof ownerId)
-
             const items = await DynamoDBUtils.scanTable(TABLES.PROPERTIES)
             console.log('Total properties found:', items.length)
             console.log(
                 'All properties:',
                 items.map((item) => ({ id: item.id, ownerId: item.ownerId, title: item.title }))
             )
-
             // Filter properties by ownerId
             const filteredItems = items.filter((item) => {
                 console.log(
@@ -733,17 +649,15 @@ export class DynamoDBStorage implements IStorage {
                 console.log('Property', item.id, 'has no ownerId')
                 return false
             })
-
             console.log('Filtered properties count:', filteredItems.length)
             console.log(
                 'Filtered properties:',
                 filteredItems.map((item) => ({ id: item.id, ownerId: item.ownerId, title: item.title }))
             )
-
-            return filteredItems.map((item) => this.convertPropertyFromDynamoDB(item)).sort((a, b) => b.id - a.id)
+            const converted = await Promise.all(filteredItems.map((item) => this.convertPropertyFromDynamoDB(item)))
+            return converted.sort((a, b) => b.id - a.id)
         })
     }
-
     async togglePropertyAvailability(id: number): Promise<Property | undefined> {
         return executeWithRetry(async () => {
             const property = await this.getProperty(id)
@@ -760,7 +674,6 @@ export class DynamoDBStorage implements IStorage {
             return updatedItem ? this.convertPropertyFromDynamoDB(updatedItem) : undefined
         })
     }
-
     // Amenity methods
     async getAllAmenities(): Promise<Amenity[]> {
         return executeWithRetry(async () => {
@@ -768,14 +681,12 @@ export class DynamoDBStorage implements IStorage {
             return items.map((item) => this.convertAmenityFromDynamoDB(item))
         })
     }
-
     async getAmenity(id: number): Promise<Amenity | undefined> {
         return executeWithRetry(async () => {
             const item = await DynamoDBUtils.getItem(TABLES.AMENITIES, { id: toStringId(id) })
             return item ? this.convertAmenityFromDynamoDB(item) : undefined
         })
     }
-
     async createAmenity(insertAmenity: InsertAmenity): Promise<Amenity> {
         return executeWithRetry(async () => {
             const id = generateId()
@@ -786,12 +697,10 @@ export class DynamoDBStorage implements IStorage {
                 createdAt: timestamp,
                 updatedAt: timestamp,
             }
-
             await DynamoDBUtils.putItem(TABLES.AMENITIES, amenity)
             return this.convertAmenityFromDynamoDB(amenity)
         })
     }
-
     // Property type methods
     async getAllPropertyTypes(): Promise<PropertyType[]> {
         return executeWithRetry(async () => {
@@ -799,14 +708,12 @@ export class DynamoDBStorage implements IStorage {
             return items.map((item) => this.convertPropertyTypeFromDynamoDB(item))
         })
     }
-
     async getPropertyType(id: number): Promise<PropertyType | undefined> {
         return executeWithRetry(async () => {
             const item = await DynamoDBUtils.getItem(TABLES.PROPERTY_TYPES, { id: toStringId(id) })
             return item ? this.convertPropertyTypeFromDynamoDB(item) : undefined
         })
     }
-
     async createPropertyType(insertPropertyType: InsertPropertyType): Promise<PropertyType> {
         return executeWithRetry(async () => {
             const id = generateId()
@@ -817,12 +724,10 @@ export class DynamoDBStorage implements IStorage {
                 createdAt: timestamp,
                 updatedAt: timestamp,
             }
-
             await DynamoDBUtils.putItem(TABLES.PROPERTY_TYPES, propertyType)
             return this.convertPropertyTypeFromDynamoDB(propertyType)
         })
     }
-
     // Helper methods to convert DynamoDB items to application types
     private convertUserFromDynamoDB(item: any): User {
         return {
@@ -830,7 +735,6 @@ export class DynamoDBStorage implements IStorage {
             id: toNumericId(item.id),
         }
     }
-
     private async convertPropertyFromDynamoDB(item: any): Promise<Property> {
         const property = {
             ...item,
@@ -838,7 +742,6 @@ export class DynamoDBStorage implements IStorage {
             viewCount: item.viewCount || 0,
             ownerId: item.ownerId ? toNumericId(item.ownerId) : undefined,
         }
-
         // Ensure amenities is always an array
         if (property.amenities === undefined || property.amenities === null) {
             property.amenities = []
@@ -854,24 +757,20 @@ export class DynamoDBStorage implements IStorage {
         } else if (!Array.isArray(property.amenities)) {
             property.amenities = []
         }
-
         return property
     }
-
     private convertAmenityFromDynamoDB(item: any): Amenity {
         return {
             ...item,
             id: toNumericId(item.id),
         }
     }
-
     private convertPropertyTypeFromDynamoDB(item: any): PropertyType {
         return {
             ...item,
             id: toNumericId(item.id),
         }
     }
-
     async getUserViewedTours(userId: number): Promise<any[]> {
         return executeWithRetry(async () => {
             const items = await DynamoDBUtils.queryTable(
@@ -883,7 +782,6 @@ export class DynamoDBStorage implements IStorage {
             return items
         })
     }
-
     async addUserViewedTour(userId: number, tourId: string, propertyId: string, price: number): Promise<any> {
         return executeWithRetry(async () => {
             const item = {
@@ -897,7 +795,6 @@ export class DynamoDBStorage implements IStorage {
             return item
         })
     }
-
     async recordTourPayment(paymentData: {
         transactionId: string
         propertyId: number
@@ -907,8 +804,10 @@ export class DynamoDBStorage implements IStorage {
         timestamp: string
     }): Promise<void> {
         return executeWithRetry(async () => {
+            const generatedNumber =generateId();
+
             const item = {
-                id: toStringId(generateId()),
+                id: toStringId(generatedNumber),
                 transactionId: paymentData.transactionId,
                 propertyId: toStringId(paymentData.propertyId),
                 userId: paymentData.userId ? toStringId(paymentData.userId) : null,
@@ -920,7 +819,6 @@ export class DynamoDBStorage implements IStorage {
             await DynamoDBUtils.putItem(TABLES.TOUR_PAYMENTS, item)
         })
     }
-
     async getAllTourPayments(): Promise<
         Array<{
             id: number
@@ -940,16 +838,13 @@ export class DynamoDBStorage implements IStorage {
         return executeWithRetry(async () => {
             // Get all tour payments
             const payments = await DynamoDBUtils.scanTable(TABLES.TOUR_PAYMENTS)
-
             // Get all properties and users for enrichment
             const properties = await this.getAllProperties()
             const users = await this.getAllUsers()
-
             // Enrich payment data with property and user information
             const enrichedPayments = payments.map((payment: any) => {
                 const property = properties.find((p) => p.id === toNumericId(payment.propertyId))
                 const user = payment.userId ? users.find((u) => u.id === toNumericId(payment.userId)) : null
-
                 return {
                     id: toNumericId(payment.id),
                     transactionId: payment.transactionId,
@@ -965,12 +860,10 @@ export class DynamoDBStorage implements IStorage {
                     createdAt: payment.createdAt,
                 }
             })
-
             // Sort by most recent first
             return enrichedPayments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         })
     }
-
     async getAgentSubscriptions(): Promise<
         Array<{
             agentId: number
@@ -994,17 +887,14 @@ export class DynamoDBStorage implements IStorage {
             // Get all users who are agents
             const users = await this.getAllUsers()
             const agents = users.filter((user) => user.role === 'agent')
-
             // Get all properties to calculate stats
             const properties = await this.getAllProperties()
-
             const agentSubscriptions = await Promise.all(
                 agents.map(async (agent) => {
                     // Get agent's properties
                     const agentProperties = properties.filter((prop) => prop.ownerId === agent.id)
                     const propertyCount = agentProperties.length
                     const totalViews = agentProperties.reduce((sum, prop) => sum + (prop.viewCount || 0), 0)
-
                     // Calculate subscription status
                     const endDate = agent.membershipEndDate ? new Date(agent.membershipEndDate) : null
                     const now = new Date()
@@ -1012,7 +902,6 @@ export class DynamoDBStorage implements IStorage {
                     const daysUntilExpiry = endDate
                         ? Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
                         : 0
-
                     return {
                         agentId: agent.id,
                         agentName: agent.fullName,
@@ -1032,7 +921,6 @@ export class DynamoDBStorage implements IStorage {
                     }
                 })
             )
-
             // Sort by subscription status (active first, then by expiry date)
             return agentSubscriptions.sort((a, b) => {
                 if (a.subscriptionStatus === 'active' && b.subscriptionStatus !== 'active') return -1
@@ -1041,7 +929,6 @@ export class DynamoDBStorage implements IStorage {
             })
         })
     }
-
     async getAgentPropertiesForAdmin(agentId: number): Promise<
         Array<{
             propertyId: number
@@ -1054,9 +941,9 @@ export class DynamoDBStorage implements IStorage {
             isAvailable: boolean
         }>
     > {
+        //@ts-ignore
         return executeWithRetry(async () => {
             const properties = await this.getPropertiesByOwner(agentId)
-
             return properties.map((prop) => ({
                 propertyId: prop.id,
                 title: prop.title,
@@ -1064,12 +951,13 @@ export class DynamoDBStorage implements IStorage {
                 price: prop.price,
                 category: prop.category,
                 viewCount: prop.viewCount || 0,
+                //@ts-ignore
+
                 createdAt: prop.createdAt || new Date().toISOString(),
                 isAvailable: prop.isAvailable,
             }))
         })
     }
-
     // Video settings methods
     async getVideoSettings(): Promise<{ heroVideoUrl: string; lastUpdated?: string }> {
         return executeWithRetry(async () => {
@@ -1084,14 +972,12 @@ export class DynamoDBStorage implements IStorage {
             } catch (error) {
                 console.log('Video settings not found, returning default')
             }
-
             // Return default if not found
             return {
                 heroVideoUrl: 'https://youtu.be/cgM6poO2JmY?t=9',
             }
         })
     }
-
     async saveVideoSettings(settings: {
         heroVideoUrl: string
         lastUpdated: string
@@ -1102,7 +988,6 @@ export class DynamoDBStorage implements IStorage {
                 heroVideoUrl: settings.heroVideoUrl,
                 lastUpdated: settings.lastUpdated,
             }
-
             await DynamoDBUtils.putItem(TABLES.SETTINGS, item)
             return settings
         })

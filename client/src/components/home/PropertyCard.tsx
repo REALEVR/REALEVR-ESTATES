@@ -49,7 +49,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
   const handleShareClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsShareModalOpen(true);
+    // setIsShareModalOpen(true);
   };
 
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -140,7 +140,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
               title="Share this property"
             >
               <i className="fas fa-share-alt"></i>
-            </button>
+            {/* </button> */}
             <button
               className="p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white transition-colors"
               onClick={handleFavoriteClick}

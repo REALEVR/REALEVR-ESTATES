@@ -120,7 +120,7 @@ function App() {
 
         paymentEmitter.on('OPEN_PAYMENT_GATEWAY', handler)
         return () => {
-           paymentEmitter.off('OPEN_PAYMENT_GATEWAY', handler)
+            paymentEmitter.off('OPEN_PAYMENT_GATEWAY', handler)
         }
     }, [])
 

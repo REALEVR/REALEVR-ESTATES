@@ -183,21 +183,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
 
     app.post('/api/payment/iotect/record', async (req: any, res: any) => {
-        const { transaction_id, property_id, user_id, customer_email, customer_name, currency, amount } = req.body
+        const {  transactionId, propertyId, user_id, customer_email, customer_name, currency, amount } = req.body
 
+
+        console.log("Current-Request-Body",req.body)
         try {
             await storage.recordTourPayment({
-                transactionId: transaction_id,
-                propertyId: property_id,
+                transactionId:  transactionId,
+                propertyId: propertyId,
                 userId: user_id || null,
-                customerEmail: customer_email,
-                customerName: customer_name,
                 amount: amount,
                 currency: currency,
                 timestamp: new Date().toISOString(),
             })
         } catch (error) {
-            console.error('Error recording tour payment:', dbError)
+            console.error('Error recording tour payment:', error)
         }
     })
 
@@ -808,98 +808,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
     })
 
-    // Tour payment verification
-    app.post('/api/verify-tour-payment', async (req, res) => {
-        try {
-            const { transaction_id, property_id, user_id, customer_email, customer_name } = req.body
-
-            if (!transaction_id || !property_id) {
-                return res.status(400).json({
-                    status: 'error',
-                    message: 'Transaction ID and property ID are required',
-                })
-            }
-
-            const flutterwaveSecretKey = process.env.FLUTTERWAVE_SECRET_KEY
-            if (!flutterwaveSecretKey) {
-                return res.status(500).json({
-                    status: 'error',
-                    message: 'Payment gateway not configured',
-                })
-            }
-
-            const response = await fetch(`https://api.flutterwave.com/v3/transactions/${transaction_id}/verify`, {
-                method: 'GET',
-                headers: {
-                    Authorization: `Bearer ${flutterwaveSecretKey}`,
-                    'Content-Type': 'application/json',
-                },
-            })
-
-            const data = (await response.json()) as {
-                status: string
-                data: {
-                    status: string
-                    amount: number
-                    currency: string
-                }
-            }
-
-            // Check if the payment was successful
-            if (data.status === 'success' && data.data.status === 'successful') {
-                const amount = data.data.amount
-                const currency = data.data.currency
-
-                // Tour payment should be 15,000 UGX
-                if (amount === 15000 && currency === 'UGX') {
-                    // Record the tour payment in the database
-                    try {
-                        await storage.recordTourPayment({
-                            transactionId: transaction_id,
-                            propertyId: property_id,
-                            userId: user_id || null,
-                            customerEmail: customer_email,
-                            customerName: customer_name,
-                            amount: amount,
-                            currency: currency,
-                            timestamp: new Date().toISOString(),
-                        })
-                    } catch (dbError) {
-                        console.error('Error recording tour payment:', dbError)
-                        // Don't fail the verification if database recording fails
-                    }
-
-                    return res.json({
-                        status: 'success',
-                        message: 'Tour payment verified successfully',
-                        data: {
-                            amount: amount,
-                            currency: currency,
-                        },
-                    })
-                } else {
-                    return res.status(400).json({
-                        status: 'error',
-                        message: 'Invalid payment amount for tour access',
-                    })
-                }
-            } else {
-                return res.status(400).json({
-                    status: 'error',
-                    message: 'Payment verification failed',
-                    data: data,
-                })
-            }
-        } catch (error: any) {
-            console.error('Tour payment verification error:', error)
-            return res.status(500).json({
-                status: 'error',
-                message: 'Error verifying tour payment',
-                error: error.message,
-            })
-        }
-    })
-
+   
     // Get user by ID (for property owner details)
     app.get('/api/users/:id', async (req, res) => {
         try {
@@ -1275,7 +1184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         id: property.id,
                         title: property.title,
                         status: 'error',
-                        error: error.message,
+                        error: (error instanceof Error ? error.message : error)
                     })
                 }
             }
@@ -1339,7 +1248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         id: property.id,
                         title: property.title,
                         status: 'error',
-                        error: error.message,
+                        error: (error instanceof Error ? error.message : error)
                     })
                 }
             }
