@@ -7,7 +7,7 @@ type PaymentRecordData = {
     timestamp?: string // optional, server can also set it
 }
 
-async function recordTourPayment(data: PaymentRecordData) {
+export async function recordTourPayment(data: PaymentRecordData) {
     try {
         const response = await fetch('/api/payment/iotect/record', {
             method: 'POST',

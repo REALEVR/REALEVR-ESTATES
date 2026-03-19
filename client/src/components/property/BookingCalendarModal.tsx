@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import PaymentModal from '@/components/payment/PaymentModal'
+import { recordTourPayment } from '@/lib/iotect-verify-pay'
 
 interface BookingCalendarModalProps {
     isOpen: boolean
@@ -135,7 +136,12 @@ export default function BookingCalendarModal({
 
         //add payments for the
 
-
+        recordTourPayment({
+            amount : paymentInfo.amount,
+            currency : "UGX",
+            propertyId : `${propertyId}`,
+            transactionId : paymentInfo.transactionId
+        })
 
         try {
             // Store the payment info in localStorage

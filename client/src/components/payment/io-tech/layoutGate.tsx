@@ -2,35 +2,35 @@ import React, { useEffect, useState } from 'react'
 import { Phone, ArrowRight, ShieldCheck, Info, Loader2, CheckCircle2, XCircle, X } from 'lucide-react'
 import { eventBus } from '@/lib/eventBus'
 import { toast } from '@/hooks/use-toast'
-import { paymentEmitter } from '@/lib/iotec-paymentpatch'
+import { makePaymentString, paymentEmitter } from '@/lib/iotec-paymentpatch'
 
 interface IoTecGatewayProps {
     accessToken: string
     amount: string
+    source: string
     onClose: () => void
 }
 
-export function IoTecGatewayLight({ accessToken, amount, onClose }: IoTecGatewayProps) {
+export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTecGatewayProps) {
     const [transactionID, setTransactionID] = useState()
     const [phoneNumber, setPhoneNumber] = useState('')
     const [loading, setLoading] = useState(false)
     const [step, setStep] = useState<'input' | 'pending'>('input')
     const [error, setError] = useState<string | null>(null)
-    const [didGetEndResult, setGotEndResult] = useState(false)
 
     const searchParams = new URLSearchParams(window.location.search)
-    const redirectUrl = searchParams.get('redirect')
 
     const handleClose = () => {
         onClose()
     }
 
+  
+
     const finishPayment = () => {
-        if (didGetEndResult) {
-            paymentEmitter.emit('COMPLETED-PAYMENT', {
-                transactionID: transactionID,
-            })
-        }
+        paymentEmitter.emit(makePaymentString(source), {
+            transactionID: transactionID,
+        })
+        onClose()
     }
 
     const collectPayment = async () => {
@@ -56,7 +56,6 @@ export function IoTecGatewayLight({ accessToken, amount, onClose }: IoTecGateway
             }
             if (res.ok) {
                 setStep('pending')
-                setGotEndResult(true)
             } else {
                 setError(data.message || 'Transaction failed. Please try again.')
             }
@@ -77,6 +76,8 @@ export function IoTecGatewayLight({ accessToken, amount, onClose }: IoTecGateway
     const carrier = getCarrier(phoneNumber)
 
     useEffect(() => {
+        console.log('DID-lOAD-PAYMENT-LAYOUT-GATE')
+
         // Lock body scroll when modal is open
         document.body.style.overflow = 'hidden'
         return () => {
@@ -84,21 +85,11 @@ export function IoTecGatewayLight({ accessToken, amount, onClose }: IoTecGateway
         }
     }, [])
 
-    useEffect(() => {
-        const off = eventBus.on('PAYMENT_MODEL', (data) => {
-            if (data.status == 'RESPONDED-BACK') {
-                console.log('Payment Officially Complete')
-            }
-        })
-        return off
-    }, [])
-
     return (
         // Full-screen fixed overlay
         <div className="fixed inset-0 z-50 bg-gray-100/80 backdrop-blur-sm text-gray-900 flex items-center justify-center font-sans overflow-y-auto">
             {/* Card: full screen on mobile, centered card on md+ */}
             <div className="relative w-full h-full md:h-auto md:max-w-4xl md:m-4 bg-white md:rounded-3xl border-0 md:border md:border-gray-200 md:shadow-2xl flex flex-col md:grid md:grid-cols-12 overflow-y-auto">
-
                 {/* Close Button */}
                 <button
                     onClick={handleClose}
@@ -186,7 +177,9 @@ export function IoTecGatewayLight({ accessToken, amount, onClose }: IoTecGateway
                             <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-4">
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">Payee Name</p>
+                                        <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">
+                                            Payee Name
+                                        </p>
                                         <p className="text-lg font-bold text-gray-900">ioTec Services Ltd</p>
                                     </div>
                                     <span className="px-3 py-1 bg-yellow-100 text-yellow-700 border border-yellow-200 rounded-full text-xs font-bold animate-pulse">
@@ -194,7 +187,9 @@ export function IoTecGatewayLight({ accessToken, amount, onClose }: IoTecGateway
                                     </span>
                                 </div>
                                 <div>
-                                    <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">Amount to Pay</p>
+                                    <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">
+                                        Amount to Pay
+                                    </p>
                                     <p className="text-2xl sm:text-3xl font-bold text-gray-900 font-mono">
                                         UGX {Number(amount).toLocaleString()}
                                     </p>

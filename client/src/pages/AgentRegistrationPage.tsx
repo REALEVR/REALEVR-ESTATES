@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { UserPlus, Loader2, Building, CheckIcon, Star, Crown, Zap, Users, Eye, Calendar, Shield } from 'lucide-react'
 import { useFlutterwave, FlutterWaveTypes } from 'flutterwave-react-v3'
-import { intiateGateWay, paymentEmitter, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
+import { intiateGateWay, makePaymentString, paymentEmitter, PaymentSources, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
 
 const AgentRegistrationSchema = z
     .object({
@@ -78,7 +78,6 @@ export default function AgentRegistrationPage() {
             ],
             color: 'border-gray-300',
             badgeColor: 'bg-gray-100 text-gray-800',
-            
         },
         professional: {
             name: 'Professional Agent',
@@ -119,17 +118,21 @@ export default function AgentRegistrationPage() {
         },
     }
 
-    /** 
+    const _paymentSource = PaymentSources.paymentSubscription
+    const _eventPaymentString = makePaymentString(_paymentSource)
+
+    /**
      * All Subscriptions expire after 30 days
-    */
-    const expiresAtIotech =  Date.now() + 30 * 24 * 60 * 60 * 1000;
+     */
+    const expiresAtIotech = Date.now() + 30 * 24 * 60 * 60 * 1000
     const selectedPlanDetails = planDetails[selectedPlan]
 
     const handleIotechPayment = () => {
         console.log('Handling payments with IOTech')
         console.log(`Payment Plan:${selectedPlanDetails.name} Price:${selectedPlanDetails.price}`)
+
         sendPaymentRequest().then((data) => {
-            intiateGateWay(data.accessToken, `${selectedPlanDetails.price}`)
+            intiateGateWay(data.accessToken, `${selectedPlanDetails.price}`,_paymentSource)
             if (data.error) {
                 toast({
                     title: 'Payment Error',
@@ -149,7 +152,6 @@ export default function AgentRegistrationPage() {
         if (response.status === 'successful') {
             try {
                 await createAgentAccount(response.transaction_id, expiresAtIotech)
-       
             } catch (error) {
                 toast({
                     title: 'Registration Error',
@@ -219,15 +221,15 @@ export default function AgentRegistrationPage() {
         const handler = async (data: { transactionID: string }) => {
             try {
                 handlePaymentSuccess({
-                    status : 'successful',
+                    status: 'successful',
                     transaction_id: data.transactionID,
                 })
                 handlePaymentClose()
             } catch {}
         }
-        paymentEmitter.on('COMPLETED-PAYMENT', handler)
+        paymentEmitter.on(_eventPaymentString, handler)
         return () => {
-            paymentEmitter.off('COMPLETED-PAYMENT', handler)
+            paymentEmitter.off(_eventPaymentString, handler)
         }
     }, [])
     return (

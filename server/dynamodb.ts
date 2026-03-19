@@ -1,9 +1,7 @@
 import { config } from 'dotenv'
 import path from 'path'
-
 // Load environment variables
 config({ path: path.resolve(process.cwd(), '.env') })
-
 import {
     DynamoDBClient,
     CreateTableCommand,
@@ -19,24 +17,103 @@ import {
     DeleteCommand,
     ScanCommand,
     QueryCommand,
-    BatchGetCommand,
-    BatchWriteCommand,
 } from '@aws-sdk/lib-dynamodb'
 
-// DynamoDB configuration
+// ─── Custom Error Classes ─────────────────────────────────────────────────────
+
+export class DynamoDBError extends Error {
+    constructor(
+        message: string,
+        public readonly cause?: unknown,
+        public readonly operation?: string,
+        public readonly tableName?: string
+    ) {
+        super(message)
+        this.name = 'DynamoDBError'
+    }
+}
+
+export class DynamoDBConnectionError extends DynamoDBError {
+    constructor(cause?: unknown) {
+        super('Failed to connect to DynamoDB', cause, 'connection')
+        this.name = 'DynamoDBConnectionError'
+    }
+}
+
+export class DynamoDBTableNotFoundError extends DynamoDBError {
+    constructor(tableName: string, cause?: unknown) {
+        super(`Table "${tableName}" does not exist`, cause, 'describe', tableName)
+        this.name = 'DynamoDBTableNotFoundError'
+    }
+}
+
+export class DynamoDBItemNotFoundError extends DynamoDBError {
+    constructor(tableName: string, key: Record<string, unknown>) {
+        super(`Item not found in "${tableName}" with key ${JSON.stringify(key)}`, undefined, 'get', tableName)
+        this.name = 'DynamoDBItemNotFoundError'
+    }
+}
+
+export class DynamoDBValidationError extends DynamoDBError {
+    constructor(message: string, tableName?: string) {
+        super(message, undefined, 'validation', tableName)
+        this.name = 'DynamoDBValidationError'
+    }
+}
+
+export class DynamoDBRetryExhaustedError extends DynamoDBError {
+    constructor(operation: string, attempts: number, cause?: unknown) {
+        super(`DynamoDB operation "${operation}" failed after ${attempts} attempts`, cause, operation)
+        this.name = 'DynamoDBRetryExhaustedError'
+    }
+}
+
+export class DynamoDBTableCreationTimeoutError extends DynamoDBError {
+    constructor(tableName: string) {
+        super(`Timed out waiting for table "${tableName}" to become ACTIVE`, undefined, 'createTable', tableName)
+        this.name = 'DynamoDBTableCreationTimeoutError'
+    }
+}
+
+export class DynamoDBConfigError extends Error {
+    constructor(message: string) {
+        super(message)
+        this.name = 'DynamoDBConfigError'
+    }
+}
+
+// ─── Config Validation ────────────────────────────────────────────────────────
+
+function validateConfig(): void {
+    const missing: string[] = []
+    if (!process.env.AWS_ACCESS_KEY_ID) missing.push('AWS_ACCESS_KEY_ID')
+    if (!process.env.AWS_SECRET_ACCESS_KEY) missing.push('AWS_SECRET_ACCESS_KEY')
+
+    if (missing.length > 0) {
+        throw new DynamoDBConfigError(
+            `Missing required environment variables: ${missing.join(', ')}. ` +
+            `Ensure your .env file is configured correctly.`
+        )
+    }
+}
+
+validateConfig()
+
+// ─── Client Setup ─────────────────────────────────────────────────────────────
+
 const dynamoDBConfig = {
     region: process.env.AWS_REGION || 'eu-north-1',
     credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
     },
 }
 
-// Create DynamoDB client
 const client = new DynamoDBClient(dynamoDBConfig)
 export const dynamoDb = DynamoDBDocumentClient.from(client)
 
-// Table names
+// ─── Table Names ──────────────────────────────────────────────────────────────
+
 export const TABLES = {
     USERS: process.env.DYNAMODB_USERS_TABLE || 'realevr-users',
     PROPERTIES: process.env.DYNAMODB_PROPERTIES_TABLE || 'realevr-properties',
@@ -48,207 +125,251 @@ export const TABLES = {
     SETTINGS: process.env.DYNAMODB_SETTINGS_TABLE || 'realevr-settings',
 } as const
 
-// Maximum number of retry attempts
+// ─── Retry Logic ──────────────────────────────────────────────────────────────
+
 const MAX_RETRIES = 5
-// Initial delay in milliseconds before retrying
 const INITIAL_RETRY_DELAY = 1000
-// Backoff multiplier for each retry attempt
 const BACKOFF_FACTOR = 1.5
 
-// Helper function to execute DynamoDB operations with retry logic
-export async function executeWithRetry<T>(operation: () => Promise<T>): Promise<T> {
-    let retries = 0
+const RETRYABLE_ERROR_NAMES = new Set([
+    'ProvisionedThroughputExceededException',
+    'ThrottlingException',
+    'ServiceUnavailableException',
+    'InternalServerError',
+    'RequestLimitExceeded',
+])
+
+const RETRYABLE_ERROR_CODES = new Set([
+    'NetworkingError',
+    'TimeoutError',
+    'ECONNRESET',
+    'ETIMEDOUT',
+    'ENOTFOUND',
+])
+
+function isRetryable(error: unknown): boolean {
+    if (error instanceof Error) {
+        const name = (error as NodeJS.ErrnoException).name ?? ''
+        const code = (error as NodeJS.ErrnoException).code ?? ''
+        return RETRYABLE_ERROR_NAMES.has(name) || RETRYABLE_ERROR_CODES.has(code)
+    }
+    return false
+}
+
+export async function executeWithRetry<T>(
+    operation: () => Promise<T>,
+    operationName = 'unknown'
+): Promise<T> {
+    let lastError: unknown
     let delay = INITIAL_RETRY_DELAY
 
-    while (retries < MAX_RETRIES) {
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
             return await operation()
-        } catch (error: any) {
-            // Check if error is retryable
-            const isRetryableError =
-                error.name === 'ProvisionedThroughputExceededException' ||
-                error.name === 'ThrottlingException' ||
-                error.name === 'ServiceUnavailableException' ||
-                error.name === 'InternalServerError' ||
-                error.name === 'RequestLimitExceeded' ||
-                error.code === 'NetworkingError' ||
-                error.code === 'TimeoutError'
+        } catch (error) {
+            lastError = error
 
-            if (!isRetryableError || retries >= MAX_RETRIES - 1) {
-                // If it's not a retryable error or we've exhausted retries, rethrow
-                throw error
+            if (!isRetryable(error) || attempt === MAX_RETRIES) {
+                // Wrap unknown errors in a DynamoDBError for consistent handling upstream
+                if (error instanceof DynamoDBError) throw error
+                throw new DynamoDBError(
+                    `DynamoDB operation "${operationName}" failed: ${error instanceof Error ? error.message : String(error)}`,
+                    error,
+                    operationName
+                )
             }
 
-            retries++
-            console.error(`DynamoDB operation failed (attempt ${retries}/${MAX_RETRIES}):`, error)
-
-            console.log(`Retrying operation in ${delay}ms...`)
+            console.warn(
+                `[DynamoDB] Operation "${operationName}" failed on attempt ${attempt}/${MAX_RETRIES}. ` +
+                `Retrying in ${delay}ms...`,
+                { errorName: (error as Error).name }
+            )
             await new Promise((resolve) => setTimeout(resolve, delay))
             delay = Math.floor(delay * BACKOFF_FACTOR)
         }
     }
 
-    throw new Error(`Failed to execute DynamoDB operation after ${MAX_RETRIES} attempts`)
+    throw new DynamoDBRetryExhaustedError(operationName, MAX_RETRIES, lastError)
 }
 
-// Helper function to generate unique IDs
+// ─── ID / Timestamp Helpers ───────────────────────────────────────────────────
+
 export function generateId(): number {
     return Date.now()
 }
 
-// Helper function to convert number ID to string for DynamoDB
 export function toStringId(id: number): string {
+    if (!Number.isFinite(id) || id <= 0) {
+        throw new DynamoDBValidationError(`Invalid ID value: ${id}`)
+    }
     return id.toString()
 }
 
-// Helper function to convert string ID back to number for compatibility
 export function toNumericId(id: string): number {
-    return parseInt(id, 10)
+    const parsed = parseInt(id, 10)
+    if (isNaN(parsed) || parsed <= 0) {
+        throw new DynamoDBValidationError(`Cannot convert "${id}" to a valid numeric ID`)
+    }
+    return parsed
 }
 
-// Helper function to generate timestamp
 export function generateTimestamp(): string {
     return new Date().toISOString()
 }
 
-// DynamoDB health check function
+// ─── Health Check ─────────────────────────────────────────────────────────────
+
 export async function checkDynamoDBHealth(): Promise<boolean> {
     try {
-        // Test connection by scanning one of the tables with a limit
-        await dynamoDb.send(
-            new ScanCommand({
-                TableName: TABLES.USERS,
-                Limit: 1,
-            })
-        )
-
-        console.log('DynamoDB health check: Connection is healthy')
+        await dynamoDb.send(new ScanCommand({ TableName: TABLES.USERS, Limit: 1 }))
+        console.log('[DynamoDB] Health check: connection is healthy.')
         return true
     } catch (error) {
-        console.error('DynamoDB health check failed:', error)
+        console.error('[DynamoDB] Health check failed:', error instanceof Error ? error.message : error)
         return false
     }
 }
 
-// Utility functions for common DynamoDB operations
+// ─── DynamoDB Utils ───────────────────────────────────────────────────────────
+
 export const DynamoDBUtils = {
-    // Put item with retry
-    async putItem(tableName: string, item: any) {
-        return executeWithRetry(async () => {
-            const command = new PutCommand({
-                TableName: tableName,
-                Item: item,
-            })
-            return await dynamoDb.send(command)
-        })
+    async putItem(tableName: string, item: Record<string, unknown>) {
+        if (!tableName) throw new DynamoDBValidationError('tableName is required for putItem')
+        if (!item || typeof item !== 'object') throw new DynamoDBValidationError('item must be a non-null object', tableName)
+
+        return executeWithRetry(
+            () => dynamoDb.send(new PutCommand({ TableName: tableName, Item: item })),
+            `putItem:${tableName}`
+        )
     },
 
-    // Get item with retry
-    async getItem(tableName: string, key: any) {
-        return executeWithRetry(async () => {
-            const command = new GetCommand({
-                TableName: tableName,
-                Key: key,
-            })
-            const result = await dynamoDb.send(command)
-            return result.Item
-        })
+    async getItem(tableName: string, key: Record<string, unknown>) {
+        if (!tableName) throw new DynamoDBValidationError('tableName is required for getItem')
+        if (!key || !Object.keys(key).length) throw new DynamoDBValidationError('key must be a non-empty object', tableName)
+
+        const result = await executeWithRetry(
+            () => dynamoDb.send(new GetCommand({ TableName: tableName, Key: key })),
+            `getItem:${tableName}`
+        )
+
+        return result.Item ?? null  // explicit null instead of undefined
     },
 
-    // Update item with retry
+    async getItemOrThrow(tableName: string, key: Record<string, unknown>) {
+        const item = await this.getItem(tableName, key)
+        if (item === null) throw new DynamoDBItemNotFoundError(tableName, key)
+        return item
+    },
+
     async updateItem(
         tableName: string,
-        key: any,
+        key: Record<string, unknown>,
         updateExpression: string,
-        expressionAttributeValues: any,
-        expressionAttributeNames?: any
+        expressionAttributeValues: Record<string, unknown>,
+        expressionAttributeNames?: Record<string, string>
     ) {
-        return executeWithRetry(async () => {
-            const command = new UpdateCommand({
+        if (!tableName) throw new DynamoDBValidationError('tableName is required for updateItem')
+        if (!updateExpression?.trim()) throw new DynamoDBValidationError('updateExpression cannot be empty', tableName)
+        if (!expressionAttributeValues || !Object.keys(expressionAttributeValues).length) {
+            throw new DynamoDBValidationError('expressionAttributeValues cannot be empty', tableName)
+        }
+
+        const result = await executeWithRetry(
+            () => dynamoDb.send(new UpdateCommand({
                 TableName: tableName,
                 Key: key,
                 UpdateExpression: updateExpression,
                 ExpressionAttributeValues: expressionAttributeValues,
                 ExpressionAttributeNames: expressionAttributeNames,
                 ReturnValues: 'ALL_NEW',
-            })
-            const result = await dynamoDb.send(command)
-            return result.Attributes
-        })
+            })),
+            `updateItem:${tableName}`
+        )
+
+        return result.Attributes ?? null
     },
 
-    // Delete item with retry
-    async deleteItem(tableName: string, key: any) {
-        return executeWithRetry(async () => {
-            const command = new DeleteCommand({
+    async deleteItem(tableName: string, key: Record<string, unknown>) {
+        if (!tableName) throw new DynamoDBValidationError('tableName is required for deleteItem')
+        if (!key || !Object.keys(key).length) throw new DynamoDBValidationError('key must be a non-empty object', tableName)
+
+        const result = await executeWithRetry(
+            () => dynamoDb.send(new DeleteCommand({
                 TableName: tableName,
                 Key: key,
                 ReturnValues: 'ALL_OLD',
-            })
-            const result = await dynamoDb.send(command)
-            return result.Attributes
-        })
+            })),
+            `deleteItem:${tableName}`
+        )
+
+        return result.Attributes ?? null
     },
 
-    // Scan table with retry
     async scanTable(
         tableName: string,
         filterExpression?: string,
-        expressionAttributeValues?: any,
-        expressionAttributeNames?: any
+        expressionAttributeValues?: Record<string, unknown>,
+        expressionAttributeNames?: Record<string, string>
     ) {
-        return executeWithRetry(async () => {
-            const command = new ScanCommand({
+        if (!tableName) throw new DynamoDBValidationError('tableName is required for scanTable')
+
+        const result = await executeWithRetry(
+            () => dynamoDb.send(new ScanCommand({
                 TableName: tableName,
                 FilterExpression: filterExpression,
                 ExpressionAttributeValues: expressionAttributeValues,
                 ExpressionAttributeNames: expressionAttributeNames,
-            })
-            const result = await dynamoDb.send(command)
-            return result.Items || []
-        })
+            })),
+            `scanTable:${tableName}`
+        )
+
+        return result.Items ?? []
     },
 
-    // Query table with retry
     async queryTable(
         tableName: string,
         keyConditionExpression: string,
-        expressionAttributeValues: any,
-        expressionAttributeNames?: any,
+        expressionAttributeValues: Record<string, unknown>,
+        expressionAttributeNames?: Record<string, string>,
         indexName?: string
     ) {
-        return executeWithRetry(async () => {
-            const command = new QueryCommand({
+        if (!tableName) throw new DynamoDBValidationError('tableName is required for queryTable')
+        if (!keyConditionExpression?.trim()) throw new DynamoDBValidationError('keyConditionExpression cannot be empty', tableName)
+        if (!expressionAttributeValues || !Object.keys(expressionAttributeValues).length) {
+            throw new DynamoDBValidationError('expressionAttributeValues cannot be empty for query', tableName)
+        }
+
+        const result = await executeWithRetry(
+            () => dynamoDb.send(new QueryCommand({
                 TableName: tableName,
                 KeyConditionExpression: keyConditionExpression,
                 ExpressionAttributeValues: expressionAttributeValues,
                 ExpressionAttributeNames: expressionAttributeNames,
                 IndexName: indexName,
-            })
-            const result = await dynamoDb.send(command)
-            return result.Items || []
-        })
+            })),
+            `queryTable:${tableName}`
+        )
+
+        return result.Items ?? []
     },
 
-    // Query method (alias for queryTable for backward compatibility)
-    async query(
+    // Alias for backward compatibility
+    query(
         tableName: string,
         keyConditionExpression: string,
-        expressionAttributeValues: any,
-        expressionAttributeNames?: any,
+        expressionAttributeValues: Record<string, unknown>,
+        expressionAttributeNames?: Record<string, string>,
         indexName?: string
     ) {
-        return this.queryTable(
-            tableName,
-            keyConditionExpression,
-            expressionAttributeValues,
-            expressionAttributeNames,
-            indexName
-        )
+        return this.queryTable(tableName, keyConditionExpression, expressionAttributeValues, expressionAttributeNames, indexName)
     },
 }
 
-// Table creation utilities
+// ─── Table Management ─────────────────────────────────────────────────────────
+
+const TABLE_CREATION_TIMEOUT_ATTEMPTS = 30
+const TABLE_POLL_INTERVAL_MS = 2000
+
 export async function createTablesIfNotExist(): Promise<void> {
     console.log('🔧 Checking and creating DynamoDB tables...')
 
@@ -316,67 +437,63 @@ export async function createTablesIfNotExist(): Promise<void> {
     ]
 
     for (const tableDefinition of tableDefinitions) {
+        const tableName = tableDefinition.TableName!
         try {
-            console.log(`[DEBUG] Checking if table exists: ${tableDefinition.TableName}`)
-            await client.send(new DescribeTableCommand({ TableName: tableDefinition.TableName }))
-            console.log(`[DEBUG] Table ${tableDefinition.TableName} already exists`)
-        } catch (error: any) {
-            if (error.name === 'ResourceNotFoundException') {
-                // Table doesn't exist, create it
-                console.log(`[DEBUG] Table ${tableDefinition.TableName} does not exist. Creating...`)
-                try {
-                    await client.send(new CreateTableCommand(tableDefinition))
-                    console.log(`[DEBUG] Table ${tableDefinition.TableName} created. Waiting for ACTIVE status...`)
-
-                    // Wait for table to be active
-                    let tableStatus = 'CREATING'
-                    let waitCount = 0
-                    while (tableStatus !== 'ACTIVE') {
-                        waitCount++
-                        console.log(
-                            `[DEBUG] Waiting for ${tableDefinition.TableName} to become ACTIVE (attempt ${waitCount})...`
-                        )
-                        await new Promise((resolve) => setTimeout(resolve, 2000))
-                        const describeResult = await client.send(
-                            new DescribeTableCommand({ TableName: tableDefinition.TableName })
-                        )
-                        tableStatus = describeResult.Table?.TableStatus || 'UNKNOWN'
-                        console.log(`[DEBUG] Table ${tableDefinition.TableName} status: ${tableStatus}`)
-                        if (waitCount > 30)
-                            throw new Error(`Timeout waiting for table ${tableDefinition.TableName} to become ACTIVE`)
-                    }
-                } catch (createError) {
-                    console.error(`[DEBUG] Failed to create table ${tableDefinition.TableName}:`, createError)
-                    throw createError
-                }
-            } else {
-                console.error(`[DEBUG] Error checking table ${tableDefinition.TableName}:`, error)
-                throw error
+            await client.send(new DescribeTableCommand({ TableName: tableName }))
+            console.log(`  ✓ Table "${tableName}" already exists.`)
+        } catch (error: unknown) {
+            if (!(error instanceof Error) || (error as { name?: string }).name !== 'ResourceNotFoundException') {
+                throw new DynamoDBError(`Unexpected error while checking table "${tableName}"`, error, 'describeTable', tableName)
             }
+
+            console.log(`  + Table "${tableName}" not found — creating...`)
+            try {
+                await client.send(new CreateTableCommand(tableDefinition))
+            } catch (createError: unknown) {
+                throw new DynamoDBError(`Failed to create table "${tableName}"`, createError, 'createTable', tableName)
+            }
+
+            // Poll until ACTIVE
+            for (let attempt = 1; attempt <= TABLE_CREATION_TIMEOUT_ATTEMPTS; attempt++) {
+                await new Promise((resolve) => setTimeout(resolve, TABLE_POLL_INTERVAL_MS))
+                try {
+                    const { Table } = await client.send(new DescribeTableCommand({ TableName: tableName }))
+                    const status = Table?.TableStatus
+                    console.log(`    └─ "${tableName}" status: ${status} (attempt ${attempt}/${TABLE_CREATION_TIMEOUT_ATTEMPTS})`)
+                    if (status === 'ACTIVE') break
+                    if (attempt === TABLE_CREATION_TIMEOUT_ATTEMPTS) {
+                        throw new DynamoDBTableCreationTimeoutError(tableName)
+                    }
+                } catch (pollError) {
+                    if (pollError instanceof DynamoDBTableCreationTimeoutError) throw pollError
+                    throw new DynamoDBError(`Error polling status of table "${tableName}"`, pollError, 'pollTable', tableName)
+                }
+            }
+
+            console.log(`  ✅ Table "${tableName}" is ACTIVE.`)
         }
     }
 
     console.log('🎉 All tables are ready!')
 }
 
-// List all tables
 export async function listTables(): Promise<string[]> {
     try {
         const result = await client.send(new ListTablesCommand({}))
-        return result.TableNames || []
+        return result.TableNames ?? []
     } catch (error) {
-        console.error('Failed to list tables:', error)
-        throw error
+        throw new DynamoDBError('Failed to list DynamoDB tables', error, 'listTables')
     }
 }
 
-// Set up periodic health check (every 10 minutes)
-const HEALTH_CHECK_INTERVAL = 10 * 60 * 1000 // 10 minutes in milliseconds
+// ─── Periodic Health Check ────────────────────────────────────────────────────
+
+const HEALTH_CHECK_INTERVAL = 10 * 60 * 1000
 
 setInterval(async () => {
     try {
         await checkDynamoDBHealth()
     } catch (error) {
-        console.error('Scheduled DynamoDB health check failed:', error)
+        console.error('[DynamoDB] Scheduled health check threw unexpectedly:', error instanceof Error ? error.message : error)
     }
 }, HEALTH_CHECK_INTERVAL)

@@ -26,7 +26,7 @@ export interface IStorage {
     updateUserRole(userId: number, role: string): Promise<User>
     verifyUser(userId: number): Promise<User>
     updateVerificationToken(userId: number, token: string, expiry: string): Promise<User>
-
+    deleteAllTourPayments(): Promise<{ deletedCount: number }>
     // Property methods
     getAllProperties(): Promise<Property[]>
     getProperty(id: number): Promise<Property | undefined>
@@ -126,6 +126,17 @@ export interface IStorage {
 
 // Use DynamoDBStorage for all endpoints
 export const storage = new DynamoDBStorage()
+
+// async function deleteAllTourPayments() {
+//     setTimeout(async () => {
+//         console.log('will-delete-tour-payments')
+//         const deletedValues = await storage.deleteAllTourPayments()
+//         console.log(deletedValues.deletedCount)
+//         console.log('did-delete-tour-payments')
+//     }, 5000)
+// }
+
+// deleteAllTourPayments()
 
 // function changeUserToAdmin() {
 //     console.log('====WillChangeUserToAdmin')

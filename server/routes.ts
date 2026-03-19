@@ -190,7 +190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
             await storage.recordTourPayment({
                 transactionId:  transactionId,
-                propertyId: propertyId,
+                propertyId: parseFloat(propertyId),
                 userId: user_id || null,
                 amount: amount,
                 currency: currency,

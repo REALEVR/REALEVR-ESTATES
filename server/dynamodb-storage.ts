@@ -795,28 +795,37 @@ export class DynamoDBStorage implements IStorage {
             return item
         })
     }
-    async recordTourPayment(paymentData: {
-        transactionId: string
-        propertyId: number
-        userId?: number
-        amount: number
-        currency: string
-        timestamp: string
-    }): Promise<void> {
+ async recordTourPayment(paymentData: {
+    transactionId: string
+    propertyId: number
+    userId?: number
+    amount: number
+    currency: string
+    timestamp: string
+}): Promise<void> {
+    return executeWithRetry(async () => {
+        const item = {
+            id: paymentData.transactionId, // ← use transactionId as the key
+            transactionId: paymentData.transactionId,
+            propertyId: toStringId(paymentData.propertyId),
+            userId: paymentData.userId ? toStringId(paymentData.userId) : null,
+            amount: paymentData.amount,
+            currency: paymentData.currency,
+            timestamp: paymentData.timestamp,
+            createdAt: generateTimestamp(),
+        }
+        await DynamoDBUtils.putItem(TABLES.TOUR_PAYMENTS, item)
+    })
+}
+    async deleteAllTourPayments(): Promise<{ deletedCount: number }> {
         return executeWithRetry(async () => {
-            const generatedNumber =generateId();
+            const payments = await DynamoDBUtils.scanTable(TABLES.TOUR_PAYMENTS)
 
-            const item = {
-                id: toStringId(generatedNumber),
-                transactionId: paymentData.transactionId,
-                propertyId: toStringId(paymentData.propertyId),
-                userId: paymentData.userId ? toStringId(paymentData.userId) : null,
-                amount: paymentData.amount,
-                currency: paymentData.currency,
-                timestamp: paymentData.timestamp,
-                createdAt: generateTimestamp(),
-            }
-            await DynamoDBUtils.putItem(TABLES.TOUR_PAYMENTS, item)
+            await Promise.all(
+                payments.map((payment: any) => DynamoDBUtils.deleteItem(TABLES.TOUR_PAYMENTS, { id: payment.id }))
+            )
+
+            return { deletedCount: payments.length }
         })
     }
     async getAllTourPayments(): Promise<

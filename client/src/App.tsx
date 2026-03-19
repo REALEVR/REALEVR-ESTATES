@@ -111,10 +111,10 @@ function Router() {
 }
 
 function App() {
-    const [gateway, setGateway] = useState<{ accessToken: string; amount: string } | null>(null)
+    const [gateway, setGateway] = useState<{ accessToken: string; amount: string; source: string } | null>(null)
 
     useEffect(() => {
-        const handler = (data: { accessToken: string; amount: string }) => {
+        const handler = (data: { accessToken: string; amount: string; source: string }) => {
             setGateway(data)
         }
 
@@ -138,6 +138,7 @@ function App() {
                             </main>
                             {gateway && (
                                 <IoTecGatewayLight
+                                    source={gateway.source}
                                     accessToken={gateway.accessToken}
                                     amount={gateway.amount}
                                     onClose={() => setGateway(null)}

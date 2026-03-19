@@ -1,9 +1,16 @@
 import React, { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { intiateGateWay, paymentEmitter, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
+import {
+    intiateGateWay,
+    makePaymentString,
+    paymentEmitter,
+    PaymentSources,
+    sendPaymentRequest,
+} from '@/lib/iotec-paymentpatch'
 import { toast } from '@/hooks/use-toast'
 import { eventBus } from '@/lib/eventBus'
+import { recordTourPayment } from '@/lib/iotect-verify-pay'
 
 interface PaymentModalProps {
     isOpen: boolean
@@ -16,14 +23,18 @@ interface PaymentModalProps {
 }
 
 export default function PaymentModal({ isOpen, onClose, successCallback, propertyId }: PaymentModalProps) {
-    const handlePayNow = async () => {
-        /**
-         * Process Payments with IOTEC
-         */
+    const _paymentSource = PaymentSources.paymentModelProperty
+    const _eventPaymentString = makePaymentString(_paymentSource)
 
-        sendPaymentRequest().then((data) => {
+    const [isLoading, setIsLoading] = React.useState(false)
+
+    const handlePayNow = async () => {
+        if (isLoading) return
+        setIsLoading(true)
+        try {
+            const data = await sendPaymentRequest()
             if (!data.error) {
-                intiateGateWay(data.accessToken, '15000')
+                intiateGateWay(data.accessToken, '15000', _paymentSource)
             } else {
                 toast({
                     title: 'Payment Error',
@@ -31,7 +42,9 @@ export default function PaymentModal({ isOpen, onClose, successCallback, propert
                     variant: 'destructive',
                 })
             }
-        })
+        } finally {
+            setIsLoading(false)
+        }
     }
 
     useEffect(() => {
@@ -44,12 +57,11 @@ export default function PaymentModal({ isOpen, onClose, successCallback, propert
             })
             successCallback('Payment Successfull')
         }
-
-        paymentEmitter.on('COMPLETED-PAYMENT', handler)
+        paymentEmitter.on(_eventPaymentString, handler)
         return () => {
-            paymentEmitter.off('COMPLETED-PAYMENT', handler)
+            paymentEmitter.off(_eventPaymentString, handler)
         }
-    }, [])
+    }, [_eventPaymentString, propertyId, successCallback]) // ← add deps
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -69,8 +81,8 @@ export default function PaymentModal({ isOpen, onClose, successCallback, propert
                         <Button variant="outline" onClick={onClose}>
                             Cancel
                         </Button>
-                        <Button onClick={handlePayNow} className="bg-[#FF5A5F]">
-                            Pay
+                        <Button onClick={handlePayNow} disabled={isLoading} className="bg-[#FF5A5F]">
+                            {isLoading ? 'Processing...' : 'Pay'}
                         </Button>
                     </div>
                 </div>

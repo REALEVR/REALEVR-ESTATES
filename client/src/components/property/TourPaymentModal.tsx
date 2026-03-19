@@ -12,8 +12,15 @@ import { useFlutterwave, FlutterWaveTypes } from 'flutterwave-react-v3'
 import { Loader2, Eye, CreditCard, UserPlus } from 'lucide-react'
 import type { Property } from '@shared/schema'
 import Logo from '../../assets/logo.png'
-import { intiateGateWay, paymentEmitter, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
+import {
+    intiateGateWay,
+    makePaymentString,
+    paymentEmitter,
+    PaymentSources,
+    sendPaymentRequest,
+} from '@/lib/iotec-paymentpatch'
 import { eventBus } from '@/lib/eventBus'
+import { recordTourPayment } from '@/lib/iotect-verify-pay'
 
 const tourPaymentSchema = z.object({
     email: z.string().email('Invalid email address'),
@@ -53,37 +60,42 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
     const publicKey = import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY
     // console.log('Flutterwave Public Key:', publicKey); // Debug log
 
+    const _paymentSource = PaymentSources.paymentTour
+    const _eventPaymentString = makePaymentString(_paymentSource)
+
     const handlePayForTour = async (data: TourPaymentFormValues) => {
-        console.log('Processing payment for tour access...', data)
+        if (isProcessing) return // ← guard
         setIsProcessing(true)
-        sendPaymentRequest().then((data) => {
-            if (!data.error) {
-                intiateGateWay(data.accessToken, '15000')
+        try {
+            const result = await sendPaymentRequest()
+            if (!result.error) {
+                intiateGateWay(result.accessToken, '15000', _paymentSource)
             } else {
-                toast({
-                    title: 'Payment Error',
-                    description: data.errorMessage,
-                    variant: 'destructive',
-                })
+                toast({ title: 'Payment Error', description: result.errorMessage, variant: 'destructive' })
+                setIsProcessing(false) // ← reset on error, gateway will reset on success
             }
-        })
+        } catch {
+            setIsProcessing(false)
+        }
     }
 
-    const handleExistingUserPayment = () => {
+    const handleExistingUserPayment = async () => {
+        if (isProcessing) return // ← guard
         setIsProcessing(true)
-
-        sendPaymentRequest().then((data) => {
+        try {
+            const data = await sendPaymentRequest()
             if (!data.error) {
-                intiateGateWay(data.accessToken, '15000')
+                intiateGateWay(data.accessToken, '15000', _paymentSource)
             } else {
-                toast({
-                    title: 'Payment Error',
-                    description: data.errorMessage,
-                    variant: 'destructive',
-                })
+                toast({ title: 'Payment Error', description: data.errorMessage, variant: 'destructive' })
+                setIsProcessing(false)
             }
-        })
+        } catch {
+            setIsProcessing(false)
+        }
     }
+
+  
 
     const handlePaymentClose = () => {
         setIsProcessing(false)
@@ -93,21 +105,21 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
 
     useEffect(() => {
         const handler = (data: { transactionID: string }) => {
+            console.log(`DID-GET-COMPLETED-PAYMENT-REQUEST:${data.transactionID}`)
             recordTourPayment({
                 propertyId: `${property.id}`,
-                userId: user!.id,
+                userId: user?.id,
                 amount: 15000,
                 currency: 'UGX',
                 transactionId: data.transactionID!,
             })
             handlePaymentClose()
         }
-
-        paymentEmitter.on('COMPLETED-PAYMENT', handler)
+        paymentEmitter.on(_eventPaymentString, handler)
         return () => {
-            paymentEmitter.off('COMPLETED-PAYMENT', handler)
+            paymentEmitter.off(_eventPaymentString, handler)
         }
-    }, [])
+    }, [_eventPaymentString, property.id, user?.id]) // ← add deps
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>

@@ -11,8 +11,15 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { Loader2, CreditCard, CheckCircle2 } from 'lucide-react'
 import { FlutterWaveButton } from 'flutterwave-react-v3'
-import { intiateGateWay, paymentEmitter, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
+import {
+    intiateGateWay,
+    makePaymentString,
+    paymentEmitter,
+    PaymentSources,
+    sendPaymentRequest,
+} from '@/lib/iotec-paymentpatch'
 import { eventBus } from '@/lib/eventBus'
+import { recordTourPayment } from '@/lib/iotect-verify-pay'
 
 type PaymentType = 'PropertyDeposit' | 'ViewingFee' | 'Subscription' | 'BnBBookingDeposit'
 
@@ -40,6 +47,9 @@ export default function PaymentModal({
     const { toast } = useToast()
     const [isLoading, setIsLoading] = useState(false)
     const [isSuccess, setIsSuccess] = useState(false)
+
+    const _paymentSource = PaymentSources.paymentModelClient
+    const _eventPaymentString = makePaymentString(_paymentSource)
 
     // Get the Flutterwave public key from environment variables
 
@@ -93,14 +103,12 @@ export default function PaymentModal({
 
     // Fallback payment method when Flutterwave isn't available
     const handlePayNow = async () => {
-        console.log('PROVIDED-AMOUNT', amount.toLocaleString())
+        if (isLoading) return // ← guard against double clicks
         setIsLoading(true)
-
-        console.log('Processing payment for tour access...')
-
-        sendPaymentRequest().then((data) => {
+        try {
+            const data = await sendPaymentRequest()
             if (!data.error) {
-                intiateGateWay(data.accessToken, `${amount}`)
+                intiateGateWay(data.accessToken, `${amount}`, _paymentSource)
             } else {
                 toast({
                     title: 'Payment Error',
@@ -108,34 +116,10 @@ export default function PaymentModal({
                     variant: 'destructive',
                 })
             }
-        })
+        } finally {
+            setIsLoading(false) // ← always clear loading
+        }
     }
-
-    useEffect(() => {
-        const off = eventBus.on('PAYMENT_MODEL', (data) => {
-            if (data.status == 'PAID') {
-                eventBus.emit('PAYMENT_MODEL', { status: 'RESPONDED-BACK' })
-
-                /**
-                 * This time lag is to allow the page to navigate back smoothly
-                 */
-                setTimeout(() => {
-                    handlePaymentSuccess({
-                        transactionId :data.transactionID!,
-                        amount : amount,
-                    })
-                }, 3500)
-            } else {
-                toast({
-                    title: 'Payment Error',
-                    description: 'An Unknown Happening is refusing Payment, Please try again Later',
-                    variant: 'destructive',
-                })
-            }
-        })
-        return off
-    }, [])
-
     useEffect(() => {
         const handler = (data: { transactionID: string }) => {
             recordTourPayment({
@@ -146,12 +130,11 @@ export default function PaymentModal({
             })
             handlePaymentSuccess('successful')
         }
-
-        paymentEmitter.on('COMPLETED-PAYMENT', handler)
+        paymentEmitter.on(_eventPaymentString, handler)
         return () => {
-            paymentEmitter.off('COMPLETED-PAYMENT', handler)
+            paymentEmitter.off(_eventPaymentString, handler)
         }
-    }, [])
+    }, [_eventPaymentString, propertyId, amount]) // ← add deps
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>

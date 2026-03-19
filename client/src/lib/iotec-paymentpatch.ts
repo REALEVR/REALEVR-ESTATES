@@ -1,5 +1,22 @@
 import { EventEmitter } from 'eventemitter3' // or mitt, tiny-emitter
 export const paymentEmitter = new EventEmitter()
+
+/**
+ * Sources of PaymentHandle
+ */
+
+export const PaymentSources = {
+    paymentModelClient: 'PAYMENT-MODEL-PAYMENT',
+    paymentModelProperty: 'PAYMENT-MODEL-PROPERTY',
+    paymentPropertyViewing: 'PAYMENT-PROPERTY-VIEWING',
+    paymentTour: 'PAYMENT-TOUR',
+    paymentSubscription : 'PAYMENT-SUBSCRIPTION'
+}
+
+export const makePaymentString = (paymentSource: string) => {
+    return `COMPLETED-PAYMENT-${paymentSource}`
+}
+
 /**
  * This one will actually send the payment 
     request to actually return the access token
@@ -17,7 +34,7 @@ export async function sendPaymentRequest(): Promise<IReturnToken> {
         const res = await fetch('/api/payment/iotec/token', {
             method: 'POST',
         })
-        console.log('DID-SEND-REQUEST') 
+        console.log('DID-SEND-REQUEST')
 
         const data = await res.json()
 
@@ -46,10 +63,11 @@ export async function sendPaymentRequest(): Promise<IReturnToken> {
     }
 }
 
-export function intiateGateWay(accesstoken: string, amount: string) {
+export function intiateGateWay(accesstoken: string, amount: string, source: string) {
     paymentEmitter.emit('OPEN_PAYMENT_GATEWAY', {
         accessToken: accesstoken,
         amount: amount,
+        source: source,
     })
 }
 

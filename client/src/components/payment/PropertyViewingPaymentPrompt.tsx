@@ -12,12 +12,12 @@ import {
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CheckIcon, BriefcaseIcon, HomeIcon, KeyIcon } from 'lucide-react'
-import { intiateGateWay, paymentEmitter, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
+import { intiateGateWay, makePaymentString, paymentEmitter, PaymentSources, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
 import { useEffect } from 'react'
 
 interface PropertyViewingPaymentPromptProps {
     isOpen: boolean
-    onClose: () => void,
+    onClose: () => void
 }
 
 export default function PropertyViewingPaymentPrompt({ isOpen, onClose }: PropertyViewingPaymentPromptProps) {
@@ -43,11 +43,13 @@ export default function PropertyViewingPaymentPrompt({ isOpen, onClose }: Proper
         },
     }
 
+    const _paymentSource = PaymentSources.paymentPropertyViewing
+    const _eventPaymentString = makePaymentString(_paymentSource)
 
     const handlePayment = () => {
         sendPaymentRequest().then((data) => {
             if (!data.error) {
-                intiateGateWay(data.accessToken, '10000')
+                intiateGateWay(data.accessToken, '10000',_paymentSource)
             } else {
                 toast({
                     title: 'Payment Error',
@@ -60,14 +62,12 @@ export default function PropertyViewingPaymentPrompt({ isOpen, onClose }: Proper
 
     useEffect(() => {
         const handler = (data: { transactionID: string }) => {
-            
             registerPayment()
-            
         }
 
-        paymentEmitter.on('COMPLETED-PAYMENT', handler)
+        paymentEmitter.on(_eventPaymentString, handler)
         return () => {
-            paymentEmitter.off('COMPLETED-PAYMENT', handler)
+            paymentEmitter.off(_eventPaymentString, handler)
         }
     }, [])
     return (
