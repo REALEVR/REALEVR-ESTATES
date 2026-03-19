@@ -1,0 +1,17 @@
+{
+  "name": "RealEVR Estates",
+  "short_name": "RealEVR",
+  "description": "Virtual property tours, rentals, BnBs, for sale, and bank sales",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon",
+      "purpose": "any"
+    }
+  ]
+}
