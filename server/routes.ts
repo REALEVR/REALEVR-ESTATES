@@ -15,6 +15,13 @@ import { createTablesIfNotExist, DynamoDBUtils, TABLES, toNumericId, toStringId 
 
 import { uploadPropertyImage, uploadVirtualTour, handleUploadErrors, setupStaticFileRoutes } from './upload'
 import { registerPaymentGateWayForApp } from './payment/payment-new'
+import {
+    buildRobotsTxt,
+    buildSitemapXml,
+    getCanonicalBaseUrl,
+    getStaticSitemapEntries,
+    propertyToSitemapEntry,
+} from './sitemap'
 
 // Middleware to check if user is an admin or property manager
 const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -89,6 +96,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Setup authentication routes
     setupAuth(app)
+
+    app.get('/sitemap.xml', async (_req, res) => {
+        try {
+            const base = getCanonicalBaseUrl()
+            const staticEntries = getStaticSitemapEntries(base)
+            const properties = await storage.getAllProperties()
+            const propertyEntries = properties.map((p) =>
+                propertyToSitemapEntry(base, {
+                    id: p.id,
+                    title: p.title || 'Property',
+                    imageUrl: p.imageUrl || '',
+                }),
+            )
+            const xml = buildSitemapXml([...staticEntries, ...propertyEntries])
+            res.setHeader('Content-Type', 'application/xml; charset=utf-8')
+            res.setHeader('Cache-Control', 'public, max-age=600')
+            res.send(xml)
+        } catch (error) {
+            console.error('[sitemap] Failed to generate sitemap.xml:', error)
+            res.status(500).type('text/plain').send('Sitemap temporarily unavailable')
+        }
+    })
+
+    app.get('/robots.txt', (_req, res) => {
+        const base = getCanonicalBaseUrl()
+        res.type('text/plain; charset=utf-8')
+        res.setHeader('Cache-Control', 'public, max-age=86400')
+        res.send(buildRobotsTxt(base))
+    })
 
     // Apply no-cache middleware to all API routes
     app.use('/api', noCacheMiddleware)

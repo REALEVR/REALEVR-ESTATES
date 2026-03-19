@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation } from 'wouter'
 import { usePayment } from '@/contexts/PaymentContext'
@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import PropertyCard from '@/components/home/PropertyCard'
 import type { Property } from '@shared/schema'
+import { PageSeo } from '@/components/seo/PageSeo'
+import { getSiteUrl } from '@/lib/siteUrl'
 
 export default function RentalUnitsPage() {
     const { hasActiveViewingPackage, openViewingPaymentPrompt } = usePayment()
@@ -29,9 +31,16 @@ export default function RentalUnitsPage() {
         queryKey: ['/api/properties'],
     })
 
-    useEffect(() => {
-        // Set page title
-        document.title = 'Rental Units | RealEVR Estates'
+    const rentalJsonLd = useMemo(() => {
+        const site = getSiteUrl()
+        return {
+            '@context': 'https://schema.org',
+            '@type': 'CollectionPage',
+            name: 'Rental Units | RealEVR Estates',
+            description:
+                'Long-term and unfurnished rental listings with virtual tours. Compare bedrooms, bathrooms, and monthly rent.',
+            url: `${site}/rental-units`,
+        }
     }, [])
 
     // Handle URL parameters from hero search
@@ -291,6 +300,12 @@ export default function RentalUnitsPage() {
 
     return (
         <div className="py-8">
+            <PageSeo
+                title="Rental Units | RealEVR Estates"
+                description="Find apartments and houses for rent with virtual tours. Filter by bedrooms, bathrooms, area, and monthly rent on RealEVR Estates."
+                canonicalPath="/rental-units"
+                jsonLd={rentalJsonLd}
+            />
             <div className="container mx-auto px-6">
                 <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
                     <h1 className="text-3xl font-bold mb-2">Rental Units</h1>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import PropertyCard from "@/components/home/PropertyCard";
 import { useLocation } from "wouter";
 import type { Property } from "@shared/schema";
+import { PageSeo } from "@/components/seo/PageSeo";
+import { getSiteUrl } from "@/lib/siteUrl";
 
 export default function BnBsPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -20,10 +22,18 @@ export default function BnBsPage() {
     queryKey: ["/api/properties"],
   });
   
-  useEffect(() => {
-    document.title = "BnBs & Vacation Rentals | RealEVR Estates";
+  const bnbsJsonLd = useMemo(() => {
+    const site = getSiteUrl();
+    return {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: "BnBs & Vacation Rentals | RealEVR Estates",
+      description:
+        "Furnished short-term stays and vacation rentals with virtual tours. Filter by area and price.",
+      url: `${site}/bnbs`,
+    };
   }, []);
-  
+
   // Filter for only furnished properties
   const furnishedProperties = properties?.filter(property => 
     property.propertyType === "Furnished Rental" || 
@@ -79,6 +89,12 @@ export default function BnBsPage() {
 
   return (
     <div className="py-8">
+      <PageSeo
+        title="BnBs & Vacation Rentals | RealEVR Estates"
+        description="Browse furnished BnBs and short-term rentals with virtual tours. Search by area, price, and amenities on RealEVR Estates."
+        canonicalPath="/bnbs"
+        jsonLd={bnbsJsonLd}
+      />
       <div className="container mx-auto px-6">
         <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
           <h1 className="text-3xl font-bold mb-2">BnBs & Vacation Rentals</h1>
