@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { format, isPast, parseISO } from "date-fns";
@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { CalendarIcon, Clock, MapPin, Home, BedDouble, Bath, Maximize } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PageSeo } from "@/components/seo/PageSeo";
+import { getSiteUrl } from "@/lib/siteUrl";
 
 export default function BankSalesPage() {
   const [activeBankTab, setActiveBankTab] = useState<string>("all");
@@ -54,6 +56,18 @@ export default function BankSalesPage() {
     });
   };
 
+  const bankSalesJsonLd = useMemo(() => {
+    const site = getSiteUrl();
+    return {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: "Bank Property Auctions | RealEVR Estates",
+      description:
+        "Bank-owned and auction properties with schedules, bids, and virtual tours. Explore distressed and foreclosure-related listings.",
+      url: `${site}/bank-sales`,
+    };
+  }, []);
+
   // Format auction status including time remaining
   const formatAuctionStatus = (property: Property) => {
     if (!property.auctionDate || !property.auctionStatus) {
@@ -72,6 +86,12 @@ export default function BankSalesPage() {
 
   return (
     <div className="container mx-auto px-6 py-8">
+      <PageSeo
+        title="Bank Sales & Property Auctions | RealEVR Estates"
+        description="Browse bank auction and distressed properties with virtual tours. View schedules, bids, and bank details on RealEVR Estates."
+        canonicalPath="/bank-sales"
+        jsonLd={bankSalesJsonLd}
+      />
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Bank Property Auctions</h1>
         <p className="text-gray-600 max-w-3xl">

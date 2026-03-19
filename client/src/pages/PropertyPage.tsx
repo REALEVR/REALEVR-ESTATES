@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRoute } from "wouter";
 import VirtualTour from "@/components/property/VirtualTour";
 import PropertyDetails from "@/components/property/PropertyDetails";
@@ -6,6 +6,12 @@ import { Button } from "@/components/ui/button";
 import { useProperty, trackPropertyView } from "@/hooks/usePropertyData";
 import { queryClient } from "@/lib/queryClient";
 import type { Property } from "@shared/schema";
+import { PageSeo } from "@/components/seo/PageSeo";
+import {
+  buildPropertyJsonLd,
+  buildPropertyMetaDescription,
+  buildPropertyPageTitle,
+} from "@/lib/propertySeo";
 
 export default function PropertyPage() {
   const [, params] = useRoute<{ id: string }>("/property/:id");
@@ -62,7 +68,7 @@ export default function PropertyPage() {
             body: JSON.stringify({
               tourId: propertyId,
               propertyId: propertyId,
-              price: property?.price || 0
+              price: 0,
             })
           });
         } catch (e) {
@@ -75,18 +81,22 @@ export default function PropertyPage() {
   
   const { data: property, isLoading, error } = useProperty(propertyId);
 
-  useEffect(() => {
-    // Set page title
-    if (property) {
-      document.title = `${(property as Property).title} | RealEVR Estates`;
-    } else {
-      document.title = "Property | RealEVR Estates";
-    }
-  }, [property]);
+  const propertyPath = `/property/${propertyId}`;
+
+  const propertySeo = useMemo(() => {
+    if (!property) return null;
+    const p = property as Property;
+    return {
+      title: buildPropertyPageTitle(p),
+      description: buildPropertyMetaDescription(p),
+      jsonLd: buildPropertyJsonLd(p, propertyPath),
+    };
+  }, [property, propertyPath]);
 
   if (isLoading) {
     return (
       <div className="container mx-auto px-6 py-8">
+        <PageSeo title="Property | RealEVR Estates" canonicalPath={propertyPath} />
         <div className="bg-white rounded-xl overflow-hidden shadow-lg animate-pulse">
           <div className="h-[400px] lg:h-[600px] bg-gray-200"></div>
           <div className="p-6">
@@ -111,6 +121,11 @@ export default function PropertyPage() {
   if (error || !property) {
     return (
       <div className="container mx-auto px-6 py-8 text-center">
+        <PageSeo
+          title="Property not found | RealEVR Estates"
+          description="This listing may have been removed or the link is incorrect."
+          canonicalPath={propertyPath}
+        />
         <h1 className="text-2xl font-bold text-red-500 mb-4">Property Not Found</h1>
         <p className="mb-4">The property you're looking for doesn't exist or has been removed.</p>
         <Button asChild>
@@ -122,6 +137,14 @@ export default function PropertyPage() {
 
   return (
     <div className="container mx-auto px-6 py-8">
+      {propertySeo ? (
+        <PageSeo
+          title={propertySeo.title}
+          description={propertySeo.description}
+          canonicalPath={propertyPath}
+          jsonLd={propertySeo.jsonLd}
+        />
+      ) : null}
       <div className="bg-white rounded-xl overflow-hidden shadow-lg">
         <div className="lg:flex">
           <div className="lg:w-1/2">

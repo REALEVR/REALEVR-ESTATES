@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import PropertyCard from "@/components/home/PropertyCard";
 import type { Property } from "@shared/schema";
+import { PageSeo } from "@/components/seo/PageSeo";
+import { getSiteUrl } from "@/lib/siteUrl";
 
 export default function ForSalePage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -18,11 +20,18 @@ export default function ForSalePage() {
     queryKey: ["/api/properties"],
   });
   
-  useEffect(() => {
-    // Set page title
-    document.title = "Properties For Sale | RealEVR Estates";
+  const forSaleJsonLd = useMemo(() => {
+    const site = getSiteUrl();
+    return {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: "Properties For Sale | RealEVR Estates",
+      description:
+        "Browse homes and investment properties for sale with virtual tours. Compare price, size, and location.",
+      url: `${site}/for-sale`,
+    };
   }, []);
-  
+
   // Filter for only properties for sale
   const propertiesForSale = properties?.filter(property => 
     property.category === "for_sale"
@@ -224,6 +233,12 @@ export default function ForSalePage() {
 
   return (
     <div className="py-8">
+      <PageSeo
+        title="Properties For Sale | RealEVR Estates"
+        description="Explore homes and land for sale with virtual tours. Filter by price, area, and property type on RealEVR Estates."
+        canonicalPath="/for-sale"
+        jsonLd={forSaleJsonLd}
+      />
       <div className="container mx-auto px-6">
         <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
           <h1 className="text-3xl font-bold mb-2">Properties For Sale</h1>

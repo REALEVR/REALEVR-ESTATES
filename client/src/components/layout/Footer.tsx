@@ -70,7 +70,7 @@ export default function Footer() {
             <span className="mx-2">·</span>
             <Link href="/terms" className="hover:underline">Terms</Link>
             <span className="mx-2">·</span>
-            <Link href="/sitemap" className="hover:underline">Sitemap</Link>
+            <Link href="/sitemap.xml" className="hover:underline">Sitemap</Link>
           </div>
         </div>
       </div>

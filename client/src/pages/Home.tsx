@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'wouter'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,8 @@ import HowItWorks from '@/components/home/HowItWorks'
 import DownloadApp from '@/components/home/DownloadApp'
 import { useProperties } from '@/hooks/usePropertyData'
 import type { Property } from '@shared/schema'
+import { PageSeo } from '@/components/seo/PageSeo'
+import { getSiteUrl } from '@/lib/siteUrl'
 
 // Property category labels for display
 const categoryLabels = {
@@ -58,9 +60,16 @@ export default function Home() {
             properties?.slice(0, 2).map((p) => ({ id: p.id, title: p.title, createdAt: p.createdAt })) || [],
     })
 
-    useEffect(() => {
-        // Set page title
-        document.title = 'RealEVR Estates - Virtual Property Tours'
+    const homeJsonLd = useMemo(() => {
+        const site = getSiteUrl()
+        return {
+            '@context': 'https://schema.org',
+            '@type': 'WebSite',
+            name: 'RealEVR Estates',
+            url: `${site}/`,
+            description:
+                'Browse rental units, furnished BnBs, homes for sale, and bank auction properties with immersive virtual tours on RealEVR Estates.',
+        }
     }, [])
 
     // Group properties by category, filtering out those with no name/title
@@ -75,6 +84,12 @@ export default function Home() {
 
     return (
         <>
+            <PageSeo
+                title="RealEVR Estates | Virtual Tours for Rentals, BnBs, For Sale & Bank Properties"
+                description="Discover rental units, vacation BnBs, properties for sale, and bank sales with virtual tours. Search by location, price, and amenities on RealEVR Estates."
+                canonicalPath="/"
+                jsonLd={homeJsonLd}
+            />
             <Hero videoUrl={heroVideoUrl} />
 
             {/* Agent Registration Call-to-Action */}
