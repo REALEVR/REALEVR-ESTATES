@@ -127,6 +127,20 @@ export interface IStorage {
 // Use DynamoDBStorage for all endpoints
 export const storage = new DynamoDBStorage()
 
+// async function getDeadProperty() {
+//     console.log('WillFindDeadProperty')
+//     let dead = await storage.getProperty(-3)
+//     console.log(`DidFindDeadProperty:${dead}`)
+// }
+
+// async function deleteDeadProperty() {
+//     console.log('WillDeleteDeadProperty')
+//     let didDeleteProperty = await storage.deleteProperty(-3)
+//     console.log(`DidDeleteDeadProperty:${didDeleteProperty}`)
+// }
+
+// getDeadProperty()
+
 // async function deleteAllTourPayments() {
 //     setTimeout(async () => {
 //         console.log('will-delete-tour-payments')

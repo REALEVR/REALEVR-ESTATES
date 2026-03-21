@@ -199,17 +199,18 @@ export function generateId(): number {
 }
 
 export function toStringId(id: number): string {
-    if (!Number.isFinite(id) || id <= 0) {
-        throw new DynamoDBValidationError(`Invalid ID value: ${id}`)
-    }
+    // if (!Number.isFinite(id) || id <= 0) {
+    //     throw new DynamoDBValidationError(`Invalid ID value: ${id}`)
+    // }
     return id.toString()
 }
 
 export function toNumericId(id: string): number {
     const parsed = parseInt(id, 10)
-    if (isNaN(parsed) || parsed <= 0) {
-        throw new DynamoDBValidationError(`Cannot convert "${id}" to a valid numeric ID`)
-    }
+    // if (isNaN(parsed) || parsed <= 0) {
+    //     console.log("Fake-Property",id)
+    //     throw new DynamoDBValidationError(`Cannot convert "${id}" to a valid numeric ID`)
+    // }
     return parsed
 }
 
