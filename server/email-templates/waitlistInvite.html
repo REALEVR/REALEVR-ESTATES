@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You're Invited to Join REALEVR!</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #333; margin: 0; padding: 0; background: #f0f0f0; }
+    .container { max-width: 600px; margin: 0 auto; background: #fff; }
+    .header { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 30px; text-align: center; }
+    .header h1 { margin: 0; font-size: 28px; }
+    .content { padding: 30px; background: #f9f9f9; }
+    .button { background: #11998e; color: white; padding: 14px 35px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; font-weight: bold; font-size: 16px; }
+    .features-box { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin: 20px 0; }
+    .expiry-notice { background: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; padding: 12px 16px; margin: 20px 0; color: #856404; }
+    .footer { text-align: center; padding: 20px; color: #999; font-size: 12px; }
+    ul { padding-left: 20px; }
+    li { margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>You're Invited! 🚀</h1>
+      <p style="margin: 8px 0 0;">Your exclusive access to REALEVR is ready</p>
+    </div>
+    <div class="content">
+      <p>Hi {{firstName}},</p>
+
+      <p>Great news! We're ready for you to join REALEVR and start listing your properties!</p>
+
+      <p>{{adminMessage}}</p>
+
+      <div class="features-box">
+        <p style="margin-top: 0;"><strong>What You Can Do on REALEVR:</strong></p>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          <li>✅ List unlimited properties with 360° virtual tours</li>
+          <li>✅ Reach thousands of buyers and renters</li>
+          <li>✅ Manage bookings and payments automatically</li>
+          <li>✅ Get detailed analytics on property views</li>
+          <li>✅ Receive verified inquiries from interested tenants</li>
+          <li>✅ Access our professional property management dashboard</li>
+        </ul>
+      </div>
+
+      <div style="text-align: center;">
+        <a href="{{signupLink}}" class="button">Create Your Account Now</a>
+      </div>
+
+      <div class="expiry-notice">
+        ⏰ <strong>This invitation expires in 7 days.</strong> Don't miss your spot!
+      </div>
+
+      <p>If the button above doesn't work, copy and paste this link into your browser:</p>
+      <p style="word-break: break-all; color: #11998e; font-size: 12px;">{{signupLink}}</p>
+
+      <p>Questions? Contact us at <a href="mailto:support@realevr.com">support@realevr.com</a></p>
+
+      <p>We look forward to having you on board!</p>
+      <p>Best regards,<br><strong>The REALEVR Team</strong></p>
+    </div>
+    <div class="footer">
+      <p>&copy; 2026 REALEVR. All rights reserved.</p>
+      <p>This is an automated email. Please do not reply directly to this message.</p>
+    </div>
+  </div>
+</body>
+</html>

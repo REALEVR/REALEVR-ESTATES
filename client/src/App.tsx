@@ -32,6 +32,7 @@ import HelpCenterPage from '@/pages/HelpCenterPage'
 import ContactUsPage from '@/pages/ContactUsPage'
 import TrustSafetyPage from '@/pages/TrustSafetyPage'
 import VerifyEmailPage from '@/pages/VerifyEmailPage'
+import WaitlistPage from '@/pages/WaitlistPage'
 import { AuthProvider } from '@/hooks/use-auth'
 import { PaymentProvider } from '@/contexts/PaymentContext'
 import VirtualTourManager from '@/components/admin/VirtualTourManager'
@@ -69,6 +70,7 @@ function Router() {
             {/* Authentication and User Pages */}
             <Route path="/auth" component={AuthPage} />
             <Route path="/verify-email" component={VerifyEmailPage} />
+            <Route path="/waitlist" component={WaitlistPage} />
             <Route path="/profile" component={ProfilePage} />
             <Route path="/test-page" component={TestPage} />
             <Route path="/agent/register" component={AgentRegistrationPage} />

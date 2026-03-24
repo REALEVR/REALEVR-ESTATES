@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to REALEVR Waitlist</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #333; margin: 0; padding: 0; background: #f0f0f0; }
+    .container { max-width: 600px; margin: 0 auto; background: #fff; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+    .header h1 { margin: 0; font-size: 28px; }
+    .content { padding: 30px; background: #f9f9f9; }
+    .button { background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; font-weight: bold; }
+    .details-box { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin: 20px 0; }
+    .footer { text-align: center; padding: 20px; color: #999; font-size: 12px; }
+    ol, ul { padding-left: 20px; }
+    li { margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Welcome to REALEVR! 🎉</h1>
+      <p style="margin: 8px 0 0;">Your waitlist registration is confirmed</p>
+    </div>
+    <div class="content">
+      <p>Hi {{firstName}},</p>
+
+      <p>Thank you for your interest in joining REALEVR! We're excited to have you in our waitlist.</p>
+
+      <p><strong>Your Waitlist Position:</strong> #{{position}} of {{totalWaitlisted}}</p>
+
+      <p><strong>What's Next?</strong></p>
+      <ol>
+        <li>Verify your email address by clicking the button below</li>
+        <li>We'll review your information</li>
+        <li>You'll receive an exclusive invite to join when we're ready for you!</li>
+      </ol>
+
+      <div style="text-align: center;">
+        <a href="{{verificationLink}}" class="button">Verify Email Address</a>
+      </div>
+
+      <div class="details-box">
+        <p style="margin-top: 0;"><strong>Your Registration Details:</strong></p>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          <li>📋 <strong>Property Type:</strong> {{propertyType}}</li>
+          <li>🏠 <strong>Number of Properties:</strong> {{propertyCount}}</li>
+          <li>📍 <strong>Location:</strong> {{location}}, {{city}}, {{state}}</li>
+          <li>🎯 <strong>Interest:</strong> {{interest}}</li>
+        </ul>
+      </div>
+
+      <p>If the button above doesn't work, copy and paste this link into your browser:</p>
+      <p style="word-break: break-all; color: #667eea; font-size: 12px;">{{verificationLink}}</p>
+
+      <p>If you didn't sign up for this, please disregard this email.</p>
+
+      <p>Questions? Contact us at <a href="mailto:support@realevr.com">support@realevr.com</a></p>
+
+      <p>Best regards,<br><strong>The REALEVR Team</strong></p>
+    </div>
+    <div class="footer">
+      <p>&copy; 2026 REALEVR. All rights reserved.</p>
+      <p>This is an automated email. Please do not reply directly to this message.</p>
+    </div>
+  </div>
+</body>
+</html>
