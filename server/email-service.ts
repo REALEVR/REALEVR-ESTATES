@@ -8,11 +8,8 @@ const createTransporter = () => {
         service: 'gmail',
         // or your preferred service
         auth: {
-            type: 'OAUTH2',
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASSWORD, // Use app password for Gmail
-            clientId: process.env.GOOGLE_EMAIL_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_EMAIL_CLIENT_SECRET,
         },
     })
 }
@@ -38,11 +35,6 @@ export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
 
         const result = await transporter.sendMail(mailOptions)
         console.log('Email sent successfully:', result.messageId)
-
-        // For development, log the preview URL
-        if (process.env.NODE_ENV !== 'production') {
-            console.log('Preview URL:', nodemailer.getTestMessageUrl(result))
-        }
 
         return true
     } catch (error) {

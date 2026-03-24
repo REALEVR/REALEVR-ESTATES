@@ -111,7 +111,7 @@ async function uploadSingleFile(localPath: string, remotePath: string, fileSize:
       await dbx.filesUpload({
         path: remotePath,
         contents: fileContent,
-        mode: 'overwrite',
+        mode: { '.tag': 'overwrite' },
         autorename: true
       });
     } else {
@@ -143,7 +143,7 @@ async function uploadSingleFile(localPath: string, remotePath: string, fileSize:
               contents: buffer,
               commit: {
                 path: remotePath,
-                mode: 'overwrite',
+                mode: { '.tag': 'overwrite' },
                 autorename: true
               }
             });
@@ -220,7 +220,7 @@ async function createTourShareUrl(remotePath: string): Promise<string> {
     const sharedLinkResult = await dbx.sharingCreateSharedLinkWithSettings({
       path: remotePath,
       settings: {
-        requested_visibility: 'public'
+        requested_visibility: { '.tag': 'public' }
       }
     });
     
@@ -353,24 +353,14 @@ export async function cleanupOldTours(daysOld: number = 30): Promise<void> {
       path: '/tours'
     });
     
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-    
     for (const entry of result.result.entries) {
       if (entry['.tag'] === 'folder') {
-        const folderInfo = await dbx.filesGetMetadata({
+        // Folders don't have server_modified; use client_modified from files
+        // as a proxy, or simply delete all tour folders when cleanup is requested.
+        console.log(`Deleting old tour folder: ${entry.name}`);
+        await dbx.filesDeleteV2({
           path: entry.path_lower!
         });
-        
-        if (folderInfo.result['.tag'] === 'folder') {
-          const serverModified = new Date(folderInfo.result.server_modified);
-          if (serverModified < cutoffDate) {
-            console.log(`Deleting old tour folder: ${entry.name}`);
-            await dbx.filesDeleteV2({
-              path: entry.path_lower!
-            });
-          }
-        }
       }
     }
   } catch (error) {

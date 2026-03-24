@@ -95,7 +95,7 @@ export default function AuthPage() {
         // Add default values for role and isVerified
         const insertUserData = {
             ...userData,
-            role: 'admin' | 'agent' | 'normal',
+            role: 'normal' as const,
             isVerified: false,
             membershipStartDate: null,
             membershipEndDate: null,
