@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { ShareButton } from "@/components/ui/ShareButton";
 import { CalendarIcon, Clock, MapPin, Home, BedDouble, Bath, Maximize } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PageSeo } from "@/components/seo/PageSeo";
@@ -163,6 +164,7 @@ export default function BankSalesPage() {
           ))}
         </Tabs>
       )}
+      <ShareButton title="Bank Sales - REALEVR Estates" />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ShareButton } from "@/components/ui/ShareButton";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function ContactUsPage() {
@@ -178,6 +179,7 @@ export default function ContactUsPage() {
           </Card>
         </div>
       </div>
+      <ShareButton title="Contact Us - REALEVR Estates" />
     </div>
   );
 } 

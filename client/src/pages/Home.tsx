@@ -17,6 +17,7 @@ import { useProperties } from '@/hooks/usePropertyData'
 import type { Property } from '@shared/schema'
 import { PageSeo } from '@/components/seo/PageSeo'
 import { getSiteUrl } from '@/lib/siteUrl'
+import { ShareButton } from '@/components/ui/ShareButton'
 
 // Property category labels for display
 const categoryLabels = {
@@ -215,6 +216,7 @@ export default function Home() {
             <AmenitiesHighlight />
             <HowItWorks />
             <DownloadApp />
+            <ShareButton title="REALEVR Estates - Find Your Dream Property" />
         </>
     )
 }

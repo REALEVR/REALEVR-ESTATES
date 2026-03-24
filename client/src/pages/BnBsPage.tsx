@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ShareButton } from "@/components/ui/ShareButton";
 import { Badge } from "@/components/ui/badge";
 import PropertyCard from "@/components/home/PropertyCard";
 import { useLocation } from "wouter";
@@ -270,6 +271,7 @@ export default function BnBsPage() {
           </div>
         )}
       </div>
+      <ShareButton title="BnBs - REALEVR Estates" />
     </div>
   );
 }

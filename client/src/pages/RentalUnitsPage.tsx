@@ -10,6 +10,7 @@ import PropertyCard from '@/components/home/PropertyCard'
 import type { Property } from '@shared/schema'
 import { PageSeo } from '@/components/seo/PageSeo'
 import { getSiteUrl } from '@/lib/siteUrl'
+import { ShareButton } from '@/components/ui/ShareButton'
 
 export default function RentalUnitsPage() {
     const { hasActiveViewingPackage, openViewingPaymentPrompt } = usePayment()
@@ -529,5 +530,6 @@ export default function RentalUnitsPage() {
                 )}
             </div>
         </div>
+        <ShareButton title="Rental Units - REALEVR Estates" />
     )
 }

@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { ShareButton } from "@/components/ui/ShareButton";
 
 export default function HostResponsibly() {
   return (
@@ -160,6 +161,7 @@ export default function HostResponsibly() {
           </Link>
         </div>
       </div>
+      <ShareButton title="Host Responsibly - REALEVR Estates" />
     </div>
   );
 }
