@@ -22,6 +22,11 @@ import {
     getStaticSitemapEntries,
     propertyToSitemapEntry,
 } from './sitemap'
+import { registerWebhookRoutes } from './routes/webhooks'
+import { registerNotificationRoutes } from './routes/notifications'
+import { registerPaymentRoutes } from './routes/payments'
+import { registerAIRoutes } from './routes/ai'
+import { registerAnalyticsRoutes } from './routes/analytics'
 
 // Middleware to check if user is an admin or property manager
 const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -2192,6 +2197,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.warn('⚠️ Failed to initialize S3 tour hosting:', error)
         console.warn('Virtual tour uploads may not work properly')
     }
+
+    // Register new feature routes
+    registerWebhookRoutes(app)
+    registerNotificationRoutes(app)
+    registerPaymentRoutes(app)
+    registerAIRoutes(app)
+    registerAnalyticsRoutes(app)
 
     const httpServer = createServer(app)
     return httpServer

@@ -41,6 +41,10 @@ import ScrollToTop from './components/ui/ScrollToTop'
 import IoTecGateway, { IoTecGatewayLight } from './components/payment/io-tech/layoutGate'
 import { useEffect, useState } from 'react'
 import { paymentEmitter } from './lib/iotec-paymentpatch'
+import { PropertyOwnerTour } from './components/onboarding/PropertyOwnerTour'
+import { RenterTour } from './components/onboarding/RenterTour'
+import { DashboardTour } from './components/onboarding/DashboardTour'
+import { useAuth } from './hooks/use-auth'
 
 function Router() {
     return (
@@ -148,11 +152,25 @@ function App() {
                         </div>
                         <ScrollToTop />
                         <Toaster />
+                        {/* Onboarding Tours */}
+                        <OnboardingTours />
                     </TooltipProvider>
                 </PaymentProvider>
             </AuthProvider>
         </QueryClientProvider>
     )
+}
+
+function OnboardingTours() {
+    const { user } = useAuth()
+
+    if (!user) return null
+
+    if (user.role === 'agent' || user.role === 'admin') {
+        return <PropertyOwnerTour />
+    }
+
+    return <RenterTour />
 }
 
 export default App
