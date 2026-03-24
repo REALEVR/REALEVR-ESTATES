@@ -123,6 +123,9 @@ export const TABLES = {
     PROPERTY_VIEWS: process.env.DYNAMODB_PROPERTY_VIEWS_TABLE || 'realevr-property-views',
     TOUR_PAYMENTS: process.env.DYNAMODB_TOUR_PAYMENTS_TABLE || 'realevr-tour-payments',
     SETTINGS: process.env.DYNAMODB_SETTINGS_TABLE || 'realevr-settings',
+    NOTIFICATIONS: process.env.DYNAMODB_NOTIFICATIONS_TABLE || 'realevr-notifications',
+    PAYMENTS: process.env.DYNAMODB_PAYMENTS_TABLE || 'realevr-payments',
+    AUDIT_LOGS: process.env.DYNAMODB_AUDIT_LOGS_TABLE || 'realevr-audit-logs',
 } as const
 
 // ─── Retry Logic ──────────────────────────────────────────────────────────────
@@ -431,6 +434,24 @@ export async function createTablesIfNotExist(): Promise<void> {
         },
         {
             TableName: TABLES.SETTINGS,
+            KeySchema: [{ AttributeName: 'id', KeyType: 'HASH' }],
+            AttributeDefinitions: [{ AttributeName: 'id', AttributeType: 'S' }],
+            BillingMode: 'PAY_PER_REQUEST',
+        },
+        {
+            TableName: TABLES.NOTIFICATIONS,
+            KeySchema: [{ AttributeName: 'id', KeyType: 'HASH' }],
+            AttributeDefinitions: [{ AttributeName: 'id', AttributeType: 'S' }],
+            BillingMode: 'PAY_PER_REQUEST',
+        },
+        {
+            TableName: TABLES.PAYMENTS,
+            KeySchema: [{ AttributeName: 'id', KeyType: 'HASH' }],
+            AttributeDefinitions: [{ AttributeName: 'id', AttributeType: 'S' }],
+            BillingMode: 'PAY_PER_REQUEST',
+        },
+        {
+            TableName: TABLES.AUDIT_LOGS,
             KeySchema: [{ AttributeName: 'id', KeyType: 'HASH' }],
             AttributeDefinitions: [{ AttributeName: 'id', AttributeType: 'S' }],
             BillingMode: 'PAY_PER_REQUEST',

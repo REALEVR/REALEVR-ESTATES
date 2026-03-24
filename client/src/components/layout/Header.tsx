@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Loader2, LogOut, Settings, User, Glasses, Building, Users } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 export default function Header() {
   const [location, setLocation] = useLocation();
@@ -99,6 +100,9 @@ export default function Header() {
           <Button variant="ghost" size="icon" className="hidden md:flex rounded-full p-2 hover:bg-gray-100">
             <i className="fas fa-globe text-gray-800"></i>
           </Button>
+
+          {/* Notification Center */}
+          <NotificationCenter />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

@@ -1,6 +1,10 @@
 import express, { type Request, Response, NextFunction } from 'express'
 import { registerRoutes } from './routes'
 import { createTablesIfNotExist } from './dynamodb'
+import { initDailyReminders } from './cron/dailyReminders'
+import { initViewingReminders } from './cron/viewingReminders'
+import { initPaymentFailureRetry } from './cron/paymentFailureRetry'
+import { propertySocketServer } from './websocket/propertySocket'
 import fs from 'fs'
 import path from 'path'
 
@@ -84,6 +88,14 @@ app.use((req, res, next) => {
         res.status(status).json({ message })
         throw err
     })
+
+    // Initialize WebSocket server
+    propertySocketServer.initialize(server)
+
+    // Initialize cron jobs
+    initDailyReminders()
+    initViewingReminders()
+    initPaymentFailureRetry()
 
     // Only import and use Vite dev server in development
     if (app.get('env') === 'development') {
