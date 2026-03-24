@@ -234,14 +234,14 @@ export default function BnBsPage() {
               ))}
             </div>
           </div>
-        ) : sampleFurnishedProperties.length ? (
+        ) : furnishedProperties?.length ? (
           <div>
             <div className="mb-4 text-gray-500">
-              Showing {sampleFurnishedProperties.length} sample properties
+              Showing {furnishedProperties?.length} sample properties
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {sampleFurnishedProperties.map(property => (
+              {furnishedProperties?.map(property => (
                 <div 
                   key={property.id} 
                   className="cursor-pointer"

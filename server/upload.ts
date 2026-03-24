@@ -10,9 +10,9 @@ import { uploadTourToCloudinary } from './cloudinary-util';
 // @ts-ignore
 // import { uploadTourDirToFTP } from "./ftp-upload";
 // Dynamically import CommonJS tour-progress-manager for ESM compatibility
-// @ts-ignore
 let createJob: any, sendProgress: any, addListener: any;
 (async () => {
+  // @ts-ignore - CommonJS module without type declarations
   const progressManager = await import('./tour-progress-manager');
   createJob = progressManager.createJob;
   sendProgress = progressManager.sendProgress;

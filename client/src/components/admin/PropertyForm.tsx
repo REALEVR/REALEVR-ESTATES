@@ -77,10 +77,27 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
     })
 
     // Get default values from existing property or use empty defaults
+    // Convert null to undefined for form compatibility
     const defaultValues: Partial<PropertyFormValues> = property
         ? {
               ...property,
               amenities: property.amenities || [],
+              yearOfConstruction: property.yearOfConstruction ?? undefined,
+              buildingAge: property.buildingAge ?? undefined,
+              monthlyPrice: property.monthlyPrice ?? undefined,
+              startingBid: property.startingBid ?? undefined,
+              currentBid: property.currentBid ?? undefined,
+              bidIncrement: property.bidIncrement ?? undefined,
+              viewCount: property.viewCount ?? undefined,
+              ownerId: property.ownerId ?? undefined,
+              propertyCondition: property.propertyCondition ?? undefined,
+              auctionStart: property.auctionStart ?? undefined,
+              auctionEnd: property.auctionEnd ?? undefined,
+              tourUrl: property.tourUrl ?? undefined,
+              ownerContactInfo: property.ownerContactInfo ?? undefined,
+              auctionStatus: property.auctionStatus ?? undefined,
+              bankName: property.bankName ?? undefined,
+              auctionDate: property.auctionDate ?? undefined,
           }
         : {
               title: '',

@@ -13,16 +13,16 @@ export function ensureAmenitiesArray(property: Property): Property {
     amenities = property.amenities;
   } else if (typeof property.amenities === 'string') {
     try {
-      const parsed = JSON.parse(property.amenities);
+      const parsed = JSON.parse(property.amenities as unknown as string);
       if (Array.isArray(parsed)) {
         amenities = parsed;
       } else {
         // If it's a string but not a JSON array, treat as comma-separated
-        amenities = property.amenities.split(',').map((s: string) => s.trim());
+        amenities = (property.amenities as unknown as string).split(',').map((s: string) => s.trim());
       }
     } catch (e) {
       // If JSON parsing fails, treat as comma-separated
-      amenities = property.amenities.split(',').map((s: string) => s.trim());
+      amenities = (property.amenities as unknown as string).split(',').map((s: string) => s.trim());
     }
   }
   // If amenities is null, undefined, or any other type, it remains an empty array

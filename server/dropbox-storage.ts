@@ -111,7 +111,7 @@ async function uploadSingleFile(localPath: string, remotePath: string, fileSize:
       await dbx.filesUpload({
         path: remotePath,
         contents: fileContent,
-        mode: 'overwrite',
+        mode: 'overwrite' as any,
         autorename: true
       });
     } else {
@@ -143,7 +143,7 @@ async function uploadSingleFile(localPath: string, remotePath: string, fileSize:
               contents: buffer,
               commit: {
                 path: remotePath,
-                mode: 'overwrite',
+                mode: 'overwrite' as any,
                 autorename: true
               }
             });
@@ -220,7 +220,7 @@ async function createTourShareUrl(remotePath: string): Promise<string> {
     const sharedLinkResult = await dbx.sharingCreateSharedLinkWithSettings({
       path: remotePath,
       settings: {
-        requested_visibility: 'public'
+        requested_visibility: 'public' as any
       }
     });
     
@@ -363,7 +363,7 @@ export async function cleanupOldTours(daysOld: number = 30): Promise<void> {
         });
         
         if (folderInfo.result['.tag'] === 'folder') {
-          const serverModified = new Date(folderInfo.result.server_modified);
+          const serverModified = new Date((folderInfo.result as any).server_modified);
           if (serverModified < cutoffDate) {
             console.log(`Deleting old tour folder: ${entry.name}`);
             await dbx.filesDeleteV2({

@@ -38,7 +38,7 @@ export async function setupS3TourBucket(): Promise<void> {
             Bucket: BUCKET_NAME,
             ...(REGION !== "us-east-1" && {
               CreateBucketConfiguration: {
-                LocationConstraint: REGION
+                LocationConstraint: REGION as any
               }
             })
           })

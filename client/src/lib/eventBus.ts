@@ -23,13 +23,13 @@ class EventBus {
 
     on<K extends EventKey>(eventName: K, callback: Callback<K>) {
         if (!this.events[eventName]) {
-            this.events[eventName] = []
+            this.events[eventName] = [] as any
         }
 
-        this.events[eventName]!.push(callback)
+        (this.events[eventName] as Callback<K>[]).push(callback)
 
         return () => {
-            this.events[eventName] = this.events[eventName]!.filter((cb) => cb !== callback)
+            this.events[eventName] = (this.events[eventName] as Callback<K>[]).filter((cb) => cb !== callback) as any
         }
     }
 
