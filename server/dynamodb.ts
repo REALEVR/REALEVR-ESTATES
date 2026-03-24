@@ -206,17 +206,26 @@ export function generateId(): number {
     let now = Date.now() - EPOCH;
     if (now === lastTimestamp) {
         counter++;
+        if (counter >= 1000) {
+            // Wait for the next millisecond to avoid collisions
+            while (Date.now() - EPOCH === lastTimestamp) {
+                // busy-wait
+            }
+            now = Date.now() - EPOCH;
+            lastTimestamp = now;
+            counter = 0;
+        }
     } else {
         lastTimestamp = now;
         counter = 0;
     }
     // Multiply by 1000 and add counter to guarantee uniqueness (max ~1000 IDs/ms)
     // Result stays well within MAX_SAFE_INTEGER (9_007_199_254_740_991)
-    return now * 1000 + (counter % 1000);
+    return now * 1000 + counter;
 }
 
 export function toStringId(id: number): string {
-    if (!Number.isFinite(id) || id < 0) {
+    if (!Number.isFinite(id) || id <= 0) {
         throw new DynamoDBValidationError(`Invalid ID value: ${id}`)
     }
     return id.toString()
@@ -224,7 +233,7 @@ export function toStringId(id: number): string {
 
 export function toNumericId(id: string): number {
     const parsed = parseInt(id, 10)
-    if (isNaN(parsed) || parsed < 0) {
+    if (isNaN(parsed) || parsed <= 0) {
         throw new DynamoDBValidationError(`Cannot convert "${id}" to a valid numeric ID`)
     }
     return parsed
