@@ -121,7 +121,7 @@ export function UserDashboard() {
                 </div>
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div data-tour="dashboard-metrics" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
@@ -175,7 +175,7 @@ export function UserDashboard() {
                         <TabsTrigger value="profile">Profile</TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="tours" className="space-y-6">
+                    <TabsContent data-tour="upcoming-bookings" value="tours" className="space-y-6">
                         <div className="flex justify-between items-center">
                             <h2 className="text-xl font-semibold">My Viewed Tours</h2>
                             <Button variant="outline">

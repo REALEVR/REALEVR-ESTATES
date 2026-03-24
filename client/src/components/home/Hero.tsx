@@ -303,7 +303,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
         
         {/* Search bar - hidden on mobile */}
         {!isMobile && (
-          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-[95%] bg-white rounded-full shadow-lg flex flex-wrap md:flex-nowrap items-center px-4 py-2 gap-2 md:gap-4">
+          <div data-tour="search-bar" className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-[95%] bg-white rounded-full shadow-lg flex flex-wrap md:flex-nowrap items-center px-4 py-2 gap-2 md:gap-4">
           <select 
             className="flex-1 min-w-[120px] bg-transparent px-4 py-2 rounded-full border border-gray-200 focus:outline-none focus:border-black transition-colors"
             value={searchFilters.location}

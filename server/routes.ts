@@ -15,6 +15,7 @@ import { createTablesIfNotExist, DynamoDBUtils, TABLES, toNumericId, toStringId 
 
 import { uploadPropertyImage, uploadVirtualTour, handleUploadErrors, setupStaticFileRoutes } from './upload'
 import { registerPaymentGateWayForApp } from './payment/payment-new'
+import { registerPaymentRoutes } from './routes/payments'
 import {
     buildRobotsTxt,
     buildSitemapXml,
@@ -96,6 +97,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Setup authentication routes
     setupAuth(app)
+
+    // Register atomic payment workflow routes
+    registerPaymentRoutes(app)
 
     app.get('/sitemap.xml', async (_req, res) => {
         try {

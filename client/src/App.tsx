@@ -41,6 +41,7 @@ import ScrollToTop from './components/ui/ScrollToTop'
 import IoTecGateway, { IoTecGatewayLight } from './components/payment/io-tech/layoutGate'
 import { useEffect, useState } from 'react'
 import { paymentEmitter } from './lib/iotec-paymentpatch'
+import { OnboardingTourProvider, OnboardingTour } from '@/components/OnboardingTour'
 
 function Router() {
     return (
@@ -128,27 +129,30 @@ function App() {
         <QueryClientProvider client={queryClient}>
             <AuthProvider>
                 <PaymentProvider>
-                    <TooltipProvider>
-                        <div className="flex flex-col min-h-screen">
-                            <Header />
-                            <main className="flex-grow px-4 sm:px-6 lg:px-8">
-                                <AnimatedLayout>
-                                    <Router />
-                                </AnimatedLayout>
-                            </main>
-                            {gateway && (
-                                <IoTecGatewayLight
-                                    source={gateway.source}
-                                    accessToken={gateway.accessToken}
-                                    amount={gateway.amount}
-                                    onClose={() => setGateway(null)}
-                                />
-                            )}
-                            <Footer />
-                        </div>
-                        <ScrollToTop />
-                        <Toaster />
-                    </TooltipProvider>
+                    <OnboardingTourProvider>
+                        <TooltipProvider>
+                            <div className="flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow px-4 sm:px-6 lg:px-8">
+                                    <AnimatedLayout>
+                                        <Router />
+                                    </AnimatedLayout>
+                                </main>
+                                {gateway && (
+                                    <IoTecGatewayLight
+                                        source={gateway.source}
+                                        accessToken={gateway.accessToken}
+                                        amount={gateway.amount}
+                                        onClose={() => setGateway(null)}
+                                    />
+                                )}
+                                <Footer />
+                            </div>
+                            <OnboardingTour />
+                            <ScrollToTop />
+                            <Toaster />
+                        </TooltipProvider>
+                    </OnboardingTourProvider>
                 </PaymentProvider>
             </AuthProvider>
         </QueryClientProvider>

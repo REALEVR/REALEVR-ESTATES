@@ -121,6 +121,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
     return (
         <>
             <AnimatedCard
+                data-tour="property-card"
                 className="property-card bg-white rounded-xl overflow-hidden shadow-md cursor-pointer hover:shadow-lg transition-shadow duration-300"
                 onClick={handleCardClick}
             >

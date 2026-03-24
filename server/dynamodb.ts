@@ -17,6 +17,8 @@ import {
     DeleteCommand,
     ScanCommand,
     QueryCommand,
+    TransactWriteCommand,
+    type TransactWriteCommandInput,
 } from '@aws-sdk/lib-dynamodb'
 
 // ─── Custom Error Classes ─────────────────────────────────────────────────────
@@ -123,6 +125,10 @@ export const TABLES = {
     PROPERTY_VIEWS: process.env.DYNAMODB_PROPERTY_VIEWS_TABLE || 'realevr-property-views',
     TOUR_PAYMENTS: process.env.DYNAMODB_TOUR_PAYMENTS_TABLE || 'realevr-tour-payments',
     SETTINGS: process.env.DYNAMODB_SETTINGS_TABLE || 'realevr-settings',
+    PAYMENTS: process.env.DYNAMODB_PAYMENTS_TABLE || 'realevr-payments',
+    BOOKINGS: process.env.DYNAMODB_BOOKINGS_TABLE || 'realevr-bookings',
+    NOTIFICATIONS: process.env.DYNAMODB_NOTIFICATIONS_TABLE || 'realevr-notifications',
+    AUDIT_LOGS: process.env.DYNAMODB_AUDIT_LOGS_TABLE || 'realevr-audit-logs',
 } as const
 
 // ─── Retry Logic ──────────────────────────────────────────────────────────────
@@ -364,6 +370,11 @@ export const DynamoDBUtils = {
     ) {
         return this.queryTable(tableName, keyConditionExpression, expressionAttributeValues, expressionAttributeNames, indexName)
     },
+
+    // ─── Transact Write (atomic batch) ────────────────────────────────────────
+    async transactWrite(transactItems: TransactWriteCommandInput['TransactItems']): Promise<void> {
+        await dynamoDb.send(new TransactWriteCommand({ TransactItems: transactItems }))
+    },
 }
 
 // ─── Table Management ─────────────────────────────────────────────────────────
@@ -431,6 +442,36 @@ export async function createTablesIfNotExist(): Promise<void> {
         },
         {
             TableName: TABLES.SETTINGS,
+            KeySchema: [{ AttributeName: 'id', KeyType: 'HASH' }],
+            AttributeDefinitions: [{ AttributeName: 'id', AttributeType: 'S' }],
+            BillingMode: 'PAY_PER_REQUEST',
+        },
+        {
+            TableName: TABLES.PAYMENTS,
+            KeySchema: [{ AttributeName: 'id', KeyType: 'HASH' }],
+            AttributeDefinitions: [{ AttributeName: 'id', AttributeType: 'S' }],
+            BillingMode: 'PAY_PER_REQUEST',
+        },
+        {
+            TableName: TABLES.BOOKINGS,
+            KeySchema: [{ AttributeName: 'id', KeyType: 'HASH' }],
+            AttributeDefinitions: [{ AttributeName: 'id', AttributeType: 'S' }],
+            BillingMode: 'PAY_PER_REQUEST',
+        },
+        {
+            TableName: TABLES.NOTIFICATIONS,
+            KeySchema: [
+                { AttributeName: 'userId', KeyType: 'HASH' },
+                { AttributeName: 'id', KeyType: 'RANGE' },
+            ],
+            AttributeDefinitions: [
+                { AttributeName: 'userId', AttributeType: 'S' },
+                { AttributeName: 'id', AttributeType: 'S' },
+            ],
+            BillingMode: 'PAY_PER_REQUEST',
+        },
+        {
+            TableName: TABLES.AUDIT_LOGS,
             KeySchema: [{ AttributeName: 'id', KeyType: 'HASH' }],
             AttributeDefinitions: [{ AttributeName: 'id', AttributeType: 'S' }],
             BillingMode: 'PAY_PER_REQUEST',
