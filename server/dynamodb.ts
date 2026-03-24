@@ -123,6 +123,7 @@ export const TABLES = {
     PROPERTY_VIEWS: process.env.DYNAMODB_PROPERTY_VIEWS_TABLE || 'realevr-property-views',
     TOUR_PAYMENTS: process.env.DYNAMODB_TOUR_PAYMENTS_TABLE || 'realevr-tour-payments',
     SETTINGS: process.env.DYNAMODB_SETTINGS_TABLE || 'realevr-settings',
+    WAITLIST: process.env.DYNAMODB_WAITLIST_TABLE || 'realevr-waitlist',
 } as const
 
 // ─── Retry Logic ──────────────────────────────────────────────────────────────
@@ -431,6 +432,12 @@ export async function createTablesIfNotExist(): Promise<void> {
         },
         {
             TableName: TABLES.SETTINGS,
+            KeySchema: [{ AttributeName: 'id', KeyType: 'HASH' }],
+            AttributeDefinitions: [{ AttributeName: 'id', AttributeType: 'S' }],
+            BillingMode: 'PAY_PER_REQUEST',
+        },
+        {
+            TableName: TABLES.WAITLIST,
             KeySchema: [{ AttributeName: 'id', KeyType: 'HASH' }],
             AttributeDefinitions: [{ AttributeName: 'id', AttributeType: 'S' }],
             BillingMode: 'PAY_PER_REQUEST',

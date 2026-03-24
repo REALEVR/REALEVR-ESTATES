@@ -22,6 +22,7 @@ import {
     getStaticSitemapEntries,
     propertyToSitemapEntry,
 } from './sitemap'
+import waitlistRouter from './routes/waitlist'
 
 // Middleware to check if user is an admin or property manager
 const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -96,6 +97,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Setup authentication routes
     setupAuth(app)
+
+    // Register waitlist routes
+    app.use('/api/waitlist', waitlistRouter)
 
     app.get('/sitemap.xml', async (_req, res) => {
         try {
