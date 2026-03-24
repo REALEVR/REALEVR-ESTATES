@@ -164,7 +164,7 @@ export function AgentDashboard() {
                 </div>
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div data-tour="dashboard-stats" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Total Properties</CardTitle>
@@ -221,7 +221,7 @@ export function AgentDashboard() {
                     <TabsContent value="properties" className="space-y-6">
                         <div className="flex justify-between items-center">
                             <h2 className="text-xl font-semibold">My Properties</h2>
-                            <Button onClick={() => setIsAddPropertyOpen(true)}>
+                            <Button data-tour="create-listing" onClick={() => setIsAddPropertyOpen(true)}>
                                 <Plus className="mr-2 h-4 w-4" />
                                 Add Property
                             </Button>

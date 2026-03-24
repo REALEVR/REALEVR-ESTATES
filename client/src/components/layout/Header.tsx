@@ -11,13 +11,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Loader2, LogOut, Settings, User, Glasses, Building, Users } from "lucide-react";
+import { Loader2, LogOut, Settings, User, Glasses, Building, Users, HelpCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useOnboarding } from "@/components/OnboardingTour";
 
 export default function Header() {
   const [location, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const { user, logoutMutation } = useAuth();
+  const { startTour, resetAllTours } = useOnboarding();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,6 +191,18 @@ export default function Header() {
                       </Link>
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => {
+                      resetAllTours()
+                      const role = (user as { role?: string }).role ?? 'normal'
+                      if (role === 'agent') startTour('propertyOwner')
+                      else startTour('renter')
+                    }}
+                  >
+                    <HelpCircle className="mr-2 h-4 w-4" />
+                    <span>Restart Tour</span>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} disabled={logoutMutation.isPending}>
                     {logoutMutation.isPending ? (
