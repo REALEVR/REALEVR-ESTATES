@@ -22,6 +22,8 @@ import {
     getStaticSitemapEntries,
     propertyToSitemapEntry,
 } from './sitemap'
+import notificationRoutes from './routes/notifications'
+import { runDepositReminders, runViewingReminders } from './cron/index'
 
 // Middleware to check if user is an admin or property manager
 const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -2180,6 +2182,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (error: any) {
             console.error('[ERROR] Failed to scan property keys:', error)
             res.status(500).json({ error: error.message })
+        }
+    })
+
+    // Notification Hub routes
+    app.use('/api/notifications', notificationRoutes)
+
+    // Admin endpoint to manually trigger reminders for testing
+    app.post('/api/admin/test-reminders', adminMiddleware, async (_req: any, res: any) => {
+        try {
+            console.log('[Admin] Manually triggering reminders...')
+            await Promise.all([runDepositReminders(), runViewingReminders()])
+            res.json({ message: 'Reminders triggered successfully' })
+        } catch (error: any) {
+            console.error('[Admin] Error triggering reminders:', error)
+            res.status(500).json({ message: error.message })
         }
     })
 
