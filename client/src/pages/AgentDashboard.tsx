@@ -24,9 +24,7 @@ import PropertyFormNew from '@/components/admin/PropertyFormNew'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface PropertyWithViews extends Property {
-    viewCount: number
     recentViews?: number
-    ownerId?: number
 }
 
 export function AgentDashboard() {
@@ -47,100 +45,99 @@ export function AgentDashboard() {
         return <Redirect to="/auth" />
     }
 
+    const fetchAgentData = async () => {
+        try {
+            setLoading(true)
+
+            // Fetch agent's properties
+            console.log('Fetching agent properties...')
+            console.log('Cookies:', document.cookie)
+            const propertiesResponse = await fetch('/api/agent/properties', {
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            console.log('Properties response status:', propertiesResponse.status)
+            if (propertiesResponse.ok) {
+                const agentProperties = await propertiesResponse.json()
+                console.log('Agent properties received:', agentProperties)
+                setProperties(agentProperties)
+
+                // Calculate stats
+                const totalViews = agentProperties.reduce(
+                    (sum: number, p: PropertyWithViews) => sum + (p.viewCount || 0),
+                    0
+                )
+                const activeListings = agentProperties.filter((p: Property) => p.isAvailable).length
+
+                setStats({
+                    totalProperties: agentProperties.length,
+                    totalViews,
+                    thisMonthViews: Math.floor(totalViews * 0.3), // Mock data
+                    activeListings,
+                })
+            } else {
+                console.error(
+                    'Failed to fetch properties:',
+                    propertiesResponse.status,
+                    propertiesResponse.statusText
+                )
+                const errorData = await propertiesResponse.text()
+                console.error('Error response:', errorData)
+                toast({
+                    title: 'Error',
+                    description: `Failed to load properties: ${propertiesResponse.status}`,
+                    variant: 'destructive',
+                })
+            }
+        } catch (error) {
+            console.error('Error fetching agent data:', error)
+            toast({
+                title: 'Error',
+                description: 'Failed to load dashboard data',
+                variant: 'destructive',
+            })
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleDeleteProperty = async (propertyId: number) => {
+        if (!confirm('Are you sure you want to delete this property? This action cannot be undone.')) {
+            return
+        }
+
+        try {
+            const response = await fetch(`/api/agent/properties/${propertyId}`, {
+                method: 'DELETE',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+
+            if (response.ok) {
+                toast({
+                    title: 'Property Deleted',
+                    description: 'The property has been successfully deleted',
+                })
+                // Refresh the properties list
+                fetchAgentData()
+            } else {
+                const errorData = await response.json()
+                throw new Error(errorData.message || 'Failed to delete property')
+            }
+        } catch (error: any) {
+            toast({
+                title: 'Error',
+                description: error.message || 'Failed to delete property',
+                variant: 'destructive',
+            })
+        }
+    }
+
     useEffect(() => {
-        const fetchAgentData = async () => {
-            try {
-                setLoading(true)
-
-                // Fetch agent's properties
-                console.log('Fetching agen t properties...')
-                console.log('Cookies:', document.cookie)
-                const propertiesResponse = await fetch('/api/agent/properties', {
-                    credentials: 'include',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                })
-                console.log('Properties response status:', propertiesResponse.status)
-                if (propertiesResponse.ok) {
-                    const agentProperties = await propertiesResponse.json()
-                    console.log('Agent properties received:', agentProperties)
-                    setProperties(agentProperties)
-
-                    // Calculate stats
-                    const totalViews = agentProperties.reduce(
-                        (sum: number, p: PropertyWithViews) => sum + (p.viewCount || 0),
-                        0
-                    )
-                    const activeListings = agentProperties.filter((p: Property) => p.isAvailable).length
-
-                    setStats({
-                        totalProperties: agentProperties.length,
-                        totalViews,
-                        thisMonthViews: Math.floor(totalViews * 0.3), // Mock data
-                        activeListings,
-                    })
-                } else {
-                    console.log('-----------------------dsdsdsdsdsd----------')
-                    console.error(
-                        'Failed to fetch properties:',
-                        propertiesResponse.status,
-                        propertiesResponse.statusText
-                    )
-                    const errorData = await propertiesResponse.text()
-                    console.error('Error response:', errorData)
-                    toast({
-                        title: 'Error',
-                        description: `Failed to load properties: ${propertiesResponse.status}`,
-                        variant: 'destructive',
-                    })
-                }
-            } catch (error) {
-                console.error('Error fetching agent data:', error)
-                toast({
-                    title: 'Error',
-                    description: 'Failed to load dashboard data',
-                    variant: 'destructive',
-                })
-            } finally {
-                setLoading(false)
-            }
-        }
-
-        const handleDeleteProperty = async (propertyId: number) => {
-            if (!confirm('Are you sure you want to delete this property? This action cannot be undone.')) {
-                return
-            }
-
-            try {
-                const response = await fetch(`/api/agent/properties/${propertyId}`, {
-                    method: 'DELETE',
-                    credentials: 'include',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                })
-
-                if (response.ok) {
-                    toast({
-                        title: 'Property Deleted',
-                        description: 'The property has been successfully deleted',
-                    })
-                    // Refresh the properties list
-                    fetchAgentData()
-                } else {
-                    const errorData = await response.json()
-                    throw new Error(errorData.message || 'Failed to delete property')
-                }
-            } catch (error: any) {
-                toast({
-                    title: 'Error',
-                    description: error.message || 'Failed to delete property',
-                    variant: 'destructive',
-                })
-            }
-        }
-
         fetchAgentData()
     }, [user.id, toast])
 

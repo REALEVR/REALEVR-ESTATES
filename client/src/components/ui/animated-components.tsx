@@ -301,13 +301,16 @@ export function AnimatedImage({
 export function AnimatedCard({
   children,
   className = "",
+  onClick,
 }: {
   children: ReactNode;
   className?: string;
+  onClick?: (e: React.MouseEvent) => void;
 }) {
   return (
     <motion.div
       className={`${className}`}
+      onClick={onClick}
       whileHover={{ 
         y: -5, 
         boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)" 

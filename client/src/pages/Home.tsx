@@ -57,7 +57,7 @@ export default function Home() {
         isLoading,
         error,
         sampleProperties:
-            properties?.slice(0, 2).map((p) => ({ id: p.id, title: p.title, createdAt: p.createdAt })) || [],
+            properties?.slice(0, 2).map((p) => ({ id: p.id, title: p.title })) || [],
     })
 
     const homeJsonLd = useMemo(() => {

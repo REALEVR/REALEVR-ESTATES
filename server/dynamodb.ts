@@ -195,23 +195,38 @@ export async function executeWithRetry<T>(
 
 // ─── ID / Timestamp Helpers ───────────────────────────────────────────────────
 
+// Use a counter to ensure unique IDs even when called in the same millisecond.
+// We reduce the timestamp to stay well within Number.MAX_SAFE_INTEGER by
+// subtracting a fixed epoch (2020-01-01) and appending a small random suffix.
+let lastTimestamp = 0;
+let counter = 0;
+
 export function generateId(): number {
-    return Date.now()
+    const EPOCH = 1577836800000; // 2020-01-01T00:00:00Z
+    let now = Date.now() - EPOCH;
+    if (now === lastTimestamp) {
+        counter++;
+    } else {
+        lastTimestamp = now;
+        counter = 0;
+    }
+    // Multiply by 1000 and add counter to guarantee uniqueness (max ~1000 IDs/ms)
+    // Result stays well within MAX_SAFE_INTEGER (9_007_199_254_740_991)
+    return now * 1000 + (counter % 1000);
 }
 
 export function toStringId(id: number): string {
-    // if (!Number.isFinite(id) || id <= 0) {
-    //     throw new DynamoDBValidationError(`Invalid ID value: ${id}`)
-    // }
+    if (!Number.isFinite(id) || id < 0) {
+        throw new DynamoDBValidationError(`Invalid ID value: ${id}`)
+    }
     return id.toString()
 }
 
 export function toNumericId(id: string): number {
     const parsed = parseInt(id, 10)
-    // if (isNaN(parsed) || parsed <= 0) {
-    //     console.log("Fake-Property",id)
-    //     throw new DynamoDBValidationError(`Cannot convert "${id}" to a valid numeric ID`)
-    // }
+    if (isNaN(parsed) || parsed < 0) {
+        throw new DynamoDBValidationError(`Cannot convert "${id}" to a valid numeric ID`)
+    }
     return parsed
 }
 

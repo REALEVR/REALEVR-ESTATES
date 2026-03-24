@@ -181,7 +181,7 @@ export default function AgentRegistrationPage() {
                     ? new Date(expiresAt).toISOString()
                     : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
                 subscriptionPaymentId: paymentId || `test-${Date.now()}`,
-                subscriptionStatus: 'active',
+                subscriptionStatus: 'active' as const,
             }
 
             // Remove confirmPassword from the data
