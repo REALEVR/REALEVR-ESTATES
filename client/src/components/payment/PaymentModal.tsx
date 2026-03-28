@@ -108,6 +108,7 @@ export default function PaymentModal({
         try {
             const data = await sendPaymentRequest()
             if (!data.error) {
+            onClose()
                 intiateGateWay(data.accessToken, `${amount}`, _paymentSource)
             } else {
                 toast({

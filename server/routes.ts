@@ -107,7 +107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     id: p.id,
                     title: p.title || 'Property',
                     imageUrl: p.imageUrl || '',
-                }),
+                })
             )
             const xml = buildSitemapXml([...staticEntries, ...propertyEntries])
             res.setHeader('Content-Type', 'application/xml; charset=utf-8')
@@ -156,6 +156,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (err) {
             console.error(err)
             res.status(500).json({ error: 'Failed to fetch token' })
+        }
+    })
+    app.get('/api/payment/iotec/wallet-b', async (req: any, res: any) => {
+        interface IWalletResponse {
+            currency: string
+            id: string
+            partnerId: string
+            name: string
+            actualBalance: number
+        }
+
+        try {
+            console.log('Will-Fetch-Wallet-balance-Server')
+
+            const access_token = req.headers.authorization?.split(' ')[1] ?? req.body?.access_token
+
+            if (!access_token) {
+                return res.status(401).json({ error: 'Missing access token' })
+            }
+
+            const walletId = process.env.IOTEC_WALLET_ID
+
+            if (!walletId) {
+                return res.status(500).json({ error: 'Wallet ID not configured' })
+            }
+
+            console.log("Current-wallet-id-used",walletId)
+
+            const response = await fetch(`https://pay.iotec.io/api/wallet-balance/${walletId}`, {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${access_token}`,
+                    'Content-Type': 'application/json',
+                },
+            })
+
+            if (!response.ok) {
+                return res.status(response.status).json({
+                    error: 'Failed to fetch wallet balance',
+                    details: await response.text(),
+                })
+            }
+
+            const data = (await response.json()) as IWalletResponse
+            console.log('Will-Fetch-Wallet-balance-data', data)
+
+            if (data.actualBalance === undefined) {
+                return res.status(502).json({ error: 'Unexpected response from payment provider' })
+            }
+
+            return res.json({ walletBalance: data.actualBalance })
+        } catch (error: any) {
+            console.error('Wallet balance error:', error)
+            return res.status(500).json({
+                error: 'Internal server error',
+                message: error?.message ?? 'Unknown error',
+            })
         }
     })
 
@@ -219,13 +276,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
 
     app.post('/api/payment/iotect/record', async (req: any, res: any) => {
-        const {  transactionId, propertyId, user_id, customer_email, customer_name, currency, amount } = req.body
+        const { transactionId, propertyId, user_id, customer_email, customer_name, currency, amount } = req.body
 
-
-        console.log("Current-Request-Body",req.body)
+        console.log('Current-Request-Body', req.body)
         try {
             await storage.recordTourPayment({
-                transactionId:  transactionId,
+                transactionId: transactionId,
                 propertyId: parseFloat(propertyId),
                 userId: user_id || null,
                 amount: amount,
@@ -844,7 +900,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
     })
 
-   
     // Get user by ID (for property owner details)
     app.get('/api/users/:id', async (req, res) => {
         try {
@@ -1220,7 +1275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         id: property.id,
                         title: property.title,
                         status: 'error',
-                        error: (error instanceof Error ? error.message : error)
+                        error: error instanceof Error ? error.message : error,
                     })
                 }
             }
@@ -1284,7 +1339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         id: property.id,
                         title: property.title,
                         status: 'error',
-                        error: (error instanceof Error ? error.message : error)
+                        error: error instanceof Error ? error.message : error,
                     })
                 }
             }

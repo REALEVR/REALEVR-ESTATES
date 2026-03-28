@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { Phone, ArrowRight, ShieldCheck, Info, Loader2, CheckCircle2, XCircle, X } from 'lucide-react'
-import { eventBus } from '@/lib/eventBus'
-import { toast } from '@/hooks/use-toast'
 import { makePaymentString, paymentEmitter } from '@/lib/iotec-paymentpatch'
+import { useToast } from '@/hooks/use-toast'
 
 interface IoTecGatewayProps {
     accessToken: string
@@ -12,31 +11,120 @@ interface IoTecGatewayProps {
 }
 
 export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTecGatewayProps) {
-    const [transactionID, setTransactionID] = useState()
+    const { toast } = useToast()
+    const [transactionID, setTransactionID] = useState<string | null>(null)
     const [phoneNumber, setPhoneNumber] = useState('')
     const [loading, setLoading] = useState(false)
+    const [verifying, setVerifying] = useState(false)
     const [step, setStep] = useState<'input' | 'pending'>('input')
     const [error, setError] = useState<string | null>(null)
 
-    const searchParams = new URLSearchParams(window.location.search)
+    // Refs to prevent duplicate requests
+    const hasCollected = useRef(false)
+    const hasVerified = useRef(false)
+    const balanceBeforePayment = useRef<number | null>(null)
 
     const handleClose = () => {
+        // Reset guards on close so component can be reused
+        hasCollected.current = false
+        hasVerified.current = false
+        balanceBeforePayment.current = null
         onClose()
     }
 
-  
-
-    const finishPayment = () => {
-        paymentEmitter.emit(makePaymentString(source), {
-            transactionID: transactionID,
+    const getWalletBalance = useCallback(async (): Promise<number> => {
+        const response = await fetch('/api/payment/iotec/wallet-b', {
+            method: 'GET',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
         })
-        onClose()
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: 'Unknown error' }))
+            throw new Error(error?.error ?? `Failed to fetch balance: ${response.status}`)
+        }
+        const data = await response.json()
+        return data.walletBalance
+    }, [accessToken])
+
+    const isTransactionComplete = (
+        balanceBefore: number,
+        balanceAfter: number,
+        expectedAmount: number,
+        tolerance: number = 0.01
+    ): boolean => {
+        const actualDeduction = balanceBefore - balanceAfter
+        return Math.abs(actualDeduction - expectedAmount) <= tolerance
+    }
+
+    const finishPayment = async () => {
+        // Prevent double verification
+        if (hasVerified.current || verifying) return
+        hasVerified.current = true
+        setVerifying(true)
+
+        try {
+            toast({
+                title: 'Verifying Payment...',
+                description: 'Please wait while we confirm your transaction.',
+            })
+
+            // Give the payment system time to settle
+            await new Promise((resolve) => setTimeout(resolve, 5000))
+
+            if (!balanceBeforePayment.current) {
+                toast({
+                    title: 'Verification Failed',
+                    description: 'Could not retrieve initial balance. Please contact support.',
+                    variant: 'destructive',
+                })
+                return
+            }
+
+            const newBalanceAfterPayment = await getWalletBalance()
+            const expectedAmount = parseInt(amount)
+
+            if (isTransactionComplete(balanceBeforePayment.current, newBalanceAfterPayment, expectedAmount)) {
+                toast({
+                    title: 'Payment Successful! 🎉',
+                    description: `Your payment of UGX ${Number(amount).toLocaleString()} was confirmed.`,
+                })
+                paymentEmitter.emit(makePaymentString(source), { transactionID })
+            } else {
+                toast({
+                    title: 'Payment Not Confirmed',
+                    description: 'We could not verify your payment. If you were charged, please contact support.',
+                    variant: 'destructive',
+                })
+                // Allow retry if verification fails
+                hasVerified.current = false
+            }
+        } catch (error: any) {
+            toast({
+                title: 'Verification Error',
+                description: error?.message ?? 'Something went wrong. Please contact support.',
+                variant: 'destructive',
+            })
+            // Allow retry on error
+            hasVerified.current = false
+        } finally {
+            setVerifying(false)
+            onClose()
+        }
     }
 
     const collectPayment = async () => {
+        // Prevent duplicate payment requests
+        if (hasCollected.current || loading) return
+        hasCollected.current = true
+
         setLoading(true)
         setError(null)
+
         try {
+            balanceBeforePayment.current = await getWalletBalance()
+
             const res = await fetch('/api/payment/iotec/collect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -48,19 +136,29 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
                     currency: 'UGX',
                 }),
             })
+
             const data = await res.json()
-            if (data && data.id) {
+
+            if (!res.ok) {
+                setError(data.message || 'Transaction failed. Please try again.')
+                // Release lock so they can retry
+                hasCollected.current = false
+                return
+            }
+
+            if (data?.id) {
                 setTransactionID(data.id)
             } else {
-                console.error('No Transaction ID found in the Payment Process')
+                console.warn('No Transaction ID returned from payment API')
             }
-            if (res.ok) {
-                setStep('pending')
-            } else {
-                setError(data.message || 'Transaction failed. Please try again.')
-            }
+
+            // Snapshot balance right after confirmed request — before user authorizes on phone
+            setStep('pending')
+            // balanceBeforePayment.current = await getWalletBalance()
         } catch (err) {
             setError('Network error: Could not connect to payment server.')
+            // Release lock so they can retry
+            hasCollected.current = false
         } finally {
             setLoading(false)
         }
@@ -76,9 +174,6 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
     const carrier = getCarrier(phoneNumber)
 
     useEffect(() => {
-        console.log('DID-lOAD-PAYMENT-LAYOUT-GATE')
-
-        // Lock body scroll when modal is open
         document.body.style.overflow = 'hidden'
         return () => {
             document.body.style.overflow = ''
@@ -86,9 +181,7 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
     }, [])
 
     return (
-        // Full-screen fixed overlay
         <div className="fixed inset-0 z-50 bg-gray-100/80 backdrop-blur-sm text-gray-900 flex items-center justify-center font-sans overflow-y-auto">
-            {/* Card: full screen on mobile, centered card on md+ */}
             <div className="relative w-full h-full md:h-auto md:max-w-4xl md:m-4 bg-white md:rounded-3xl border-0 md:border md:border-gray-200 md:shadow-2xl flex flex-col md:grid md:grid-cols-12 overflow-y-auto">
                 {/* Close Button */}
                 <button
@@ -206,14 +299,23 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
                             <div className="space-y-3">
                                 <button
                                     onClick={finishPayment}
-                                    className="w-full bg-gray-900 text-white hover:bg-black font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg"
+                                    disabled={verifying}
+                                    className="w-full bg-gray-900 text-white hover:bg-black font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg disabled:opacity-50"
                                 >
-                                    <CheckCircle2 className="h-5 w-5" />
-                                    Confirm Payment
+                                    {verifying ? (
+                                        <>
+                                            <Loader2 className="animate-spin h-5 w-5" /> Verifying...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CheckCircle2 className="h-5 w-5" /> Confirm Payment
+                                        </>
+                                    )}
                                 </button>
                                 <button
                                     onClick={handleClose}
-                                    className="w-full bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 font-semibold py-3 rounded-2xl transition-all"
+                                    disabled={verifying}
+                                    className="w-full bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 font-semibold py-3 rounded-2xl transition-all disabled:opacity-50"
                                 >
                                     Return to Merchant
                                 </button>
@@ -230,7 +332,7 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
                     </footer>
                 </div>
 
-                {/* Right Column: Order Summary */}
+                {/* Right Column */}
                 <div className="md:col-span-5 bg-gray-50 md:rounded-r-3xl p-6 sm:p-8 flex flex-col justify-between border-t md:border-t-0 md:border-l border-gray-200">
                     <div className="space-y-6">
                         <h2 className="text-lg font-bold text-gray-800 border-b border-gray-200 pb-4">
@@ -253,6 +355,14 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
                                     {step === 'pending' ? 'Awaiting Auth' : 'Initialized'}
                                 </span>
                             </div>
+                            {transactionID && (
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-gray-500 font-medium">Transaction ID</span>
+                                    <span className="font-mono text-[10px] text-gray-400 truncate ml-4 max-w-[120px]">
+                                        {transactionID}
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
 

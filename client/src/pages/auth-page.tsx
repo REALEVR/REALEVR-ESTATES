@@ -105,7 +105,7 @@ export default function AuthPage() {
 
     // Redirect if user is already logged in
     if (user) {
-        return <Redirect to="/profile" />
+        return <Redirect to="/" />
     }
 
     return (

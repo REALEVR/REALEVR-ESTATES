@@ -41,7 +41,7 @@ export default function VerifyEmailPage() {
             })
 
             // Redirect to dashboard
-            window.location.href = '/profile'
+            window.location.href = '/'
         },
         onError: (error: Error) => {
             toast({

@@ -34,6 +34,7 @@ export default function PaymentModal({ isOpen, onClose, successCallback, propert
         try {
             const data = await sendPaymentRequest()
             if (!data.error) {
+                onClose()
                 intiateGateWay(data.accessToken, '15000', _paymentSource)
             } else {
                 toast({

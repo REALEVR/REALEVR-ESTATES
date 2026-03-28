@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 description: `Welcome back, ${user.username}!`,
             })
             // Redirect to profile page after successful login
-            window.location.href = '/profile'
+            window.location.href = '/'
         },
         onError: (error: any) => {
             toast({

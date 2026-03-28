@@ -19,7 +19,6 @@ import {
     PaymentSources,
     sendPaymentRequest,
 } from '@/lib/iotec-paymentpatch'
-import { eventBus } from '@/lib/eventBus'
 import { recordTourPayment } from '@/lib/iotect-verify-pay'
 
 const tourPaymentSchema = z.object({
@@ -69,7 +68,9 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
         try {
             const result = await sendPaymentRequest()
             if (!result.error) {
+                onClose()
                 intiateGateWay(result.accessToken, '15000', _paymentSource)
+                setIsProcessing(false)
             } else {
                 toast({ title: 'Payment Error', description: result.errorMessage, variant: 'destructive' })
                 setIsProcessing(false) // ← reset on error, gateway will reset on success
@@ -85,7 +86,9 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
         try {
             const data = await sendPaymentRequest()
             if (!data.error) {
+                onClose()
                 intiateGateWay(data.accessToken, '15000', _paymentSource)
+                setIsProcessing(false)
             } else {
                 toast({ title: 'Payment Error', description: data.errorMessage, variant: 'destructive' })
                 setIsProcessing(false)
@@ -95,8 +98,6 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
         }
     }
 
-  
-
     const handlePaymentClose = () => {
         setIsProcessing(false)
         onClose()
@@ -104,6 +105,10 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
     }
 
     useEffect(() => {
+        /**
+         * completed-payment
+         * @param data
+         */
         const handler = (data: { transactionID: string }) => {
             console.log(`DID-GET-COMPLETED-PAYMENT-REQUEST:${data.transactionID}`)
             recordTourPayment({
@@ -115,6 +120,10 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
             })
             handlePaymentClose()
         }
+        /**
+         * Failed Payment
+         */
+
         paymentEmitter.on(_eventPaymentString, handler)
         return () => {
             paymentEmitter.off(_eventPaymentString, handler)
