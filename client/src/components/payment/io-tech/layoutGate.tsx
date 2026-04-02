@@ -3,6 +3,7 @@ import { Phone, ArrowRight, ShieldCheck, Info, Loader2, CheckCircle2, XCircle, X
 import { makePaymentString, paymentEmitter } from '@/lib/iotec-paymentpatch'
 import { useToast } from '@/hooks/use-toast'
 import { PaymentNotification } from './paymentNotification'
+import { sleep } from './utility'
 
 interface IoTecGatewayProps {
     accessToken: string
@@ -69,11 +70,11 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
         try {
             toast({
                 title: 'Verifying Payment...',
-                description: 'Please wait while we confirm your transaction.',
+                description: 'We are confirming your mobile money payment. This may take up to 1 minute.',
             })
 
             // Give the payment system time to settle
-            await new Promise((resolve) => setTimeout(resolve, 5000))
+            await sleep(15000) // 15 seconds
 
             if (!balanceBeforePayment.current) {
                 toast({
