@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { Phone, ArrowRight, ShieldCheck, Info, Loader2, CheckCircle2, XCircle, X } from 'lucide-react'
-import { makePaymentString, paymentEmitter } from '@/lib/iotec-paymentpatch'
+import { getTransactionStatus, makePaymentString, paymentEmitter } from '@/lib/iotec-paymentpatch'
 import { useToast } from '@/hooks/use-toast'
 import { PaymentNotification } from './paymentNotification'
 import { sleep } from './utility'
@@ -61,11 +61,24 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
         return Math.abs(actualDeduction - expectedAmount) <= tolerance
     }
 
+    const isTransactionComplete2 = (balanceBefore: number, balanceAfter: number, expectedAmount: number): boolean => {
+        if (balanceAfter > balanceBefore) {
+            const increasedValue = balanceAfter - balanceBefore
+            return increasedValue === expectedAmount
+        }
+
+        return false
+    }
+
     const finishPayment = async () => {
         // Prevent double verification
         if (hasVerified.current || verifying) return
         hasVerified.current = true
         setVerifying(true)
+
+        /**
+         * TransactionsStatus
+         */
 
         try {
             toast({
@@ -73,8 +86,9 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
                 description: 'We are confirming your mobile money payment. This may take up to 1 minute.',
             })
 
-            // Give the payment system time to settle
-            await sleep(15000) // 15 seconds
+            // const currentTransactionStatus = await getTransactionStatus(accessToken, transactionID!)
+
+            await sleep(6000) // 8 seconds
 
             if (!balanceBeforePayment.current) {
                 toast({
@@ -88,14 +102,15 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
             const newBalanceAfterPayment = await getWalletBalance()
             const expectedAmount = parseInt(amount)
 
-            if (isTransactionComplete(balanceBeforePayment.current, newBalanceAfterPayment, expectedAmount)) {
+            if (isTransactionComplete2(balanceBeforePayment.current, newBalanceAfterPayment, expectedAmount)) {
                 setNotification('success')
                 paymentEmitter.emit(makePaymentString(source), { transactionID })
             } else {
-                setNotification('failed')
                 // Allow retry if verification fails
                 hasVerified.current = false
             }
+
+            // Give the payment system time to settle
         } catch (error: any) {
             toast({
                 title: 'Verification Error',
@@ -103,7 +118,6 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
                 variant: 'destructive',
             })
             // Allow retry on error
-            hasVerified.current = false
         } finally {
             setVerifying(false)
         }

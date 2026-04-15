@@ -10,7 +10,7 @@ export const PaymentSources = {
     paymentModelProperty: 'PAYMENT-MODEL-PROPERTY',
     paymentPropertyViewing: 'PAYMENT-PROPERTY-VIEWING',
     paymentTour: 'PAYMENT-TOUR',
-    paymentSubscription : 'PAYMENT-SUBSCRIPTION'
+    paymentSubscription: 'PAYMENT-SUBSCRIPTION',
 }
 
 export const makePaymentString = (paymentSource: string) => {
@@ -69,6 +69,28 @@ export function intiateGateWay(accesstoken: string, amount: string, source: stri
         amount: amount,
         source: source,
     })
+}
+
+type TransactionStatus = 'Failed' | 'Failed' | 'Success'
+
+
+/**
+ * Get the transactions Status
+ * @param accessToken 
+ * @param transactionId 
+ * @returns 
+ */
+export async function getTransactionStatus(accessToken: string, transactionId: string): Promise<TransactionStatus> {
+    const response = await fetch(`https://pay.iotec.io/api/collections/status/${transactionId}`, {
+        method: 'GET',
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+        },
+    })
+    const data = await response.json();
+
+    return data.status
 }
 
 /**
