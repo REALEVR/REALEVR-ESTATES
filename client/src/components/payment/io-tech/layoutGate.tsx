@@ -60,85 +60,41 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
     }
 
     const finishPayment = async () => {
-        // Prevent double verification
         if (hasVerified.current || verifying) return
         hasVerified.current = true
         setVerifying(true)
 
-        /**
-         * TransactionsStatus
-         */
-
         try {
-            toast({
-                title: 'Verifying Payment...',
-                description: 'We are confirming your mobile money payment. This may take up to 1 minute.',
-            })
+            // Poll the actual transaction status instead of balance delta
+            const status = await getTransactionStatus(accessToken, transactionID!)
 
-            console.log('WillStartFinishingPayment')
-
-            // const currentTransactionStatus = await getTransactionStatus(accessToken, transactionID!)
-
-            // await sleep(3000) // 8 seconds
-
-            console.log('WillStartFinishingPayment', balanceBeforePayment.current)
-
-            const bblP = balanceBeforePayment.current;
-            if (!bblP) {
-                toast({
-                    title: 'Verification Failed',
-                    description: 'Could not retrieve initial balance. Please contact support.',
-                    variant: 'destructive',
-                })
-                setNotification('failed')
-
-                return
-            }
-
-            const newBalanceAfterPayment = await getWalletBalance()
-            const expectedAmount = parseInt(amount)
-
-            console.log('new-balance-after-payment', newBalanceAfterPayment)
-            console.log('expected-amount', amount)
-
-            if (isTransactionComplete2(bblP, newBalanceAfterPayment, expectedAmount)) {
-                console.log('Transaction-Completeed')
+            if (status === 'Success') {
                 setNotification('success')
                 paymentEmitter.emit(makePaymentString(source), { transactionID })
+            } else if (status === 'Failed') {
+                setNotification('failed')
             } else {
-
-
-
-                // Allow retry if verification fails
-                console.log('Transaction-Failed')
-                setVerifying(false)
+                // Still pending — let them retry
+                hasVerified.current = false
                 setNotification('failed')
             }
-
-            // Give the payment system time to settle
         } catch (error: any) {
-            toast({
-                title: 'Verification Error',
-                description: error?.message ?? 'Something went wrong. Please contact support.',
-                variant: 'destructive',
-            })
-            // Allow retry on error
+            hasVerified.current = false
+            toast({ title: 'Verification Error', description: error?.message, variant: 'destructive' })
         } finally {
             setVerifying(false)
-            setNotification('failed')
         }
     }
-
     const collectPayment = async () => {
-        // Prevent duplicate payment requests
         if (hasCollected.current || loading) return
         hasCollected.current = true
-
         setLoading(true)
         setError(null)
 
         try {
-            console.log(`WillSendPaymentGateWayPaymentRequest, currentPhoneNumber:${phoneNumber} and amount:${amount}`)
+            // ✅ Snapshot balance BEFORE anything is sent
+            balanceBeforePayment.current = await getWalletBalance()
+
             const res = await fetch('/api/payment/iotec/collect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -153,33 +109,22 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
 
             const data = await res.json()
 
-            console.log('DidReturnPaymentGatewayRequestData', data)
-
             if (!res.ok) {
                 setError(data.message || 'Transaction failed. Please try again.')
-                // Release lock so they can retry
                 hasCollected.current = false
                 return
             }
 
             if (data?.id) {
                 setTransactionID(data.id)
-                console.log('WillGetCurrentWalletBalance')
-                balanceBeforePayment.current = await getWalletBalance()
             } else {
                 console.warn('No Transaction ID returned from payment API')
             }
 
-            // Snapshot balance right after confirmed request — before user authorizes on phone
             setStep('pending')
-
-            console.log('WillGetCurrentWalletBalance')
-            balanceBeforePayment.current = await getWalletBalance()
-
-            // balanceBeforePayment.current = await getWalletBalance()
+            // ❌ DELETE the second getWalletBalance() call that was here
         } catch (err) {
             setError('Network error: Could not connect to payment server.')
-            // Release lock so they can retry
             hasCollected.current = false
         } finally {
             setLoading(false)
