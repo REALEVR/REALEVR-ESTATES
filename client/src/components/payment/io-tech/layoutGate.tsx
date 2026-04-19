@@ -3,7 +3,6 @@ import { Phone, ArrowRight, ShieldCheck, Info, Loader2, CheckCircle2, XCircle, X
 import { getTransactionStatus, makePaymentString, paymentEmitter } from '@/lib/iotec-paymentpatch'
 import { useToast } from '@/hooks/use-toast'
 import { PaymentNotification } from './paymentNotification'
-import { sleep } from './utility'
 
 interface IoTecGatewayProps {
     accessToken: string
@@ -51,16 +50,6 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
         return data.walletBalance
     }, [accessToken])
 
-    const isTransactionComplete = (
-        balanceBefore: number,
-        balanceAfter: number,
-        expectedAmount: number,
-        tolerance: number = 0.01
-    ): boolean => {
-        const actualDeduction = balanceBefore - balanceAfter
-        return Math.abs(actualDeduction - expectedAmount) <= tolerance
-    }
-
     const isTransactionComplete2 = (balanceBefore: number, balanceAfter: number, expectedAmount: number): boolean => {
         if (balanceAfter > balanceBefore) {
             const increasedValue = balanceAfter - balanceBefore
@@ -86,28 +75,44 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
                 description: 'We are confirming your mobile money payment. This may take up to 1 minute.',
             })
 
+            console.log('WillStartFinishingPayment')
+
             // const currentTransactionStatus = await getTransactionStatus(accessToken, transactionID!)
 
-            await sleep(6000) // 8 seconds
+            // await sleep(3000) // 8 seconds
 
-            if (!balanceBeforePayment.current) {
+            console.log('WillStartFinishingPayment', balanceBeforePayment.current)
+
+            const bblP = balanceBeforePayment.current;
+            if (!bblP) {
                 toast({
                     title: 'Verification Failed',
                     description: 'Could not retrieve initial balance. Please contact support.',
                     variant: 'destructive',
                 })
+                setNotification('failed')
+
                 return
             }
 
             const newBalanceAfterPayment = await getWalletBalance()
             const expectedAmount = parseInt(amount)
 
-            if (isTransactionComplete2(balanceBeforePayment.current, newBalanceAfterPayment, expectedAmount)) {
+            console.log('new-balance-after-payment', newBalanceAfterPayment)
+            console.log('expected-amount', amount)
+
+            if (isTransactionComplete2(bblP, newBalanceAfterPayment, expectedAmount)) {
+                console.log('Transaction-Completeed')
                 setNotification('success')
                 paymentEmitter.emit(makePaymentString(source), { transactionID })
             } else {
+
+
+
                 // Allow retry if verification fails
-                hasVerified.current = false
+                console.log('Transaction-Failed')
+                setVerifying(false)
+                setNotification('failed')
             }
 
             // Give the payment system time to settle
@@ -120,6 +125,7 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
             // Allow retry on error
         } finally {
             setVerifying(false)
+            setNotification('failed')
         }
     }
 
@@ -132,8 +138,7 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
         setError(null)
 
         try {
-            balanceBeforePayment.current = await getWalletBalance()
-
+            console.log(`WillSendPaymentGateWayPaymentRequest, currentPhoneNumber:${phoneNumber} and amount:${amount}`)
             const res = await fetch('/api/payment/iotec/collect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -148,6 +153,8 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
 
             const data = await res.json()
 
+            console.log('DidReturnPaymentGatewayRequestData', data)
+
             if (!res.ok) {
                 setError(data.message || 'Transaction failed. Please try again.')
                 // Release lock so they can retry
@@ -157,12 +164,18 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
 
             if (data?.id) {
                 setTransactionID(data.id)
+                console.log('WillGetCurrentWalletBalance')
+                balanceBeforePayment.current = await getWalletBalance()
             } else {
                 console.warn('No Transaction ID returned from payment API')
             }
 
             // Snapshot balance right after confirmed request — before user authorizes on phone
             setStep('pending')
+
+            console.log('WillGetCurrentWalletBalance')
+            balanceBeforePayment.current = await getWalletBalance()
+
             // balanceBeforePayment.current = await getWalletBalance()
         } catch (err) {
             setError('Network error: Could not connect to payment server.')

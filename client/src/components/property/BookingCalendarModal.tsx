@@ -50,10 +50,7 @@ export default function BookingCalendarModal({
     const totalAmount = isBnB ? propertyPrice * numNights : 15000 // 15,000 UGX viewing fee for rentals
     const depositAmount = isBnB ? Math.round(totalAmount * 0.2) : totalAmount
 
-    useEffect(() => {
-        console.log('isBnb:', isBnB)
-        console.log('depositAmount:', depositAmount)
-    })
+  
 
     const timeSlots = [
         '9:00 AM',

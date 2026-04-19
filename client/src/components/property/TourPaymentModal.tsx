@@ -66,9 +66,13 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
         if (isProcessing) return // ← guard
         setIsProcessing(true)
         try {
+            console.log('Will-SendPaymentRequestFromTourPaymentModel')
             const result = await sendPaymentRequest()
+            console.log('Did-SendPaymentRequestFromTourPaymentModel')
+
             if (!result.error) {
                 onClose()
+                console.log(`DidReceivedPaymentRequestResponse with Price of 15000, and accessToken:${result.accessToken} and from PaymentSource: ${_paymentSource}`)
                 intiateGateWay(result.accessToken, '15000', _paymentSource)
                 setIsProcessing(false)
             } else {

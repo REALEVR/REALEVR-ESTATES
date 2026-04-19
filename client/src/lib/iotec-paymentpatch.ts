@@ -5,6 +5,7 @@ export const paymentEmitter = new EventEmitter()
  * Sources of PaymentHandle
  */
 
+
 export const PaymentSources = {
     paymentModelClient: 'PAYMENT-MODEL-PAYMENT',
     paymentModelProperty: 'PAYMENT-MODEL-PROPERTY',
