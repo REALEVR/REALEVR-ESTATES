@@ -34,45 +34,53 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
         onClose()
     }
 
-    const getWalletBalance = useCallback(async (): Promise<number> => {
-        const response = await fetch('/api/payment/iotec/wallet-b', {
-            method: 'GET',
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-            },
-        })
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({ error: 'Unknown error' }))
-            throw new Error(error?.error ?? `Failed to fetch balance: ${response.status}`)
-        }
-        const data = await response.json()
-        return data.walletBalance
-    }, [accessToken])
-
-    const isTransactionComplete2 = (balanceBefore: number, balanceAfter: number, expectedAmount: number): boolean => {
-        if (balanceAfter > balanceBefore) {
-            const increasedValue = balanceAfter - balanceBefore
-            return increasedValue === expectedAmount
-        }
-
-        return false
-    }
-
     const finishPayment = async () => {
         if (hasVerified.current || verifying) return
         hasVerified.current = true
         setVerifying(true)
 
         try {
-            // Poll the actual transaction status instead of balance delta
+            /**
+             * Get the current Transaction Status
+             */
+
+
+            try {
             const status = await getTransactionStatus(accessToken, transactionID!)
 
+                switch (status) {
+                    case 'Success':
+                        setNotification('success')
+                        paymentEmitter.emit(makePaymentString(source), { transactionID })
+                        break
+                    case 'RolledBack':
+                        console.log('Transaction-Failed')
+                        setNotification('failed')
+                        break
+                    case 'Failed':
+                        console.log('Transaction-Failed')
+                        setNotification('failed')
+                        break
+
+                    case 'Cancelled':
+                        console.log('Transaction-Failed')
+                        setNotification('failed')
+                        break
+
+                    case 'Rejected':
+                        console.log('Transaction-Failed')
+                        setNotification('failed')
+                        break
+                    case 'Pending':
+                }
+            } catch (error) {}
+
             if (status === 'Success') {
+                console.log('Transaction-Failed')
+
                 setNotification('success')
                 paymentEmitter.emit(makePaymentString(source), { transactionID })
             } else if (status === 'Failed') {
-                setNotification('failed')
             } else {
                 // Still pending — let them retry
                 hasVerified.current = false
@@ -80,7 +88,7 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
             }
         } catch (error: any) {
             hasVerified.current = false
-            toast({ title: 'Verification Error', description: error?.message, variant: 'destructive' })
+            toast({ title: 'TransactionError', description: error?.message, variant: 'destructive' })
         } finally {
             setVerifying(false)
         }
@@ -93,7 +101,6 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
 
         try {
             // ✅ Snapshot balance BEFORE anything is sent
-            balanceBeforePayment.current = await getWalletBalance()
 
             const res = await fetch('/api/payment/iotec/collect', {
                 method: 'POST',

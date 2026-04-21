@@ -184,7 +184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return res.status(500).json({ error: 'Wallet ID not configured' })
             }
 
-            console.log("Current-wallet-id-used",walletId)
+            console.log('Current-wallet-id-used', walletId)
 
             const response = await fetch(`https://pay.iotec.io/api/wallet-balance/${walletId}`, {
                 method: 'GET',
@@ -215,6 +215,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 error: 'Internal server error',
                 message: error?.message ?? 'Unknown error',
             })
+        }
+    })
+
+    /**
+     * Get the transaction Status
+     */
+    app.get('/api/payment/iotec/status', async (req: any, res: any) => {
+        const { accessToken, transactionId } = req.body
+
+        if (!accessToken) {
+            return res.status(400).json({ error: 'access_token is required' })
+        }
+
+        try {
+            const { statusCode, body } = await request7(
+                `https://pay.iotec.io/api/collections/status/${transactionId}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            )
+
+            const data = await body.json();
+            res.status(statusCode).json(data);
+
+
+        } catch (err) {
+            console.error('IOTEC collection error:', err)
+            res.status(500).json({ error: 'Collection request failed' })
         }
     })
 

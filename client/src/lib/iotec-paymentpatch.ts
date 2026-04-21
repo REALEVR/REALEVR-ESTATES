@@ -5,7 +5,6 @@ export const paymentEmitter = new EventEmitter()
  * Sources of PaymentHandle
  */
 
-
 export const PaymentSources = {
     paymentModelClient: 'PAYMENT-MODEL-PAYMENT',
     paymentModelProperty: 'PAYMENT-MODEL-PROPERTY',
@@ -72,26 +71,47 @@ export function intiateGateWay(accesstoken: string, amount: string, source: stri
     })
 }
 
-type TransactionStatus = 'Failed' | 'Failed' | 'Success'
-
+type Status =
+    | 'Pending'
+    | 'SentToVendor'
+    | 'Success'
+    | 'Failed'
+    | 'AwaitingApproval'
+    | 'RolledBack'
+    | 'Scheduled'
+    | 'Cancelled'
+    | 'Rejected'
 
 /**
  * Get the transactions Status
- * @param accessToken 
- * @param transactionId 
- * @returns 
+ * @param accessToken
+ * @param transactionId
+ * @returns
  */
-export async function getTransactionStatus(accessToken: string, transactionId: string): Promise<TransactionStatus> {
-    const response = await fetch(`https://pay.iotec.io/api/collections/status/${transactionId}`, {
+export async function getTransactionStatus(accessToken: string, transactionId: string): Promise<Status> {
+    const res = await fetch('/api/payment/iotec/status', {
         method: 'GET',
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            accessToken: accessToken,
+            transactionId,
+        }),
     })
-    const data = await response.json();
 
-    return data.status
+    const data = await res.json()
+
+    if (!res.ok) {
+        console.error(data.message || 'Failed to Get Transaction Status.')
+        return 'Failed'
+    }
+
+    if (data.status) {
+        let _status = data.status! as Status
+
+        return _status
+    }
+
+    return "Failed"
 }
 
 /**
