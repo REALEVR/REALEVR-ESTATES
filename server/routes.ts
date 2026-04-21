@@ -222,10 +222,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
      * Get the transaction Status
      */
     app.get('/api/payment/iotec/status', async (req: any, res: any) => {
-        const { accessToken, transactionId } = req.body
+        // FIX 1: Read from req.query, not req.body — GET requests have no body
+        const { accessToken, transactionId } = req.query
 
+        // FIX 2: Validate both required params before hitting the upstream API
         if (!accessToken) {
-            return res.status(400).json({ error: 'access_token is required' })
+            return res.status(400).json({ error: 'accessToken is required' })
+        }
+        if (!transactionId) {
+            return res.status(400).json({ error: 'transactionId is required' })
         }
 
         try {
@@ -240,13 +245,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
             )
 
-            const data = await body.json();
-            res.status(statusCode).json(data);
+            // FIX 3: Parse JSON safely — ioTec may return non-JSON on errors
+            let data: any
+            try {
+                data = await body.json()
+            } catch {
+                return res.status(502).json({ error: 'Invalid response from payment provider' })
+            }
 
+            // FIX 4: Don't blindly forward upstream status codes — map them to your own shape
+            if (statusCode >= 200 && statusCode < 300) {
+                return res.status(200).json(data)
+            }
 
+            // Upstream returned an error — normalise it
+            console.error('ioTec status error:', statusCode, data)
+            return res.status(502).json({
+                error: 'Payment provider returned an error',
+                message: data?.message || data?.error || 'Unknown upstream error',
+            })
         } catch (err) {
-            console.error('IOTEC collection error:', err)
-            res.status(500).json({ error: 'Collection request failed' })
+            console.error('IOTEC status request failed:', err)
+            return res.status(500).json({ error: 'Could not reach payment provider' })
         }
     })
 

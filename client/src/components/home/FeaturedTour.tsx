@@ -70,20 +70,8 @@ export default function FeaturedTour() {
     return (b.reviewCount || 0) - (a.reviewCount || 0);
   })[0];
 
-  // Debug logging
-  console.log('FeaturedTour - Properties loaded:', properties?.length || 0);
-  console.log('FeaturedTour - Featured property:', featuredProperty);
-  if (featuredProperty) {
-    console.log('FeaturedTour - Property details:', {
-      id: featuredProperty.id,
-      title: featuredProperty.title,
-      price: featuredProperty.price,
-      currency: featuredProperty.currency,
-      category: featuredProperty.category,
-      viewCount: featuredProperty.viewCount,
-      reviewCount: featuredProperty.reviewCount
-    });
-  }
+
+
 
   const { toast } = useToast();
   const [isFullscreen, setIsFullscreen] = useState(false);

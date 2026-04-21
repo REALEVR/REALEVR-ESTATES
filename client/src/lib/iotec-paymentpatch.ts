@@ -71,7 +71,7 @@ export function intiateGateWay(accesstoken: string, amount: string, source: stri
     })
 }
 
-type Status =
+export type Status =
     | 'Pending'
     | 'SentToVendor'
     | 'Success'
@@ -83,35 +83,30 @@ type Status =
     | 'Rejected'
 
 /**
- * Get the transactions Status
- * @param accessToken
- * @param transactionId
- * @returns
+ * Get the transaction status.
+ * Throws on network or API errors so the caller can handle them.
  */
 export async function getTransactionStatus(accessToken: string, transactionId: string): Promise<Status> {
-    const res = await fetch('/api/payment/iotec/status', {
+    // FIX: GET requests cannot carry a body — pass values as query params instead
+    const params = new URLSearchParams({ accessToken, transactionId })
+
+    const res = await fetch(`/api/payment/iotec/status?${params}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            accessToken: accessToken,
-            transactionId,
-        }),
     })
 
     const data = await res.json()
 
     if (!res.ok) {
-        console.error(data.message || 'Failed to Get Transaction Status.')
-        return 'Failed'
+        // FIX: Throw so the caller's catch block receives the real error
+        throw new Error(data.message || 'Failed to get transaction status.')
     }
 
     if (data.status) {
-        let _status = data.status! as Status
-
-        return _status
+        return data.status as Status
     }
 
-    return "Failed"
+    throw new Error('Transaction status missing from response.')
 }
 
 /**

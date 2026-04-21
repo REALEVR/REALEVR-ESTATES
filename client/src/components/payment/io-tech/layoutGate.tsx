@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react'
-import { Phone, ArrowRight, ShieldCheck, Info, Loader2, CheckCircle2, XCircle, X } from 'lucide-react'
+import React, { useEffect, useState, useRef } from 'react'
+import { Phone, ArrowRight, ShieldCheck, Info, Loader2, XCircle, X, Wifi } from 'lucide-react'
 import { getTransactionStatus, makePaymentString, paymentEmitter } from '@/lib/iotec-paymentpatch'
 import { useToast } from '@/hooks/use-toast'
 import { PaymentNotification } from './paymentNotification'
@@ -11,88 +11,114 @@ interface IoTecGatewayProps {
     onClose: () => void
 }
 
+const TOKEN_LIFETIME_MS = 300_000  // 300 seconds
+const POLL_INTERVAL_MS  = 6_000   // poll every 6 seconds
+
 export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTecGatewayProps) {
     const { toast } = useToast()
-    const [transactionID, setTransactionID] = useState<string | null>(null)
-    const [phoneNumber, setPhoneNumber] = useState('')
-    const [loading, setLoading] = useState(false)
-    const [verifying, setVerifying] = useState(false)
-    const [step, setStep] = useState<'input' | 'pending'>('input')
-    const [error, setError] = useState<string | null>(null)
-    const [notification, setNotification] = useState<'success' | 'failed' | null>(null)
 
-    // Refs to prevent duplicate requests
-    const hasCollected = useRef(false)
-    const hasVerified = useRef(false)
-    const balanceBeforePayment = useRef<number | null>(null)
+    const [transactionID, setTransactionID] = useState<string | null>(null)
+    const [phoneNumber, setPhoneNumber]     = useState('')
+    const [loading, setLoading]             = useState(false)
+    const [step, setStep]                   = useState<'input' | 'pending'>('input')
+    const [error, setError]                 = useState<string | null>(null)
+    const [notification, setNotification]   = useState<'success' | 'failed' | null>(null)
+    const [notificationMessage, setNotificationMessage] = useState('Transaction...')
+
+    // Countdown display — seconds remaining out of 300
+    const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
+
+    // Refs
+    const hasCollected    = useRef(false)
+    const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+    const expiryTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const countdownRef    = useRef<ReturnType<typeof setInterval> | null>(null)
+    const transactionRef  = useRef<string | null>(null) // mirrors transactionID for use inside closures
+
+    // ── Cleanup ────────────────────────────────────────────────────────────────
+
+    const stopPolling = () => {
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
+        if (expiryTimerRef.current)  clearTimeout(expiryTimerRef.current)
+        if (countdownRef.current)    clearInterval(countdownRef.current)
+        pollIntervalRef.current = null
+        expiryTimerRef.current  = null
+        countdownRef.current    = null
+    }
 
     const handleClose = () => {
-        // Reset guards on close so component can be reused
-        hasCollected.current = false
-        hasVerified.current = false
-        balanceBeforePayment.current = null
+        stopPolling()
+        hasCollected.current   = false
+        transactionRef.current = null
         onClose()
     }
 
-    const finishPayment = async () => {
-        if (hasVerified.current || verifying) return
-        hasVerified.current = true
-        setVerifying(true)
+    // ── Polling ────────────────────────────────────────────────────────────────
 
-        try {
-            /**
-             * Get the current Transaction Status
-             */
+    const startPolling = (txID: string) => {
+        transactionRef.current = txID
 
+        // Countdown display
+        setSecondsLeft(Math.floor(TOKEN_LIFETIME_MS / 1000))
+        countdownRef.current = setInterval(() => {
+            setSecondsLeft(prev => (prev !== null && prev > 0 ? prev - 1 : 0))
+        }, 1000)
 
+        // Auto-close when access token expires
+        expiryTimerRef.current = setTimeout(() => {
+            stopPolling()
+            onClose()
+        }, TOKEN_LIFETIME_MS)
+
+        // Status polling
+        pollIntervalRef.current = setInterval(async () => {
             try {
-            const status = await getTransactionStatus(accessToken, transactionID!)
+                const status = await getTransactionStatus(accessToken, transactionRef.current!)
 
                 switch (status) {
                     case 'Success':
+                        stopPolling()
+                        paymentEmitter.emit(makePaymentString(source), { transactionID: transactionRef.current })
                         setNotification('success')
-                        paymentEmitter.emit(makePaymentString(source), { transactionID })
                         break
-                    case 'RolledBack':
-                        console.log('Transaction-Failed')
+
+                    case 'Failed':
+                        stopPolling()
+                        setNotificationMessage('Transaction Failed')
                         setNotification('failed')
                         break
-                    case 'Failed':
-                        console.log('Transaction-Failed')
+
+                    case 'RolledBack':
+                        stopPolling()
+                        setNotificationMessage('Transaction Rolled Back')
                         setNotification('failed')
                         break
 
                     case 'Cancelled':
-                        console.log('Transaction-Failed')
+                        stopPolling()
+                        setNotificationMessage('Transaction Cancelled')
                         setNotification('failed')
                         break
 
                     case 'Rejected':
-                        console.log('Transaction-Failed')
+                        stopPolling()
+                        setNotificationMessage('Transaction Rejected')
                         setNotification('failed')
                         break
-                    case 'Pending':
+
+                    // Pending / SentToVendor / AwaitingApproval / Scheduled — keep polling
+                    default:
+                        break
                 }
-            } catch (error) {}
-
-            if (status === 'Success') {
-                console.log('Transaction-Failed')
-
-                setNotification('success')
-                paymentEmitter.emit(makePaymentString(source), { transactionID })
-            } else if (status === 'Failed') {
-            } else {
-                // Still pending — let them retry
-                hasVerified.current = false
-                setNotification('failed')
+            } catch (err: any) {
+                // Non-fatal: log and retry on next interval
+                console.warn('Poll error:', err?.message)
             }
-        } catch (error: any) {
-            hasVerified.current = false
-            toast({ title: 'TransactionError', description: error?.message, variant: 'destructive' })
-        } finally {
-            setVerifying(false)
-        }
+        }, POLL_INTERVAL_MS)
     }
+
+    // ── Collect payment ────────────────────────────────────────────────────────
+
     const collectPayment = async () => {
         if (hasCollected.current || loading) return
         hasCollected.current = true
@@ -100,8 +126,6 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
         setError(null)
 
         try {
-            // ✅ Snapshot balance BEFORE anything is sent
-
             const res = await fetch('/api/payment/iotec/collect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -122,21 +146,25 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
                 return
             }
 
-            if (data?.id) {
-                setTransactionID(data.id)
+            const txID = data?.id
+            if (txID) {
+                setTransactionID(txID)
+                setStep('pending')
+                startPolling(txID)
             } else {
                 console.warn('No Transaction ID returned from payment API')
+                setError('No transaction ID returned. Please try again.')
+                hasCollected.current = false
             }
-
-            setStep('pending')
-            // ❌ DELETE the second getWalletBalance() call that was here
-        } catch (err) {
+        } catch {
             setError('Network error: Could not connect to payment server.')
             hasCollected.current = false
         } finally {
             setLoading(false)
         }
     }
+
+    // ── Carrier detection ──────────────────────────────────────────────────────
 
     const getCarrier = (num: string) => {
         if (num.startsWith('077') || num.startsWith('078') || num.startsWith('076') || num.startsWith('074'))
@@ -147,36 +175,46 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
 
     const carrier = getCarrier(phoneNumber)
 
+    // ── Effects ────────────────────────────────────────────────────────────────
+
     useEffect(() => {
         document.body.style.overflow = 'hidden'
         return () => {
             document.body.style.overflow = ''
+            stopPolling()
         }
     }, [])
+
+    // ── Countdown helpers ──────────────────────────────────────────────────────
+
+    const formatCountdown = (secs: number) => {
+        const m = Math.floor(secs / 60).toString().padStart(2, '0')
+        const s = (secs % 60).toString().padStart(2, '0')
+        return `${m}:${s}`
+    }
+
+    const countdownUrgent = secondsLeft !== null && secondsLeft < 60
+
+    // ── Render ─────────────────────────────────────────────────────────────────
 
     return (
         <>
             {notification && (
                 <PaymentNotification
+                    message={notificationMessage}
                     status={notification}
                     amount={amount}
                     onClose={() => {
                         setNotification(null)
                         onClose()
                     }}
-                    onRetry={
-                        notification === 'failed'
-                            ? () => {
-                                  setNotification(null)
-                                  hasVerified.current = false
-                                  setStep('pending')
-                              }
-                            : undefined
-                    }
+                    onRetry={notification === 'failed' ? () => {} : undefined}
                 />
             )}
+
             <div className="fixed inset-0 z-50 bg-gray-100/80 backdrop-blur-sm text-gray-900 flex items-center justify-center font-sans overflow-y-auto">
                 <div className="relative w-full h-full md:h-auto md:max-w-4xl md:m-4 bg-white md:rounded-3xl border-0 md:border md:border-gray-200 md:shadow-2xl flex flex-col md:grid md:grid-cols-12 overflow-y-auto">
+
                     {/* Close Button */}
                     <button
                         onClick={handleClose}
@@ -197,7 +235,7 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
                             <p className="text-gray-500 text-sm sm:text-base">
                                 {step === 'input'
                                     ? 'Enter your Mobile Money number to initiate the payment.'
-                                    : 'Finalize the transaction on your mobile device.'}
+                                    : 'Check your phone and enter your PIN to authorize.'}
                             </p>
                         </header>
 
@@ -228,13 +266,9 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
                                         />
                                         {carrier && (
                                             <div className="absolute inset-y-0 right-4 flex items-center">
-                                                <span
-                                                    className={`text-[10px] font-bold px-2 py-1 rounded-md ${
-                                                        carrier === 'MTN'
-                                                            ? 'bg-yellow-400 text-black'
-                                                            : 'bg-red-600 text-white'
-                                                    }`}
-                                                >
+                                                <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${
+                                                    carrier === 'MTN' ? 'bg-yellow-400 text-black' : 'bg-red-600 text-white'
+                                                }`}>
                                                     {carrier}
                                                 </span>
                                             </div>
@@ -261,59 +295,57 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
                             </div>
                         ) : (
                             <div className="space-y-5 animate-in zoom-in-95 duration-300">
+
+                                {/* Transaction card */}
                                 <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-4">
                                     <div className="flex justify-between items-start">
                                         <div>
-                                            <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">
-                                                Payee Name
-                                            </p>
+                                            <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">Payee Name</p>
                                             <p className="text-lg font-bold text-gray-900">ioTec Services Ltd</p>
                                         </div>
-                                        <span className="px-3 py-1 bg-yellow-100 text-yellow-700 border border-yellow-200 rounded-full text-xs font-bold animate-pulse">
-                                            Pending
+                                        {/* Live polling badge replaces the static "Pending" badge */}
+                                        <span className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-600 border border-blue-200 rounded-full text-xs font-bold">
+                                            <Wifi className="h-3 w-3 animate-pulse" />
+                                            Checking...
                                         </span>
                                     </div>
                                     <div>
-                                        <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">
-                                            Amount to Pay
-                                        </p>
+                                        <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">Amount to Pay</p>
                                         <p className="text-2xl sm:text-3xl font-bold text-gray-900 font-mono">
                                             UGX {Number(amount).toLocaleString()}
                                         </p>
                                     </div>
                                 </div>
 
-                                <div className="text-center space-y-1">
-                                    <p className="text-blue-600 font-bold">Complete payment on phone</p>
-                                    <p className="text-sm text-gray-500 font-medium">
-                                        Check your phone for the PIN prompt to authorize.
+                                {/* Polling status indicator */}
+                                <div className="flex flex-col items-center gap-2 py-2">
+                                    <div className="flex items-center gap-2 text-gray-500 text-sm font-medium">
+                                        <Loader2 className="animate-spin h-4 w-4 text-blue-500" />
+                                        Waiting for your authorization…
+                                    </div>
+                                    <p className="text-xs text-gray-400 text-center">
+                                        This will update automatically once you approve on your phone.
                                     </p>
                                 </div>
 
-                                <div className="space-y-3">
-                                    <button
-                                        onClick={finishPayment}
-                                        disabled={verifying}
-                                        className="w-full bg-gray-900 text-white hover:bg-black font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg disabled:opacity-50"
-                                    >
-                                        {verifying ? (
-                                            <>
-                                                <Loader2 className="animate-spin h-5 w-5" /> Verifying...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <CheckCircle2 className="h-5 w-5" /> Confirm Payment
-                                            </>
-                                        )}
-                                    </button>
-                                    <button
-                                        onClick={handleClose}
-                                        disabled={verifying}
-                                        className="w-full bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 font-semibold py-3 rounded-2xl transition-all disabled:opacity-50"
-                                    >
-                                        Return to Merchant
-                                    </button>
-                                </div>
+                                {/* Token expiry countdown */}
+                                {secondsLeft !== null && (
+                                    <div className={`flex items-center justify-center gap-2 text-xs font-mono font-bold px-4 py-2 rounded-xl border ${
+                                        countdownUrgent
+                                            ? 'bg-red-50 border-red-200 text-red-600'
+                                            : 'bg-gray-50 border-gray-200 text-gray-500'
+                                    }`}>
+                                        {countdownUrgent ? '⚠ Session expiring — ' : 'Session expires in '}
+                                        <span>{formatCountdown(secondsLeft)}</span>
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={handleClose}
+                                    className="w-full bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 font-semibold py-3 rounded-2xl transition-all"
+                                >
+                                    Return to Merchant
+                                </button>
                             </div>
                         )}
 
@@ -341,11 +373,9 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-gray-500 font-medium">Status</span>
-                                    <span
-                                        className={`font-bold text-sm uppercase ${
-                                            step === 'pending' ? 'text-yellow-600' : 'text-blue-600'
-                                        }`}
-                                    >
+                                    <span className={`font-bold text-sm uppercase ${
+                                        step === 'pending' ? 'text-yellow-600' : 'text-blue-600'
+                                    }`}>
                                         {step === 'pending' ? 'Awaiting Auth' : 'Initialized'}
                                     </span>
                                 </div>
@@ -374,6 +404,7 @@ export function IoTecGatewayLight({ accessToken, amount, onClose, source }: IoTe
                             </div>
                         </div>
                     </div>
+
                 </div>
             </div>
         </>

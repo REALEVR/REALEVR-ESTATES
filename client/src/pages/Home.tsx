@@ -52,13 +52,7 @@ export default function Home() {
     }, [])
 
     // Debug logging for properties
-    console.log('Home page properties debug:', {
-        propertiesCount: properties?.length || 0,
-        isLoading,
-        error,
-        sampleProperties:
-            properties?.slice(0, 2).map((p) => ({ id: p.id, title: p.title, createdAt: p.createdAt })) || [],
-    })
+   
 
     const homeJsonLd = useMemo(() => {
         const site = getSiteUrl()

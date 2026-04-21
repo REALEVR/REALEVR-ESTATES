@@ -2,12 +2,13 @@ import { CheckCircle2, XCircle } from 'lucide-react'
 
 interface PaymentNotificationProps {
     status: 'success' | 'failed'
-    amount: string
+    amount: string,
+    message:string,
     onClose: () => void
     onRetry?: () => void
 }
 
-export function PaymentNotification({ status, amount, onClose, onRetry }: PaymentNotificationProps) {
+export function PaymentNotification({ status, amount, onClose, onRetry ,message}: PaymentNotificationProps) {
     const isSuccess = status === 'success'
 
     return (
@@ -42,8 +43,11 @@ export function PaymentNotification({ status, amount, onClose, onRetry }: Paymen
                         </>
                     ) : (
                         <>
-                            We could not verify your payment. If you were charged, please contact support with your
-                            transaction details.
+                            We could not verify your payment. 
+
+                            <strong className="text-gray-800">{message}</strong>
+                            
+                            If you were charged, please contact support 
                         </>
                     )}
                 </p>
