@@ -142,7 +142,7 @@ function App() {
                                     <Router />
                                 </AnimatedLayout>
                             </main>
-                            <IotechMetricCounterPaymentHandle/>
+                            {/* <IotechMetricCounterPaymentHandle/> */}
                             {gateway && (
                                 <IoTecGatewayLight
                                     source={gateway.source}
