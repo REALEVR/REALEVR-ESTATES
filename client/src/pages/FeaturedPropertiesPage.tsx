@@ -21,6 +21,10 @@ export default function FeaturedPropertiesPage() {
         "Editorial picks and highlighted listings with virtual tours across rentals, BnBs, for sale, and bank auctions.",
       url: `${site}/featured-properties`,
     };
+
+    setTimeout(()=>{
+      console.log('welcomet0')
+    },3000)
   }, []);
 
   if (isLoading) {

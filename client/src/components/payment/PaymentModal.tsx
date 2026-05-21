@@ -11,6 +11,9 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { Loader2, CreditCard, CheckCircle2 } from 'lucide-react'
 import { FlutterWaveButton } from 'flutterwave-react-v3'
+
+
+
 import {
     intiateGateWay,
     makePaymentString,
@@ -25,10 +28,12 @@ type PaymentType = 'PropertyDeposit' | 'ViewingFee' | 'Subscription' | 'BnBBooki
 
 interface PaymentModalProps {
     isOpen: boolean
+
     onClose: () => void
     propertyId?: number
     propertyTitle?: string
     paymentType: PaymentType
+    
     amount: number
     currency?: string
     successCallback?: (response: any) => void

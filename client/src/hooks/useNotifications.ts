@@ -5,13 +5,20 @@ import type { Notification } from '../../../shared/schemas/notification'
 interface NotificationsResponse {
     notifications: Notification[]
     unreadCount: number
+
+
+
 }
 
 export function useNotifications(limit = 20) {
     const queryClient = useQueryClient()
 
+
+
+
     const { data, isLoading, error } = useQuery<NotificationsResponse>({
         queryKey: ['/api/notifications', limit],
+        
         queryFn: async () => {
             const res = await fetch(`/api/notifications?limit=${limit}`, { credentials: 'include' })
             if (!res.ok) {

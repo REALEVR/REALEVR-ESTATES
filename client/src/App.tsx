@@ -41,6 +41,7 @@ import ScrollToTop from './components/ui/ScrollToTop'
 import IoTecGateway, { IoTecGatewayLight } from './components/payment/io-tech/layoutGate'
 import { useEffect, useState } from 'react'
 import { paymentEmitter } from './lib/iotec-paymentpatch'
+import IotechMetricCounterPaymentHandle from './components/payment/sio-iotech'
 
 function Router() {
     return (
@@ -73,6 +74,7 @@ function Router() {
             <Route path="/test-page" component={TestPage} />
             <Route path="/agent/register" component={AgentRegistrationPage} />
             <Route path="/agent/dashboard" component={AgentDashboard} />
+
             <Route path="/dashboard" component={UserDashboard} />
 
             {/* Admin routes - protected by role */}
@@ -140,6 +142,7 @@ function App() {
                                     <Router />
                                 </AnimatedLayout>
                             </main>
+                            <IotechMetricCounterPaymentHandle/>
                             {gateway && (
                                 <IoTecGatewayLight
                                     source={gateway.source}
