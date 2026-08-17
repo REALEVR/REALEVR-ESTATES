@@ -42,7 +42,8 @@ import {
   Eye,
   Box,
   FileSearch,
-  ChevronDown
+  ChevronDown,
+  Sparkles
 } from 'lucide-react';
 
 import {
@@ -55,7 +56,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Checkbox } from '@/components/ui/checkbox';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import Result_ from 'postcss/lib/result';
 
 // Create a form schema that replaces squareMeters with squareFeet for the UI
 const propertyFormSchema = insertPropertySchema
@@ -96,6 +96,7 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(property?.imageUrl || null);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -157,6 +158,40 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
     resolver: zodResolver(propertyFormSchema),
     defaultValues,
   });
+
+  // AI-assisted listing description, backed by the server-side /api/ai/generate-description
+  // proxy so the Gemini API key never reaches the browser.
+  const handleGenerateDescription = async () => {
+    const title = form.getValues('title');
+    const location = form.getValues('location');
+    const propertyType = form.getValues('propertyType');
+
+    if (!title || !location) {
+      toast({
+        title: 'Title and location required',
+        description: 'Please fill in the title and location before generating a description.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsGeneratingDescription(true);
+    try {
+      const res = await apiRequest('POST', '/api/ai/generate-description', { title, location, propertyType });
+      const data = await res.json();
+      if (data.description) {
+        form.setValue('description', data.description, { shouldValidate: true, shouldDirty: true });
+      }
+    } catch (error: any) {
+      toast({
+        title: 'AI generation failed',
+        description: error.message || 'Please try again or write the description manually.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
 
 
   
@@ -1069,7 +1104,23 @@ const onSubmit = async (data: PropertyFormValues) => {
                     name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Description</FormLabel>
+                        <div className="flex items-center justify-between">
+                          <FormLabel>Description</FormLabel>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleGenerateDescription}
+                            disabled={isGeneratingDescription}
+                          >
+                            {isGeneratingDescription ? (
+                              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                            )}
+                            {isGeneratingDescription ? 'Generating...' : 'Generate with AI'}
+                          </Button>
+                        </div>
                         <FormControl>
                           <Textarea placeholder="Describe the property in detail" {...field} />
                         </FormControl>

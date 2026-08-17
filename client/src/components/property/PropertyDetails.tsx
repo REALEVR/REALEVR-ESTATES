@@ -4,6 +4,7 @@ import { useToast } from '@/hooks/use-toast'
 import { useLocation } from 'wouter'
 import { useAuth } from '@/hooks/use-auth'
 import OwnerContactDetails from './OwnerContactDetails'
+import ReviewsSection from './ReviewsSection'
 import BookingCalendarModal from './BookingCalendarModal'
 import VirtualTourModal from './VirtualTourModal'
 import TourPaymentModal from './TourPaymentModal'
@@ -202,9 +203,12 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
             </div>
 
             <Tabs defaultValue="overview" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="details">Extra Details</TabsTrigger>
+                    <TabsTrigger value="reviews">
+                        Reviews{property.reviewCount ? ` (${property.reviewCount})` : ''}
+                    </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview" className="space-y-6">
@@ -403,6 +407,10 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                         </CardContent>
                     </Card>
                 </TabsContent>
+
+                <TabsContent value="reviews" className="space-y-6">
+                    <ReviewsSection propertyId={property.id} />
+                </TabsContent>
             </Tabs>
 
             {/* Display price differently for BnBs (per night) vs other properties (per month) */}
@@ -433,7 +441,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
             {isBnB && (
                 <div className="mt-8 border-t border-gray-200 pt-8">
                     <h3 className="text-xl font-semibold mb-4">Property Owner</h3>
-                    <OwnerContactDetails property={property} bookingConfirmed={bookingConfirmed} />
+                    <OwnerContactDetails property={property} bookingConfirmed={bookingConfirmed} owner={propertyOwner} />
                 </div>
             )}
 

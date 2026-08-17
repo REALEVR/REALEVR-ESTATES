@@ -23,6 +23,8 @@ import {
     propertyToSitemapEntry,
 } from './sitemap'
 import notificationRoutes from './routes/notifications'
+import reviewRoutes from './routes/reviews'
+import aiRoutes from './routes/ai'
 import { runDepositReminders, runViewingReminders } from './cron/index'
 
 // Middleware to check if user is an admin or property manager
@@ -2294,6 +2296,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Notification Hub routes
     app.use('/api/notifications', notificationRoutes)
+
+    // Property reviews & ratings
+    app.use('/api/reviews', reviewRoutes)
+
+    // AI assistant / description generation (Gemini)
+    app.use('/api/ai', aiRoutes)
 
     // Admin endpoint to manually trigger reminders for testing
     app.post('/api/admin/test-reminders', adminMiddleware, async (_req: any, res: any) => {

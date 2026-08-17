@@ -42,6 +42,7 @@ import IoTecGateway, { IoTecGatewayLight } from './components/payment/io-tech/la
 import { useEffect, useState } from 'react'
 import { paymentEmitter } from './lib/iotec-paymentpatch'
 import IotechMetricCounterPaymentHandle from './components/payment/sio-iotech'
+import AIAssistant from '@/components/AIAssistant'
 
 function Router() {
     return (
@@ -154,6 +155,7 @@ function App() {
                             <Footer />
                         </div>
                         <ScrollToTop />
+                        <AIAssistant />
                         <Toaster />
                     </TooltipProvider>
                 </PaymentProvider>
