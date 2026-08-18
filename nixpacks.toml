@@ -1,0 +1,12 @@
+# Railway build config (Nixpacks — Railway's default builder).
+#
+# The guided room-capture -> virtual tour feature (server/video-frame-extractor.ts,
+# see docs/GUIDED_360_UPLOAD.md) shells out to the `ffmpeg`/`ffprobe` binaries at
+# runtime. Those are OS-level binaries, not npm packages, so `npm install` alone
+# does not provide them — this file tells Railway's build to install them from
+# nixpkgs alongside the existing Node toolchain.
+#
+# Verify after deploy: GET /api/gene/infra/health reports an `ffmpeg`/`ffprobe`
+# check — it will read "fail" here if this ever stops taking effect.
+[phases.setup]
+nixPkgs = ["ffmpeg"]
