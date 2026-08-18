@@ -34,6 +34,10 @@ pids
 *.seed
 *.pid.lock
 
+# GENE Platform runtime JSON-file store (server/gene/store.ts) — generated
+# data, not source. See docs/GENE_PLATFORM.md.
+data/gene/
+
 # Coverage directory used by tools like istanbul
 coverage/
 

@@ -26,6 +26,24 @@ import {
 import notificationRoutes from './routes/notifications'
 import { runDepositReminders, runViewingReminders } from './cron/index'
 
+// GENE Platform — additive scaffolding (see docs/GENE_PLATFORM.md)
+import { registerGeneChatRoutes } from './gene/chat'
+import { registerGeneIngestionRoutes } from './gene/ingestion'
+import { registerGeneAnalyticsRoutes } from './gene/analytics'
+import { registerGeneLearningLoopRoutes } from './gene/learning-loop'
+import { registerDataPartnershipsRoutes } from './gene/data-partnerships'
+import { registerListingsApiRoutes } from './gene/listings-api'
+import { registerWhatsappRoutes } from './gene/whatsapp'
+import { registerDataQualityRoutes } from './gene/data-quality'
+import { registerPaymentsCoreRoutes } from './gene/payments-core'
+import { registerBtcPaymentsRoutes } from './gene/btc-payments'
+import { registerInvestorAnalyticsRoutes } from './gene/investor-analytics'
+import { registerListingsLifecycleRoutes } from './gene/listings-lifecycle'
+import { registerContentPromotionRoutes } from './gene/content-promotion'
+import { registerSupportRoutes } from './gene/support'
+import { registerInfraHealthRoutes } from './gene/infra-health'
+import { registerQaSecurityRoutes } from './gene/qa-security'
+
 // Middleware to check if user is an admin or property manager
 const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
     if (!req.isAuthenticated()) {
@@ -2299,6 +2317,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Notification Hub routes
     app.use('/api/notifications', notificationRoutes)
+
+    // GENE Platform — additive scaffolding, 4 teams / 16 modules (see docs/GENE_PLATFORM.md)
+    registerGeneChatRoutes(app, adminMiddleware)
+    registerGeneIngestionRoutes(app, adminMiddleware)
+    registerGeneAnalyticsRoutes(app, adminMiddleware)
+    registerGeneLearningLoopRoutes(app, adminMiddleware)
+    registerDataPartnershipsRoutes(app, adminMiddleware)
+    registerListingsApiRoutes(app, adminMiddleware)
+    registerWhatsappRoutes(app, adminMiddleware)
+    registerDataQualityRoutes(app, adminMiddleware)
+    registerPaymentsCoreRoutes(app, adminMiddleware)
+    registerBtcPaymentsRoutes(app, adminMiddleware)
+    registerInvestorAnalyticsRoutes(app, adminMiddleware)
+    registerListingsLifecycleRoutes(app, adminMiddleware)
+    registerContentPromotionRoutes(app, adminMiddleware)
+    registerSupportRoutes(app, adminMiddleware)
+    registerInfraHealthRoutes(app, adminMiddleware)
+    registerQaSecurityRoutes(app, adminMiddleware)
 
     // Admin endpoint to manually trigger reminders for testing
     app.post('/api/admin/test-reminders', adminMiddleware, async (_req: any, res: any) => {
