@@ -55,7 +55,7 @@ Telegram or Slack group instead of a WhatsApp group).
 
 | Var | Used by | Effect if unset |
 |---|---|---|
-| `GENE_BTC_RECEIVE_ADDRESS` | `btc-qr.ts` | QR endpoint returns 501 instead of a fake address |
+| `GENE_BTC_RECEIVE_ADDRESS` | `btc-qr.ts` | Defaults to `bc1qmpymf6hdspdac7rkhjlnjq83lggmjttx820za2` (the address you gave us) — set this env var only if you ever want to route BTC payments to a different wallet |
 | `SLACK_WEBHOOK_URL` | `slack-bridge.ts` | Escalation notifications log locally instead of posting to Slack |
 | `SLACK_SIGNING_SECRET` | `slack-bridge.ts` | Slash command endpoint fails closed (401) rather than accepting unsigned requests |
 | `WHATSAPP_AGENT_GROUP_INVITE_LINK` | `agent-whatsapp-onboarding.ts` | Agent's number is still saved, but no invite DM is sent |

@@ -8,9 +8,14 @@
  *  first). The same volatility/tolerance caveats apply here: this file does
  *  not change any buffer/tolerance math, it only adds (a) a QR code for a
  *  quoted BTC payment, and (b) a way to check whether that payment has landed
- *  on-chain, using a real receiving address that MUST be supplied via the
- *  `GENE_BTC_RECEIVE_ADDRESS` env var by whoever controls the wallet. Nothing
- *  in this file invents or hardcodes a placeholder address.
+ *  on-chain, using a real receiving address.
+ *
+ *  The default receiving address below (`DEFAULT_RECEIVE_ADDRESS`) was
+ *  supplied directly by the account owner for this wallet — it is a public
+ *  receive-only address, safe to commit (unlike a private key/seed). Override
+ *  it per-environment via the `GENE_BTC_RECEIVE_ADDRESS` env var (e.g. to
+ *  rotate addresses, or use a different wallet in staging vs. production)
+ *  without touching code.
  *
  * HONESTY NOTE ON SANDBOX LIMITS: this dev sandbox has no general internet
  * egress (DynamoDB and public HTTPS APIs are both unreachable from here), so
@@ -29,6 +34,11 @@ import { isQuoteExpired, reconcileSettlement, type GeneBtcSettlement } from './b
 const COLLECTION = 'gene_btc_settlements'
 const DEFAULT_TOLERANCE_PCT = 0.005 // 0.5% — matches btc-payments.ts placeholder pending finance sign-off
 
+// Supplied directly by the account owner. Public receive-only address — safe
+// to commit. Override with GENE_BTC_RECEIVE_ADDRESS for a different wallet
+// per-environment without a code change.
+const DEFAULT_RECEIVE_ADDRESS = 'bc1qmpymf6hdspdac7rkhjlnjq83lggmjttx820za2'
+
 function loadSettlements(): GeneBtcSettlement[] {
     return readCollection<GeneBtcSettlement>(COLLECTION)
 }
@@ -39,7 +49,8 @@ function saveSettlements(rows: GeneBtcSettlement[]): void {
 
 function getReceiveAddress(): string | null {
     const addr = process.env.GENE_BTC_RECEIVE_ADDRESS
-    return typeof addr === 'string' && addr.trim().length > 0 ? addr.trim() : null
+    if (typeof addr === 'string' && addr.trim().length > 0) return addr.trim()
+    return DEFAULT_RECEIVE_ADDRESS
 }
 
 interface MempoolVout {
