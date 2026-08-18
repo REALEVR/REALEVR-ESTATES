@@ -44,6 +44,7 @@ interface VirtualTourFormValues {
 export default function VirtualTourManager() {
     const [property, setProperty] = useState<Property | null>(null)
     const [isUploading, setIsUploading] = useState(false)
+    const [uploadProgressMessage, setUploadProgressMessage] = useState('')
     const [uploadSuccess, setUploadSuccess] = useState(false)
     const [uploadError, setUploadError] = useState('')
     const [tourPreviewUrl, setTourPreviewUrl] = useState<string | null>(null)
@@ -142,13 +143,16 @@ export default function VirtualTourManager() {
         setIsUploading(true)
         setUploadSuccess(false)
         setUploadError('')
+        setUploadProgressMessage('Uploading ZIP...')
 
         try {
             // Create FormData
             const formData = new FormData()
             formData.append('tourZip', file)
 
-            // Upload the virtual tour zip
+            // The server responds immediately with a jobId (extraction/S3 upload
+            // happen asynchronously) -- the real success/failure only arrives via
+            // the SSE progress stream below, not on this initial response.
             const response = await fetch(`/api/upload/virtual-tour/${property.id}`, {
                 method: 'POST',
                 body: formData,
@@ -157,26 +161,36 @@ export default function VirtualTourManager() {
 
             const result = await response.json()
 
-            if (response.ok && result.status === 'success') {
-                setUploadSuccess(true)
-                setTourPreviewUrl(result.tourUrl)
-
-                toast({
-                    title: 'Success',
-                    description: 'Virtual tour uploaded and extracted successfully',
-                })
-
-                // Refresh the property data
-                queryClient.invalidateQueries({ queryKey: ['/api/properties', property.id] })
-            } else {
-                setUploadError(result.message || 'Failed to upload virtual tour')
-
-                toast({
-                    title: 'Error',
-                    description: result.message || 'Failed to upload virtual tour',
-                    variant: 'destructive',
-                })
+            if (!response.ok || !result.jobId) {
+                throw new Error(result.message || 'Failed to start virtual tour upload')
             }
+
+            await new Promise<void>((resolve, reject) => {
+                const source = new EventSource(`/api/upload/virtual-tour/progress/${result.jobId}`)
+                source.onmessage = (evt) => {
+                    const data = JSON.parse(evt.data)
+                    if (data.error) {
+                        source.close()
+                        reject(new Error(data.error))
+                        return
+                    }
+                    setUploadProgressMessage(data.message || '')
+                    if (data.done) {
+                        source.close()
+                        if (data.tourUrl) {
+                            setUploadSuccess(true)
+                            setTourPreviewUrl(data.tourUrl)
+                            queryClient.invalidateQueries({ queryKey: ['/api/properties', property.id] })
+                            toast({ title: 'Success', description: 'Virtual tour uploaded and extracted successfully' })
+                        }
+                        resolve()
+                    }
+                }
+                source.onerror = () => {
+                    source.close()
+                    reject(new Error('Lost connection while processing the tour upload'))
+                }
+            })
         } catch (error: any) {
             setUploadError(error.message || 'Failed to upload virtual tour')
 
@@ -187,6 +201,7 @@ export default function VirtualTourManager() {
             })
         } finally {
             setIsUploading(false)
+            setUploadProgressMessage('')
         }
     }
 
@@ -328,6 +343,10 @@ export default function VirtualTourManager() {
                                                     )}
                                                 </Button>
                                             </div>
+
+                                            {isUploading && uploadProgressMessage && (
+                                                <p className="text-sm text-muted-foreground mt-2">{uploadProgressMessage}</p>
+                                            )}
 
                                             {uploadSuccess && (
                                                 <Alert className="mt-4 bg-green-50 border-green-300">
