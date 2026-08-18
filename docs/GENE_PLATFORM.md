@@ -26,6 +26,65 @@ component — see "Why additive" below.
 | 15 | `infra-health.ts` | 4 Growth/Support/Infra | Infra/DevOps agent |
 | 16 | `qa-security.ts` | 4 Growth/Support/Infra | QA/security agent |
 
+## v1.1 — requested follow-ups
+
+Four more modules, added in a second pass in direct response to specific
+follow-up requests:
+
+| # | File | What it does |
+|---|---|---|
+| 17 | `btc-qr.ts` | Extends `btc-payments.ts` — generates a real BIP21 `bitcoin:` URI + scannable QR code (PNG data URI, via the `qrcode` package) for a locked quote, against your own receiving address (`GENE_BTC_RECEIVE_ADDRESS`). Also does best-effort on-chain payment detection against mempool.space's free public API. |
+| 18 | `slack-bridge.ts` | Real two-way Slack integration: posts new WhatsApp escalations to a Slack channel (`SLACK_WEBHOOK_URL`), and a signed Slack slash command (`SLACK_SIGNING_SECRET`) lets you `resolve <id> <note>` or check `inbox` without leaving Slack. |
+| 19 | `agent-whatsapp-onboarding.ts` | Lets any logged-in agent/admin self-link their WhatsApp number and immediately receive a one-tap group invite link (`WHATSAPP_AGENT_GROUP_INVITE_LINK`) via WhatsApp DM. See the important caveat below — WhatsApp's API cannot silently add someone to a group. |
+| 20 | `tour-access-pass.ts` | The real enforcement of "pay UGX 15,000, view up to 5 properties, one account, 24 hours" — the existing IoTec flow only ever had this as UI copy; a payment now actually mints a pass, and views are actually capped and expire. Wired into the existing `/api/payment/iotect/record` route as one small, best-effort, try/catch-guarded addition — that route's original behavior is unchanged. |
+
+### On "automatically adds them to the WhatsApp group"
+
+Worth being upfront about a real platform limit: WhatsApp's Business
+Platform (Cloud API) has no endpoint to programmatically add a phone number
+to a Group — Meta blocks this for anti-spam reasons, for every legitimate
+integration, not just this one. What's actually built is the closest
+compliant equivalent: the moment an agent links their number, they get an
+automatic WhatsApp DM with your group's invite link, so joining is one tap
+rather than them having to ask you for the link manually. If a true
+zero-tap add ever becomes a hard requirement, the realistic alternative is
+moving that channel to a platform whose API does support it (e.g. a
+Telegram or Slack group instead of a WhatsApp group).
+
+### New env vars this pass
+
+| Var | Used by | Effect if unset |
+|---|---|---|
+| `GENE_BTC_RECEIVE_ADDRESS` | `btc-qr.ts` | QR endpoint returns 501 instead of a fake address |
+| `SLACK_WEBHOOK_URL` | `slack-bridge.ts` | Escalation notifications log locally instead of posting to Slack |
+| `SLACK_SIGNING_SECRET` | `slack-bridge.ts` | Slash command endpoint fails closed (401) rather than accepting unsigned requests |
+| `WHATSAPP_AGENT_GROUP_INVITE_LINK` | `agent-whatsapp-onboarding.ts` | Agent's number is still saved, but no invite DM is sent |
+
+Setting up Slack: in your workspace, add an **Incoming Webhook** app
+(Slack → Apps) pointed at whichever channel should receive escalations —
+that URL is `SLACK_WEBHOOK_URL`. Separately, create a Slack App with a
+**Slash Command** (e.g. `/gene`) whose Request URL is
+`https://<your-domain>/api/gene/slack/commands`, then copy that app's
+Signing Secret into `SLACK_SIGNING_SECRET`.
+
+### Verification performed this pass
+
+Same standard as the first pass — `npx tsc --noEmit` (41 pre-existing
+errors, zero new), `npx esbuild` production bundle (clean), and a real
+runtime smoke test against a mocked-storage Express app: an escalation
+correctly triggered (and gracefully no-op'd) a Slack notification; a BTC
+quote's QR endpoint correctly 501'd before `GENE_BTC_RECEIVE_ADDRESS` was
+set and correctly returned a real BIP21 URI + QR after; on-chain checking
+correctly reported "could not reach blockchain explorer" (this sandbox has
+no general internet egress — same limitation noted for the CDN and
+DynamoDB elsewhere in this repo's docs; the mempool.space call itself is
+standard and keyless and will work once deployed); the Slack slash command
+correctly rejected an unsigned request with 401; agent WhatsApp linking
+correctly reported "invite not sent" without a group link configured; and
+the tour pass correctly allowed exactly 5 redemptions, marked itself
+`exhausted` on the 6th, and rejected further redemption with 402 until a
+new pass is issued.
+
 Plus two shared contract files (the plan's "Week 0 architecture pass",
 built first so all 4 teams could work in parallel against it):
 

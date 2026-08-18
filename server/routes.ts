@@ -43,6 +43,10 @@ import { registerContentPromotionRoutes } from './gene/content-promotion'
 import { registerSupportRoutes } from './gene/support'
 import { registerInfraHealthRoutes } from './gene/infra-health'
 import { registerQaSecurityRoutes } from './gene/qa-security'
+import { registerBtcQrRoutes } from './gene/btc-qr'
+import { registerSlackBridgeRoutes } from './gene/slack-bridge'
+import { registerAgentWhatsappOnboardingRoutes } from './gene/agent-whatsapp-onboarding'
+import { registerTourAccessPassRoutes, issuePass } from './gene/tour-access-pass'
 
 // Middleware to check if user is an admin or property manager
 const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -363,6 +367,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             })
         } catch (error) {
             console.error('Error recording tour payment:', error)
+        }
+
+        // GENE Platform: mint a real "view up to 5 properties for 24h" tour
+        // pass for this confirmed IoTec payment (see docs/GENE_PLATFORM.md).
+        // Best-effort only — never affects the existing IoTec recording above.
+        try {
+            const numericUserId = Number(user_id)
+            const numericAmount = Number(amount)
+            if (Number.isFinite(numericUserId) && numericUserId > 0 && Number.isFinite(numericAmount) && numericAmount > 0) {
+                issuePass(numericUserId, 'iotec', numericAmount, currency || 'UGX')
+            }
+        } catch (error) {
+            console.error('[GENE] Failed to issue tour pass for IoTec payment:', error)
         }
     })
 
@@ -2335,6 +2352,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerSupportRoutes(app, adminMiddleware)
     registerInfraHealthRoutes(app, adminMiddleware)
     registerQaSecurityRoutes(app, adminMiddleware)
+    registerBtcQrRoutes(app, adminMiddleware)
+    registerSlackBridgeRoutes(app, adminMiddleware)
+    registerAgentWhatsappOnboardingRoutes(app, adminMiddleware)
+    registerTourAccessPassRoutes(app, adminMiddleware)
 
     // Admin endpoint to manually trigger reminders for testing
     app.post('/api/admin/test-reminders', adminMiddleware, async (_req: any, res: any) => {

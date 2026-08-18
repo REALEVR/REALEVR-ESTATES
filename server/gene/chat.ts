@@ -19,6 +19,7 @@ import type { Express, RequestHandler } from 'express'
 import { randomUUID } from 'crypto'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
+import { notifyNewEscalation } from './slack-bridge'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -222,6 +223,8 @@ function writeEscalation(sessionId: string, message: string, reason: string): vo
     }
     rows.push(escalation)
     writeCollection(ESCALATIONS_COLLECTION, rows)
+    // Best-effort — never let a Slack notification failure affect the chat response.
+    notifyNewEscalation(escalation).catch((err) => console.error('[gene/chat] Slack notify failed:', err))
 }
 
 // ---------------------------------------------------------------------------
