@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ShareButton } from "@/components/ui/ShareButton";
 import { Badge } from "@/components/ui/badge";
 import PropertyCard from "@/components/home/PropertyCard";
 import type { Property } from "@shared/schema";
@@ -410,6 +411,7 @@ export default function ForSalePage() {
           </div>
         )}
       </div>
+      <ShareButton title="Properties For Sale - REALEVR Estates" />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { ShareButton } from "@/components/ui/ShareButton";
 
 export default function PrivacyPolicy() {
   return (
@@ -106,6 +107,7 @@ export default function PrivacyPolicy() {
           </Link>
         </div>
       </div>
+      <ShareButton title="Privacy Policy - REALEVR Estates" />
     </div>
   );
 }

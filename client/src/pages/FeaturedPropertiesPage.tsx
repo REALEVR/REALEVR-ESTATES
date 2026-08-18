@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Property } from "@shared/schema";
 import PropertyCard from "@/components/home/PropertyCard";
 import { Loader2 } from "lucide-react";
+import { ShareButton } from "@/components/ui/ShareButton";
 import { PageSeo } from "@/components/seo/PageSeo";
 import { getSiteUrl } from "@/lib/siteUrl";
 
@@ -70,6 +71,7 @@ export default function FeaturedPropertiesPage() {
           <PropertyCard key={property.id} property={property} />
         ))}
       </div>
+      <ShareButton title="Featured Properties - REALEVR Estates" />
     </div>
   );
 }

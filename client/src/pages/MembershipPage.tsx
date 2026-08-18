@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { insertUserSchema } from "@shared/schema";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
+import { ShareButton } from "@/components/ui/ShareButton";
 
 // Remove confirmPassword from the final submitted data
 type FormValues = z.infer<typeof insertUserSchema>;
@@ -304,6 +305,7 @@ export default function MembershipPage() {
           </Form>
         </DialogContent>
       </Dialog>
+      <ShareButton title="REALEVR Membership Plans" />
     </div>
   );
 }

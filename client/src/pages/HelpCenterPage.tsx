@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ShareButton } from "@/components/ui/ShareButton";
 
 export default function HelpCenterPage() {
   return (
@@ -184,6 +185,7 @@ export default function HelpCenterPage() {
           </Card>
         </div>
       </div>
+      <ShareButton title="Help Center - REALEVR Estates" />
     </div>
   );
 } 

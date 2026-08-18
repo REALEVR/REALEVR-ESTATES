@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { ShareButton } from "@/components/ui/ShareButton";
 
 export default function TermsOfService() {
   return (
@@ -137,6 +138,7 @@ export default function TermsOfService() {
           </Link>
         </div>
       </div>
+      <ShareButton title="Terms of Service - REALEVR Estates" />
     </div>
   );
 }

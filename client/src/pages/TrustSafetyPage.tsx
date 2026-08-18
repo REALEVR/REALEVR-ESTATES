@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ShareButton } from "@/components/ui/ShareButton";
 
 export default function TrustSafetyPage() {
   return (
@@ -229,6 +230,7 @@ export default function TrustSafetyPage() {
           </Card>
         </div>
       </div>
+      <ShareButton title="Trust &amp; Safety - REALEVR Estates" />
     </div>
   );
 } 
