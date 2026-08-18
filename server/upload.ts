@@ -133,6 +133,13 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
 
           for (const entry of zipEntries) {
             const entryPath = path.join(extractDir, entry.entryName);
+            // Zip-slip guard: reject any entry whose resolved path escapes extractDir
+            // (e.g. "../../etc/cron.d/x" or an absolute path inside the zip).
+            const resolvedEntryPath = path.resolve(entryPath);
+            const resolvedExtractDir = path.resolve(extractDir) + path.sep;
+            if (!resolvedEntryPath.startsWith(resolvedExtractDir)) {
+              throw new Error(`Rejected unsafe ZIP entry path: ${entry.entryName}`);
+            }
             if (entry.isDirectory) {
               fs.mkdirSync(entryPath, { recursive: true });
             } else {
