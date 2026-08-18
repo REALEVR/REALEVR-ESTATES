@@ -20,6 +20,9 @@ export const properties = pgTable("properties", {
   isFeatured: boolean("is_featured").default(false),
   hasTour: boolean("has_tour").default(true),
   tourUrl: text("tour_url"),
+  // 'equirect_360' (true 360 panoramas), 'photo_sweep_lite' (guided multi-photo
+  // gallery tour), or null for legacy/manually-uploaded 3D Vista tours.
+  tourQuality: text("tour_quality"),
   amenities: text("amenities").array(),
   monthlyPrice: integer("monthly_price"), // Now optional for rental properties
   isAvailable: boolean("is_available").default(true), // Property availability status

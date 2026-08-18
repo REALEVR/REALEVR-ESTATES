@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import RoomCaptureGuide from './RoomCaptureGuide'
 import {
     AlertCircle,
     ArrowLeft,
@@ -284,48 +286,69 @@ export default function VirtualTourManager() {
                                     </div>
                                 </div>
 
-                                <div className="rounded-lg border bg-card p-4">
-                                    <h3 className="text-lg font-semibold mb-2">Upload Virtual Tour</h3>
-                                    <p className="text-sm text-muted-foreground mb-4">
-                                        Upload a 3D Vista tour export (ZIP file). This will extract the tour files and
-                                        make them available for viewing. Maximum file size: 5GB.
-                                    </p>
+                                <Tabs defaultValue="capture" className="w-full">
+                                    <TabsList className="grid w-full grid-cols-2">
+                                        <TabsTrigger value="capture">Capture with your phone</TabsTrigger>
+                                        <TabsTrigger value="zip">Upload 3D Vista ZIP</TabsTrigger>
+                                    </TabsList>
 
-                                    <div className="flex items-center space-x-2 mt-2">
-                                        <Input ref={fileInputRef} type="file" accept=".zip" className="flex-1" />
-                                        <Button type="button" onClick={handleTourUpload} disabled={isUploading}>
-                                            {isUploading ? (
-                                                <>
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    Uploading...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Upload className="mr-2 h-4 w-4" />
-                                                    Upload
-                                                </>
+                                    <TabsContent value="capture" className="mt-4">
+                                        <RoomCaptureGuide
+                                            propertyId={property.id}
+                                            onPublished={(url) => {
+                                                setUploadSuccess(true)
+                                                setTourPreviewUrl(url)
+                                                queryClient.invalidateQueries({ queryKey: ['/api/properties', property.id] })
+                                                toast({ title: 'Success', description: 'Virtual tour built and published successfully' })
+                                            }}
+                                        />
+                                    </TabsContent>
+
+                                    <TabsContent value="zip" className="mt-4">
+                                        <div className="rounded-lg border bg-card p-4">
+                                            <h3 className="text-lg font-semibold mb-2">Upload Virtual Tour</h3>
+                                            <p className="text-sm text-muted-foreground mb-4">
+                                                Already have a tour exported from 3D Vista, Pano2VR, or similar
+                                                software? Upload the ZIP file directly. Maximum file size: 5GB.
+                                            </p>
+
+                                            <div className="flex items-center space-x-2 mt-2">
+                                                <Input ref={fileInputRef} type="file" accept=".zip" className="flex-1" />
+                                                <Button type="button" onClick={handleTourUpload} disabled={isUploading}>
+                                                    {isUploading ? (
+                                                        <>
+                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                            Uploading...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Upload className="mr-2 h-4 w-4" />
+                                                            Upload
+                                                        </>
+                                                    )}
+                                                </Button>
+                                            </div>
+
+                                            {uploadSuccess && (
+                                                <Alert className="mt-4 bg-green-50 border-green-300">
+                                                    <Check className="h-4 w-4 text-green-500" />
+                                                    <AlertTitle>Success!</AlertTitle>
+                                                    <AlertDescription>
+                                                        Virtual tour uploaded and extracted successfully.
+                                                    </AlertDescription>
+                                                </Alert>
                                             )}
-                                        </Button>
-                                    </div>
 
-                                    {uploadSuccess && (
-                                        <Alert className="mt-4 bg-green-50 border-green-300">
-                                            <Check className="h-4 w-4 text-green-500" />
-                                            <AlertTitle>Success!</AlertTitle>
-                                            <AlertDescription>
-                                                Virtual tour uploaded and extracted successfully.
-                                            </AlertDescription>
-                                        </Alert>
-                                    )}
-
-                                    {uploadError && (
-                                        <Alert className="mt-4" variant="destructive">
-                                            <AlertCircle className="h-4 w-4" />
-                                            <AlertTitle>Upload Error</AlertTitle>
-                                            <AlertDescription>{uploadError}</AlertDescription>
-                                        </Alert>
-                                    )}
-                                </div>
+                                            {uploadError && (
+                                                <Alert className="mt-4" variant="destructive">
+                                                    <AlertCircle className="h-4 w-4" />
+                                                    <AlertTitle>Upload Error</AlertTitle>
+                                                    <AlertDescription>{uploadError}</AlertDescription>
+                                                </Alert>
+                                            )}
+                                        </div>
+                                    </TabsContent>
+                                </Tabs>
 
                                 {tourPreviewUrl && (
                                     <div className="border rounded-lg p-4">

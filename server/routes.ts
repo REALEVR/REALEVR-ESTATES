@@ -14,6 +14,7 @@ import fs from 'fs'
 import { createTablesIfNotExist, DynamoDBUtils, TABLES, toNumericId, toStringId } from './dynamodb'
 
 import { uploadPropertyImage, uploadVirtualTour, handleUploadErrors, setupStaticFileRoutes } from './upload'
+import { registerRoomCaptureRoutes } from './room-capture'
 import { registerPaymentGateWayForApp } from './payment/payment-new'
 import {
     buildRobotsTxt,
@@ -2151,8 +2152,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
     })
 
-    // Upload virtual tour zip
-    app.post('/api/upload/virtual-tour/:propertyId', (req, res) => {
+    // Upload virtual tour zip (admin/agent only -- was previously unauthenticated)
+    app.post('/api/upload/virtual-tour/:propertyId', adminMiddleware, (req, res) => {
         // console.log("=== VIRTUAL TOUR UPLOAD ENDPOINT ===");
         console.log('Property ID:', req.params.propertyId)
 
@@ -2182,6 +2183,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // SSE endpoint for tour progress
     app.get('/api/upload/virtual-tour/progress/:jobId', sseTourProgress)
+
+    // Guided room-capture upload: agents upload photos/video per room instead of
+    // a pre-built tour ZIP. Reuses the same SSE progress endpoint above (jobId is generic).
+    registerRoomCaptureRoutes(app, adminMiddleware)
 
     // Get tour preview endpoint
     app.get('/api/tours/preview/:propertyId', async (req, res) => {
