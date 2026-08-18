@@ -184,6 +184,19 @@ with expected responses: `server/gene/__smoke__.test-plan.md`.
   found: 6 critical / 21 high / 33 moderate / 6 low — pre-existing, not
   introduced here, now visible via `GET /api/gene/qa/dependency-audit`).
 
+## Deploying on Railway
+
+The app deploys on Railway via its default Nixpacks builder. `nixpacks.toml`
+(repo root) tells that build to install `ffmpeg`/`ffprobe` — required by the
+guided room-capture video pipeline (`server/video-frame-extractor.ts`), and
+not something `npm install` provides on its own. After deploying, confirm it
+actually took by hitting `GET /api/gene/infra/health` on the live domain and
+checking the `ffmpeg`/`ffprobe` entries report `ok`.
+
+Env vars (see table above) are set the normal Railway way — Project →
+Variables — and take effect on the next deploy/restart, no code change
+needed for any of them.
+
 ## Suggested next steps
 
 1. Review this scaffolding, then decide which of the "needs your
