@@ -17,9 +17,15 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import sharp from 'sharp';
 import { DraftManifest, RoomEntry } from './room-capture-types';
 
+// `__dirname` doesn't exist in ESM (this file compiles/bundles to an ES
+// module — see package.json's "type": "module" — which is what crashed
+// production on boot: "ReferenceError: __dirname is not defined in ES
+// module scope"). This is the standard ESM equivalent.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = path.join(__dirname, 'templates', 'generated-tour.html');
 
 interface TourJsonRoom {
