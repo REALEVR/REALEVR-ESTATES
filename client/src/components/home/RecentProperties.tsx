@@ -29,11 +29,11 @@ export default function RecentProperties() {
         return (
             <div className="container mx-auto mt-8 mb-12">
                 <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold">Most Viewed Properties</h2>
+                    <h2 className="text-2xl font-display font-medium">Most Viewed Properties</h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[...Array(4)].map((_, i) => (
-                        <div key={i} className="bg-gray-100 rounded-xl overflow-hidden animate-pulse h-96" />
+                        <div key={i} className="bg-secondary rounded-xl overflow-hidden animate-pulse h-96" />
                     ))}
                 </div>
             </div>
@@ -59,7 +59,7 @@ export default function RecentProperties() {
         return (
             <div className="container mx-auto px-6 mt-10 mb-12">
                 <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold">Most Viewed Properties</h2>
+                    <h2 className="text-2xl font-display font-medium">Most Viewed Properties</h2>
                     <div className="flex items-center space-x-2 mt-2 md:mt-0">
                         <Link href="/featured-properties">
                             <Button variant="outline" className="flex items-center">
@@ -68,7 +68,7 @@ export default function RecentProperties() {
                         </Link>
                     </div>
                 </div>
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-muted-foreground">
                     <p className="text-lg mb-2">No properties to display</p>
                     <p className="text-sm">Properties with more views will appear here.</p>
                 </div>
@@ -79,7 +79,7 @@ export default function RecentProperties() {
     return (
         <div className="container mx-auto px-6 mt-10 mb-12">
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">Most Viewed Properties</h2>
+                <h2 className="text-2xl font-display font-medium">Most Viewed Properties</h2>
                 <div className="flex items-center space-x-2 mt-2 md:mt-0">
                     <Link href="/featured-properties">
                         <Button variant="outline" className="flex items-center">

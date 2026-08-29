@@ -188,32 +188,32 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
   };
 
   return (
-    <section className='bg-[#faf8f6] -mx-4 sm:-mx-6 lg:-mx-8'>
+    <section className='bg-background -mx-4 sm:-mx-6 lg:-mx-8'>
  <section className="w-full mdx_hero p-8 md:p-12 mt-6 flex flex-col gap-8 hero-video-wrapper  newHero">
 
       {/* Main hero content */}
       <div className="flex flex-col md:flex-row md:items-center gap-8">
         {/* Left: Headline */}
         <div className="flex-1 hero-left-content">
-          <h1 className="text-5xl md:text-7xl font-light leading-tight">
-            <span className="font-serif italic text-6xl md:text-8xl hero-find-text">Find</span> <br />
-            <span className="font-sans hero-text-two">Your Modern House</span>
+          <h1 className="text-5xl md:text-7xl font-light leading-tight text-foreground">
+            <span className="font-display italic font-medium text-accent text-6xl md:text-8xl hero-find-text">Find</span> <br />
+            <span className="font-display hero-text-two">Your Modern House</span>
           </h1>
         </div>
         {/* Right: Description and stats */}
         <div className="flex-1 flex flex-col gap-8 hero-right-content">
-          <p className="text-lg md:text-xl text-gray-600 mb-4">
+          <p className="text-lg md:text-xl text-muted-foreground mb-4">
             Experience a seamless real estate journey using VR tailored to your unique needs, where every home search leads to a place that was made specifically just for you.
           </p>
           <div className="flex gap-12">
             <div>
-              <div className="text-3xl md:text-4xl font-bold">1,000+</div>
-              <div className="text-gray-500 text-base">Target House Listings</div>
+              <div className="text-3xl md:text-4xl font-display font-medium text-foreground">1,000+</div>
+              <div className="text-muted-foreground text-base">Target House Listings</div>
             </div>
-            <div className="border-l border-gray-300 h-12 mx-4"></div>
+            <div className="border-l border-border h-12 mx-4"></div>
             <div>
-              <div className="text-3xl md:text-4xl font-bold">98%</div>
-              <div className="text-gray-500 text-base">Target Customer Satisfaction</div>
+              <div className="text-3xl md:text-4xl font-display font-medium text-foreground">98%</div>
+              <div className="text-muted-foreground text-base">Target Customer Satisfaction</div>
             </div>
           </div>
         </div>
@@ -227,9 +227,9 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           <div className="relative w-full h-96 md:h-[500px] lg:h-[600px] rounded-2xl shadow-md overflow-hidden">
             {/* Loading spinner */}
             {isVideoLoading && (
-              <div className="absolute inset-0 bg-gray-200 flex items-center justify-center z-10">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
-                <span className="ml-3 text-gray-600">Loading video...</span>
+              <div className="absolute inset-0 bg-muted flex items-center justify-center z-10">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+                <span className="ml-3 text-muted-foreground">Loading video...</span>
               </div>
             )}
             
@@ -283,9 +283,9 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
         )}
         
         {/* Play/Pause button overlay - always show in top right */}
-        <button 
+        <button
           onClick={handlePlayPause}
-          className="absolute top-4 right-4 bg-white rounded-full p-3 shadow-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+          className="absolute top-4 right-4 bg-card rounded-full p-3 shadow-lg border border-border hover:bg-secondary transition-colors"
         >
           {isVideoPlaying ? (
             // Pause icon
@@ -303,9 +303,9 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
         
         {/* Search bar - hidden on mobile */}
         {!isMobile && (
-          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-[95%] bg-white rounded-full shadow-lg flex flex-wrap md:flex-nowrap items-center px-4 py-2 gap-2 md:gap-4">
-          <select 
-            className="flex-1 min-w-[120px] bg-transparent px-4 py-2 rounded-full border border-gray-200 focus:outline-none focus:border-black transition-colors"
+          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-[95%] bg-card rounded-full shadow-lg flex flex-wrap md:flex-nowrap items-center px-4 py-2 gap-2 md:gap-4">
+          <select
+            className="flex-1 min-w-[120px] bg-transparent px-4 py-2 rounded-full border border-border text-foreground focus:outline-none focus:border-accent transition-colors"
             value={searchFilters.location}
             onChange={(e) => handleFilterChange('location', e.target.value)}
           >
@@ -315,8 +315,8 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
               </option>
             ))}
           </select>
-          <select 
-            className="flex-1 min-w-[120px] bg-transparent px-4 py-2 rounded-full border border-gray-200 focus:outline-none focus:border-black transition-colors"
+          <select
+            className="flex-1 min-w-[120px] bg-transparent px-4 py-2 rounded-full border border-border text-foreground focus:outline-none focus:border-accent transition-colors"
             value={searchFilters.propertyType}
             onChange={(e) => handleFilterChange('propertyType', e.target.value)}
           >
@@ -326,8 +326,8 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
               </option>
             ))}
           </select>
-          <select 
-            className="flex-1 min-w-[120px] bg-transparent px-4 py-2 rounded-full border border-gray-200 focus:outline-none focus:border-black transition-colors"
+          <select
+            className="flex-1 min-w-[120px] bg-transparent px-4 py-2 rounded-full border border-border text-foreground focus:outline-none focus:border-accent transition-colors"
             value={searchFilters.priceRange}
             onChange={(e) => handleFilterChange('priceRange', e.target.value)}
           >
@@ -337,8 +337,8 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
               </option>
             ))}
           </select>
-          <select 
-            className="flex-1 min-w-[120px] bg-transparent px-4 py-2 rounded-full border border-gray-200 focus:outline-none focus:border-black transition-colors"
+          <select
+            className="flex-1 min-w-[120px] bg-transparent px-4 py-2 rounded-full border border-border text-foreground focus:outline-none focus:border-accent transition-colors"
             value={searchFilters.bedrooms}
             onChange={(e) => handleFilterChange('bedrooms', e.target.value)}
           >
@@ -348,8 +348,8 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
               </option>
             ))}
           </select>
-          <select 
-            className="flex-1 min-w-[120px] bg-transparent px-4 py-2 rounded-full border border-gray-200 focus:outline-none focus:border-black transition-colors"
+          <select
+            className="flex-1 min-w-[120px] bg-transparent px-4 py-2 rounded-full border border-border text-foreground focus:outline-none focus:border-accent transition-colors"
             value={searchFilters.bathrooms}
             onChange={(e) => handleFilterChange('bathrooms', e.target.value)}
           >
@@ -359,8 +359,8 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
               </option>
             ))}
           </select>
-          <button 
-            className="bg-black text-white rounded-full px-8 py-2 font-semibold text-lg hover:bg-gray-800 transition"
+          <button
+            className="bg-accent text-accent-foreground rounded-full px-8 py-2 font-semibold text-lg hover:bg-accent/90 transition"
             onClick={handleSearch}
           >
             Search

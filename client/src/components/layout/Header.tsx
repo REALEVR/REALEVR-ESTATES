@@ -45,7 +45,7 @@ export default function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-light">
+    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
       <div className="container mx-auto px-6 py-4 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center">
@@ -59,11 +59,11 @@ export default function Header() {
             <Input
               type="text"
               placeholder="Search for virtual tours by location or property type"
-              className="w-full py-2 pl-10 pr-4 border border-gray-200 rounded-full text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#FF5A5F] focus:border-transparent"
+              className="w-full py-2 pl-10 pr-4 border border-border bg-card rounded-full text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-            <i className="fas fa-search absolute left-3 top-3 text-gray-500"></i>
+            <i className="fas fa-search absolute left-3 top-3 text-muted-foreground"></i>
           </form>
         </div>
 
@@ -85,29 +85,29 @@ export default function Header() {
           )} */}
 
           {user && (
-            <span className="hidden md:block text-gray-800 font-medium">
-              {user.role === "agent" && user.subscriptionStatus === "active" 
+            <span className="hidden md:block text-foreground font-medium">
+              {user.role === "agent" && user.subscriptionStatus === "active"
                 ? `${user.membershipPlan ? user.membershipPlan.charAt(0).toUpperCase() + user.membershipPlan.slice(1) : 'Professional'} Agent`
-                : user.membershipPlan 
+                : user.membershipPlan
                   ? `${user.membershipPlan.charAt(0).toUpperCase() + user.membershipPlan.slice(1)} Plan`
-                  : user.role === "admin" 
+                  : user.role === "admin"
                     ? "Admin"
                     : "Basic Plan"
               }
             </span>
           )}
 
-          <Button variant="ghost" size="icon" className="hidden md:flex rounded-full p-2 hover:bg-gray-100">
-            <i className="fas fa-globe text-gray-800"></i>
+          <Button variant="ghost" size="icon" className="hidden md:flex rounded-full p-2 hover:bg-secondary">
+            <i className="fas fa-globe text-foreground"></i>
           </Button>
 
           <NotificationCenter />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex items-center border border-gray-200 rounded-full p-2 hover:shadow-md">
-                <i className="fas fa-bars text-gray-800 mx-2"></i>
-                <i className="fas fa-user-circle text-gray-500 text-2xl"></i>
+              <Button variant="outline" className="flex items-center border border-border rounded-full p-2 hover:shadow-md hover:border-accent/40 transition-colors">
+                <i className="fas fa-bars text-foreground mx-2"></i>
+                <i className="fas fa-user-circle text-muted-foreground text-2xl"></i>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -231,11 +231,11 @@ export default function Header() {
           <Input
             type="text"
             placeholder="Search properties"
-            className="w-full py-2 pl-10 pr-4 border border-gray-200 rounded-full text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#FF5A5F] focus:border-transparent"
+            className="w-full py-2 pl-10 pr-4 border border-border bg-card rounded-full text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <i className="fas fa-search absolute left-3 top-3 text-gray-500"></i>
+          <i className="fas fa-search absolute left-3 top-3 text-muted-foreground"></i>
         </form>
       </div>
     </header>

@@ -87,25 +87,25 @@ export default function Home() {
             <Hero videoUrl={heroVideoUrl} />
 
             {/* Agent Registration Call-to-Action */}
-            <section className="py-16 bg-gradient-to-r from-blue-50 to-indigo-50 -mx-4 sm:-mx-6 lg:-mx-8">
+            <section className="py-16 bg-gradient-to-r from-accent/10 via-secondary to-accent/10 -mx-4 sm:-mx-6 lg:-mx-8">
                 <div className="container mx-auto px-6">
                     <div className="max-w-4xl mx-auto text-center">
-                        <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                            Become a dotCom brocker today!
+                        <h2 className="text-3xl md:text-4xl font-display font-medium text-foreground mb-4">
+                            Become a RealEVR broker today
                         </h2>
-                        <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+                        <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
                             Join RealEVR Estates as a professional agent/dotcom and start listing properties with
                             virtual tours. Get access to premium features and reach more clients.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
                             <Button
                                 asChild
-                                className="bg-black hover:bg-gray-800 text-white px-8 py-3 text-lg font-semibold"
+                                className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 text-lg font-semibold"
                             >
                                 <Link href="/agent/register">Become an Agent</Link>
                             </Button>
-                            {/* <Button 
-                variant="outline" 
+                            {/* <Button
+                variant="outline"
                 className="border-black text-black hover:bg-black hover:text-white px-8 py-3 text-lg font-semibold"
               >
                 Learn More
@@ -124,11 +124,11 @@ export default function Home() {
             <section className="py-10">
                 <div className="container mx-auto px-6">
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl md:text-3xl font-bold">Browse Properties</h2>
+                        <h2 className="text-2xl md:text-3xl font-display font-medium text-foreground">Browse Properties</h2>
                         <div className="flex items-center">
-                            <span className="text-gray-500 mr-2">Sort by:</span>
+                            <span className="text-muted-foreground mr-2">Sort by:</span>
                             <Select defaultValue="recommended">
-                                <SelectTrigger className="border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#FF5A5F]">
+                                <SelectTrigger className="border border-border rounded-lg px-3 py-2 bg-card focus:outline-none focus:ring-2 focus:ring-accent">
                                     <SelectValue placeholder="Sort by" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -146,16 +146,16 @@ export default function Home() {
                             {[...Array(8)].map((_, index) => (
                                 <div
                                     key={index}
-                                    className="bg-white rounded-xl overflow-hidden shadow-md animate-pulse"
+                                    className="bg-card rounded-xl overflow-hidden shadow-md animate-pulse"
                                 >
-                                    <div className="h-52 bg-gray-200"></div>
+                                    <div className="h-52 bg-muted"></div>
                                     <div className="p-4">
-                                        <div className="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
-                                        <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                                        <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+                                        <div className="h-5 bg-muted rounded w-3/4 mb-2"></div>
+                                        <div className="h-4 bg-muted rounded w-1/2 mb-2"></div>
+                                        <div className="h-4 bg-muted rounded w-3/4 mb-4"></div>
                                         <div className="flex justify-between">
-                                            <div className="h-6 bg-gray-200 rounded w-1/4"></div>
-                                            <div className="h-6 bg-gray-200 rounded w-1/4"></div>
+                                            <div className="h-6 bg-muted rounded w-1/4"></div>
+                                            <div className="h-6 bg-muted rounded w-1/4"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -180,7 +180,7 @@ export default function Home() {
                                     <TabsContent value={category} key={category}>
                                         {categoryProperties.length === 0 ? (
                                             <div className="text-center py-8">
-                                                <p className="text-gray-500">No properties found in this category.</p>
+                                                <p className="text-muted-foreground">No properties found in this category.</p>
                                             </div>
                                         ) : (
                                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -196,7 +196,7 @@ export default function Home() {
                             <div className="mt-12 text-center">
                                 <Button
                                     variant="outline"
-                                    className="px-6 py-3 bg-white border border-gray-200 rounded-lg font-medium hover:bg-gray-50"
+                                    className="px-6 py-3 bg-card border border-border rounded-lg font-medium hover:bg-secondary"
                                 >
                                     Load More Properties
                                 </Button>
