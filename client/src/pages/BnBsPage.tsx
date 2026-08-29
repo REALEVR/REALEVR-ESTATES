@@ -9,6 +9,7 @@ import { useLocation } from "wouter";
 import type { Property } from "@shared/schema";
 import { PageSeo } from "@/components/seo/PageSeo";
 import { getSiteUrl } from "@/lib/siteUrl";
+import { CATEGORY_PAGE_META } from "@shared/seo";
 
 export default function BnBsPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -27,10 +28,9 @@ export default function BnBsPage() {
     return {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
-      name: "BnBs & Vacation Rentals | RealEVR Estates",
-      description:
-        "Furnished short-term stays and vacation rentals with virtual tours. Filter by area and price.",
-      url: `${site}/bnbs`,
+      name: CATEGORY_PAGE_META.bnbs.title,
+      description: CATEGORY_PAGE_META.bnbs.description,
+      url: `${site}${CATEGORY_PAGE_META.bnbs.path}`,
     };
   }, []);
 
@@ -90,9 +90,9 @@ export default function BnBsPage() {
   return (
     <div className="py-8">
       <PageSeo
-        title="BnBs & Vacation Rentals | RealEVR Estates"
-        description="Browse furnished BnBs and short-term rentals with virtual tours. Search by area, price, and amenities on RealEVR Estates."
-        canonicalPath="/bnbs"
+        title={CATEGORY_PAGE_META.bnbs.title}
+        description={CATEGORY_PAGE_META.bnbs.description}
+        canonicalPath={CATEGORY_PAGE_META.bnbs.path}
         jsonLd={bnbsJsonLd}
       />
       <div className="container mx-auto px-6">

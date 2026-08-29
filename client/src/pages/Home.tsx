@@ -17,6 +17,7 @@ import { useProperties } from '@/hooks/usePropertyData'
 import type { Property } from '@shared/schema'
 import { PageSeo } from '@/components/seo/PageSeo'
 import { getSiteUrl } from '@/lib/siteUrl'
+import { CATEGORY_PAGE_META, SITE_NAME } from '@shared/seo'
 
 // Property category labels for display
 const categoryLabels = {
@@ -56,14 +57,23 @@ export default function Home() {
 
     const homeJsonLd = useMemo(() => {
         const site = getSiteUrl()
-        return {
-            '@context': 'https://schema.org',
-            '@type': 'WebSite',
-            name: 'RealEVR Estates',
-            url: `${site}/`,
-            description:
-                'Browse rental units, furnished BnBs, homes for sale, and bank auction properties with immersive virtual tours on RealEVR Estates.',
-        }
+        return [
+            {
+                '@context': 'https://schema.org',
+                '@type': 'WebSite',
+                name: SITE_NAME,
+                url: `${site}/`,
+                description: CATEGORY_PAGE_META.home.description,
+            },
+            {
+                '@context': 'https://schema.org',
+                '@type': 'Organization',
+                name: SITE_NAME,
+                url: `${site}/`,
+                logo: `${site}/favicon.png`,
+                areaServed: 'UG',
+            },
+        ]
     }, [])
 
     // Group properties by category, filtering out those with no name/title
@@ -79,8 +89,8 @@ export default function Home() {
     return (
         <>
             <PageSeo
-                title="RealEVR Estates | Virtual Tours for Rentals, BnBs, For Sale & Bank Properties"
-                description="Discover rental units, vacation BnBs, properties for sale, and bank sales with virtual tours. Search by location, price, and amenities on RealEVR Estates."
+                title={CATEGORY_PAGE_META.home.title}
+                description={CATEGORY_PAGE_META.home.description}
                 canonicalPath="/"
                 jsonLd={homeJsonLd}
             />

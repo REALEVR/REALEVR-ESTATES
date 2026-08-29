@@ -23,6 +23,7 @@ import {
     getStaticSitemapEntries,
     propertyToSitemapEntry,
 } from './sitemap'
+import { registerSocialPreviewRoutes } from './social-preview'
 import notificationRoutes from './routes/notifications'
 import { runDepositReminders, runViewingReminders } from './cron/index'
 
@@ -150,6 +151,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.setHeader('Cache-Control', 'public, max-age=86400')
         res.send(buildRobotsTxt(base))
     })
+
+    // Server-rendered Open Graph/Twitter/JSON-LD tags for link-preview bots
+    // (WhatsApp, Facebook, Twitter/X, LinkedIn, Telegram, Slack, Discord, iMessage)
+    // that don't execute the SPA's JavaScript. No-ops for everyone else. See
+    // server/social-preview.ts for why this exists.
+    registerSocialPreviewRoutes(app, storage)
 
     // Apply no-cache middleware to all API routes
     app.use('/api', noCacheMiddleware)

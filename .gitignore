@@ -19,6 +19,11 @@ attached_assets/
 *.mov
 *.avi
 
+# Default social share image (Open Graph/Twitter Card fallback) — a checked-in
+# static asset, not user-uploaded media; see client/public/og-default.jpg and
+# server/social-preview.ts.
+!client/public/og-default.jpg
+
 # Tour configurations (persist across deployments)
 tour-configs.json
 

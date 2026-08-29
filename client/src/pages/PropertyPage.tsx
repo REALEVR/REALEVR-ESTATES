@@ -8,6 +8,7 @@ import { queryClient } from "@/lib/queryClient";
 import type { Property } from "@shared/schema";
 import { PageSeo } from "@/components/seo/PageSeo";
 import {
+  absolutePropertyImageUrl,
   buildPropertyJsonLd,
   buildPropertyMetaDescription,
   buildPropertyPageTitle,
@@ -89,6 +90,7 @@ export default function PropertyPage() {
     return {
       title: buildPropertyPageTitle(p),
       description: buildPropertyMetaDescription(p),
+      image: absolutePropertyImageUrl(p) || undefined,
       jsonLd: buildPropertyJsonLd(p, propertyPath),
     };
   }, [property, propertyPath]);
@@ -142,6 +144,8 @@ export default function PropertyPage() {
           title={propertySeo.title}
           description={propertySeo.description}
           canonicalPath={propertyPath}
+          image={propertySeo.image}
+          imageAlt={(property as Property).title}
           jsonLd={propertySeo.jsonLd}
         />
       ) : null}
