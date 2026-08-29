@@ -42,6 +42,7 @@ import IoTecGateway, { IoTecGatewayLight } from './components/payment/io-tech/la
 import { useEffect, useState } from 'react'
 import { paymentEmitter } from './lib/iotec-paymentpatch'
 import IotechMetricCounterPaymentHandle from './components/payment/sio-iotech'
+import AgentLauncher from './components/agent/AgentLauncher'
 
 function Router() {
     return (
@@ -153,6 +154,7 @@ function App() {
                             )}
                             <Footer />
                         </div>
+                        <AgentLauncher />
                         <ScrollToTop />
                         <Toaster />
                     </TooltipProvider>

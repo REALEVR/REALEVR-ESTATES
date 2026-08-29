@@ -5,6 +5,8 @@ import PropertyDetails from "@/components/property/PropertyDetails";
 import { Button } from "@/components/ui/button";
 import { useProperty, trackPropertyView } from "@/hooks/usePropertyData";
 import { queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
+import { logAgentSignal } from "@/hooks/useAgent";
 import type { Property } from "@shared/schema";
 import { PageSeo } from "@/components/seo/PageSeo";
 import {
@@ -18,6 +20,7 @@ export default function PropertyPage() {
   const [, params] = useRoute<{ id: string }>("/property/:id");
   const propertyId = params?.id ? parseInt(params.id) : 0;
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const { user } = useAuth();
 
   // Force refetch on mount to ensure fresh data
   useEffect(() => {
@@ -77,8 +80,14 @@ export default function PropertyPage() {
         }
       };
       recordUserTour();
+
+      // Log this view for the user's personal agent (signed-in users only;
+      // best-effort, never blocks or throws — see hooks/useAgent.ts).
+      if (user) {
+        logAgentSignal(propertyId, "viewed");
+      }
     }
-  }, [propertyId]);
+  }, [propertyId, user]);
   
   const { data: property, isLoading, error } = useProperty(propertyId);
 
