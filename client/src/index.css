@@ -5,7 +5,9 @@
 /*
  * RealEVR Estates — "warm luxury minimal" theme.
  * Warm cream/charcoal neutrals with a single confident terracotta accent,
- * paired with a display serif (Fraunces) for headlines and Inter for UI/body.
+ * paired with a display serif (Fraunces) for headlines and Montserrat for
+ * UI/body — a geometric sans that keeps things modern and highly legible
+ * while Fraunces still carries the brand's warmth in headlines.
  */
 :root {
   --background: 32 38% 97%;      /* warm cream */

@@ -4,6 +4,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Hero from '@/components/home/Hero'
+import MotionBackground from '@/components/motion/MotionBackground'
+import Reveal from '@/components/motion/Reveal'
 import FilterBar from '@/components/home/FilterBar'
 import FeaturedTour from '@/components/home/FeaturedTour'
 import FeaturedProperties from '@/components/home/FeaturedProperties'
@@ -97,8 +99,9 @@ export default function Home() {
             <Hero videoUrl={heroVideoUrl} />
 
             {/* Agent Registration Call-to-Action */}
-            <section className="py-16 bg-gradient-to-r from-accent/10 via-secondary to-accent/10 -mx-4 sm:-mx-6 lg:-mx-8">
-                <div className="container mx-auto px-6">
+            <section className="relative overflow-hidden py-16 bg-gradient-to-r from-accent/10 via-secondary to-accent/10 -mx-4 sm:-mx-6 lg:-mx-8">
+                <MotionBackground tone="warm" />
+                <div className="relative z-10 container mx-auto px-6">
                     <div className="max-w-4xl mx-auto text-center">
                         <h2 className="text-3xl md:text-4xl font-display font-medium text-foreground mb-4">
                             Become a RealEVR broker today
@@ -114,24 +117,25 @@ export default function Home() {
                             >
                                 <Link href="/agent/register">Become an Agent</Link>
                             </Button>
-                            {/* <Button
-                variant="outline"
-                className="border-black text-black hover:bg-black hover:text-white px-8 py-3 text-lg font-semibold"
-              >
-                Learn More
-              </Button> */}
+                            <Button
+                                asChild
+                                variant="outline"
+                                className="border-accent text-accent hover:bg-accent hover:text-accent-foreground px-8 py-3 text-lg font-semibold"
+                            >
+                                <Link href="/list-your-property">List a Property — 1,000 UGX</Link>
+                            </Button>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <FeaturedTour />
-            <FeaturedProperties />
-            <PopularProperties />
-            <RecentProperties />
+            <Reveal><FeaturedTour /></Reveal>
+            <Reveal><FeaturedProperties /></Reveal>
+            <Reveal><PopularProperties /></Reveal>
+            <Reveal><RecentProperties /></Reveal>
 
             {/* Property Listings */}
-            <section className="py-10">
+            <Reveal><section className="py-10">
                 <div className="container mx-auto px-6">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-2xl md:text-3xl font-display font-medium text-foreground">Browse Properties</h2>
@@ -214,11 +218,11 @@ export default function Home() {
                         </>
                     )}
                 </div>
-            </section>
+            </section></Reveal>
 
-            <AmenitiesHighlight />
-            <HowItWorks />
-            <DownloadApp />
+            <Reveal><AmenitiesHighlight /></Reveal>
+            <Reveal><HowItWorks /></Reveal>
+            <Reveal><DownloadApp /></Reveal>
         </>
     )
 }

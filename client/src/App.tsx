@@ -1,4 +1,5 @@
 import { Switch, Route } from 'wouter'
+import { MotionConfig } from 'framer-motion'
 import { queryClient } from './lib/queryClient'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from '@/components/ui/toaster'
@@ -43,6 +44,7 @@ import { useEffect, useState } from 'react'
 import { paymentEmitter } from './lib/iotec-paymentpatch'
 import IotechMetricCounterPaymentHandle from './components/payment/sio-iotech'
 import AgentLauncher from './components/agent/AgentLauncher'
+import ListYourPropertyPage from '@/pages/ListYourPropertyPage'
 
 function Router() {
     return (
@@ -75,6 +77,7 @@ function Router() {
             <Route path="/test-page" component={TestPage} />
             <Route path="/agent/register" component={AgentRegistrationPage} />
             <Route path="/agent/dashboard" component={AgentDashboard} />
+            <Route path="/list-your-property" component={ListYourPropertyPage} />
 
             <Route path="/dashboard" component={UserDashboard} />
 
@@ -133,33 +136,40 @@ function App() {
 
     return (
         <QueryClientProvider client={queryClient}>
-            <AuthProvider>
-                <PaymentProvider>
-                    <TooltipProvider>
-                        <div className="flex flex-col min-h-screen">
-                            <Header />
-                            <main className="flex-grow px-4 sm:px-6 lg:px-8">
-                                <AnimatedLayout>
-                                    <Router />
-                                </AnimatedLayout>
-                            </main>
-                            {/* <IotechMetricCounterPaymentHandle/> */}
-                            {gateway && (
-                                <IoTecGatewayLight
-                                    source={gateway.source}
-                                    accessToken={gateway.accessToken}
-                                    amount={gateway.amount}
-                                    onClose={() => setGateway(null)}
-                                />
-                            )}
-                            <Footer />
-                        </div>
-                        <AgentLauncher />
-                        <ScrollToTop />
-                        <Toaster />
-                    </TooltipProvider>
-                </PaymentProvider>
-            </AuthProvider>
+            {/* reducedMotion="user": every framer-motion animation in the app
+                (existing components and the new motion/ primitives alike)
+                automatically disables transform/scale animation for anyone
+                with the OS "reduce motion" setting on — one place to get this
+                right instead of every component checking it individually. */}
+            <MotionConfig reducedMotion="user">
+                <AuthProvider>
+                    <PaymentProvider>
+                        <TooltipProvider>
+                            <div className="flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow px-4 sm:px-6 lg:px-8">
+                                    <AnimatedLayout>
+                                        <Router />
+                                    </AnimatedLayout>
+                                </main>
+                                {/* <IotechMetricCounterPaymentHandle/> */}
+                                {gateway && (
+                                    <IoTecGatewayLight
+                                        source={gateway.source}
+                                        accessToken={gateway.accessToken}
+                                        amount={gateway.amount}
+                                        onClose={() => setGateway(null)}
+                                    />
+                                )}
+                                <Footer />
+                            </div>
+                            <AgentLauncher />
+                            <ScrollToTop />
+                            <Toaster />
+                        </TooltipProvider>
+                    </PaymentProvider>
+                </AuthProvider>
+            </MotionConfig>
         </QueryClientProvider>
     )
 }

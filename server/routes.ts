@@ -52,6 +52,8 @@ import { registerPersonalAgentRoutes } from './gene/personal-agent'
 import { registerReferralRewardsRoutes } from './gene/referral-rewards'
 import { registerWhatsappConciergeRoutes } from './gene/whatsapp-concierge'
 import { registerLandlordHubRoutes } from './gene/landlord-hub'
+import { registerMagicLoginRoutes } from './gene/magic-login'
+import { registerSelfServeListingRoutes } from './gene/self-serve-listing'
 
 // Middleware to check if user is an admin or property manager
 const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -81,8 +83,17 @@ const subscriptionMiddleware = (req: Request, res: Response, next: NextFunction)
         return next()
     }
 
+    // Self-serve landlords (server/gene/self-serve-listing.ts) pay a flat
+    // one-time per-listing fee, not a recurring subscription, so they will
+    // never have subscriptionStatus === 'active'. This one additive check
+    // lets that specific, honestly-tagged account type through without
+    // weakening the check for anyone else — an account only gets
+    // membershipPlan: 'self-serve' by going through that OTP-verified,
+    // paid flow, never by user input.
+    const isSelfServeAccount = user.membershipPlan === 'self-serve'
+
     // For agents, check subscription status
-    if (user.role === 'agent') {
+    if (user.role === 'agent' && !isSelfServeAccount) {
         if (user.subscriptionStatus !== 'active') {
             return res.status(403).json({
                 message: 'Subscription required. Please renew your agent subscription to access this feature.',
@@ -2371,6 +2382,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerReferralRewardsRoutes(app, adminMiddleware)
     registerWhatsappConciergeRoutes(app)
     registerLandlordHubRoutes(app)
+    registerMagicLoginRoutes(app)
+    registerSelfServeListingRoutes(app)
 
     // Admin endpoint to manually trigger reminders for testing
     app.post('/api/admin/test-reminders', adminMiddleware, async (_req: any, res: any) => {

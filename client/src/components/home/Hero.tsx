@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
+import { motion } from 'framer-motion';
 import "../Hero.css"
 
 import houseImg from '../../assets/images/hero.jpg';
 import FilterBar from './FilterBar';
+import MotionBackground from '@/components/motion/MotionBackground';
+import CountUp from '@/components/motion/CountUp';
 
 // Custom hook for mobile detection
 const useIsMobile = () => {
@@ -188,35 +191,50 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
   };
 
   return (
-    <section className='bg-background -mx-4 sm:-mx-6 lg:-mx-8'>
- <section className="w-full mdx_hero p-8 md:p-12 mt-6 flex flex-col gap-8 hero-video-wrapper  newHero">
+    <section className='relative bg-background -mx-4 sm:-mx-6 lg:-mx-8'>
+      <MotionBackground tone="accent" />
+ <section className="relative z-10 w-full mdx_hero p-8 md:p-12 mt-6 flex flex-col gap-8 hero-video-wrapper  newHero">
 
       {/* Main hero content */}
       <div className="flex flex-col md:flex-row md:items-center gap-8">
         {/* Left: Headline */}
-        <div className="flex-1 hero-left-content">
+        <motion.div
+          className="flex-1 hero-left-content"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        >
           <h1 className="text-5xl md:text-7xl font-light leading-tight text-foreground">
             <span className="font-display italic font-medium text-accent text-6xl md:text-8xl hero-find-text">Find</span> <br />
             <span className="font-display hero-text-two">Your Modern House</span>
           </h1>
-        </div>
+        </motion.div>
         {/* Right: Description and stats */}
-        <div className="flex-1 flex flex-col gap-8 hero-right-content">
+        <motion.div
+          className="flex-1 flex flex-col gap-8 hero-right-content"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+        >
           <p className="text-lg md:text-xl text-muted-foreground mb-4">
             Experience a seamless real estate journey using VR tailored to your unique needs, where every home search leads to a place that was made specifically just for you.
           </p>
           <div className="flex gap-12">
             <div>
-              <div className="text-3xl md:text-4xl font-display font-medium text-foreground">1,000+</div>
+              <div className="text-3xl md:text-4xl font-display font-medium text-foreground">
+                <CountUp value={1000} suffix="+" />
+              </div>
               <div className="text-muted-foreground text-base">Target House Listings</div>
             </div>
             <div className="border-l border-border h-12 mx-4"></div>
             <div>
-              <div className="text-3xl md:text-4xl font-display font-medium text-foreground">98%</div>
+              <div className="text-3xl md:text-4xl font-display font-medium text-foreground">
+                <CountUp value={98} suffix="%" />
+              </div>
               <div className="text-muted-foreground text-base">Target Customer Satisfaction</div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
        <FilterBar />
 
@@ -275,10 +293,14 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           </div>
         ) : (
           // Image content (fallback or default) - also larger
-          <img
+          <motion.img
             src={houseImg}
             alt="Modern house"
             className="w-full h-96 md:h-[500px] lg:h-[600px] object-cover rounded-2xl shadow-md"
+            initial={{ scale: 1.06, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            whileHover={{ scale: 1.02 }}
+            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
           />
         )}
         

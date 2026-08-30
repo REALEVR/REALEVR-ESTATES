@@ -216,6 +216,9 @@ export default function Header() {
                     <Link href="/agent/register">Become an Agent</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
+                    <Link href="/list-your-property">List a Property — 1,000 UGX</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
                     <Link href="/auth">Sign In</Link>
                   </DropdownMenuItem>
                 </>

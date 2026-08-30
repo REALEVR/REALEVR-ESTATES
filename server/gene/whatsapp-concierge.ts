@@ -10,6 +10,11 @@
  * internal agent group). This module is the first that handles INBOUND
  * WhatsApp messages from end users/landlords via the Cloud API webhook.
  *
+ * Also handles a linked landlord texting "dashboard" (or "login") to get a
+ * fresh passwordless magic-login link back — see ./magic-login.ts. This is
+ * how a self-serve landlord (server/gene/self-serve-listing.ts), who never
+ * set a password, gets back into their Agent Dashboard from WhatsApp alone.
+ *
  * Gated behind the same WHATSAPP_BUSINESS_TOKEN + WHATSAPP_PHONE_NUMBER_ID
  * env vars as whatsapp.ts (reuses its `sendWhatsAppMessage`), plus a new
  * WHATSAPP_VERIFY_TOKEN for the webhook handshake Meta requires. Absent
@@ -34,6 +39,7 @@ import type { Express, Request, Response } from 'express'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
 import { sendWhatsAppMessage } from './whatsapp'
+import { issueMagicLoginLink } from './magic-login'
 import {
     loadProfile,
     loadSignals,
@@ -69,19 +75,44 @@ export interface WhatsappMessageLog {
 const PHONE_SANITY_RE = /^\+?[0-9]{6,20}$/
 const INTEREST_KEYWORDS = ['interested', 'i want', 'i like', 'book', 'viewing', 'visit']
 const TOGGLE_COMMAND_RE = /^(available|unavailable|toggle)\s+(\d+)\s*$/i
+const DASHBOARD_COMMAND_RE = /^(dashboard|my dashboard|login|log me in)\s*$/i
 
 /**
  * Digits only, no leading '+' — this is the format WhatsApp's Cloud API
  * always sends inbound `from` numbers in, so every stored/looked-up phone
  * must be normalized to the same shape or linking silently never matches.
+ *
+ * Exported so other modules (self-serve-listing.ts) normalize identically.
  */
-function normalizePhone(raw: string): string {
+export function normalizePhone(raw: string): string {
     return raw.replace(/\D/g, '')
 }
 
-function findLinkByPhone(phone: string): WhatsappUserLink | undefined {
+export function findLinkByPhone(phone: string): WhatsappUserLink | undefined {
     const rows = readCollection<WhatsappUserLink>(LINK_COLLECTION)
     return rows.find((r) => r.phone === phone)
+}
+
+/**
+ * Create or update the WhatsApp link for a user — the same
+ * read-modify-write `/api/gene/whatsapp/link` already did inline, pulled out
+ * so self-serve-listing.ts's OTP-verified flow can reuse it instead of
+ * duplicating the collection logic. `phone` must already be normalized.
+ */
+export function linkPhoneToUser(userId: number, userName: string, phone: string): WhatsappUserLink {
+    const rows = readCollection<WhatsappUserLink>(LINK_COLLECTION)
+    const idx = rows.findIndex((r) => r.userId === userId)
+    const record: WhatsappUserLink = {
+        id: idx === -1 ? nextId(rows) : rows[idx].id,
+        userId,
+        userName,
+        phone,
+        linkedAt: nowIso(),
+    }
+    if (idx === -1) rows.push(record)
+    else rows[idx] = record
+    writeCollection(LINK_COLLECTION, rows)
+    return record
 }
 
 function logMessage(entry: Omit<WhatsappMessageLog, 'id' | 'createdAt'>): void {
@@ -144,6 +175,32 @@ async function tryHandleAvailabilityToggle(phone: string, text: string, link: Wh
     return true
 }
 
+/** Handles a linked landlord texting "dashboard" (or "login"/"log me in") —
+ * mints a fresh single-use magic-login link (see ./magic-login.ts) and
+ * texts it back, so a self-serve landlord who never set a password can
+ * always get back into their Agent Dashboard from WhatsApp alone. Returns
+ * true if the message was handled as this command. */
+async function tryHandleDashboardCommand(phone: string, text: string, link: WhatsappUserLink | undefined): Promise<boolean> {
+    if (!DASHBOARD_COMMAND_RE.test(text.trim())) return false
+
+    if (!link) {
+        await replyAndLog(
+            phone,
+            "This number isn't linked to a RealEVR account yet. If you've listed a property with us, link this number from your dashboard's WhatsApp card, or list a property at realevrestates.com/list-your-property to get one."
+        )
+        return true
+    }
+
+    const { url, expiresAt } = issueMagicLoginLink(link.userId)
+    const minutes = Math.round((new Date(expiresAt).getTime() - Date.now()) / 60000)
+    await replyAndLog(
+        phone,
+        `Here's your dashboard link (expires in ~${minutes} min, use it once): ${url}`,
+        link.userId
+    )
+    return true
+}
+
 /** The general concierge chat path — reuses the personal agent's real
  * scoring/recommendation logic when the phone is linked to a profile;
  * otherwise a lighter, generic reply from real listing data. */
@@ -198,6 +255,9 @@ async function handleConciergeChat(phone: string, text: string, link: WhatsappUs
 async function handleInboundText(phone: string, text: string): Promise<void> {
     const link = findLinkByPhone(phone)
     logMessage({ phone, direction: 'inbound', text, userId: link?.userId })
+
+    const handledAsDashboard = await tryHandleDashboardCommand(phone, text, link)
+    if (handledAsDashboard) return
 
     const handledAsToggle = await tryHandleAvailabilityToggle(phone, text, link)
     if (handledAsToggle) return
@@ -257,18 +317,7 @@ export function registerWhatsappConciergeRoutes(app: Express): void {
             const normalized = normalizePhone(phone.trim())
             const user = req.user as any
 
-            const rows = readCollection<WhatsappUserLink>(LINK_COLLECTION)
-            const idx = rows.findIndex((r) => r.userId === user.id)
-            const record: WhatsappUserLink = {
-                id: idx === -1 ? nextId(rows) : rows[idx].id,
-                userId: user.id,
-                userName: user.username ?? user.email ?? `user:${user.id}`,
-                phone: normalized,
-                linkedAt: nowIso(),
-            }
-            if (idx === -1) rows.push(record)
-            else rows[idx] = record
-            writeCollection(LINK_COLLECTION, rows)
+            linkPhoneToUser(user.id, user.username ?? user.email ?? `user:${user.id}`, normalized)
 
             res.json({ linked: true, phone: normalized })
         } catch (err) {

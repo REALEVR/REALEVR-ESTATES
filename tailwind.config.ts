@@ -6,7 +6,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["Montserrat", "ui-sans-serif", "system-ui", "sans-serif"],
         display: ["Fraunces", "Iowan Old Style", "Georgia", "serif"],
       },
       borderRadius: {
