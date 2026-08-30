@@ -87,6 +87,61 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<{ s
 }
 
 /**
+ * Sends a pre-approved WhatsApp message *template* rather than freeform
+ * text. The WhatsApp Cloud API only allows a business to message a number
+ * outside the 24-hour "customer service window" (i.e. the number hasn't
+ * messaged the business recently) using a template that's been approved in
+ * advance in Meta Business Manager — `sendWhatsAppMessage` above will be
+ * silently rejected by Meta's API for exactly this case. This is that path,
+ * used by server/gene/whatsapp-growth.ts's broadcast route when a
+ * `templateName` is supplied. Nothing in this codebase can create the
+ * template itself — that's a manual step in Meta Business Manager — this
+ * only sends against a template that already exists there.
+ */
+export async function sendWhatsAppTemplateMessage(
+    to: string,
+    templateName: string,
+    languageCode: string = 'en_US',
+    bodyParams: string[] = []
+): Promise<{ sent: boolean; reason?: string }> {
+    const token = process.env.WHATSAPP_BUSINESS_TOKEN
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
+
+    if (!token || !phoneNumberId) {
+        console.log(`[gene/whatsapp] WhatsApp not configured — would have sent template "${templateName}" to ${to}`)
+        return { sent: false, reason: 'WhatsApp credentials not configured — see docs/GENE_PLATFORM.md' }
+    }
+
+    try {
+        const response = await fetch(`https://graph.facebook.com/v19.0/${phoneNumberId}/messages`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                messaging_product: 'whatsapp',
+                to,
+                type: 'template',
+                template: {
+                    name: templateName,
+                    language: { code: languageCode },
+                    ...(bodyParams.length
+                        ? { components: [{ type: 'body', parameters: bodyParams.map((text) => ({ type: 'text', text })) }] }
+                        : {}),
+                },
+            }),
+        })
+        if (!response.ok) {
+            const errText = await response.text().catch(() => '')
+            console.error(`[gene/whatsapp] template send failed (${response.status}): ${errText}`)
+            return { sent: false, reason: `WhatsApp API returned ${response.status} — is "${templateName}" an approved template in Meta Business Manager?` }
+        }
+        return { sent: true }
+    } catch (error: any) {
+        console.error('[gene/whatsapp] template send threw:', error)
+        return { sent: false, reason: error?.message ?? 'Unknown error sending WhatsApp template message' }
+    }
+}
+
+/**
  * Escalation trigger policy — pure function so any future caller (webhook,
  * batch job, etc.) can reuse the exact same rule Team 1's chat module
  * applies inline. Not wired into chat.ts by this module.

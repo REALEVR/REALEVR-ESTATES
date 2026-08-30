@@ -1,53 +1,65 @@
 /**
- * GENE Platform — self-serve paid listing intake.
+ * GENE Platform — agent-submitted property listings, paid as a referral fee.
  *
- * The "list it yourself" flow: a landlord/manager who has never touched
- * this platform fills in their property, uploads one cover photo, pays a
- * flat 1,000 UGX listing fee via mobile money (reusing the same IoTec
- * collections API already live in server/routes.ts for tour-viewing fees —
- * same env vars, same provider, called server-side here since this
- * payment is *server*-initiated rather than driven by a logged-in user's
- * browser), and verifies the phone number they gave us with a WhatsApp
- * OTP. On success we:
+ * FILENAME NOTE: this module started life as a "landlord pays to list"
+ * flow, hence the filename. The actual product ask (corrected mid-build) is
+ * the other way round: an AGENT (anyone — doesn't need an existing account)
+ * submits a property, the LANDLORD/MANAGER verifies it's real over a
+ * WhatsApp OTP sent to *their* number, and RealEVR then owes the AGENT a
+ * flat 1,000 UGX referral fee for the listing — pending admin approval.
+ * Kept the filename (and the /api/gene/self-serve/* route prefix, and the
+ * /list-your-property page path) to avoid an unnecessary cross-file rename;
+ * everything inside now reflects the real flow.
  *
- *   1. Auto-create (or reuse) an 'agent'-role account for that phone number
- *      — no password is ever set by the landlord; see ./magic-login.ts for
- *      how they actually get in.
- *   2. Auto-create the property, owned by that account.
- *   3. Link the phone number for WhatsApp (server/gene/whatsapp-concierge.ts)
- *      the same way an existing user linking from their profile would.
- *   4. Text them a one-tap link straight into their new Agent Dashboard,
- *      where the EXISTING guided tour-capture flow
- *      (server/room-capture.ts, already reachable by any 'agent'-role
- *      account) is how they actually add photos/a 360 tour afterwards —
- *      this module deliberately does not reimplement tour upload, only the
- *      "get a verified, paid, live listing + working account" part.
+ * THE FLOW:
+ *   1. Agent fills in the property + their own contact info (who gets paid)
+ *      and the landlord/manager's contact info (who must vouch for it).
+ *   2. Agent uploads one cover photo.
+ *   3. We text a 6-digit OTP to the LANDLORD's WhatsApp number — not the
+ *      agent's — asking them to confirm this agent has permission to list
+ *      their property. This is the actual verification step; nothing here
+ *      verifies the agent is who they say they are, only that a real
+ *      landlord/manager vouched for this specific listing.
+ *   4. On correct OTP: the property goes live immediately, owned by an
+ *      auto-created (or reused) 'agent'-role account for the AGENT's phone
+ *      number, and a 1,000 UGX payout request is created in
+ *      `gene_listing_payout_requests`, status `pending_admin_review`.
+ *   5. The two admin WhatsApp numbers (see ADMIN_WHATSAPP_NUMBERS below)
+ *      are notified immediately so approval doesn't require polling a
+ *      dashboard — see server/gene/admin-guard.ts for why approval itself
+ *      is a strict admin-only action, not the looser admin-or-agent check
+ *      most GENE routes use.
+ *   6. The agent gets a WhatsApp message with a magic-login link into their
+ *      new Agent Dashboard (server/gene/magic-login.ts, same as before) —
+ *      that's also where the EXISTING guided tour-capture flow
+ *      (server/room-capture.ts) lives, for adding photos/a 360 tour.
+ *   7. The landlord gets a short confirmation text too, naming the agent,
+ *      so they have a record of who they vouched for.
  *
- * ACCOUNT ACCESS NOTE: a self-serve account is tagged `membershipPlan:
- * 'self-serve'` (not an active paid *subscription* — that's a separate,
- * honest distinction) so it can be told apart from a real recurring-billing
- * agent membership. server/routes.ts's `subscriptionMiddleware` has one
- * small, additive, backward-compatible line letting this tag through
- * without requiring `subscriptionStatus === 'active'` — see the comment
- * there. Nothing about an existing subscriber's behavior changes.
+ * HONESTY NOTE — payouts: this module never claims to move real money on
+ * its own. A payout request is created `pending_admin_review` and only
+ * moves forward once a strict admin approves it via
+ * POST /api/gene/self-serve/payout-requests/:id/approve — and even then,
+ * same policy as server/gene/referral-rewards.ts and payments-core.ts, it
+ * becomes `approved_manual_payout_required` (not `paid`) because no live
+ * mobile-money *disbursement* credential exists in this environment (IoTec
+ * as integrated elsewhere in this codebase is a *collections* API — it
+ * takes money in, it doesn't send it out). A human sends the 1,000 UGX and
+ * marks it paid via .../mark-paid.
  *
- * UGANDA-SPECIFIC PHONE HANDLING: this product is Uganda-only today (UGX
- * everywhere, IoTec is a Uganda mobile-money aggregator, the existing
- * payment UI hardcodes MTN/Airtel prefixes) — see `ugandaDigitsCore()`
- * below for the one assumption this module adds: a 9-digit national number
- * under either a leading '0' (local) or '256' (international) prefix.
+ * HONESTY NOTE — verification: the WhatsApp OTP proves the person who
+ * received it controls that WhatsApp number, and that they were willing to
+ * type the code back in to confirm this specific listing. It does not
+ * cryptographically prove they are the legal owner/manager of the
+ * property — same trust model as most low-friction marketplace
+ * verification. Flagged here, not hidden.
  *
- * HONESTY NOTE: if IOTEC_CLIENT_ID/SECRET/WALLET_ID aren't configured, the
- * `/pay` step 501s with a clear message rather than pretending to charge
- * anyone. If WhatsApp isn't configured, the OTP and the final dashboard
- * link are returned directly in the API response (clearly flagged
- * `whatsappConfigured: false`) instead of silently vanishing — same
- * graceful-degrade policy as the rest of GENE.
+ * UGANDA-SPECIFIC PHONE HANDLING: unchanged from the original draft — see
+ * `ugandaDigitsCore()` below.
  *
  * Persistence: shared JSON-file collection store (see ./store.ts).
  */
 import type { Express, Request, Response } from 'express'
-import fetch from 'node-fetch'
 import { nanoid } from 'nanoid'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
@@ -55,23 +67,33 @@ import { hashPassword } from '../auth'
 import { sendWhatsAppMessage } from './whatsapp'
 import { normalizePhone, findLinkByPhone, linkPhoneToUser } from './whatsapp-concierge'
 import { issueMagicLoginLink } from './magic-login'
+import { requireStrictAdmin } from './admin-guard'
 import { randomBytes } from 'crypto'
 
 const COLLECTION = 'gene_selfserve_submissions'
-const FEE_AMOUNT_UGX = 1000
+const PAYOUT_COLLECTION = 'gene_listing_payout_requests'
+const PAYOUT_AMOUNT_UGX = 1000
 const OTP_LIFETIME_MS = 10 * 60 * 1000 // 10 minutes
 const OTP_RESEND_COOLDOWN_MS = 45 * 1000
 const MAX_OTP_ATTEMPTS = 5
-const MAX_PHOTOS = 1 // cover photo only — the real tour comes later via the dashboard
 const SELF_SERVE_CATEGORIES = new Set(['rental_units', 'furnished_houses', 'for_sale'])
 
-type SubmissionStatus =
-    | 'draft'
-    | 'awaiting_payment'
-    | 'payment_confirmed'
-    | 'otp_sent'
-    | 'live'
-    | 'expired'
+/**
+ * Who gets WhatsApp-notified for approval, and who's allowed to approve
+ * (that's enforced separately, by role==='admin', in requireStrictAdmin —
+ * this list is only about *notification*, not authorization). Overridable
+ * via ADMIN_WHATSAPP_NUMBERS (comma-separated) without a code change if the
+ * platform owner's numbers ever change.
+ */
+const DEFAULT_ADMIN_WHATSAPP_NUMBERS = ['256771891323', '256702742333']
+function getAdminWhatsappNumbers(): string[] {
+    const raw = process.env.ADMIN_WHATSAPP_NUMBERS
+    if (!raw) return DEFAULT_ADMIN_WHATSAPP_NUMBERS
+    const parsed = raw.split(',').map((n) => normalizePhone(n.trim())).filter(Boolean)
+    return parsed.length ? parsed : DEFAULT_ADMIN_WHATSAPP_NUMBERS
+}
+
+type SubmissionStatus = 'draft' | 'otp_sent' | 'live' | 'expired'
 
 interface PropertyDraft {
     title: string
@@ -91,23 +113,49 @@ interface SelfServeSubmission {
     token: string // caller must present this on every follow-up call — not guessable, not sequential
     status: SubmissionStatus
     draft: PropertyDraft
-    contactName: string
-    contactPhoneRaw: string // as typed, used for the IoTec `payer` field
-    contactPhoneWhatsapp: string // normalized 256XXXXXXXXX, used for WhatsApp + linking
-    contactEmail?: string
+
+    // The agent — submits the listing, gets paid.
+    agentName: string
+    agentPhoneWhatsapp: string // normalized 256XXXXXXXXX
+    agentEmail?: string
+    agentUserId?: number // set once we authenticated them as a logged-in session, if any
+
+    // The landlord/manager — verifies via OTP, gets nothing paid, gets a courtesy confirmation text.
+    landlordName: string
+    landlordPhoneWhatsapp: string // normalized 256XXXXXXXXX — this is where the OTP goes
+
     coverImageUrl?: string
-    feeAmount: number
-    feeCurrency: 'UGX'
-    paymentTransactionId?: string
-    paymentConfirmedAt?: string
+    payoutAmount: number
+    payoutCurrency: 'UGX'
     otpCode?: string
     otpExpiresAt?: string
     otpLastSentAt?: string
     otpAttempts: number
-    createdUserId?: number
+    createdUserId?: number // the agent's account id, once created
     createdPropertyId?: number
     createdAt: string
     updatedAt: string
+}
+
+export type ListingPayoutStatus = 'pending_admin_review' | 'approved_manual_payout_required' | 'paid' | 'rejected'
+
+export interface ListingPayoutRequest {
+    id: number
+    submissionId: number
+    agentUserId: number
+    propertyId: number
+    amountUgx: number
+    status: ListingPayoutStatus
+    // Denormalized for a readable admin list without joining three collections:
+    propertyTitle: string
+    agentName: string
+    agentPhone: string
+    landlordName: string
+    landlordPhone: string
+    createdAt: string
+    decidedAt?: string
+    decidedBy?: string
+    note?: string
 }
 
 function readSubmissions(): SelfServeSubmission[] {
@@ -128,26 +176,35 @@ function saveSubmission(updated: SelfServeSubmission): void {
     writeSubmissions(rows)
 }
 
-/** Public, safe-to-return view of a submission — never leaks the OTP code
- * or the payment transaction id. */
+function readPayouts(): ListingPayoutRequest[] {
+    return readCollection<ListingPayoutRequest>(PAYOUT_COLLECTION)
+}
+function writePayouts(rows: ListingPayoutRequest[]): void {
+    writeCollection(PAYOUT_COLLECTION, rows)
+}
+
+/** Public, safe-to-return view of a submission — never leaks the OTP code. */
 function toPublicView(s: SelfServeSubmission) {
     return {
         id: s.id,
         status: s.status,
         draft: s.draft,
         coverImageUrl: s.coverImageUrl ?? null,
-        feeAmount: s.feeAmount,
-        feeCurrency: s.feeCurrency,
+        payoutAmount: s.payoutAmount,
+        payoutCurrency: s.payoutCurrency,
+        landlordPhoneMasked: maskPhone(s.landlordPhoneWhatsapp),
         createdPropertyId: s.createdPropertyId ?? null,
     }
 }
 
+function maskPhone(phone: string): string {
+    return phone.length > 4 ? `${'•'.repeat(phone.length - 4)}${phone.slice(-4)}` : phone
+}
+
 // ---------------------------------------------------------------------------
-// Uganda phone handling — see file-top note.
+// Uganda phone handling — unchanged from the original draft.
 // ---------------------------------------------------------------------------
 
-/** Returns the 9-digit national core (no leading 0/256), or null if the
- * input doesn't look like a Uganda MSISDN. */
 function ugandaDigitsCore(raw: string): string | null {
     const digits = raw.replace(/\D/g, '')
     let core = digits
@@ -156,75 +213,9 @@ function ugandaDigitsCore(raw: string): string | null {
     if (!/^\d{9}$/.test(core)) return null
     return core
 }
-function toLocalUgandaFormat(raw: string): string | null {
-    const core = ugandaDigitsCore(raw)
-    return core ? `0${core}` : null
-}
 function toWhatsappFormat(raw: string): string | null {
     const core = ugandaDigitsCore(raw)
     return core ? `256${core}` : null
-}
-
-// ---------------------------------------------------------------------------
-// IoTec mobile-money collection — mirrors the exact contract already proven
-// live by client/src/components/payment/io-tech/layoutGate.tsx and
-// server/routes.ts's /api/payment/iotec/* endpoints (same env vars, same
-// upstream URLs, same request/response shapes), called server-side here.
-// ---------------------------------------------------------------------------
-
-async function getIotecAccessToken(): Promise<string | null> {
-    const clientId = process.env.IOTEC_CLIENT_ID
-    const clientSecret = process.env.IOTEC_CLIENT_SECRET
-    if (!clientId || !clientSecret) return null
-
-    const body = new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: 'client_credentials' })
-    const res = await fetch('https://id.iotec.io/connect/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body,
-    })
-    if (!res.ok) return null
-    const data = (await res.json()) as any
-    return data?.access_token ?? null
-}
-
-async function collectIotecPayment(
-    accessToken: string,
-    payerLocalPhone: string,
-    amount: number,
-    payerNote: string
-): Promise<{ transactionId: string } | { error: string }> {
-    const walletId = process.env.IOTEC_WALLET_ID
-    if (!walletId) return { error: 'IOTEC_WALLET_ID not configured' }
-
-    const res = await fetch('https://pay.iotec.io/api/collections/collect', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            category: 'MobileMoney',
-            currency: 'UGX',
-            walletId,
-            transactionChargesCategory: 'ChargeWallet',
-            channel: null,
-            externalId: `selfserve-${Date.now()}`,
-            payer: payerLocalPhone,
-            payerNote,
-            amount,
-        }),
-    })
-    const data = (await res.json()) as any
-    if (!res.ok || !data?.id) return { error: data?.message || data?.error || 'Collection request failed' }
-    return { transactionId: data.id }
-}
-
-async function checkIotecStatus(accessToken: string, transactionId: string): Promise<string | null> {
-    const res = await fetch(`https://pay.iotec.io/api/collections/status/${transactionId}`, {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    })
-    if (!res.ok) return null
-    const data = (await res.json()) as any
-    return data?.status ?? null
 }
 
 // ---------------------------------------------------------------------------
@@ -248,7 +239,7 @@ function validateDraft(body: any): { draft: PropertyDraft } | { error: string } 
     if (!description) return { error: 'A short description is required.' }
     if (!propertyType) return { error: 'Property type is required.' }
     if (!SELF_SERVE_CATEGORIES.has(category)) {
-        return { error: 'Category must be one of: rental_units, furnished_houses, for_sale. (Bank auction listings go through our team, not self-serve.)' }
+        return { error: 'Category must be one of: rental_units, furnished_houses, for_sale. (Bank auction listings go through our team.)' }
     }
     if (!Number.isFinite(price) || price <= 0) return { error: 'Price must be a positive number.' }
     if (!Number.isFinite(bedrooms) || bedrooms < 0) return { error: 'Bedrooms must be 0 or more.' }
@@ -263,22 +254,33 @@ function validateDraft(body: any): { draft: PropertyDraft } | { error: string } 
 // ---------------------------------------------------------------------------
 
 export function registerSelfServeListingRoutes(app: Express): void {
-    // Step 1 — start a submission with the property details + contact info.
+    // Step 1 — property details + agent contact + landlord/manager contact.
     app.post('/api/gene/self-serve/start', (req: Request, res: Response) => {
         try {
             const validated = validateDraft(req.body)
             if ('error' in validated) return res.status(400).json({ message: validated.error })
 
-            const contactName = String(req.body?.contactName ?? '').trim()
-            const contactPhoneRaw = String(req.body?.contactPhone ?? '').trim()
-            const contactEmail = typeof req.body?.contactEmail === 'string' ? req.body.contactEmail.trim() : undefined
+            const agentName = String(req.body?.agentName ?? '').trim()
+            const agentPhoneRaw = String(req.body?.agentPhone ?? '').trim()
+            const agentEmail = typeof req.body?.agentEmail === 'string' ? req.body.agentEmail.trim() : undefined
+            const landlordName = String(req.body?.landlordName ?? '').trim()
+            const landlordPhoneRaw = String(req.body?.landlordPhone ?? '').trim()
 
-            if (!contactName) return res.status(400).json({ message: 'Your name is required.' })
-            const whatsappPhone = toWhatsappFormat(contactPhoneRaw)
-            const localPhone = toLocalUgandaFormat(contactPhoneRaw)
-            if (!whatsappPhone || !localPhone) {
-                return res.status(400).json({ message: 'Enter a valid Uganda phone number, e.g. 0770000000 or 256770000000 — this is where we send your verification code.' })
+            if (!agentName) return res.status(400).json({ message: 'Your name is required.' })
+            const agentPhoneWhatsapp = toWhatsappFormat(agentPhoneRaw)
+            if (!agentPhoneWhatsapp) {
+                return res.status(400).json({ message: 'Enter a valid Uganda phone number for yourself, e.g. 0770000000 — this is where your payout confirmation and dashboard link go.' })
             }
+            if (!landlordName) return res.status(400).json({ message: "The landlord/manager's name is required." })
+            const landlordPhoneWhatsapp = toWhatsappFormat(landlordPhoneRaw)
+            if (!landlordPhoneWhatsapp) {
+                return res.status(400).json({ message: "Enter a valid Uganda phone number for the landlord/manager, e.g. 0770000000 — we'll text them a code to confirm this listing." })
+            }
+
+            // If the submitter is logged in, remember their account so we can
+            // credit the payout to it instead of auto-creating a duplicate —
+            // this is optional; an anonymous visitor can still submit.
+            const agentUserId = req.isAuthenticated?.() && req.user ? (req.user as any).id : undefined
 
             const rows = readSubmissions()
             const submission: SelfServeSubmission = {
@@ -286,18 +288,20 @@ export function registerSelfServeListingRoutes(app: Express): void {
                 token: nanoid(24),
                 status: 'draft',
                 draft: validated.draft,
-                contactName,
-                contactPhoneRaw: localPhone,
-                contactPhoneWhatsapp: whatsappPhone,
-                contactEmail: contactEmail || undefined,
-                feeAmount: FEE_AMOUNT_UGX,
-                feeCurrency: 'UGX',
+                agentName,
+                agentPhoneWhatsapp,
+                agentEmail: agentEmail || undefined,
+                agentUserId,
+                landlordName,
+                landlordPhoneWhatsapp,
+                payoutAmount: PAYOUT_AMOUNT_UGX,
+                payoutCurrency: 'UGX',
                 otpAttempts: 0,
                 createdAt: nowIso(),
                 updatedAt: nowIso(),
             }
             saveSubmission(submission)
-            res.status(201).json({ submissionId: submission.id, token: submission.token, feeAmount: FEE_AMOUNT_UGX, feeCurrency: 'UGX' })
+            res.status(201).json({ submissionId: submission.id, token: submission.token, payoutAmount: PAYOUT_AMOUNT_UGX, payoutCurrency: 'UGX' })
         } catch (err) {
             console.error('[gene/self-serve] start failed:', err)
             res.status(500).json({ message: 'Could not start your listing. Please try again.' })
@@ -305,10 +309,7 @@ export function registerSelfServeListingRoutes(app: Express): void {
     })
 
     // Step 2 — cover photo. Reuses the exact same multer+S3 upload chain the
-    // existing (auth-gated) /api/upload/property-image route uses, imported
-    // directly rather than duplicated — this route supplies its own gate
-    // (a valid submission token) instead of a login, since the landlord
-    // doesn't have an account yet at this point in the flow.
+    // existing (auth-gated) /api/upload/property-image route uses.
     app.post('/api/gene/self-serve/:id/cover-photo', async (req: Request, res: Response) => {
         const id = Number(req.params.id)
         const token = String(req.query.token ?? req.body?.token ?? '')
@@ -316,8 +317,6 @@ export function registerSelfServeListingRoutes(app: Express): void {
         if (!submission) return res.status(404).json({ message: 'Listing draft not found.' })
         if (submission.status !== 'draft') return res.status(409).json({ message: 'This listing has already moved past the photo step.' })
 
-        // Lazy import to avoid pulling multer/S3 wiring into every module
-        // that imports this file — only needed on this one route.
         const { uploadPropertyImage } = await import('../upload')
         uploadPropertyImage(req as any, res as any, (err: any) => {
             if (err) return res.status(400).json({ message: err.message || 'Upload failed.' })
@@ -330,81 +329,40 @@ export function registerSelfServeListingRoutes(app: Express): void {
         })
     })
 
-    // Step 3 — kick off the 1,000 UGX mobile-money collection.
-    app.post('/api/gene/self-serve/:id/pay', async (req: Request, res: Response) => {
+    // Step 3 — send the verification code to the LANDLORD's WhatsApp number.
+    app.post('/api/gene/self-serve/:id/send-verification', async (req: Request, res: Response) => {
         const id = Number(req.params.id)
         const token = String(req.body?.token ?? '')
         const submission = findByIdAndToken(id, token)
         if (!submission) return res.status(404).json({ message: 'Listing draft not found.' })
         if (submission.status !== 'draft') return res.status(409).json({ message: `This listing is already ${submission.status.replace('_', ' ')}.` })
-        if (!submission.coverImageUrl) return res.status(400).json({ message: 'Add a cover photo before paying.' })
+        if (!submission.coverImageUrl) return res.status(400).json({ message: 'Add a cover photo before requesting verification.' })
 
         try {
-            const accessToken = await getIotecAccessToken()
-            if (!accessToken) {
-                return res.status(501).json({
-                    configured: false,
-                    message: 'Mobile money payments are not configured yet. Please contact support to list your property manually in the meantime.',
-                })
-            }
-
-            const result = await collectIotecPayment(
-                accessToken,
-                submission.contactPhoneRaw,
-                submission.feeAmount,
-                `RealEVR listing fee — ${submission.draft.title}`.slice(0, 100)
-            )
-            if ('error' in result) return res.status(502).json({ message: `Payment request failed: ${result.error}` })
-
-            submission.paymentTransactionId = result.transactionId
-            submission.status = 'awaiting_payment'
-            saveSubmission(submission)
-            res.json({ status: 'awaiting_payment', message: 'Approve the mobile money prompt sent to your phone, then check status.' })
+            await sendOtp(submission)
+            res.json({ status: 'otp_sent', message: `We've texted a verification code to the landlord/manager's WhatsApp (ending ${submission.landlordPhoneWhatsapp.slice(-4)}).` })
         } catch (err) {
-            console.error('[gene/self-serve] pay failed:', err)
-            res.status(500).json({ message: 'Could not start the payment. Please try again.' })
+            console.error('[gene/self-serve] send-verification failed:', err)
+            res.status(500).json({ message: 'Could not send the verification code. Please try again.' })
         }
     })
 
-    // Step 4 — poll payment status; on success, sends (or re-sends) the OTP.
-    app.get('/api/gene/self-serve/:id/status', async (req: Request, res: Response) => {
+    // Poll status (e.g. after a page refresh).
+    app.get('/api/gene/self-serve/:id/status', (req: Request, res: Response) => {
         const id = Number(req.params.id)
         const token = String(req.query.token ?? '')
         const submission = findByIdAndToken(id, token)
         if (!submission) return res.status(404).json({ message: 'Listing draft not found.' })
 
-        try {
-            if (submission.status === 'awaiting_payment' && submission.paymentTransactionId) {
-                const accessToken = await getIotecAccessToken()
-                const iotecStatus = accessToken ? await checkIotecStatus(accessToken, submission.paymentTransactionId) : null
-
-                if (iotecStatus === 'Success') {
-                    submission.status = 'payment_confirmed'
-                    submission.paymentConfirmedAt = nowIso()
-                    saveSubmission(submission)
-                    await sendOtp(submission)
-                } else if (iotecStatus && ['Failed', 'RolledBack', 'Cancelled', 'Rejected'].includes(iotecStatus)) {
-                    submission.status = 'draft' // let them retry payment without re-entering everything
-                    submission.paymentTransactionId = undefined
-                    saveSubmission(submission)
-                    return res.json({ ...toPublicView(submission), paymentFailed: true, paymentDetail: iotecStatus })
-                }
-                // Pending/SentToVendor/AwaitingApproval/Scheduled — keep polling, no state change.
-            }
-
-            const whatsappConfigured = Boolean(process.env.WHATSAPP_BUSINESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID)
-            const payload: any = { ...toPublicView(submission), whatsappConfigured }
-            // Dev-mode fallback only: if WhatsApp isn't configured we can't
-            // actually deliver the OTP, so surface it in the response —
-            // clearly labeled, never silently pretended to have been sent.
-            if (!whatsappConfigured && submission.status === 'otp_sent' && submission.otpCode) {
-                payload.devOtpCode = submission.otpCode
-            }
-            res.json(payload)
-        } catch (err) {
-            console.error('[gene/self-serve] status check failed:', err)
-            res.status(500).json({ message: 'Could not check status. Please try again.' })
+        const whatsappConfigured = Boolean(process.env.WHATSAPP_BUSINESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID)
+        const payload: any = { ...toPublicView(submission), whatsappConfigured }
+        // Dev-mode fallback only: if WhatsApp isn't configured we can't
+        // actually deliver the OTP, so surface it — clearly labeled, never
+        // silently pretended to have been sent.
+        if (!whatsappConfigured && submission.status === 'otp_sent' && submission.otpCode) {
+            payload.devOtpCode = submission.otpCode
         }
+        res.json(payload)
     })
 
     // Resend OTP (cooldown-limited).
@@ -413,7 +371,7 @@ export function registerSelfServeListingRoutes(app: Express): void {
         const token = String(req.body?.token ?? '')
         const submission = findByIdAndToken(id, token)
         if (!submission) return res.status(404).json({ message: 'Listing draft not found.' })
-        if (submission.status !== 'otp_sent' && submission.status !== 'payment_confirmed') {
+        if (submission.status !== 'otp_sent') {
             return res.status(409).json({ message: 'No verification code to resend at this stage.' })
         }
         if (submission.otpLastSentAt && Date.now() - new Date(submission.otpLastSentAt).getTime() < OTP_RESEND_COOLDOWN_MS) {
@@ -424,7 +382,7 @@ export function registerSelfServeListingRoutes(app: Express): void {
         res.json({ sent: true, whatsappConfigured, devOtpCode: whatsappConfigured ? undefined : submission.otpCode })
     })
 
-    // Step 5 — verify the code, create the account + property, log them in.
+    // Step 4 — verify the code, go live, create the payout request.
     app.post('/api/gene/self-serve/:id/verify-otp', async (req: Request, res: Response) => {
         const id = Number(req.params.id)
         const token = String(req.body?.token ?? '')
@@ -446,7 +404,7 @@ export function registerSelfServeListingRoutes(app: Express): void {
         }
 
         try {
-            const { userId, isNewAccount } = await getOrCreateSelfServeUser(submission)
+            const { userId, isNewAccount } = await getOrCreateAgentUser(submission)
 
             const property = await storage.createProperty({
                 title: submission.draft.title,
@@ -469,7 +427,11 @@ export function registerSelfServeListingRoutes(app: Express): void {
                 amenities: submission.draft.amenities ?? [],
                 monthlyPrice: null,
                 isAvailable: true,
-                ownerContactInfo: submission.contactPhoneWhatsapp,
+                // The agent is the account managing this listing day-to-day
+                // (toggling availability, replying to inquiries) — the
+                // landlord's contact stays in this module's own records for
+                // verification/audit, not surfaced as the public contact.
+                ownerContactInfo: submission.agentPhoneWhatsapp,
                 ownerId: userId,
                 yearOfConstruction: null,
                 buildingAge: null,
@@ -489,33 +451,168 @@ export function registerSelfServeListingRoutes(app: Express): void {
             submission.createdPropertyId = property.id
             saveSubmission(submission)
 
+            const payoutRows = readPayouts()
+            const payout: ListingPayoutRequest = {
+                id: nextId(payoutRows),
+                submissionId: submission.id,
+                agentUserId: userId,
+                propertyId: property.id,
+                amountUgx: submission.payoutAmount,
+                status: 'pending_admin_review',
+                propertyTitle: property.title,
+                agentName: submission.agentName,
+                agentPhone: submission.agentPhoneWhatsapp,
+                landlordName: submission.landlordName,
+                landlordPhone: submission.landlordPhoneWhatsapp,
+                createdAt: nowIso(),
+            }
+            payoutRows.push(payout)
+            writePayouts(payoutRows)
+
             const { url } = issueMagicLoginLink(userId)
             const introLine = isNewAccount
                 ? `🎉 "${property.title}" is live on RealEVR Estates! We set up a landlord dashboard for you.`
                 : `🎉 "${property.title}" has been added to your RealEVR dashboard.`
-            const message = [
+            const agentMessage = [
                 introLine,
                 `Open it here to add photos or a virtual tour, see interested tenants, and manage availability: ${url}`,
+                `Your ${submission.payoutAmount} UGX listing referral fee is pending review by our team — you'll get a WhatsApp message once it's approved.`,
                 `You can also just text "dashboard" here anytime for a fresh link, or "available ${property.id}" / "unavailable ${property.id}" to toggle this listing.`,
             ].join('\n\n')
+            const agentSendResult = await sendWhatsAppMessage(submission.agentPhoneWhatsapp, agentMessage)
 
-            const sendResult = await sendWhatsAppMessage(submission.contactPhoneWhatsapp, message)
+            // Courtesy confirmation to the landlord — they now have a record
+            // of exactly who they vouched for.
+            await sendWhatsAppMessage(
+                submission.landlordPhoneWhatsapp,
+                `Thanks for confirming! "${property.title}" is now live on RealEVR Estates, listed by ${submission.agentName}. If you didn't authorize this, reply here or contact us at realevrestates.com/contact.`
+            )
+
+            notifyAdminsOfPendingPayout(payout).catch((err) =>
+                console.error('[gene/self-serve] admin payout notification failed:', err)
+            )
 
             res.json({
                 status: 'live',
                 propertyId: property.id,
-                whatsappConfigured: sendResult.sent,
-                // Only handed back in the API response when we couldn't actually
-                // deliver it over WhatsApp — never omitted silently.
-                dashboardUrl: sendResult.sent ? undefined : url,
+                payoutStatus: payout.status,
+                whatsappConfigured: agentSendResult.sent,
+                dashboardUrl: agentSendResult.sent ? undefined : url,
             })
         } catch (err) {
             console.error('[gene/self-serve] verify-otp / provisioning failed:', err)
-            res.status(500).json({ message: 'Verification succeeded but we hit an error setting up your listing. Please contact support with your phone number.' })
+            res.status(500).json({ message: 'Verification succeeded but we hit an error setting up your listing. Please contact support.' })
+        }
+    })
+
+    // -----------------------------------------------------------------------
+    // Admin payout approval — STRICT admin only (see admin-guard.ts).
+    //
+    // IMPORTANT — registered BEFORE the "rehydrate" GET /:id route below:
+    // Express matches routes in registration order, and ':id' matches any
+    // string including the literal "payout-requests". Registering these
+    // specific routes first is what lets them win instead of being
+    // swallowed by the ':id' wildcard (caught by this module's own smoke
+    // test — see docs/GENE_PLATFORM.md's verification notes).
+    // -----------------------------------------------------------------------
+
+    // GET /api/gene/self-serve/payout-requests — [STRICT ADMIN] optional ?status=
+    app.get('/api/gene/self-serve/payout-requests', requireStrictAdmin, (req: Request, res: Response) => {
+        try {
+            const status = typeof req.query.status === 'string' ? req.query.status : undefined
+            let rows = readPayouts()
+            if (status) rows = rows.filter((r) => r.status === status)
+            rows.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            res.json(rows)
+        } catch (err) {
+            console.error('[gene/self-serve] GET payout-requests failed:', err)
+            res.status(500).json({ message: 'Failed to load payout requests.' })
+        }
+    })
+
+    // POST /api/gene/self-serve/payout-requests/:id/approve — [STRICT ADMIN]
+    app.post('/api/gene/self-serve/payout-requests/:id/approve', requireStrictAdmin, (req: Request, res: Response) => {
+        try {
+            const rows = readPayouts()
+            const idx = rows.findIndex((r) => String(r.id) === req.params.id)
+            if (idx === -1) return res.status(404).json({ message: 'Payout request not found.' })
+            if (rows[idx].status !== 'pending_admin_review') {
+                return res.status(400).json({ message: `Cannot approve a request in status "${rows[idx].status}".` })
+            }
+            const decidedBy = (req.user as any)?.username ?? (req.user as any)?.email ?? 'unknown-admin'
+            rows[idx] = {
+                ...rows[idx],
+                // Same honesty policy as referral-rewards.ts: no live
+                // disbursement gateway exists, so approval means "cleared to
+                // pay", not "paid" — a human still sends the money.
+                status: 'approved_manual_payout_required',
+                decidedAt: nowIso(),
+                decidedBy,
+                note: 'Approved — send via mobile money manually, then mark as paid.',
+            }
+            writePayouts(rows)
+            notifyAgentOfDecision(rows[idx], 'approved').catch((err) =>
+                console.error('[gene/self-serve] agent approval notification failed:', err)
+            )
+            res.json(rows[idx])
+        } catch (err) {
+            console.error('[gene/self-serve] approve failed:', err)
+            res.status(500).json({ message: 'Failed to approve payout request.' })
+        }
+    })
+
+    // POST /api/gene/self-serve/payout-requests/:id/mark-paid — [STRICT ADMIN]
+    app.post('/api/gene/self-serve/payout-requests/:id/mark-paid', requireStrictAdmin, (req: Request, res: Response) => {
+        try {
+            const rows = readPayouts()
+            const idx = rows.findIndex((r) => String(r.id) === req.params.id)
+            if (idx === -1) return res.status(404).json({ message: 'Payout request not found.' })
+            if (rows[idx].status !== 'approved_manual_payout_required') {
+                return res.status(400).json({ message: `Cannot mark paid a request in status "${rows[idx].status}".` })
+            }
+            rows[idx] = { ...rows[idx], status: 'paid', decidedAt: nowIso() }
+            writePayouts(rows)
+            notifyAgentOfDecision(rows[idx], 'paid').catch((err) =>
+                console.error('[gene/self-serve] agent paid notification failed:', err)
+            )
+            res.json(rows[idx])
+        } catch (err) {
+            console.error('[gene/self-serve] mark-paid failed:', err)
+            res.status(500).json({ message: 'Failed to mark payout request as paid.' })
+        }
+    })
+
+    // POST /api/gene/self-serve/payout-requests/:id/reject — [STRICT ADMIN] { reason }
+    app.post('/api/gene/self-serve/payout-requests/:id/reject', requireStrictAdmin, (req: Request, res: Response) => {
+        try {
+            const rows = readPayouts()
+            const idx = rows.findIndex((r) => String(r.id) === req.params.id)
+            if (idx === -1) return res.status(404).json({ message: 'Payout request not found.' })
+            if (rows[idx].status !== 'pending_admin_review') {
+                return res.status(400).json({ message: `Cannot reject a request in status "${rows[idx].status}".` })
+            }
+            const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined
+            rows[idx] = {
+                ...rows[idx],
+                status: 'rejected',
+                decidedAt: nowIso(),
+                decidedBy: (req.user as any)?.username ?? (req.user as any)?.email ?? 'unknown-admin',
+                note: reason,
+            }
+            writePayouts(rows)
+            notifyAgentOfDecision(rows[idx], 'rejected').catch((err) =>
+                console.error('[gene/self-serve] agent rejection notification failed:', err)
+            )
+            res.json(rows[idx])
+        } catch (err) {
+            console.error('[gene/self-serve] reject failed:', err)
+            res.status(500).json({ message: 'Failed to reject payout request.' })
         }
     })
 
     // Rehydrate a submission's public state (e.g. after a page refresh).
+    // Registered LAST — see the note above the admin payout routes above for
+    // why: this ':id' wildcard must not be given the chance to shadow them.
     app.get('/api/gene/self-serve/:id', (req: Request, res: Response) => {
         const id = Number(req.params.id)
         const token = String(req.query.token ?? '')
@@ -535,16 +632,52 @@ async function sendOtp(submission: SelfServeSubmission): Promise<void> {
     saveSubmission(submission)
 
     await sendWhatsAppMessage(
-        submission.contactPhoneWhatsapp,
-        `Your RealEVR Estates verification code is ${code}. It expires in 10 minutes. Enter it on the listing page to confirm your number and publish "${submission.draft.title}".`
+        submission.landlordPhoneWhatsapp,
+        `${submission.agentName} wants to list "${submission.draft.title}" on RealEVR Estates on your behalf. Your verification code is ${code} (expires in 10 minutes). Share it with them only if you authorize this listing.`
     )
 }
 
-/** Finds an existing account already linked to this phone (a returning
- * landlord just gets a new property added to their existing account), or
- * creates a fresh one. Never creates a duplicate for the same number. */
-async function getOrCreateSelfServeUser(submission: SelfServeSubmission): Promise<{ userId: number; isNewAccount: boolean }> {
-    const normalized = normalizePhone(submission.contactPhoneWhatsapp)
+/** WhatsApp-notifies the platform owner's numbers that a payout needs review.
+ * Best-effort — never throws into the request path that created the payout.
+ * NOTE: this is a business-initiated message. If neither admin number has
+ * messaged the WhatsApp Business number within the last 24 hours, Meta may
+ * reject a freeform text like this outside that session window — see
+ * server/gene/whatsapp-growth.ts's docstring for the template-message
+ * workaround if that becomes a problem in practice. */
+async function notifyAdminsOfPendingPayout(payout: ListingPayoutRequest): Promise<void> {
+    const message = [
+        `💰 New listing payout pending review: ${payout.amountUgx} UGX for "${payout.propertyTitle}".`,
+        `Agent: ${payout.agentName} (${payout.agentPhone})`,
+        `Vouched for by: ${payout.landlordName} (${payout.landlordPhone})`,
+        `Review it in the admin dashboard: Payout Approvals → request #${payout.id}.`,
+    ].join('\n')
+    for (const number of getAdminWhatsappNumbers()) {
+        await sendWhatsAppMessage(number, message)
+    }
+}
+
+/** Best-effort WhatsApp notification to the agent when their payout's status changes. */
+async function notifyAgentOfDecision(payout: ListingPayoutRequest, decision: 'approved' | 'paid' | 'rejected'): Promise<void> {
+    const messages: Record<typeof decision, string> = {
+        approved: `✅ Your ${payout.amountUgx} UGX referral fee for "${payout.propertyTitle}" was approved and will be sent to you shortly.`,
+        paid: `💸 Your ${payout.amountUgx} UGX referral fee for "${payout.propertyTitle}" has been sent. Thanks for listing with RealEVR!`,
+        rejected: `Your payout request for "${payout.propertyTitle}" was not approved.${payout.note ? ` Reason: ${payout.note}` : ' Contact support for details.'}`,
+    }
+    await sendWhatsAppMessage(payout.agentPhone, messages[decision])
+}
+
+/** Finds an existing account already linked to the agent's phone (a
+ * returning agent just gets a new property added to their existing
+ * account), or creates a fresh one. Never creates a duplicate for the same
+ * number. If the submitter was logged in when they started the submission,
+ * that account is reused directly instead of phone-matching. */
+async function getOrCreateAgentUser(submission: SelfServeSubmission): Promise<{ userId: number; isNewAccount: boolean }> {
+    if (submission.agentUserId) {
+        const existing = await storage.getUser(submission.agentUserId)
+        if (existing) return { userId: existing.id, isNewAccount: false }
+    }
+
+    const normalized = normalizePhone(submission.agentPhoneWhatsapp)
     const existingLink = findLinkByPhone(normalized)
     if (existingLink) {
         return { userId: existingLink.userId, isNewAccount: false }
@@ -553,24 +686,24 @@ async function getOrCreateSelfServeUser(submission: SelfServeSubmission): Promis
     const randomPassword = randomBytes(24).toString('hex')
     const hashedPassword = await hashPassword(randomPassword)
     const usernameSuffix = normalized.slice(-6)
-    const username = `landlord_${usernameSuffix}_${nanoid(4)}`
-    const email = submission.contactEmail || `${username}@selfserve.realevrestates.local`
+    const username = `agent_${usernameSuffix}_${nanoid(4)}`
+    const email = submission.agentEmail || `${username}@selfserve.realevrestates.local`
 
     const user = await storage.createUser({
         username,
         password: hashedPassword,
         email,
-        fullName: submission.contactName,
-        membershipPlan: 'self-serve', // NOT the recurring paid plan — see file-top note + subscriptionMiddleware
+        fullName: submission.agentName,
+        membershipPlan: 'self-serve', // NOT the recurring paid plan — see subscriptionMiddleware note in routes.ts
         role: 'agent',
-        isVerified: true, // phone-verified via WhatsApp OTP, in lieu of email verification
+        isVerified: true, // the LANDLORD's number was OTP-verified for this listing, not the agent's — see file-top honesty note
         membershipStartDate: null,
         membershipEndDate: null,
-        phoneNumber: submission.contactPhoneWhatsapp,
+        phoneNumber: submission.agentPhoneWhatsapp,
         companyName: undefined,
         licenseNumber: undefined,
         subscriptionPaymentId: undefined,
-        subscriptionStatus: 'inactive', // truthful — they did not subscribe; self-serve tag is what grants access
+        subscriptionStatus: 'inactive', // truthful — they did not subscribe; self-serve tag is what grants dashboard access
     } as any)
 
     linkPhoneToUser(user.id, user.username, normalized)

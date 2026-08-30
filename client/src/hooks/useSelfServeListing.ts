@@ -1,10 +1,15 @@
 import { useMutation } from "@tanstack/react-query";
 
 /**
- * Client for the self-serve paid listing flow (server/gene/self-serve-listing.ts).
+ * Client for the agent listing referral flow (server/gene/self-serve-listing.ts).
  * Deliberately plain fetch + mutations rather than react-query caching for
- * the read side — this is a linear five-step wizard driven by local
- * component state (see pages/ListYourPropertyPage.tsx), not cached data.
+ * the read side — this is a linear wizard driven by local component state
+ * (see pages/ListYourPropertyPage.tsx), not cached data.
+ *
+ * MODEL: an agent (anyone, no account required) submits a property; the
+ * landlord/manager verifies it's real via a WhatsApp OTP sent to *their*
+ * number; the property goes live and RealEVR owes the agent a flat payout
+ * (currently 1,000 UGX), pending admin approval. Nobody pays to list.
  */
 
 export interface SelfServeDraftInput {
@@ -17,30 +22,31 @@ export interface SelfServeDraftInput {
   squareMeters: number;
   propertyType: string;
   category: string;
-  contactName: string;
-  contactPhone: string;
-  contactEmail?: string;
+  agentName: string;
+  agentPhone: string;
+  agentEmail?: string;
+  landlordName: string;
+  landlordPhone: string;
 }
 
 export interface SelfServeStartResponse {
   submissionId: number;
   token: string;
-  feeAmount: number;
-  feeCurrency: string;
+  payoutAmount: number;
+  payoutCurrency: string;
 }
 
 export interface SelfServeStatusResponse {
   id: number;
-  status: "draft" | "awaiting_payment" | "payment_confirmed" | "otp_sent" | "live" | "expired";
+  status: "draft" | "otp_sent" | "live" | "expired";
   draft: Record<string, unknown>;
   coverImageUrl: string | null;
-  feeAmount: number;
-  feeCurrency: string;
+  payoutAmount: number;
+  payoutCurrency: string;
+  landlordPhoneMasked: string;
   createdPropertyId: number | null;
   whatsappConfigured?: boolean;
   devOtpCode?: string;
-  paymentFailed?: boolean;
-  paymentDetail?: string;
 }
 
 async function parseJsonOrThrow(res: Response) {
@@ -76,10 +82,10 @@ export function useUploadCoverPhoto() {
   });
 }
 
-export function usePaySelfServeListing() {
+export function useSendVerification() {
   return useMutation({
     mutationFn: async ({ id, token }: { id: number; token: string }): Promise<{ status: string; message: string }> => {
-      const res = await fetch(`/api/gene/self-serve/${id}/pay`, {
+      const res = await fetch(`/api/gene/self-serve/${id}/send-verification`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
@@ -104,7 +110,7 @@ export function useVerifySelfServeOtp() {
       id: number;
       token: string;
       code: string;
-    }): Promise<{ status: string; propertyId: number; whatsappConfigured: boolean; dashboardUrl?: string }> => {
+    }): Promise<{ status: string; propertyId: number; payoutStatus: string; whatsappConfigured: boolean; dashboardUrl?: string }> => {
       const res = await fetch(`/api/gene/self-serve/${id}/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

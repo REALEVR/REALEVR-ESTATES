@@ -54,6 +54,7 @@ import { registerWhatsappConciergeRoutes } from './gene/whatsapp-concierge'
 import { registerLandlordHubRoutes } from './gene/landlord-hub'
 import { registerMagicLoginRoutes } from './gene/magic-login'
 import { registerSelfServeListingRoutes } from './gene/self-serve-listing'
+import { registerWhatsappGrowthRoutes } from './gene/whatsapp-growth'
 
 // Middleware to check if user is an admin or property manager
 const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -83,13 +84,14 @@ const subscriptionMiddleware = (req: Request, res: Response, next: NextFunction)
         return next()
     }
 
-    // Self-serve landlords (server/gene/self-serve-listing.ts) pay a flat
-    // one-time per-listing fee, not a recurring subscription, so they will
+    // Agents who list a property through the referral flow
+    // (server/gene/self-serve-listing.ts) earn a flat one-time payout per
+    // listing rather than paying a recurring subscription, so they will
     // never have subscriptionStatus === 'active'. This one additive check
     // lets that specific, honestly-tagged account type through without
     // weakening the check for anyone else — an account only gets
-    // membershipPlan: 'self-serve' by going through that OTP-verified,
-    // paid flow, never by user input.
+    // membershipPlan: 'self-serve' by going through that landlord-OTP-verified
+    // flow, never by user input.
     const isSelfServeAccount = user.membershipPlan === 'self-serve'
 
     // For agents, check subscription status
@@ -2384,6 +2386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerLandlordHubRoutes(app)
     registerMagicLoginRoutes(app)
     registerSelfServeListingRoutes(app)
+    registerWhatsappGrowthRoutes(app)
 
     // Admin endpoint to manually trigger reminders for testing
     app.post('/api/admin/test-reminders', adminMiddleware, async (_req: any, res: any) => {

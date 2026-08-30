@@ -13,15 +13,15 @@ import Reveal from "@/components/motion/Reveal";
 import {
   useStartSelfServeListing,
   useUploadCoverPhoto,
-  usePaySelfServeListing,
+  useSendVerification,
   useVerifySelfServeOtp,
   useResendSelfServeOtp,
   fetchSelfServeStatus,
   type SelfServeDraftInput,
 } from "@/hooks/useSelfServeListing";
-import { CheckCircle2, Loader2, Smartphone, Upload, PartyPopper } from "lucide-react";
+import { CheckCircle2, Loader2, Smartphone, Upload, PartyPopper, Wallet } from "lucide-react";
 
-type Step = "details" | "photo" | "pay" | "otp" | "success";
+type Step = "details" | "photo" | "verify" | "success";
 const SESSION_KEY = "realevr:selfServeSubmission";
 
 const CATEGORY_OPTIONS = [
@@ -41,9 +41,11 @@ const emptyDraft: SelfServeDraftInput = {
   squareMeters: 0,
   propertyType: "",
   category: "",
-  contactName: "",
-  contactPhone: "",
-  contactEmail: "",
+  agentName: "",
+  agentPhone: "",
+  agentEmail: "",
+  landlordName: "",
+  landlordPhone: "",
 };
 
 export default function ListYourPropertyPage() {
@@ -55,15 +57,17 @@ export default function ListYourPropertyPage() {
   const [token, setToken] = useState<string | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
+  const [otpRequested, setOtpRequested] = useState(false);
   const [devOtpCode, setDevOtpCode] = useState<string | null>(null);
+  const [landlordPhoneMasked, setLandlordPhoneMasked] = useState<string | null>(null);
+  const [payoutAmount, setPayoutAmount] = useState(1000);
   const [dashboardUrl, setDashboardUrl] = useState<string | null>(null);
   const [propertyId, setPropertyId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const start = useStartSelfServeListing();
   const uploadPhoto = useUploadCoverPhoto();
-  const pay = usePaySelfServeListing();
+  const sendVerification = useSendVerification();
   const verifyOtp = useVerifySelfServeOtp();
   const resendOtp = useResendSelfServeOtp();
 
@@ -78,16 +82,17 @@ export default function ListYourPropertyPage() {
         .then((s) => {
           setSubmissionId(id);
           setToken(tok);
+          setPayoutAmount(s.payoutAmount);
+          setLandlordPhoneMasked(s.landlordPhoneMasked);
           if (s.coverImageUrl) setCoverPreview(s.coverImageUrl);
           if (s.status === "live" && s.createdPropertyId) {
             setStep("success");
             setPropertyId(s.createdPropertyId);
           } else if (s.status === "otp_sent") {
-            setStep("otp");
-          } else if (s.status === "awaiting_payment" || s.status === "payment_confirmed") {
-            setStep("pay");
+            setOtpRequested(true);
+            setStep("verify");
           } else if (s.coverImageUrl) {
-            setStep("pay");
+            setStep("verify");
           }
         })
         .catch(() => sessionStorage.removeItem(SESSION_KEY));
@@ -96,28 +101,27 @@ export default function ListYourPropertyPage() {
     }
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, []);
-
   const set = <K extends keyof SelfServeDraftInput>(key: K, value: SelfServeDraftInput[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
   const handleStart = async () => {
     if (!draft.title || !draft.location || !draft.description || !draft.propertyType || !draft.category) {
-      toast({ title: "A few fields are missing", description: "Fill in every field before continuing.", variant: "destructive" });
+      toast({ title: "A few property fields are missing", description: "Fill in every field before continuing.", variant: "destructive" });
       return;
     }
-    if (!draft.contactName || !draft.contactPhone) {
-      toast({ title: "Your name and phone are required", description: "We text your verification code to this number.", variant: "destructive" });
+    if (!draft.agentName || !draft.agentPhone) {
+      toast({ title: "Your name and phone are required", description: "This is where your payout confirmation and dashboard link go.", variant: "destructive" });
+      return;
+    }
+    if (!draft.landlordName || !draft.landlordPhone) {
+      toast({ title: "Landlord/manager details are required", description: "We text them a code to confirm you can list this property.", variant: "destructive" });
       return;
     }
     try {
       const res = await start.mutateAsync(draft);
       setSubmissionId(res.submissionId);
       setToken(res.token);
+      setPayoutAmount(res.payoutAmount);
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({ id: res.submissionId, tok: res.token }));
       setStep("photo");
     } catch (err: any) {
@@ -130,43 +134,23 @@ export default function ListYourPropertyPage() {
     setCoverPreview(URL.createObjectURL(file));
     try {
       await uploadPhoto.mutateAsync({ id: submissionId, token, file });
-      setStep("pay");
+      setStep("verify");
     } catch (err: any) {
       toast({ title: "Photo upload failed", description: err?.message, variant: "destructive" });
     }
   };
 
-  const startPolling = () => {
-    if (!submissionId || !token) return;
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
-      try {
-        const s = await fetchSelfServeStatus(submissionId, token);
-        if (s.paymentFailed) {
-          clearInterval(pollRef.current!);
-          toast({ title: "Payment didn't go through", description: `Status: ${s.paymentDetail ?? "unknown"} — try again.`, variant: "destructive" });
-          setStep("pay");
-          return;
-        }
-        if (s.status === "otp_sent") {
-          clearInterval(pollRef.current!);
-          if (s.devOtpCode) setDevOtpCode(s.devOtpCode);
-          setStep("otp");
-        }
-      } catch {
-        // transient — keep polling
-      }
-    }, 4000);
-  };
-
-  const handlePay = async () => {
+  const handleSendVerification = async () => {
     if (!submissionId || !token) return;
     try {
-      const res = await pay.mutateAsync({ id: submissionId, token });
-      toast({ title: "Mobile money prompt sent", description: res.message });
-      startPolling();
+      const res = await sendVerification.mutateAsync({ id: submissionId, token });
+      toast({ title: "Code sent", description: res.message });
+      setOtpRequested(true);
+      const s = await fetchSelfServeStatus(submissionId, token);
+      setLandlordPhoneMasked(s.landlordPhoneMasked);
+      if (s.devOtpCode) setDevOtpCode(s.devOtpCode);
     } catch (err: any) {
-      toast({ title: "Payment could not be started", description: err?.message, variant: "destructive" });
+      toast({ title: "Couldn't send verification code", description: err?.message, variant: "destructive" });
     }
   };
 
@@ -194,14 +178,14 @@ export default function ListYourPropertyPage() {
     }
   };
 
-  const steps: Step[] = ["details", "photo", "pay", "otp", "success"];
+  const steps: Step[] = ["details", "photo", "verify", "success"];
   const stepIndex = steps.indexOf(step);
 
   return (
     <>
       <PageSeo
-        title="List Your Property — RealEVR Estates"
-        description="List your property yourself for a flat 1,000 UGX fee, verified by WhatsApp, live in minutes."
+        title="List a Property, Earn 1,000 UGX — RealEVR Estates"
+        description="List a property on RealEVR Estates and earn a 1,000 UGX referral fee once the landlord confirms it over WhatsApp. Free to list — live in minutes."
         canonicalPath="/list-your-property"
       />
       <section className="relative -mx-4 sm:-mx-6 lg:-mx-8 py-14 overflow-hidden">
@@ -210,11 +194,12 @@ export default function ListYourPropertyPage() {
           <Reveal>
             <div className="text-center mb-10">
               <h1 className="text-3xl md:text-4xl font-display font-medium text-foreground mb-3">
-                List your property yourself
+                List a property, earn 1,000 UGX
               </h1>
               <p className="text-muted-foreground">
-                A flat 1,000 UGX fee, your WhatsApp number to verify you own it, and you're live — with your own
-                landlord dashboard to add photos, a tour, and manage the listing afterwards.
+                Submit any property, have the landlord or manager confirm it's real over a quick WhatsApp code, and
+                we'll pay you a 1,000 UGX referral fee once our team approves it. Free to submit — no fee, ever, to
+                list a property.
               </p>
             </div>
           </Reveal>
@@ -290,24 +275,44 @@ export default function ListYourPropertyPage() {
 
                 <div className="border-t border-border pt-5">
                   <h3 className="font-display text-lg text-foreground mb-3 flex items-center gap-2">
-                    <Smartphone className="h-4 w-4 text-accent" /> Your contact details
+                    <Wallet className="h-4 w-4 text-accent" /> Your details (this is who gets paid)
                   </h3>
                   <p className="text-xs text-muted-foreground mb-3">
-                    We send a WhatsApp verification code here before your listing goes live — this proves you're the
-                    landlord or manager, not just anyone typing in a property.
+                    We'll send your 1,000 UGX referral fee confirmation and your new dashboard link to this WhatsApp
+                    number once the property is live and approved.
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="contactName">Your name</Label>
-                      <Input id="contactName" value={draft.contactName} onChange={(e) => set("contactName", e.target.value)} />
+                      <Label htmlFor="agentName">Your name</Label>
+                      <Input id="agentName" value={draft.agentName} onChange={(e) => set("agentName", e.target.value)} />
                     </div>
                     <div>
-                      <Label htmlFor="contactPhone">WhatsApp number</Label>
-                      <Input id="contactPhone" value={draft.contactPhone} onChange={(e) => set("contactPhone", e.target.value)} placeholder="0770000000" />
+                      <Label htmlFor="agentPhone">Your WhatsApp number</Label>
+                      <Input id="agentPhone" value={draft.agentPhone} onChange={(e) => set("agentPhone", e.target.value)} placeholder="0770000000" />
                     </div>
                     <div className="md:col-span-2">
-                      <Label htmlFor="contactEmail">Email (optional)</Label>
-                      <Input id="contactEmail" type="email" value={draft.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} />
+                      <Label htmlFor="agentEmail">Email (optional)</Label>
+                      <Input id="agentEmail" type="email" value={draft.agentEmail} onChange={(e) => set("agentEmail", e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-border pt-5">
+                  <h3 className="font-display text-lg text-foreground mb-3 flex items-center gap-2">
+                    <Smartphone className="h-4 w-4 text-accent" /> Landlord / manager's details
+                  </h3>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    We text a verification code to this number to confirm they're really the owner or manager and
+                    they're okay with you listing this property. The property only goes live once they confirm.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="landlordName">Landlord/manager name</Label>
+                      <Input id="landlordName" value={draft.landlordName} onChange={(e) => set("landlordName", e.target.value)} />
+                    </div>
+                    <div>
+                      <Label htmlFor="landlordPhone">Their WhatsApp number</Label>
+                      <Input id="landlordPhone" value={draft.landlordPhone} onChange={(e) => set("landlordPhone", e.target.value)} placeholder="0770000000" />
                     </div>
                   </div>
                 </div>
@@ -323,7 +328,7 @@ export default function ListYourPropertyPage() {
               <div className="space-y-5 text-center">
                 <h2 className="font-display text-xl text-foreground">Add a cover photo</h2>
                 <p className="text-sm text-muted-foreground">
-                  Just one photo to get you live — you'll add the full gallery or a guided virtual tour from your
+                  Just one photo to get this live — a full gallery or guided virtual tour can be added from the
                   dashboard right after this.
                 </p>
                 <input
@@ -357,29 +362,28 @@ export default function ListYourPropertyPage() {
               </div>
             )}
 
-            {step === "pay" && (
+            {step === "verify" && !otpRequested && (
               <div className="space-y-5 text-center">
-                <h2 className="font-display text-xl text-foreground">Pay the listing fee</h2>
-                <p className="text-3xl font-display font-medium text-foreground">1,000 UGX</p>
+                <h2 className="font-display text-xl text-foreground">Verify with the landlord</h2>
                 <p className="text-sm text-muted-foreground">
-                  We'll send a mobile money prompt to <span className="font-medium text-foreground">{draft.contactPhone}</span>. Approve it on your
-                  phone, then we'll text your verification code.
+                  We'll text a 6-digit code to <span className="font-medium text-foreground">{draft.landlordName}</span>'s
+                  WhatsApp number. Ask them to share it with you once they receive it.
                 </p>
-                <Button className="w-full" size="lg" onClick={handlePay} disabled={pay.isPending || Boolean(pollRef.current)}>
-                  {(pay.isPending || pollRef.current) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {pollRef.current ? "Waiting for approval…" : "Send payment prompt"}
+                <Button className="w-full" size="lg" onClick={handleSendVerification} disabled={sendVerification.isPending}>
+                  {sendVerification.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Send verification code
                 </Button>
               </div>
             )}
 
-            {step === "otp" && (
+            {step === "verify" && otpRequested && (
               <div className="space-y-5 text-center">
-                <h2 className="font-display text-xl text-foreground">Enter your verification code</h2>
+                <h2 className="font-display text-xl text-foreground">Enter the verification code</h2>
                 <p className="text-sm text-muted-foreground">
-                  We texted a 6-digit code to your WhatsApp number.
+                  We texted a 6-digit code to the landlord/manager's WhatsApp{landlordPhoneMasked ? ` (ending ${landlordPhoneMasked.slice(-4)})` : ""}. Enter it once they share it with you.
                   {devOtpCode && (
                     <span className="block mt-2 text-xs bg-secondary rounded px-2 py-1 inline-block">
-                      WhatsApp isn't configured on this deployment yet — your code is <span className="font-mono font-semibold">{devOtpCode}</span>
+                      WhatsApp isn't configured on this deployment yet — the code is <span className="font-mono font-semibold">{devOtpCode}</span>
                     </span>
                   )}
                 </p>
@@ -407,8 +411,8 @@ export default function ListYourPropertyPage() {
                 <PartyPopper className="h-12 w-12 text-accent mx-auto" />
                 <h2 className="font-display text-2xl text-foreground">You're live!</h2>
                 <p className="text-muted-foreground">
-                  Your property is published and we've set up your landlord dashboard. Check your WhatsApp for a
-                  one-tap link — or use the button below now.
+                  The property is published and a dashboard has been set up for you. Your {payoutAmount} UGX referral
+                  fee is pending review by our team — you'll get a WhatsApp message the moment it's approved.
                 </p>
                 {dashboardUrl ? (
                   <Button className="w-full" size="lg" asChild>
@@ -425,7 +429,7 @@ export default function ListYourPropertyPage() {
                   </Button>
                 )}
                 <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5 pt-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-accent" /> From your dashboard, add a full photo gallery or
+                  <CheckCircle2 className="h-3.5 w-3.5 text-accent" /> From the dashboard, add a full photo gallery or
                   guided virtual tour any time.
                 </p>
               </div>

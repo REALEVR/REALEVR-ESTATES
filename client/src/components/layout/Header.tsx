@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Loader2, LogOut, Settings, User, Glasses, Building, Users } from "lucide-react";
+import { Loader2, LogOut, Settings, User, Glasses, Building, Users, Wallet } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import NotificationCenter from "@/components/NotificationCenter";
 
@@ -185,12 +185,20 @@ export default function Header() {
                   )}
 
                   {user.role === "admin" && (
-                    <DropdownMenuItem asChild>
-                      <Link href="/admin/users">
-                        <Users className="mr-2 h-4 w-4" />
-                        <span>User Management</span>
-                      </Link>
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/users">
+                          <Users className="mr-2 h-4 w-4" />
+                          <span>User Management</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/payout-approvals">
+                          <Wallet className="mr-2 h-4 w-4" />
+                          <span>Payout Approvals</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} disabled={logoutMutation.isPending}>
@@ -216,7 +224,7 @@ export default function Header() {
                     <Link href="/agent/register">Become an Agent</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/list-your-property">List a Property — 1,000 UGX</Link>
+                    <Link href="/list-your-property">List a Property, Earn 1,000 UGX</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/auth">Sign In</Link>

@@ -12,8 +12,12 @@
  *
  * Also handles a linked landlord texting "dashboard" (or "login") to get a
  * fresh passwordless magic-login link back — see ./magic-login.ts. This is
- * how a self-serve landlord (server/gene/self-serve-listing.ts), who never
- * set a password, gets back into their Agent Dashboard from WhatsApp alone.
+ * how a self-serve agent (server/gene/self-serve-listing.ts), who never set
+ * a password, gets back into their Agent Dashboard from WhatsApp alone.
+ *
+ * Also handles "stop"/"start" (and "unsubscribe"/"subscribe") to toggle
+ * marketing-broadcast opt-in on a linked number — see `marketingOptIn` on
+ * WhatsappUserLink and server/gene/whatsapp-growth.ts's broadcast route.
  *
  * Gated behind the same WHATSAPP_BUSINESS_TOKEN + WHATSAPP_PHONE_NUMBER_ID
  * env vars as whatsapp.ts (reuses its `sendWhatsAppMessage`), plus a new
@@ -60,6 +64,13 @@ export interface WhatsappUserLink {
     userName: string
     phone: string
     linkedAt: string
+    /** Marketing/broadcast opt-in (server/gene/whatsapp-growth.ts's broadcast
+     * route only ever messages numbers where this is true). Absent on rows
+     * written before this field existed — treated as opted-in by default
+     * (see isOptedIntoMarketing below), since these are numbers that
+     * actively engaged with the platform over WhatsApp already; "stop"
+     * opts out at any time, same as any compliant WhatsApp/SMS program. */
+    marketingOptIn?: boolean
 }
 
 export interface WhatsappMessageLog {
@@ -76,6 +87,8 @@ const PHONE_SANITY_RE = /^\+?[0-9]{6,20}$/
 const INTEREST_KEYWORDS = ['interested', 'i want', 'i like', 'book', 'viewing', 'visit']
 const TOGGLE_COMMAND_RE = /^(available|unavailable|toggle)\s+(\d+)\s*$/i
 const DASHBOARD_COMMAND_RE = /^(dashboard|my dashboard|login|log me in)\s*$/i
+const STOP_COMMAND_RE = /^(stop|unsubscribe|opt out|optout)\s*$/i
+const START_COMMAND_RE = /^(start|subscribe|opt in|optin)\s*$/i
 
 /**
  * Digits only, no leading '+' — this is the format WhatsApp's Cloud API
@@ -113,6 +126,22 @@ export function linkPhoneToUser(userId: number, userName: string, phone: string)
     else rows[idx] = record
     writeCollection(LINK_COLLECTION, rows)
     return record
+}
+
+/** Defaults to true (opted-in) for a link with no explicit value — see the
+ * field's docstring. Exported for server/gene/whatsapp-growth.ts's broadcast
+ * route. */
+export function isOptedIntoMarketing(link: WhatsappUserLink): boolean {
+    return link.marketingOptIn !== false
+}
+
+function setMarketingOptIn(phone: string, optIn: boolean): WhatsappUserLink | undefined {
+    const rows = readCollection<WhatsappUserLink>(LINK_COLLECTION)
+    const idx = rows.findIndex((r) => r.phone === phone)
+    if (idx === -1) return undefined
+    rows[idx] = { ...rows[idx], marketingOptIn: optIn }
+    writeCollection(LINK_COLLECTION, rows)
+    return rows[idx]
 }
 
 function logMessage(entry: Omit<WhatsappMessageLog, 'id' | 'createdAt'>): void {
@@ -201,6 +230,33 @@ async function tryHandleDashboardCommand(phone: string, text: string, link: What
     return true
 }
 
+/** Handles "stop"/"unsubscribe" and "start"/"subscribe" — opts a linked
+ * number out of / back into WhatsApp marketing broadcasts
+ * (server/gene/whatsapp-growth.ts). Returns true if the message was handled
+ * as one of these commands. Unlinked numbers get a short explanation
+ * instead of silently doing nothing — there's nothing to opt out of yet. */
+async function tryHandleMarketingOptCommand(phone: string, text: string, link: WhatsappUserLink | undefined): Promise<boolean> {
+    const trimmed = text.trim()
+    const isStop = STOP_COMMAND_RE.test(trimmed)
+    const isStart = START_COMMAND_RE.test(trimmed)
+    if (!isStop && !isStart) return false
+
+    if (!link) {
+        await replyAndLog(phone, "This number isn't linked to a RealEVR account, so there's nothing to opt out of.")
+        return true
+    }
+
+    setMarketingOptIn(phone, isStart)
+    await replyAndLog(
+        phone,
+        isStart
+            ? "You're opted back in to occasional RealEVR Estates updates. Text STOP anytime to opt out again."
+            : "You won't receive RealEVR Estates broadcast messages anymore. Text START to opt back in.",
+        link.userId
+    )
+    return true
+}
+
 /** The general concierge chat path — reuses the personal agent's real
  * scoring/recommendation logic when the phone is linked to a profile;
  * otherwise a lighter, generic reply from real listing data. */
@@ -255,6 +311,9 @@ async function handleConciergeChat(phone: string, text: string, link: WhatsappUs
 async function handleInboundText(phone: string, text: string): Promise<void> {
     const link = findLinkByPhone(phone)
     logMessage({ phone, direction: 'inbound', text, userId: link?.userId })
+
+    const handledAsOptCommand = await tryHandleMarketingOptCommand(phone, text, link)
+    if (handledAsOptCommand) return
 
     const handledAsDashboard = await tryHandleDashboardCommand(phone, text, link)
     if (handledAsDashboard) return

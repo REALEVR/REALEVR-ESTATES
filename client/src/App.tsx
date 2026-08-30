@@ -45,6 +45,8 @@ import { paymentEmitter } from './lib/iotec-paymentpatch'
 import IotechMetricCounterPaymentHandle from './components/payment/sio-iotech'
 import AgentLauncher from './components/agent/AgentLauncher'
 import ListYourPropertyPage from '@/pages/ListYourPropertyPage'
+import AdminPayoutApprovals from '@/pages/AdminPayoutApprovals'
+import WhatsAppFab from '@/components/whatsapp/WhatsAppFab'
 
 function Router() {
     return (
@@ -100,6 +102,10 @@ function Router() {
             />
 
             <ProtectedAdminRoute path="/admin/users" component={AdminUserManager} allowedRoles={['admin']} />
+            {/* Strictly admin-only (not agents) — see server/gene/admin-guard.ts's
+                requireStrictAdmin, which the underlying APIs actually enforce;
+                this route gate is the matching client-side check. */}
+            <ProtectedAdminRoute path="/admin/payout-approvals" component={AdminPayoutApprovals} allowedRoles={['admin']} />
 
             <Route
                 path="/category/:categorySlug"
@@ -164,6 +170,7 @@ function App() {
                                 <Footer />
                             </div>
                             <AgentLauncher />
+                            <WhatsAppFab />
                             <ScrollToTop />
                             <Toaster />
                         </TooltipProvider>
