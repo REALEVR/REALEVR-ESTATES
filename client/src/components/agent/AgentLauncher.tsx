@@ -3,15 +3,22 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { useAuth } from "@/hooks/use-auth";
 import { Sparkles } from "lucide-react";
 import AgentPanel from "./AgentPanel";
+import { useNearbyPropertyAlerts } from "@/hooks/useNearbyPropertyAlerts";
 
 /**
  * Persistent "My Agent" launcher — a floating button visible only to signed-in
  * users, opening a slide-over with chat / recommendations / market insight /
- * news. Mounted once, globally, in App.tsx.
+ * news / rewards. Mounted once, globally, in App.tsx.
+ *
+ * Also owns the single instance of useNearbyPropertyAlerts (opt-in location
+ * sync + periodic nearby-property popups) — kept at this level rather than
+ * inside AgentPanel so alerts keep arriving even while the panel is closed,
+ * the way a real "proactive" assistant should behave.
  */
 export default function AgentLauncher() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  const nearbyAlerts = useNearbyPropertyAlerts();
 
   if (!user) return null;
 
@@ -33,7 +40,7 @@ export default function AgentLauncher() {
             <SheetDescription>Personalized picks, market insight, and news — just for you.</SheetDescription>
           </SheetHeader>
           <div className="mt-2 flex-1 overflow-hidden">
-            <AgentPanel onClose={() => setOpen(false)} />
+            <AgentPanel onClose={() => setOpen(false)} nearbyAlerts={nearbyAlerts} />
           </div>
         </SheetContent>
       </Sheet>

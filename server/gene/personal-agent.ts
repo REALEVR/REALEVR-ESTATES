@@ -52,6 +52,16 @@ export interface AgentProfile {
     preferredLocations: string[] // free-text areas, e.g. "Kololo"
     monthlyIncome: number | null
     investmentCapital: number | null
+    // Location auto-sync (opt-in, see POST /api/gene/agent/location). Used to
+    // surface "properties near you" — never populated without an explicit
+    // client-side geolocation request the user triggered.
+    lastLocationLabel?: string | null
+    lastLocationLat?: number | null
+    lastLocationLng?: number | null
+    lastLocationUpdatedAt?: string | null
+    // Property ids we've already proactively told this user about via a
+    // nearby-match notification, so we don't repeat ourselves every sync.
+    notifiedNearbyPropertyIds?: number[]
     createdAt: string
     updatedAt: string
 }
@@ -113,12 +123,12 @@ function requireUser(req: Request, res: Response, next: NextFunction) {
 // Profile persistence
 // ---------------------------------------------------------------------------
 
-function loadProfile(userId: number): AgentProfile | null {
+export function loadProfile(userId: number): AgentProfile | null {
     const rows = readCollection<AgentProfile>(PROFILE_COLLECTION)
     return rows.find((p) => p.userId === userId) ?? null
 }
 
-function saveProfile(profile: AgentProfile): void {
+export function saveProfile(profile: AgentProfile): void {
     const rows = readCollection<AgentProfile>(PROFILE_COLLECTION)
     const idx = rows.findIndex((p) => p.userId === profile.userId)
     profile.updatedAt = nowIso()
@@ -145,6 +155,13 @@ function parseProfileInput(userId: number, body: any, existing: AgentProfile | n
             : existing?.preferredLocations ?? [],
         monthlyIncome: typeof body.monthlyIncome === 'number' ? body.monthlyIncome : existing?.monthlyIncome ?? null,
         investmentCapital: typeof body.investmentCapital === 'number' ? body.investmentCapital : existing?.investmentCapital ?? null,
+        // Not editable via the profile form — only POST /api/gene/agent/location
+        // and the nearby-match notifier touch these. Always carry them through.
+        lastLocationLabel: existing?.lastLocationLabel ?? null,
+        lastLocationLat: existing?.lastLocationLat ?? null,
+        lastLocationLng: existing?.lastLocationLng ?? null,
+        lastLocationUpdatedAt: existing?.lastLocationUpdatedAt ?? null,
+        notifiedNearbyPropertyIds: existing?.notifiedNearbyPropertyIds ?? [],
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
     }
@@ -154,7 +171,7 @@ function parseProfileInput(userId: number, body: any, existing: AgentProfile | n
 // Signals
 // ---------------------------------------------------------------------------
 
-function loadSignals(userId: number): AgentSignal[] {
+export function loadSignals(userId: number): AgentSignal[] {
     const rows = readCollection<AgentSignal>(SIGNAL_COLLECTION)
     return rows.filter((s) => s.userId === userId)
 }
@@ -225,7 +242,7 @@ function scoreProperty(property: Property, profile: AgentProfile, signals: Agent
     return { property, score, reasons }
 }
 
-function buildRecommendations(profile: AgentProfile, signals: AgentSignal[], allProperties: Property[], limit: number): ScoredProperty[] {
+export function buildRecommendations(profile: AgentProfile, signals: AgentSignal[], allProperties: Property[], limit: number): ScoredProperty[] {
     return allProperties
         .filter((p) => p.title && p.title.trim() !== '')
         .map((p) => scoreProperty(p, profile, signals))
@@ -233,7 +250,7 @@ function buildRecommendations(profile: AgentProfile, signals: AgentSignal[], all
         .slice(0, limit)
 }
 
-function templatedRecommendationSummary(profile: AgentProfile, top: ScoredProperty[]): string {
+export function templatedRecommendationSummary(profile: AgentProfile, top: ScoredProperty[]): string {
     if (top.length === 0) {
         return "I don't have enough listings matching your profile yet — try widening your budget or interests, and I'll keep watching for new matches."
     }
@@ -243,6 +260,68 @@ function templatedRecommendationSummary(profile: AgentProfile, top: ScoredProper
     }, "${first.property.title}" in ${first.property.location} is your strongest match right now${
         first.reasons.length ? ` — ${first.reasons[0].toLowerCase()}` : ''
     }. I'll keep updating this list as new properties come in and as I learn more from what you view.`
+}
+
+// ---------------------------------------------------------------------------
+// Location auto-sync — client-side geolocation (opt-in) + reverse geocoding
+// is POSTed here as a plain place label (e.g. "Ntinda, Kampala, Uganda").
+// We never call any geocoding provider from the server — no key to gate,
+// no server-side network dependency; the browser does that and only sends
+// us the resulting label + raw coordinates for reference.
+// ---------------------------------------------------------------------------
+
+/**
+ * Fuzzy match a free-text location label (from reverse geocoding, e.g.
+ * "Ntinda, Kampala District, Uganda") against a property's `location`
+ * field (e.g. "Ntinda, Kampala"). Word-overlap based — deliberately simple
+ * and explainable rather than a black-box distance calculation we can't
+ * back with real coordinates on the property side (properties don't store
+ * lat/lng today).
+ */
+function locationLabelMatchesProperty(label: string, propertyLocation: string): boolean {
+    const norm = (s: string) =>
+        s
+            .toLowerCase()
+            .split(/[,\s]+/)
+            .map((w) => w.trim())
+            .filter((w) => w.length >= 3)
+    const labelWords = new Set(norm(label))
+    const propWords = norm(propertyLocation)
+    return propWords.some((w) => labelWords.has(w))
+}
+
+function findNearbyProperties(label: string, profile: AgentProfile, signals: AgentSignal[], allProperties: Property[], limit: number): ScoredProperty[] {
+    return allProperties
+        .filter((p) => p.title && p.title.trim() !== '' && locationLabelMatchesProperty(label, p.location))
+        .map((p) => scoreProperty(p, profile, signals))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit)
+}
+
+/** Appends one message to a user's chat history under the given role.
+ * Shared by: the proactive nearby-match notifier (role 'assistant', no
+ * user turn preceding it) and whatsapp-concierge.ts (role 'user' for the
+ * inbound WhatsApp text it mirrors in, 'assistant' for the reply) — so a
+ * WhatsApp exchange renders in the web Chat tab exactly like a normal one. */
+export function appendAgentMessage(userId: number, role: 'user' | 'assistant', text: string): void {
+    const rows = readCollection<AgentConversation>(CONVERSATION_COLLECTION)
+    const conversationId = String(userId)
+    let conversation = rows.find((c) => c.id === conversationId)
+    if (!conversation) {
+        conversation = { id: conversationId, userId, messages: [], createdAt: nowIso(), updatedAt: nowIso() }
+    }
+    conversation.messages.push({ role, text, createdAt: nowIso() })
+    conversation.updatedAt = nowIso()
+    const idx = rows.findIndex((c) => c.id === conversationId)
+    if (idx >= 0) rows[idx] = conversation
+    else rows.push(conversation)
+    writeCollection(CONVERSATION_COLLECTION, rows)
+}
+
+/** Convenience wrapper — the proactive "agent talks to you first" path
+ * only ever appends an assistant-authored message, no preceding user turn. */
+export function appendAssistantMessage(userId: number, text: string): void {
+    appendAgentMessage(userId, 'assistant', text)
 }
 
 // ---------------------------------------------------------------------------
@@ -319,7 +398,7 @@ function templatedLocationReason(stat: LocationStat, profile: AgentProfile): str
 // Same fallback discipline as ./chat.ts: never block or 500 without the key.
 // ---------------------------------------------------------------------------
 
-async function callAnthropic(systemPrompt: string, userMessage: string): Promise<string | null> {
+export async function callAnthropic(systemPrompt: string, userMessage: string): Promise<string | null> {
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) return null
     try {
@@ -353,7 +432,7 @@ async function callAnthropic(systemPrompt: string, userMessage: string): Promise
     }
 }
 
-function profileSummaryForPrompt(profile: AgentProfile): string {
+export function profileSummaryForPrompt(profile: AgentProfile): string {
     const budget =
         profile.budgetMin != null || profile.budgetMax != null
             ? `${profile.currency} ${profile.budgetMin?.toLocaleString() ?? '0'}–${profile.budgetMax?.toLocaleString() ?? 'no max'}`
@@ -640,5 +719,77 @@ export function registerPersonalAgentRoutes(app: Express): void {
         const rows = readCollection<AgentConversation>(CONVERSATION_COLLECTION)
         const conversation = rows.find((c) => c.id === String(userId))
         res.json({ messages: conversation?.messages ?? [] })
+    })
+
+    // POST /api/gene/agent/location — [AUTH] { lat, lng, label } — client-side
+    // geolocation + reverse geocoding result. Opt-in only; the frontend never
+    // calls this without the user explicitly turning location sync on.
+    app.post('/api/gene/agent/location', requireUser, (req, res) => {
+        try {
+            const userId = (req.user as any).id
+            const { lat, lng, label } = req.body ?? {}
+            if (typeof label !== 'string' || !label.trim()) {
+                return res.status(400).json({ message: 'label (reverse-geocoded place name) is required.' })
+            }
+            const existing = loadProfile(userId)
+            const profile: AgentProfile = existing
+                ? { ...existing }
+                : parseProfileInput(userId, {}, null) // creates a minimal default profile
+            profile.lastLocationLabel = label.trim()
+            profile.lastLocationLat = typeof lat === 'number' ? lat : null
+            profile.lastLocationLng = typeof lng === 'number' ? lng : null
+            profile.lastLocationUpdatedAt = nowIso()
+            saveProfile(profile)
+            res.json({ ok: true, lastLocationLabel: profile.lastLocationLabel })
+        } catch (err) {
+            console.error('[gene/personal-agent] POST /api/gene/agent/location failed:', err)
+            res.status(500).json({ message: 'Failed to sync your location.' })
+        }
+    })
+
+    // GET /api/gene/agent/nearby — [AUTH] properties near the last-synced
+    // location. The first time genuinely new matches appear, this also drops
+    // a proactive message into the chat history (the "agent talks to you
+    // first" behavior) — subsequent polls with the same matches stay quiet.
+    app.get('/api/gene/agent/nearby', requireUser, async (req, res) => {
+        try {
+            const userId = (req.user as any).id
+            const profile = loadProfile(userId)
+            if (!profile?.lastLocationLabel) {
+                return res.json({ synced: false, location: null, matches: [], notified: false })
+            }
+
+            const [allProperties, signals] = await Promise.all([storage.getAllProperties(), Promise.resolve(loadSignals(userId))])
+            const matches = findNearbyProperties(profile.lastLocationLabel, profile, signals, allProperties, 6)
+
+            const alreadyNotified = new Set(profile.notifiedNearbyPropertyIds ?? [])
+            const freshMatches = matches.filter((m) => !alreadyNotified.has(m.property.id))
+
+            let notified = false
+            if (freshMatches.length > 0) {
+                const names = freshMatches.slice(0, 3).map((m) => `"${m.property.title}" (${m.property.location})`)
+                const message =
+                    freshMatches.length === 1
+                        ? `Just spotted ${names[0]} near ${profile.lastLocationLabel} — want details?`
+                        : `A few properties near ${profile.lastLocationLabel} just caught my eye: ${names.join(', ')}${freshMatches.length > 3 ? `, and ${freshMatches.length - 3} more` : ''}. Check the Matches tab any time.`
+                appendAssistantMessage(userId, message)
+                notified = true
+
+                const updated: AgentProfile = { ...profile }
+                updated.notifiedNearbyPropertyIds = [...(profile.notifiedNearbyPropertyIds ?? []), ...freshMatches.map((m) => m.property.id)].slice(-200)
+                saveProfile(updated)
+            }
+
+            res.json({
+                synced: true,
+                location: profile.lastLocationLabel,
+                lastSyncedAt: profile.lastLocationUpdatedAt ?? null,
+                matches: matches.map((m) => ({ property: m.property, score: m.score, reasons: m.reasons })),
+                notified,
+            })
+        } catch (err) {
+            console.error('[gene/personal-agent] GET /api/gene/agent/nearby failed:', err)
+            res.status(500).json({ message: 'Failed to find nearby properties.' })
+        }
     })
 }

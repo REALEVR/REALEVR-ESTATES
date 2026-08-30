@@ -49,7 +49,7 @@ export default function Header() {
       <div className="container mx-auto px-6 py-4 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center">
-          <img src={logoPath} alt="RealEVR Estates Logo" className="h-10 mr-2" />
+          <img src={logoPath} alt="RealEVR Estates Logo" className="h-14 mr-2" />
           {/* <span className="text-black text-2xl font-bold">RealEVR Estates</span> */}
         </Link>
 

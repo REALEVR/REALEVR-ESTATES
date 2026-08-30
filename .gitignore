@@ -24,6 +24,13 @@ attached_assets/
 # server/social-preview.ts.
 !client/public/og-default.jpg
 
+# PWA install icons (checked-in static assets, not user-uploaded media) —
+# see client/public/site.webmanifest and client/public/sw.js.
+!client/public/icon-192.png
+!client/public/icon-512.png
+!client/public/icon-maskable-192.png
+!client/public/icon-maskable-512.png
+
 # Tour configurations (persist across deployments)
 tour-configs.json
 

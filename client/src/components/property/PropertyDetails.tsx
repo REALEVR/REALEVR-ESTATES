@@ -7,11 +7,12 @@ import OwnerContactDetails from './OwnerContactDetails'
 import BookingCalendarModal from './BookingCalendarModal'
 import VirtualTourModal from './VirtualTourModal'
 import TourPaymentModal from './TourPaymentModal'
+import SharePropertyModal from './SharePropertyModal'
 import type { Property, User } from '@shared/schema'
 import { getSafeAmenities } from '@/lib/property-utils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Phone, User as UserIcon } from 'lucide-react'
+import { Phone, User as UserIcon, Share2 } from 'lucide-react'
 
 interface PropertyDescriptionProps {
     description: string
@@ -64,6 +65,7 @@ interface PropertyDetailsProps {
 
 export default function PropertyDetails({ property }: PropertyDetailsProps) {
     const [isFavorite, setIsFavorite] = useState(false)
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false)
     const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
     const [isTourModalOpen, setIsTourModalOpen] = useState(false)
     const [isTourPaymentModalOpen, setIsTourPaymentModalOpen] = useState(false)
@@ -191,15 +193,34 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                         <span className="text-muted-foreground underline">{property.reviewCount} reviews</span>
                     </div>
                 </div>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="p-2 hover:bg-secondary rounded-full"
-                    onClick={handleFavoriteClick}
-                >
-                    <i className={`${isFavorite ? 'fas text-accent' : 'far'} fa-heart text-xl`}></i>
-                </Button>
+                <div className="flex gap-1">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="p-2 hover:bg-secondary rounded-full"
+                        onClick={() => setIsShareModalOpen(true)}
+                        aria-label="Share this property"
+                        title="Share this property"
+                    >
+                        <Share2 className="h-5 w-5" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="p-2 hover:bg-secondary rounded-full"
+                        onClick={handleFavoriteClick}
+                    >
+                        <i className={`${isFavorite ? 'fas text-accent' : 'far'} fa-heart text-xl`}></i>
+                    </Button>
+                </div>
             </div>
+
+            <SharePropertyModal
+                isOpen={isShareModalOpen}
+                onClose={() => setIsShareModalOpen(false)}
+                propertyId={property.id}
+                propertyTitle={property.title}
+            />
 
             <Tabs defaultValue="overview" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">

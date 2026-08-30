@@ -9,7 +9,7 @@ export default function Footer() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-10 pb-10">
           <div className="md:col-span-2">
-            <img src={logoPath} alt="RealEVR Estates Logo" className="h-9 mb-4 brightness-0 invert" />
+            <img src={logoPath} alt="RealEVR Estates Logo" className="h-12 mb-4 brightness-0 invert" />
             <p className="text-sm text-[#F1E9E0]/60 max-w-xs leading-relaxed">
               Immersive virtual tours for rentals, BnBs, homes for sale, and bank auction
               properties across Uganda.

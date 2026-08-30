@@ -49,6 +49,9 @@ import { registerSlackBridgeRoutes } from './gene/slack-bridge'
 import { registerAgentWhatsappOnboardingRoutes } from './gene/agent-whatsapp-onboarding'
 import { registerTourAccessPassRoutes, issuePass } from './gene/tour-access-pass'
 import { registerPersonalAgentRoutes } from './gene/personal-agent'
+import { registerReferralRewardsRoutes } from './gene/referral-rewards'
+import { registerWhatsappConciergeRoutes } from './gene/whatsapp-concierge'
+import { registerLandlordHubRoutes } from './gene/landlord-hub'
 
 // Middleware to check if user is an admin or property manager
 const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -2365,6 +2368,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerAgentWhatsappOnboardingRoutes(app, adminMiddleware)
     registerTourAccessPassRoutes(app, adminMiddleware)
     registerPersonalAgentRoutes(app)
+    registerReferralRewardsRoutes(app, adminMiddleware)
+    registerWhatsappConciergeRoutes(app)
+    registerLandlordHubRoutes(app)
 
     // Admin endpoint to manually trigger reminders for testing
     app.post('/api/admin/test-reminders', adminMiddleware, async (_req: any, res: any) => {

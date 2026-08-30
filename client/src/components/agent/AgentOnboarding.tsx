@@ -7,6 +7,7 @@ import type { AgentProfile, AgentProfileInput, AgentPurpose, RiskAppetite } from
 import { useSaveAgentProfile } from "@/hooks/useAgent";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import WhatsappLinkCard from "./WhatsappLinkCard";
 
 const INTEREST_OPTIONS: { value: string; label: string }[] = [
   { value: "rental_units", label: "Rental units" },
@@ -217,6 +218,8 @@ export default function AgentOnboarding({ existingProfile, onSaved }: AgentOnboa
         {saveProfile.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         {existingProfile ? "Save changes" : "Set up my agent"}
       </Button>
+
+      {existingProfile && <WhatsappLinkCard />}
     </form>
   );
 }

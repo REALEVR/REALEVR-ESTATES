@@ -3,9 +3,9 @@ import { Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Send, Settings2, Sparkles } from "lucide-react";
+import { Loader2, Mic, MicOff, Send, Settings2, Sparkles, Volume2, VolumeX, MapPin, Gift, Share2 } from "lucide-react";
 import {
   useAgentChatHistory,
   useAgentMarketInsight,
@@ -15,6 +15,10 @@ import {
   useSendAgentChatMessage,
   type AgentProfile,
 } from "@/hooks/useAgent";
+import { useRewardsBalance, useMyPayoutRequests, useRequestPayout } from "@/hooks/useRewards";
+import { useVoice } from "@/hooks/useVoice";
+import type { useNearbyPropertyAlerts } from "@/hooks/useNearbyPropertyAlerts";
+import { useToast } from "@/hooks/use-toast";
 import AgentOnboarding from "./AgentOnboarding";
 
 function formatMoney(amount: number, currency: string) {
@@ -29,9 +33,10 @@ function formatMoney(amount: number, currency: string) {
 
 interface AgentPanelProps {
   onClose?: () => void;
+  nearbyAlerts: ReturnType<typeof useNearbyPropertyAlerts>;
 }
 
-export default function AgentPanel({ onClose }: AgentPanelProps) {
+export default function AgentPanel({ onClose, nearbyAlerts }: AgentPanelProps) {
   const profileQuery = useAgentProfile(true);
   const profile = profileQuery.data?.profile ?? null;
   const hasProfile = !!profile;
@@ -73,16 +78,28 @@ export default function AgentPanel({ onClose }: AgentPanelProps) {
           <Sparkles className="h-4 w-4 text-primary" />
           <span className="font-display text-base text-foreground">My RealEVR Agent</span>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => setEditingProfile(true)} title="Edit profile">
-          <Settings2 className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => nearbyAlerts.setEnabled(!nearbyAlerts.enabled)}
+            title={nearbyAlerts.enabled ? "Location sync on — tap to turn off" : "Turn on location sync for nearby property alerts"}
+            className={nearbyAlerts.enabled ? "text-primary" : ""}
+          >
+            <MapPin className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setEditingProfile(true)} title="Edit profile">
+            <Settings2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="flex flex-1 flex-col overflow-hidden">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="chat">Chat</TabsTrigger>
           <TabsTrigger value="matches">Matches</TabsTrigger>
           <TabsTrigger value="insight">Insight</TabsTrigger>
+          <TabsTrigger value="rewards">Rewards</TabsTrigger>
           <TabsTrigger value="news">News</TabsTrigger>
         </TabsList>
 
@@ -94,6 +111,9 @@ export default function AgentPanel({ onClose }: AgentPanelProps) {
         </TabsContent>
         <TabsContent value="insight" className="flex-1 overflow-y-auto">
           <InsightTab active={tab === "insight"} />
+        </TabsContent>
+        <TabsContent value="rewards" className="flex-1 overflow-y-auto">
+          <RewardsTab active={tab === "rewards"} />
         </TabsContent>
         <TabsContent value="news" className="flex-1 overflow-y-auto">
           <NewsTab active={tab === "news"} />
@@ -108,6 +128,9 @@ function ChatTab({ profile }: { profile: AgentProfile }) {
   const sendMessage = useSendAgentChatMessage();
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const voice = useVoice();
+  const [speakReplies, setSpeakReplies] = useState(false);
+  const lastSpokenIndexRef = useRef(-1);
 
   const messages = historyQuery.data?.messages ?? [];
 
@@ -115,20 +138,61 @@ function ChatTab({ profile }: { profile: AgentProfile }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages.length, sendMessage.isPending]);
 
-  const handleSend = async () => {
-    const text = draft.trim();
-    if (!text || sendMessage.isPending) return;
+  // Speak the newest assistant reply aloud when voice replies are enabled —
+  // covers both messages this tab sent and ones a proactive nearby-match
+  // notification (or a WhatsApp exchange) dropped in behind the scenes.
+  useEffect(() => {
+    if (!speakReplies || messages.length === 0) return;
+    const lastIndex = messages.length - 1;
+    const last = messages[lastIndex];
+    if (last.role === "assistant" && lastIndex > lastSpokenIndexRef.current) {
+      voice.speak(last.text);
+    }
+    lastSpokenIndexRef.current = lastIndex;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, speakReplies]);
+
+  const handleSend = async (text?: string) => {
+    const finalText = (text ?? draft).trim();
+    if (!finalText || sendMessage.isPending) return;
     setDraft("");
-    await sendMessage.mutateAsync(text);
+    await sendMessage.mutateAsync(finalText);
+  };
+
+  const handleMicClick = () => {
+    if (voice.listening) {
+      voice.stopListening();
+      return;
+    }
+    voice.startListening((transcript) => {
+      handleSend(transcript);
+    });
   };
 
   return (
     <div className="flex h-full flex-col">
+      {voice.supported && (
+        <div className="mb-2 flex items-center justify-end gap-1.5">
+          <button
+            onClick={() => {
+              if (speakReplies) voice.stopSpeaking();
+              setSpeakReplies(!speakReplies);
+            }}
+            className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+              speakReplies ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"
+            }`}
+            title={speakReplies ? "Agent will speak replies aloud" : "Turn on spoken replies"}
+          >
+            {speakReplies ? <Volume2 className="h-3 w-3" /> : <VolumeX className="h-3 w-3" />}
+            Voice replies
+          </button>
+        </div>
+      )}
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto pr-1">
         {messages.length === 0 && (
           <p className="rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground">
             Ask me anything — "what fits my budget in Ntinda?", "any bank sales worth a look?", or "show me
-            more like this."
+            more like this." {voice.supported && "Or just tap the mic and talk."}
           </p>
         )}
         {messages.map((m, i) => (
@@ -150,6 +214,17 @@ function ChatTab({ profile }: { profile: AgentProfile }) {
         )}
       </div>
       <div className="mt-3 flex items-end gap-2 border-t border-border pt-3">
+        {voice.supported && (
+          <Button
+            type="button"
+            size="icon"
+            variant={voice.listening ? "default" : "outline"}
+            onClick={handleMicClick}
+            title={voice.listening ? "Listening… tap to stop" : "Talk to your agent"}
+          >
+            {voice.listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </Button>
+        )}
         <Textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -159,11 +234,11 @@ function ChatTab({ profile }: { profile: AgentProfile }) {
               handleSend();
             }
           }}
-          placeholder="Message your agent…"
+          placeholder={voice.listening ? "Listening…" : "Message your agent…"}
           className="min-h-[42px] flex-1 resize-none"
           rows={1}
         />
-        <Button size="icon" onClick={handleSend} disabled={!draft.trim() || sendMessage.isPending}>
+        <Button size="icon" onClick={() => handleSend()} disabled={!draft.trim() || sendMessage.isPending}>
           <Send className="h-4 w-4" />
         </Button>
       </div>
@@ -267,6 +342,132 @@ function InsightTab({ active }: { active: boolean }) {
       <p className="text-xs text-muted-foreground">
         Based on RealEVR Estates' current listings — a snapshot, not a historical trend.
       </p>
+    </div>
+  );
+}
+
+function RewardsTab({ active }: { active: boolean }) {
+  const { toast } = useToast();
+  const balanceQuery = useRewardsBalance(active);
+  const payoutsQuery = useMyPayoutRequests(active);
+  const requestPayout = useRequestPayout();
+  const [mobileMoneyNumber, setMobileMoneyNumber] = useState("");
+  const [provider, setProvider] = useState("MTN");
+  const [showPayoutForm, setShowPayoutForm] = useState(false);
+
+  if (balanceQuery.isLoading) {
+    return (
+      <div className="flex h-32 items-center justify-center text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
+      </div>
+    );
+  }
+
+  const balance = balanceQuery.data;
+
+  const handleRequestPayout = async () => {
+    if (!/^\+?[0-9]{6,20}$/.test(mobileMoneyNumber.trim())) {
+      toast({ title: "Enter a valid mobile money number", variant: "destructive" });
+      return;
+    }
+    try {
+      await requestPayout.mutateAsync({ mobileMoneyNumber: mobileMoneyNumber.trim(), provider });
+      toast({
+        title: "Payout requested",
+        description: "We'll review it and send your mobile money payment shortly.",
+      });
+      setShowPayoutForm(false);
+      setMobileMoneyNumber("");
+    } catch (err: any) {
+      toast({ title: "Couldn't submit payout request", description: err?.message, variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="space-y-4 py-1">
+      <div className="rounded-xl border border-border bg-muted/40 p-4 text-center">
+        <div className="flex items-center justify-center gap-1.5 text-muted-foreground">
+          <Gift className="h-4 w-4" />
+          <span className="text-xs uppercase tracking-wide">Your rewards</span>
+        </div>
+        <p className="mt-1 font-display text-3xl text-foreground">{balance?.totalPoints ?? 0} pts</p>
+        <p className="text-sm text-muted-foreground">
+          ≈ UGX {(balance?.ugxValue ?? 0).toLocaleString()} · from {balance?.totalShares ?? 0} share
+          {balance?.totalShares === 1 ? "" : "s"}
+        </p>
+      </div>
+
+      <div className="rounded-lg border border-border p-3 text-sm text-muted-foreground">
+        <p className="flex items-center gap-1.5 font-medium text-foreground">
+          <Share2 className="h-3.5 w-3.5" /> How it works
+        </p>
+        <p className="mt-1">
+          Share any property from its listing page. Each share earns 1 point (10 UGX) — 1,000 points = 10,000
+          UGX. Once you have at least {balance?.minPayoutPoints ?? 100} points ({balance?.minPayoutUgx ?? 1000}{" "}
+          UGX), request a payout to mobile money below.
+        </p>
+      </div>
+
+      {balance && balance.canRequestPayout && !showPayoutForm && (
+        <Button className="w-full" onClick={() => setShowPayoutForm(true)}>
+          Redeem {balance.availablePoints} pts (UGX {balance.availableUgx.toLocaleString()})
+        </Button>
+      )}
+
+      {showPayoutForm && (
+        <div className="space-y-2 rounded-lg border border-border p-3">
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={provider}
+              onChange={(e) => setProvider(e.target.value)}
+              className="rounded-md border border-input bg-background px-2 py-2 text-sm"
+            >
+              <option value="MTN">MTN Mobile Money</option>
+              <option value="Airtel">Airtel Money</option>
+            </select>
+            <Input
+              placeholder="e.g. 0700000000"
+              value={mobileMoneyNumber}
+              onChange={(e) => setMobileMoneyNumber(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="flex-1" onClick={() => setShowPayoutForm(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" className="flex-1" onClick={handleRequestPayout} disabled={requestPayout.isPending}>
+              {requestPayout.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+              Submit request
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {balance && !balance.canRequestPayout && (
+        <p className="text-center text-xs text-muted-foreground">
+          {balance.minPayoutPoints - balance.availablePoints} more point
+          {balance.minPayoutPoints - balance.availablePoints === 1 ? "" : "s"} until you can redeem.
+        </p>
+      )}
+
+      {payoutsQuery.data && payoutsQuery.data.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Payout history</p>
+          {payoutsQuery.data.map((r) => (
+            <div key={r.id} className="flex items-center justify-between rounded-lg border border-border p-2.5 text-sm">
+              <div>
+                <p className="font-medium text-foreground">UGX {r.ugxAmount.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">{r.provider} · {r.mobileMoneyNumber}</p>
+              </div>
+              <Badge
+                variant={r.status === "paid" ? "default" : r.status === "rejected" ? "destructive" : "secondary"}
+              >
+                {r.status.replace(/_/g, " ")}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

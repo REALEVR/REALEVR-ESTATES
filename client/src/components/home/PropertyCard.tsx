@@ -49,7 +49,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
     const handleShareClick = (e: React.MouseEvent) => {
         e.preventDefault()
         e.stopPropagation()
-        // setIsShareModalOpen(true)
+        setIsShareModalOpen(true)
     }
 
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)

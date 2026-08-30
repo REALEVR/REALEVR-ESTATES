@@ -94,6 +94,14 @@ export interface AgentChatMessage {
 
 export type AgentSignalAction = "viewed" | "saved" | "inquired" | "tour_viewed";
 
+export interface AgentNearbyResponse {
+  synced: boolean;
+  location: string | null;
+  lastSyncedAt: string | null;
+  matches: AgentRecommendation[];
+  notified: boolean;
+}
+
 const PROFILE_KEY = ["/api/gene/agent/profile"];
 const RECOMMENDATIONS_KEY = ["/api/gene/agent/recommendations"];
 const MARKET_INSIGHT_KEY = ["/api/gene/agent/market-insight"];
@@ -169,6 +177,25 @@ export function useSendAgentChatMessage() {
       queryClient.invalidateQueries({ queryKey: CHAT_HISTORY_KEY });
     },
   });
+}
+
+export function useSyncAgentLocation() {
+  return useMutation({
+    mutationFn: async (input: { lat: number; lng: number; label: string }) => {
+      const res = await apiRequest("POST", "/api/gene/agent/location", input);
+      return (await res.json()) as { ok: boolean; lastLocationLabel: string };
+    },
+  });
+}
+
+/**
+ * Not a useQuery — this is called imperatively (on an interval / visibility
+ * change) by useNearbyPropertyAlerts so each check can react to `notified`
+ * without fighting React Query's caching of a "the same" GET.
+ */
+export async function fetchAgentNearby(): Promise<AgentNearbyResponse> {
+  const res = await apiRequest("GET", "/api/gene/agent/nearby");
+  return (await res.json()) as AgentNearbyResponse;
 }
 
 /**
