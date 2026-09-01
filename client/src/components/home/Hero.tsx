@@ -386,7 +386,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             ))}
           </select>
           <button
-            className="bg-accent text-accent-foreground rounded-full px-8 py-2 font-semibold text-lg hover:bg-accent/90 transition"
+            className="shine rounded-full px-8 py-2 font-semibold text-lg hover:opacity-90 transition"
             onClick={handleSearch}
           >
             Search

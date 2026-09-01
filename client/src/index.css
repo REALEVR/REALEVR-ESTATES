@@ -3,64 +3,75 @@
 @tailwind utilities;
 
 /*
- * RealEVR Estates — "NeoVision" theme (v3, GENE v1.10).
- * Strict black & white / grayscale — no brand hue anywhere. White base
- * surface with near-black text, near-black reserved as the one confident
- * "accent" (so primary CTAs read as a deliberate flash of black against
- * white rather than a color choice), Space Grotesk for display/headlines
- * (geometric, technical) paired with Montserrat for UI/body.
+ * RealEVR Estates — "Luxury Alabaster" theme (v4, GENE v1.11).
+ * Replaces v3's strict black & white NeoVision palette with a warm
+ * 60-30-10 luxury real-estate palette, requested after a multi-round
+ * design comparison (Airbnb/Zillow structural references, a luxury
+ * palette brief, and Baymard Institute UX research): Soft Alabaster
+ * White as the base surface (60%), Deep Charcoal for text/structure
+ * (30%), and a flat Shiny Silver as the one confident "accent" (10%) —
+ * reserved, same as v3's black accent was, for the site's highest-intent
+ * actions. Space Grotesk for display/headlines, Montserrat for UI/body —
+ * unchanged from v3.
  *
- * v3 flips v2's roles on user feedback ("too dark, make it white with
- * touches of black") — light is now the default surface, dark is what's
- * reserved for deliberate accents (the footer band, the mobile-app promo
- * band) via `.surface-invert` below. Replaces v2's near-black-default
- * palette — see git history for that version if ever needed back.
+ * This pass is a re-theme, not a rebuild: it changes ONLY the palette
+ * variables (plus a small `.shine` utility, see below) — every component
+ * that was already on semantic Tailwind tokens (`bg-card`, `text-foreground`,
+ * `bg-accent`, etc. — the whole v1.9/v1.10 architecture) re-themes for free.
+ * No component's actual functionality (VR badges, tour modal, auth, search,
+ * property data) changed to make this pass.
+ *
+ * "Shiny silver" is intentionally NOT baked into `--accent` as an animated
+ * gradient — every `bg-accent` site across ~20 files would shimmer, which
+ * reads as noise rather than emphasis. `--accent` stays a flat, calm silver
+ * for everyday accent usage (active states, hover, small badges); the
+ * metallic shimmer lives in the separate `.shine` utility below, applied
+ * by hand to the handful of highest-intent CTAs where it's meant to draw
+ * the eye (see Hero's primary search button).
  *
  * `:root` IS the default look (this app never toggles a `.dark` class
- * anywhere today — grep confirms it), so the light look lives here, not
- * gated behind a dark-mode switch. `.dark` holds v2's full dark palette,
- * preserved (not left numerically identical to `:root` this time) in
- * case a real dark-mode toggle is ever wired up later.
+ * anywhere today — grep confirms it). `.dark` still holds v3's full dark
+ * (near-black) palette, preserved in case a real dark-mode toggle is ever
+ * wired up — untouched by this pass.
  *
- * Semantic exception, considered on purpose: `--destructive` stays a real
- * (if desaturated) red rather than grayscale — admin "Reject"/"Cancel"/
- * delete actions need a genuinely distinguishable warning color for
- * safety, not just weight/icon. Everything else is pure 0% saturation.
+ * Semantic exception, unchanged from v3: `--destructive` stays a real red —
+ * admin "Reject"/"Cancel"/delete actions need a genuinely distinguishable
+ * warning color, not just a palette-matched tone.
  */
 :root {
-  --background: 0 0% 98%;        /* near-white */
-  --foreground: 0 0% 9%;         /* near-black */
-  --muted: 0 0% 94%;
-  --muted-foreground: 0 0% 40%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 9%;
-  --card: 0 0% 100%;             /* pure white — pops slightly off the page bg */
-  --card-foreground: 0 0% 9%;
-  --border: 0 0% 88%;
-  --input: 0 0% 88%;
-  --primary: 0 0% 9%;            /* near-black */
-  --primary-foreground: 0 0% 98%;
-  --secondary: 0 0% 94%;
-  --secondary-foreground: 0 0% 9%;
-  --accent: 0 0% 7%;             /* near-black — the one "confident" tone */
-  --accent-foreground: 0 0% 100%;
+  --background: 60 20% 98%;      /* Soft Alabaster White #FBFBF9 — 60% */
+  --foreground: 235 21% 21%;     /* Deep Charcoal/Onyx #2B2D42 — 30% */
+  --muted: 48 22% 93%;
+  --muted-foreground: 100 5% 37%;
+  --popover: 60 100% 100%;
+  --popover-foreground: 235 21% 21%;
+  --card: 60 100% 100%;          /* near-pure white — pops slightly off the alabaster page bg */
+  --card-foreground: 235 21% 21%;
+  --border: 46 23% 85%;
+  --input: 46 23% 85%;
+  --primary: 235 21% 21%;        /* charcoal */
+  --primary-foreground: 60 20% 98%;
+  --secondary: 48 22% 93%;
+  --secondary-foreground: 235 21% 21%;
+  --accent: 217 5% 52%;          /* flat Shiny Silver base #7D828A — the one "confident" tone */
+  --accent-foreground: 235 21% 21%;
   --destructive: 4 66% 48%;      /* semantic-only exception, see above */
   --destructive-foreground: 0 0% 98%;
-  --ring: 0 0% 9%;
+  --ring: 235 21% 21%;
   --radius: 0.6rem;
-  --chart-1: 0 0% 12%;
-  --chart-2: 0 0% 30%;
-  --chart-3: 0 0% 48%;
-  --chart-4: 0 0% 64%;
-  --chart-5: 0 0% 80%;
-  --sidebar-background: 0 0% 100%;
-  --sidebar-foreground: 0 0% 9%;
-  --sidebar-primary: 0 0% 9%;
-  --sidebar-primary-foreground: 0 0% 98%;
-  --sidebar-accent: 0 0% 94%;
-  --sidebar-accent-foreground: 0 0% 9%;
-  --sidebar-border: 0 0% 88%;
-  --sidebar-ring: 0 0% 9%;
+  --chart-1: 235 20% 20%;
+  --chart-2: 235 15% 38%;
+  --chart-3: 235 10% 55%;
+  --chart-4: 235 8% 70%;
+  --chart-5: 235 6% 85%;
+  --sidebar-background: 60 100% 100%;
+  --sidebar-foreground: 235 21% 21%;
+  --sidebar-primary: 235 21% 21%;
+  --sidebar-primary-foreground: 60 20% 98%;
+  --sidebar-accent: 48 22% 93%;
+  --sidebar-accent-foreground: 235 21% 21%;
+  --sidebar-border: 46 23% 85%;
+  --sidebar-ring: 235 21% 21%;
 
   --font-display: "Space Grotesk", "Montserrat", ui-sans-serif, sans-serif;
 }
@@ -90,26 +101,52 @@
   --ring: 0 0% 100%;
 }
 
-/* A deliberate dark band on the now-light site — the footer and the
-   mobile-app promo band use this for a "touch of black" accent section,
-   same variable-scoping trick as v2's `.surface-light` (which this
-   replaces — the base page is light now, so an inverted *light* surface
-   utility is no longer useful; a dark one is). Every semantic Tailwind
-   class (bg-card, text-foreground, text-muted-foreground, bg-accent...)
+/* A deliberate dark band on the light site — the footer and the
+   mobile-app promo band use this for a "touch of black" accent section
+   (also functionally required: the footer logo relies on a `brightness-0
+   invert` filter to render white, which needs a dark surface behind it —
+   see Footer.tsx). Retinted in v1.11 to a charcoal-family dark (235° hue)
+   instead of plain grayscale, so it reads as "deep charcoal, darkened"
+   rather than an unrelated black — consistent with the new warm palette.
+   Every semantic Tailwind class (bg-card, text-foreground, bg-accent...)
    used inside an element with this class automatically resolves to these
    scoped values instead of the page-level `:root` ones. */
 .surface-invert {
-  --background: 0 0% 8%;
-  --foreground: 0 0% 96%;
-  --card: 0 0% 8%;
-  --card-foreground: 0 0% 96%;
-  --border: 0 0% 22%;
-  --muted: 0 0% 16%;
-  --muted-foreground: 0 0% 66%;
-  --accent: 0 0% 100%;
-  --accent-foreground: 0 0% 6%;
+  --background: 235 15% 10%;
+  --foreground: 60 20% 96%;
+  --card: 235 15% 10%;
+  --card-foreground: 60 20% 96%;
+  --border: 235 10% 22%;
+  --muted: 235 10% 16%;
+  --muted-foreground: 60 8% 66%;
+  --accent: 220 10% 88%;
+  --accent-foreground: 235 21% 15%;
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
+}
+
+/* "Shiny silver" — the metallic, animated treatment for the handful of
+   highest-intent CTAs (GENE v1.11). Deliberately separate from `--accent`
+   itself: baking the shimmer into the variable would animate every
+   `bg-accent` site across the app at once, which reads as noise, not
+   emphasis. Apply `.shine` by hand instead (see Hero's primary search
+   button). Respects reduced-motion. */
+@keyframes shine-sweep {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.shine {
+  background: linear-gradient(120deg,
+    hsl(213 9% 81%) 0%, hsl(220 16% 96%) 22%, hsl(220 6% 64%) 45%,
+    hsl(220 10% 94%) 68%, hsl(218 7% 71%) 100%);
+  background-size: 250% 250%;
+  animation: shine-sweep 4.5s ease-in-out infinite;
+  color: hsl(var(--foreground));
+  border: 1px solid hsla(0, 0%, 100%, 0.5);
+  box-shadow: inset 0 1px 0 hsla(0, 0%, 100%, 0.65), 0 2px 8px hsl(var(--foreground) / 0.14);
+}
+@media (prefers-reduced-motion: reduce) {
+  .shine { animation: none; }
 }
 
 @layer base {
@@ -129,25 +166,25 @@
 }
 
 /*
- * "NeoVision" VR/tech visual motifs — small, reusable, strictly grayscale.
+ * "NeoVision" VR/tech visual motifs — small, reusable, dark-on-light.
  * Used by the Hero, VRBadge, and the property-page VR panel rather than
  * one-off inline styles, so the look stays consistent everywhere it's used.
- * Dark-on-light values (v3) — white hairlines/glows are invisible against
- * the light v3 base; see git history for v2's white-on-dark versions.
+ * Retinted in v1.11 to the charcoal hue (235°) instead of plain black, to
+ * match the new palette family — same opacities/effect, just warmer.
  */
 .vr-grid-bg {
   background-image:
-    linear-gradient(hsla(0, 0%, 0%, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, hsla(0, 0%, 0%, 0.06) 1px, transparent 1px);
+    linear-gradient(hsla(235, 21%, 21%, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, hsla(235, 21%, 21%, 0.06) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
 .vr-glow-ring {
-  box-shadow: 0 0 0 1px hsla(0, 0%, 0%, 0.12), 0 0 32px hsla(0, 0%, 0%, 0.10);
+  box-shadow: 0 0 0 1px hsla(235, 21%, 21%, 0.12), 0 0 32px hsla(235, 21%, 21%, 0.10);
 }
 
 .vr-glow-text {
-  text-shadow: 0 0 20px hsla(0, 0%, 0%, 0.22);
+  text-shadow: 0 0 20px hsla(235, 21%, 21%, 0.22);
 }
 
 .vr-badge {

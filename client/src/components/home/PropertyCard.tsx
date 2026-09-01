@@ -122,7 +122,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
     return (
         <>
             <AnimatedCard
-                className="property-card bg-card rounded-2xl overflow-hidden shadow-sm border border-border/60 cursor-pointer hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
+                className="property-card bg-card rounded-2xl overflow-hidden shadow-sm border-[1.5px] border-border cursor-pointer hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
                 onClick={handleCardClick}
             >
                 <div className="relative">
