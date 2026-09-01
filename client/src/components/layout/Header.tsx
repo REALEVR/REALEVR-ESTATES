@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Loader2, LogOut, Settings, User, Glasses, Building, Users, Wallet } from "lucide-react";
+import { Loader2, LogOut, Settings, User, Glasses, Building, Users, Wallet, Rocket } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import NotificationCenter from "@/components/NotificationCenter";
 
@@ -169,7 +169,7 @@ export default function Header() {
 
                   {user.role === "agent" && (
                     <>
-                      <DropdownMenuItem asChild>
+                  <DropdownMenuItem asChild>
                         <Link href="/agent/dashboard">
                           <Building className="mr-2 h-4 w-4" />
                           <span>Agent Dashboard</span>
@@ -179,6 +179,12 @@ export default function Header() {
                         <Link href="/admin/virtual-tours">
                           <Glasses className="mr-2 h-4 w-4" />
                           <span>Virtual Tour Manager</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/boost-confirmations">
+                          <Rocket className="mr-2 h-4 w-4" />
+                          <span>Boost Confirmations</span>
                         </Link>
                       </DropdownMenuItem>
                     </>
@@ -196,6 +202,12 @@ export default function Header() {
                         <Link href="/admin/payout-approvals">
                           <Wallet className="mr-2 h-4 w-4" />
                           <span>Payout Approvals</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/boost-confirmations">
+                          <Rocket className="mr-2 h-4 w-4" />
+                          <span>Boost Confirmations</span>
                         </Link>
                       </DropdownMenuItem>
                     </>

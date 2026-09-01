@@ -46,6 +46,7 @@ import IotechMetricCounterPaymentHandle from './components/payment/sio-iotech'
 import AgentLauncher from './components/agent/AgentLauncher'
 import ListYourPropertyPage from '@/pages/ListYourPropertyPage'
 import AdminPayoutApprovals from '@/pages/AdminPayoutApprovals'
+import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
 import WhatsAppFab from '@/components/whatsapp/WhatsAppFab'
 
 function Router() {
@@ -106,6 +107,15 @@ function Router() {
                 requireStrictAdmin, which the underlying APIs actually enforce;
                 this route gate is the matching client-side check. */}
             <ProtectedAdminRoute path="/admin/payout-approvals" component={AdminPayoutApprovals} allowedRoles={['admin']} />
+            {/* Boost confirmations are money coming IN with no payout
+                conflict-of-interest — matches the backend's shared
+                adminMiddleware (admin OR agent), unlike the strict
+                admin-only payout-approvals route above. */}
+            <ProtectedAdminRoute
+                path="/admin/boost-confirmations"
+                component={AdminBoostConfirmations}
+                allowedRoles={['admin', 'agent']}
+            />
 
             <Route
                 path="/category/:categorySlug"

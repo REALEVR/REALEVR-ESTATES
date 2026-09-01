@@ -29,6 +29,7 @@ import PropertyFormNew from '@/components/admin/PropertyFormNew'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useLandlordInbox, useLandlordReviews } from '@/hooks/useLandlordHub'
 import { useInstallPrompt } from '@/hooks/useInstallPrompt'
+import BoostPurchaseCard from '@/components/boost/BoostPurchaseCard'
 
 interface PropertyWithViews extends Property {
     viewCount: number
@@ -348,6 +349,7 @@ export function AgentDashboard() {
                                                       <Trash2 className="mr-1 h-3 w-3" />
                                                       Delete
                                                   </Button>
+                                                  <BoostPurchaseCard propertyId={property.id} />
                                               </div>
                                               <Button
                                                   variant={property.isAvailable ? 'outline' : 'default'}

@@ -12,6 +12,7 @@
 import type { Express, RequestHandler } from 'express'
 import { storage } from '../storage'
 import { nextId, nowIso, readCollection, writeCollection } from './store'
+import { recordLead } from './lead-metering'
 
 const STATES_COLLECTION = 'gene_listing_states'
 const OFFERS_COLLECTION = 'gene_offers'
@@ -188,6 +189,15 @@ export function registerListingsLifecycleRoutes(app: Express, adminMiddleware: R
             }
             rows.push(row)
             saveOffers(rows)
+
+            // Pay-per-lead metering (monetization playbook, Section 2 stream
+            // #5): a submitted offer/inquiry IS a real lead. Best-effort —
+            // never lets a metering hiccup fail the buyer's actual submission.
+            try {
+                recordLead(propertyId, 'inquiry')
+            } catch (meterError) {
+                console.error('[gene/listings-lifecycle] lead metering failed (non-fatal):', meterError)
+            }
 
             res.status(201).json(row)
         } catch (error: any) {

@@ -55,6 +55,11 @@ import { registerLandlordHubRoutes } from './gene/landlord-hub'
 import { registerMagicLoginRoutes } from './gene/magic-login'
 import { registerSelfServeListingRoutes } from './gene/self-serve-listing'
 import { registerWhatsappGrowthRoutes } from './gene/whatsapp-growth'
+import { registerBoostPlacementRoutes } from './gene/boost-placement'
+import { registerSuccessFeeRoutes } from './gene/success-fee'
+import { registerTourProductionBookingRoutes } from './gene/tour-production-booking'
+import { registerLeadMeteringRoutes } from './gene/lead-metering'
+import { registerTenantConsentRoutes } from './gene/tenant-consent'
 
 // Middleware to check if user is an admin or property manager
 const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -2387,6 +2392,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerMagicLoginRoutes(app)
     registerSelfServeListingRoutes(app)
     registerWhatsappGrowthRoutes(app)
+
+    // Monetization playbook (2026-08-29) implementation pass — see
+    // docs/GENE_PLATFORM.md v1.6. Each is additive/independent; none touches
+    // an existing route or table.
+    registerBoostPlacementRoutes(app, adminMiddleware)
+    registerSuccessFeeRoutes(app, adminMiddleware)
+    registerTourProductionBookingRoutes(app, adminMiddleware)
+    registerLeadMeteringRoutes(app, adminMiddleware)
+    registerTenantConsentRoutes(app)
 
     // Admin endpoint to manually trigger reminders for testing
     app.post('/api/admin/test-reminders', adminMiddleware, async (_req: any, res: any) => {

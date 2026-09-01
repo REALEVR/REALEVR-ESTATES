@@ -79,6 +79,26 @@ const MAX_OTP_ATTEMPTS = 5
 const SELF_SERVE_CATEGORIES = new Set(['rental_units', 'furnished_houses', 'for_sale'])
 
 /**
+ * FRAUD/SYBIL CAPS — added per the monetization playbook's referral-payout
+ * economics section: the true cost of a payout (~1,000 UGX nominal + mobile
+ * money disbursement fees) means one person acting as both the "agent" and
+ * the landlord's OTP recipient — or one number generating an unusual burst
+ * of listings — can quietly cost real money with zero conversion
+ * possibility. Two independent checks:
+ *   1. Agent phone and landlord phone must always be different numbers —
+ *      enforced at submission time (POST /start), before any OTP is sent.
+ *   2. A rolling 30-day cap on how many payout-eligible listings the SAME
+ *      agent phone or the SAME landlord phone may generate. Going over a cap
+ *      does not block the listing (it's still a real property) — it flags
+ *      the payout `flagged_fraud_review` instead of the normal
+ *      `pending_admin_review`, so a strict admin sees exactly why before
+ *      approving. Both are overridable via env without a code change.
+ */
+const MAX_PAYOUTS_PER_AGENT_PHONE_PER_30D = Number(process.env.SELF_SERVE_MAX_PAYOUTS_PER_AGENT_30D) || 10
+const MAX_PAYOUTS_PER_LANDLORD_PHONE_PER_30D = Number(process.env.SELF_SERVE_MAX_PAYOUTS_PER_LANDLORD_30D) || 5
+const FRAUD_WINDOW_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
+
+/**
  * Who gets WhatsApp-notified for approval, and who's allowed to approve
  * (that's enforced separately, by role==='admin', in requireStrictAdmin —
  * this list is only about *notification*, not authorization). Overridable
@@ -137,7 +157,12 @@ interface SelfServeSubmission {
     updatedAt: string
 }
 
-export type ListingPayoutStatus = 'pending_admin_review' | 'approved_manual_payout_required' | 'paid' | 'rejected'
+export type ListingPayoutStatus =
+    | 'pending_admin_review'
+    | 'flagged_fraud_review'
+    | 'approved_manual_payout_required'
+    | 'paid'
+    | 'rejected'
 
 export interface ListingPayoutRequest {
     id: number
@@ -156,6 +181,8 @@ export interface ListingPayoutRequest {
     decidedAt?: string
     decidedBy?: string
     note?: string
+    /** Why this landed in flagged_fraud_review instead of the normal queue — set once, never cleared, so the reason survives even after an admin approves past it. */
+    fraudFlagReason?: string
 }
 
 function readSubmissions(): SelfServeSubmission[] {
@@ -181,6 +208,37 @@ function readPayouts(): ListingPayoutRequest[] {
 }
 function writePayouts(rows: ListingPayoutRequest[]): void {
     writeCollection(PAYOUT_COLLECTION, rows)
+}
+
+/** Fraud check #2 — see the const block above. Counts payout requests in the
+ * last 30 days for a given agent or landlord phone, excluding only
+ * `rejected` ones (a rejected request shouldn't count against a future
+ * legitimate one). Returns the reason string to flag with, or null if under
+ * both caps. */
+function checkFraudCaps(agentPhone: string, landlordPhone: string): string | null {
+    const cutoff = Date.now() - FRAUD_WINDOW_MS
+    const recent = readPayouts().filter((r) => r.status !== 'rejected' && new Date(r.createdAt).getTime() >= cutoff)
+
+    const agentCount = recent.filter((r) => r.agentPhone === agentPhone).length
+    if (agentCount >= MAX_PAYOUTS_PER_AGENT_PHONE_PER_30D) {
+        return `Agent phone ${agentPhone} has ${agentCount} payout-eligible listings in the last 30 days (cap: ${MAX_PAYOUTS_PER_AGENT_PHONE_PER_30D}).`
+    }
+
+    const landlordCount = recent.filter((r) => r.landlordPhone === landlordPhone).length
+    if (landlordCount >= MAX_PAYOUTS_PER_LANDLORD_PHONE_PER_30D) {
+        return `Landlord/manager phone ${landlordPhone} has vouched for ${landlordCount} payout-eligible listings in the last 30 days (cap: ${MAX_PAYOUTS_PER_LANDLORD_PHONE_PER_30D}).`
+    }
+
+    return null
+}
+
+/** Exported for other GENE modules (e.g. boost-placement.ts's take-rate
+ * instrumentation) that need to know which live properties came through the
+ * agent-referral flow, without duplicating this module's collection/types. */
+export function getLiveReferredPropertyIds(): number[] {
+    return readSubmissions()
+        .filter((s) => s.status === 'live' && typeof s.createdPropertyId === 'number')
+        .map((s) => s.createdPropertyId as number)
 }
 
 /** Public, safe-to-return view of a submission — never leaks the OTP code. */
@@ -275,6 +333,14 @@ export function registerSelfServeListingRoutes(app: Express): void {
             const landlordPhoneWhatsapp = toWhatsappFormat(landlordPhoneRaw)
             if (!landlordPhoneWhatsapp) {
                 return res.status(400).json({ message: "Enter a valid Uganda phone number for the landlord/manager, e.g. 0770000000 — we'll text them a code to confirm this listing." })
+            }
+            // Fraud check #1 — see the const block above. Blocked outright,
+            // not just flagged, because there is no legitimate reason the
+            // agent and the person verifying them are the same phone.
+            if (agentPhoneWhatsapp === landlordPhoneWhatsapp) {
+                return res.status(400).json({
+                    message: "The agent and landlord/manager numbers must be different — RealEVR pays a referral fee for a real introduction, and can't verify a listing where the same number is on both sides.",
+                })
             }
 
             // If the submitter is logged in, remember their account so we can
@@ -452,19 +518,21 @@ export function registerSelfServeListingRoutes(app: Express): void {
             saveSubmission(submission)
 
             const payoutRows = readPayouts()
+            const fraudFlagReason = checkFraudCaps(submission.agentPhoneWhatsapp, submission.landlordPhoneWhatsapp)
             const payout: ListingPayoutRequest = {
                 id: nextId(payoutRows),
                 submissionId: submission.id,
                 agentUserId: userId,
                 propertyId: property.id,
                 amountUgx: submission.payoutAmount,
-                status: 'pending_admin_review',
+                status: fraudFlagReason ? 'flagged_fraud_review' : 'pending_admin_review',
                 propertyTitle: property.title,
                 agentName: submission.agentName,
                 agentPhone: submission.agentPhoneWhatsapp,
                 landlordName: submission.landlordName,
                 landlordPhone: submission.landlordPhoneWhatsapp,
                 createdAt: nowIso(),
+                ...(fraudFlagReason ? { fraudFlagReason } : {}),
             }
             payoutRows.push(payout)
             writePayouts(payoutRows)
@@ -516,17 +584,90 @@ export function registerSelfServeListingRoutes(app: Express): void {
     // test — see docs/GENE_PLATFORM.md's verification notes).
     // -----------------------------------------------------------------------
 
-    // GET /api/gene/self-serve/payout-requests — [STRICT ADMIN] optional ?status=
+    // GET /api/gene/self-serve/payout-requests — [STRICT ADMIN]
+    // Optional ?status= and ?flagged=true (fraudFlagReason set, any status).
+    // Sorted OLDEST first when listing anything still awaiting a decision
+    // (pending_admin_review / flagged_fraud_review) so the queue surfaces
+    // the most-overdue request first, per the admin-queue-upgrade ask —
+    // everything else (already-decided rows) stays newest-first. Each row
+    // also gets a computed `agingHours` so the client can flag anything
+    // that's sat too long without reading dates itself.
     app.get('/api/gene/self-serve/payout-requests', requireStrictAdmin, (req: Request, res: Response) => {
         try {
             const status = typeof req.query.status === 'string' ? req.query.status : undefined
+            const flaggedOnly = req.query.flagged === 'true'
             let rows = readPayouts()
             if (status) rows = rows.filter((r) => r.status === status)
-            rows.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            res.json(rows)
+            if (flaggedOnly) rows = rows.filter((r) => Boolean(r.fraudFlagReason))
+
+            const isAwaitingDecision = (s: ListingPayoutStatus) => s === 'pending_admin_review' || s === 'flagged_fraud_review'
+            rows.sort((a, b) => {
+                const aWaiting = isAwaitingDecision(a.status)
+                const bWaiting = isAwaitingDecision(b.status)
+                if (aWaiting && bWaiting) return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() // oldest first
+                if (aWaiting !== bWaiting) return aWaiting ? -1 : 1 // awaiting-decision rows float to the top regardless of filter
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() // decided rows: newest first
+            })
+
+            const withAging = rows.map((r) => ({
+                ...r,
+                agingHours: Math.round((Date.now() - new Date(r.createdAt).getTime()) / (60 * 60 * 1000)),
+            }))
+            res.json(withAging)
         } catch (err) {
             console.error('[gene/self-serve] GET payout-requests failed:', err)
             res.status(500).json({ message: 'Failed to load payout requests.' })
+        }
+    })
+
+    // POST /api/gene/self-serve/payout-requests/bulk-approve — [STRICT ADMIN]
+    // { ids: number[] }. Deliberately only touches rows in the plain
+    // "pending_admin_review" status — flagged_fraud_review rows are excluded
+    // on purpose and must be approved individually, so a bulk click can
+    // never wave through something the fraud caps specifically flagged.
+    app.post('/api/gene/self-serve/payout-requests/bulk-approve', requireStrictAdmin, (req: Request, res: Response) => {
+        try {
+            const ids: unknown = req.body?.ids
+            if (!Array.isArray(ids) || ids.length === 0) {
+                return res.status(400).json({ message: 'ids (non-empty array of payout request ids) is required.' })
+            }
+            const idSet = new Set(ids.map((v) => Number(v)))
+            const decidedBy = (req.user as any)?.username ?? (req.user as any)?.email ?? 'unknown-admin'
+
+            const rows = readPayouts()
+            const approved: number[] = []
+            const skipped: Array<{ id: number; reason: string }> = []
+
+            for (const id of Array.from(idSet)) {
+                const idx = rows.findIndex((r) => r.id === id)
+                if (idx === -1) {
+                    skipped.push({ id, reason: 'not found' })
+                    continue
+                }
+                if (rows[idx].status !== 'pending_admin_review') {
+                    skipped.push({ id, reason: `status is "${rows[idx].status}", not bulk-approvable (flagged rows need individual review)` })
+                    continue
+                }
+                rows[idx] = {
+                    ...rows[idx],
+                    status: 'approved_manual_payout_required',
+                    decidedAt: nowIso(),
+                    decidedBy,
+                    note: 'Approved (bulk) — send via mobile money manually, then mark as paid.',
+                }
+                approved.push(id)
+            }
+            writePayouts(rows)
+
+            for (const id of approved) {
+                const row = rows.find((r) => r.id === id)
+                if (row) notifyAgentOfDecision(row, 'approved').catch((err) => console.error('[gene/self-serve] bulk approval notification failed:', err))
+            }
+
+            res.json({ approved, skipped })
+        } catch (err) {
+            console.error('[gene/self-serve] bulk-approve failed:', err)
+            res.status(500).json({ message: 'Bulk approve failed.' })
         }
     })
 
@@ -536,7 +677,10 @@ export function registerSelfServeListingRoutes(app: Express): void {
             const rows = readPayouts()
             const idx = rows.findIndex((r) => String(r.id) === req.params.id)
             if (idx === -1) return res.status(404).json({ message: 'Payout request not found.' })
-            if (rows[idx].status !== 'pending_admin_review') {
+            // A flagged request is approvable too — the flag is a prompt for
+            // the admin to look closer, not an automatic block. It stays
+            // visible via fraudFlagReason even after approval.
+            if (rows[idx].status !== 'pending_admin_review' && rows[idx].status !== 'flagged_fraud_review') {
                 return res.status(400).json({ message: `Cannot approve a request in status "${rows[idx].status}".` })
             }
             const decidedBy = (req.user as any)?.username ?? (req.user as any)?.email ?? 'unknown-admin'
@@ -588,7 +732,7 @@ export function registerSelfServeListingRoutes(app: Express): void {
             const rows = readPayouts()
             const idx = rows.findIndex((r) => String(r.id) === req.params.id)
             if (idx === -1) return res.status(404).json({ message: 'Payout request not found.' })
-            if (rows[idx].status !== 'pending_admin_review') {
+            if (rows[idx].status !== 'pending_admin_review' && rows[idx].status !== 'flagged_fraud_review') {
                 return res.status(400).json({ message: `Cannot reject a request in status "${rows[idx].status}".` })
             }
             const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined
@@ -646,9 +790,12 @@ async function sendOtp(submission: SelfServeSubmission): Promise<void> {
  * workaround if that becomes a problem in practice. */
 async function notifyAdminsOfPendingPayout(payout: ListingPayoutRequest): Promise<void> {
     const message = [
-        `💰 New listing payout pending review: ${payout.amountUgx} UGX for "${payout.propertyTitle}".`,
+        payout.fraudFlagReason
+            ? `🚩 Flagged listing payout needs review: ${payout.amountUgx} UGX for "${payout.propertyTitle}".`
+            : `💰 New listing payout pending review: ${payout.amountUgx} UGX for "${payout.propertyTitle}".`,
         `Agent: ${payout.agentName} (${payout.agentPhone})`,
         `Vouched for by: ${payout.landlordName} (${payout.landlordPhone})`,
+        ...(payout.fraudFlagReason ? [`Flag reason: ${payout.fraudFlagReason}`] : []),
         `Review it in the admin dashboard: Payout Approvals → request #${payout.id}.`,
     ].join('\n')
     for (const number of getAdminWhatsappNumbers()) {
