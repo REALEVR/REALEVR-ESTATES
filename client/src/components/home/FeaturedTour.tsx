@@ -35,7 +35,7 @@ function PropertyDescription({ description }: PropertyDescriptionProps) {
   const fullText = description;
   
   return (
-    <div className="text-gray-500">
+    <div className="text-muted-foreground">
       <p className="leading-relaxed">
         {isExpanded ? fullText : previewText}
         {!isExpanded && hasMoreContent && '...'}
@@ -43,7 +43,7 @@ function PropertyDescription({ description }: PropertyDescriptionProps) {
       {hasMoreContent && (
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="mt-2 text-[#FF5A5F] hover:text-[#FF7478] font-medium text-sm transition-colors"
+          className="mt-2 text-accent hover:text-accent/70 font-medium text-sm transition-colors"
         >
           {isExpanded ? 'Show less' : 'Read more'}
         </button>
@@ -101,10 +101,10 @@ export default function FeaturedTour() {
 
   if (isLoading) {
     return (
-      <section id="featured" className="py-10 bg-gray-50 -mx-4 sm:-mx-6 lg:-mx-8">
+      <section id="featured" className="py-10 bg-secondary -mx-4 sm:-mx-6 lg:-mx-8">
         <div className="container mx-auto px-4">
-          <h2 className="text-2xl md:text-3xl font-bold mb-6">Featured Virtual Tour</h2>
-          <div className="h-[400px] bg-gray-200 animate-pulse rounded-xl"></div>
+          <h2 className="text-2xl md:text-3xl font-display font-medium mb-6">Featured Virtual Tour</h2>
+          <div className="h-[400px] bg-muted animate-pulse rounded-xl"></div>
         </div>
       </section>
     );
@@ -112,10 +112,10 @@ export default function FeaturedTour() {
 
   if (error || !featuredProperty) {
     return (
-      <section id="featured" className="py-10 bg-gray-50 -mx-4 sm:-mx-6 lg:-mx-8">
+      <section id="featured" className="py-10 bg-secondary -mx-4 sm:-mx-6 lg:-mx-8">
         <div className="container mx-auto px-4">
-          <h2 className="text-2xl md:text-3xl font-bold mb-6">Featured Virtual Tour</h2>
-          <div className="bg-white rounded-xl p-8 text-center">
+          <h2 className="text-2xl md:text-3xl font-display font-medium mb-6">Featured Virtual Tour</h2>
+          <div className="bg-card rounded-xl p-8 text-center">
             <p>Unable to load featured tour. Please try again later.</p>
           </div>
         </div>
@@ -124,34 +124,34 @@ export default function FeaturedTour() {
   }
 
   return (
-    <section id="featured" className="py-10 bg-gray-50 -mx-4 sm:-mx-6 lg:-mx-8">
+    <section id="featured" className="py-10 bg-secondary -mx-4 sm:-mx-6 lg:-mx-8">
       <div className="container mx-auto px-4">
-        <h2 className="text-2xl md:text-3xl font-bold mb-6">Featured Virtual Tour</h2>
-        <div className="bg-white rounded-xl overflow-hidden shadow-lg">
+        <h2 className="text-2xl md:text-3xl font-display font-medium mb-6">Featured Virtual Tour</h2>
+        <div className="bg-card rounded-xl overflow-hidden shadow-lg">
           <div className="lg:flex">
             <div className="lg:w-1/2">
-              <div className="h-[400px] lg:h-[600px] tour-container bg-gray-200 relative">
+              <div className="h-[400px] lg:h-[600px] tour-container bg-muted relative">
                 <VirtualTour
                   tourUrl={featuredProperty.tourUrl || "https://realevr.com/LA%20ROSE%20ROYAL%20APARTMENTS/"}
                   isFullscreen={isFullscreen}
                 />
 
-                <div className="absolute bottom-4 right-4 bg-white/80 backdrop-blur-sm rounded-lg p-2 shadow-lg">
+                <div className="absolute bottom-4 right-4 bg-card/80 backdrop-blur-sm rounded-lg p-2 shadow-lg">
                   <div className="flex space-x-3">
-                    <button className="p-2 hover:bg-white rounded-full" title="Zoom in">
+                    <button className="p-2 hover:bg-card rounded-full" title="Zoom in">
                       <i className="fas fa-plus"></i>
                     </button>
-                    <button className="p-2 hover:bg-white rounded-full" title="Zoom out">
+                    <button className="p-2 hover:bg-card rounded-full" title="Zoom out">
                       <i className="fas fa-minus"></i>
                     </button>
                     <button
-                      className="p-2 hover:bg-white rounded-full"
+                      className="p-2 hover:bg-card rounded-full"
                       title="Fullscreen"
                       onClick={() => setIsFullscreen(!isFullscreen)}
                     >
                       <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
                     </button>
-                    <button className="p-2 hover:bg-white rounded-full" title="Floor plan">
+                    <button className="p-2 hover:bg-card rounded-full" title="Floor plan">
                       <i className="fas fa-map"></i>
                     </button>
                   </div>
@@ -163,24 +163,24 @@ export default function FeaturedTour() {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-2xl font-bold">{featuredProperty.title}</h3>
-                  <p className="text-gray-500 mb-2">{featuredProperty.location}</p>
+                  <p className="text-muted-foreground mb-2">{featuredProperty.location}</p>
                   <div className="flex items-center mb-4">
                     <i className="fas fa-star text-[#FFB400]"></i>
                     <span className="ml-1 font-medium">{featuredProperty.rating}</span>
                     <span className="mx-1">·</span>
-                    <span className="text-gray-500 underline">{featuredProperty.reviewCount} reviews</span>
+                    <span className="text-muted-foreground underline">{featuredProperty.reviewCount} reviews</span>
                   </div>
                 </div>
                 <div className="flex gap-2">
                   <button
-                    className="p-2 hover:bg-gray-100 rounded-full"
+                    className="p-2 hover:bg-secondary rounded-full"
                     onClick={() => setIsShareModalOpen(true)}
                     title="Share this property"
                   >
                     <i className="fas fa-share-alt text-xl"></i>
                   </button>
                   <button
-                    className={`p-2 hover:bg-gray-100 rounded-full ${isWishlisted ? 'bg-red-100' : ''}`}
+                    className={`p-2 hover:bg-secondary rounded-full ${isWishlisted ? 'bg-red-100' : ''}`}
                     title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
                     onClick={() => {
                       setIsWishlisted((prev) => !prev);
@@ -193,7 +193,7 @@ export default function FeaturedTour() {
                       });
                     }}
                   >
-                    <i className={`${isWishlisted ? 'fas text-[#FF5A5F]' : 'far'} fa-heart text-xl`}></i>
+                    <i className={`${isWishlisted ? 'fas text-accent' : 'far'} fa-heart text-xl`}></i>
                   </button>
                 </div>
               </div>
@@ -205,11 +205,11 @@ export default function FeaturedTour() {
                   <TabsTrigger value="extra">Extra Info</TabsTrigger>
                 </TabsList>
                 <TabsContent value="main">
-                  <div className="border-t border-b border-gray-200 py-6 my-6">
+                  <div className="border-t border-b border-border py-6 my-6">
                     <div className="grid grid-cols-2 gap-6">
                       <div>
                         <h4 className="font-semibold mb-1">Property Details</h4>
-                        <ul className="space-y-2 text-gray-500">
+                        <ul className="space-y-2 text-muted-foreground">
                           <li className="flex items-center">
                             <i className="fas fa-bed w-6"></i>
                             <span>{featuredProperty.bedrooms} Bedrooms</span>
@@ -226,7 +226,7 @@ export default function FeaturedTour() {
                       </div>
                       <div>
                         <h4 className="font-semibold mb-1">Amenities</h4>
-                        <ul className="space-y-2 text-gray-500">
+                        <ul className="space-y-2 text-muted-foreground">
                           {featuredProperty.amenities && Array.isArray(featuredProperty.amenities)
                            && featuredProperty.amenities.map((amenity, index) => (
                             <li key={index} className="flex items-center">
@@ -240,7 +240,7 @@ export default function FeaturedTour() {
                             </li>
                           ))}
                           {(!featuredProperty.amenities || !Array.isArray(featuredProperty.amenities) || featuredProperty.amenities.length === 0) && (
-                            <li className="text-gray-400 italic">No amenities listed</li>
+                            <li className="text-muted-foreground italic">No amenities listed</li>
                           )}
                         </ul>
                       </div>
@@ -256,13 +256,13 @@ export default function FeaturedTour() {
                   <div className="flex flex-wrap gap-3 mb-6">
                     <Button
                       variant="outline"
-                      className="border-gray-800"
+                      className="border-foreground"
                       onClick={() => setIsBookingModalOpen(true)}
                     >
                       <i className="far fa-calendar-alt mr-2"></i>
                       Schedule Visit
                     </Button>
-                    {/* <Button asChild className="bg-[#FF5A5F] hover:bg-[#FF7478]">
+                    {/* <Button asChild className="bg-accent hover:bg-accent/90">
                       <a
                         href="tel:+256771891323"
                         className="flex items-center"
@@ -276,7 +276,7 @@ export default function FeaturedTour() {
                   {/* Property Manager/Agent Contact Information */}
                   {propertyOwner && (
                     <div className="rounded-lg p-6 mb-6 border border-blue-100">
-                      <h4 className="font-semibold mb-4 text-gray-800 flex items-center">
+                      <h4 className="font-semibold mb-4 text-foreground flex items-center">
                         <UserIcon className="mr-2 h-5 w-5 text-blue-600" />
                         Property Contact
                       </h4>
@@ -289,7 +289,7 @@ export default function FeaturedTour() {
                               </span>
                             </div>
                             <div>
-                              <h5 className="font-semibold text-gray-800">{propertyOwner.fullName}</h5>
+                              <h5 className="font-semibold text-foreground">{propertyOwner.fullName}</h5>
                               <p className="text-blue-600 font-medium">
                                 {propertyOwner.role === 'agent' ? 'Property Agent' : 'Property Manager'}
                               </p>
@@ -297,8 +297,8 @@ export default function FeaturedTour() {
                           </div>
                           {propertyOwner.companyName && (
                             <div className="flex items-center mb-2">
-                              <Building className="h-4 w-4 text-gray-500 mr-2" />
-                              <span className="text-gray-700">{propertyOwner.companyName}</span>
+                              <Building className="h-4 w-4 text-muted-foreground mr-2" />
+                              <span className="text-foreground">{propertyOwner.companyName}</span>
                             </div>
                           )}
                         </div>
@@ -337,11 +337,11 @@ export default function FeaturedTour() {
                     </div>
                   )}
 
-                  <div className="border-t border-b border-gray-200 py-6 my-6">
+                  <div className="border-t border-b border-border py-6 my-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <h4 className="font-semibold mb-3">Construction & Age</h4>
-                        <ul className="space-y-2 text-gray-500">
+                        <ul className="space-y-2 text-muted-foreground">
                           {featuredProperty.yearOfConstruction && (
                             <li className="flex items-center">
                               <i className="fas fa-calendar w-6"></i>
@@ -361,14 +361,14 @@ export default function FeaturedTour() {
                             </li>
                           )}
                           {!featuredProperty.yearOfConstruction && !featuredProperty.buildingAge && !featuredProperty.propertyCondition && (
-                            <li className="text-gray-400 italic">No construction details available</li>
+                            <li className="text-muted-foreground italic">No construction details available</li>
                           )}
                         </ul>
                       </div>
                       {featuredProperty.category === 'bank_sales' && (
                         <div>
                           <h4 className="font-semibold mb-3">Auction Information</h4>
-                          <ul className="space-y-2 text-gray-500">
+                          <ul className="space-y-2 text-muted-foreground">
                             {featuredProperty.auctionStart && (
                               <li className="flex items-center">
                                 <i className="fas fa-play w-6"></i>
@@ -388,7 +388,7 @@ export default function FeaturedTour() {
                               </li>
                             )}
                             {!featuredProperty.auctionStart && !featuredProperty.auctionEnd && !featuredProperty.auctionStatus && (
-                              <li className="text-gray-400 italic">No auction details available</li>
+                              <li className="text-muted-foreground italic">No auction details available</li>
                             )}
                           </ul>
                         </div>
@@ -401,29 +401,29 @@ export default function FeaturedTour() {
               <div className="flex flex-col md:flex-row md:items-center justify-between">
                 <div className="mb-4 md:mb-0">
                   <span className="text-2xl font-bold">
-                    {featuredProperty.price != null ? featuredProperty.price.toLocaleString() : <span className="text-gray-400">N/A</span>} {featuredProperty.currency || 'UGX'}
+                    {featuredProperty.price != null ? featuredProperty.price.toLocaleString() : <span className="text-muted-foreground">N/A</span>} {featuredProperty.currency || 'UGX'}
                   </span>
                   {featuredProperty.category === 'rental_units' && (
-                    <span className="text-gray-500"> / month</span>
+                    <span className="text-muted-foreground"> / month</span>
                   )}
                   {(featuredProperty.category === 'furnished_houses' || featuredProperty.category === 'BnB') && (
-                    <span className="text-gray-500"> / day</span>
+                    <span className="text-muted-foreground"> / day</span>
                   )}
                   {(featuredProperty.category === 'for_sale' || featuredProperty.category === 'bank_sales') && (
-                    <span className="text-gray-500"> / sale</span>
+                    <span className="text-muted-foreground"> / sale</span>
                   )}
                 </div>
                 <div className="flex flex-col gap-3">
                   <div className="flex flex-wrap gap-3">
                     {/* <Button
                       variant="outline"
-                      className="border-gray-800"
+                      className="border-foreground"
                       onClick={() => setIsBookingModalOpen(true)}
                     >
                       <i className="far fa-calendar-alt mr-2"></i>
                       Schedule Visit
                     </Button> */}
-                    {/* <Button asChild className="bg-[#FF5A5F] hover:bg-[#FF7478]">
+                    {/* <Button asChild className="bg-accent hover:bg-accent/90">
                       <a
                         href="tel:+256771891323"
                         className="flex items-center"
@@ -434,7 +434,7 @@ export default function FeaturedTour() {
                   </div>
 {/* 
                   <div className="flex flex-wrap gap-3">
-                    <Button asChild variant="outline" className="border-gray-800 border-green-500 text-green-500 hover:bg-green-50">
+                    <Button asChild variant="outline" className="border-foreground border-green-500 text-green-500 hover:bg-green-50">
                       <a
                         href="https://wa.me/256771891323?text=Hello%2C%20I'm%20interested%20in%20the%20property%20I%20saw%20on%20RealEVR%20Estates.%20Can%20you%20provide%20more%20details%3F"
                         target="_blank"
@@ -444,7 +444,7 @@ export default function FeaturedTour() {
                         <i className="fab fa-whatsapp mr-2"></i> WhatsApp Agent 1
                       </a>
                     </Button>
-                    <Button asChild variant="outline" className="border-gray-800 border-green-500 text-green-500 hover:bg-green-50">
+                    <Button asChild variant="outline" className="border-foreground border-green-500 text-green-500 hover:bg-green-50">
                       <a
                         href="https://wa.me/256702742333?text=Hello%2C%20I'm%20interested%20in%20the%20property%20I%20saw%20on%20RealEVR%20Estates.%20Can%20you%20provide%20more%20details%3F"
                         target="_blank"

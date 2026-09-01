@@ -1,4 +1,5 @@
 import { Switch, Route } from 'wouter'
+import { MotionConfig } from 'framer-motion'
 import { queryClient } from './lib/queryClient'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from '@/components/ui/toaster'
@@ -42,6 +43,11 @@ import IoTecGateway, { IoTecGatewayLight } from './components/payment/io-tech/la
 import { useEffect, useState } from 'react'
 import { paymentEmitter } from './lib/iotec-paymentpatch'
 import IotechMetricCounterPaymentHandle from './components/payment/sio-iotech'
+import AgentLauncher from './components/agent/AgentLauncher'
+import ListYourPropertyPage from '@/pages/ListYourPropertyPage'
+import AdminPayoutApprovals from '@/pages/AdminPayoutApprovals'
+import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
+import WhatsAppFab from '@/components/whatsapp/WhatsAppFab'
 
 function Router() {
     return (
@@ -74,6 +80,7 @@ function Router() {
             <Route path="/test-page" component={TestPage} />
             <Route path="/agent/register" component={AgentRegistrationPage} />
             <Route path="/agent/dashboard" component={AgentDashboard} />
+            <Route path="/list-your-property" component={ListYourPropertyPage} />
 
             <Route path="/dashboard" component={UserDashboard} />
 
@@ -96,6 +103,19 @@ function Router() {
             />
 
             <ProtectedAdminRoute path="/admin/users" component={AdminUserManager} allowedRoles={['admin']} />
+            {/* Strictly admin-only (not agents) — see server/gene/admin-guard.ts's
+                requireStrictAdmin, which the underlying APIs actually enforce;
+                this route gate is the matching client-side check. */}
+            <ProtectedAdminRoute path="/admin/payout-approvals" component={AdminPayoutApprovals} allowedRoles={['admin']} />
+            {/* Boost confirmations are money coming IN with no payout
+                conflict-of-interest — matches the backend's shared
+                adminMiddleware (admin OR agent), unlike the strict
+                admin-only payout-approvals route above. */}
+            <ProtectedAdminRoute
+                path="/admin/boost-confirmations"
+                component={AdminBoostConfirmations}
+                allowedRoles={['admin', 'agent']}
+            />
 
             <Route
                 path="/category/:categorySlug"
@@ -132,32 +152,41 @@ function App() {
 
     return (
         <QueryClientProvider client={queryClient}>
-            <AuthProvider>
-                <PaymentProvider>
-                    <TooltipProvider>
-                        <div className="flex flex-col min-h-screen">
-                            <Header />
-                            <main className="flex-grow px-4 sm:px-6 lg:px-8">
-                                <AnimatedLayout>
-                                    <Router />
-                                </AnimatedLayout>
-                            </main>
-                            {/* <IotechMetricCounterPaymentHandle/> */}
-                            {gateway && (
-                                <IoTecGatewayLight
-                                    source={gateway.source}
-                                    accessToken={gateway.accessToken}
-                                    amount={gateway.amount}
-                                    onClose={() => setGateway(null)}
-                                />
-                            )}
-                            <Footer />
-                        </div>
-                        <ScrollToTop />
-                        <Toaster />
-                    </TooltipProvider>
-                </PaymentProvider>
-            </AuthProvider>
+            {/* reducedMotion="user": every framer-motion animation in the app
+                (existing components and the new motion/ primitives alike)
+                automatically disables transform/scale animation for anyone
+                with the OS "reduce motion" setting on — one place to get this
+                right instead of every component checking it individually. */}
+            <MotionConfig reducedMotion="user">
+                <AuthProvider>
+                    <PaymentProvider>
+                        <TooltipProvider>
+                            <div className="flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow px-4 sm:px-6 lg:px-8">
+                                    <AnimatedLayout>
+                                        <Router />
+                                    </AnimatedLayout>
+                                </main>
+                                {/* <IotechMetricCounterPaymentHandle/> */}
+                                {gateway && (
+                                    <IoTecGatewayLight
+                                        source={gateway.source}
+                                        accessToken={gateway.accessToken}
+                                        amount={gateway.amount}
+                                        onClose={() => setGateway(null)}
+                                    />
+                                )}
+                                <Footer />
+                            </div>
+                            <AgentLauncher />
+                            <WhatsAppFab />
+                            <ScrollToTop />
+                            <Toaster />
+                        </TooltipProvider>
+                    </PaymentProvider>
+                </AuthProvider>
+            </MotionConfig>
         </QueryClientProvider>
     )
 }

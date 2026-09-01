@@ -1,0 +1,398 @@
+/**
+ * GENE Platform — WhatsApp concierge: lets anyone message the platform's
+ * WhatsApp Business number and get real property recommendations/answers
+ * back, and lets a linked landlord toggle a property's availability by
+ * texting a simple command.
+ *
+ * This is distinct from server/gene/whatsapp.ts (which is outbound-only:
+ * human-agent escalation notifications) and
+ * server/gene/agent-whatsapp-onboarding.ts (which is about joining an
+ * internal agent group). This module is the first that handles INBOUND
+ * WhatsApp messages from end users/landlords via the Cloud API webhook.
+ *
+ * Also handles a linked landlord texting "dashboard" (or "login") to get a
+ * fresh passwordless magic-login link back — see ./magic-login.ts. This is
+ * how a self-serve agent (server/gene/self-serve-listing.ts), who never set
+ * a password, gets back into their Agent Dashboard from WhatsApp alone.
+ *
+ * Also handles "stop"/"start" (and "unsubscribe"/"subscribe") to toggle
+ * marketing-broadcast opt-in on a linked number — see `marketingOptIn` on
+ * WhatsappUserLink and server/gene/whatsapp-growth.ts's broadcast route.
+ *
+ * Gated behind the same WHATSAPP_BUSINESS_TOKEN + WHATSAPP_PHONE_NUMBER_ID
+ * env vars as whatsapp.ts (reuses its `sendWhatsAppMessage`), plus a new
+ * WHATSAPP_VERIFY_TOKEN for the webhook handshake Meta requires. Absent
+ * those, the webhook still accepts and logs messages (so nothing 500s) but
+ * cannot send a reply — logged instead, same graceful-degrade policy as
+ * the rest of GENE.
+ *
+ * KNOWN LIMITATIONS (documented honestly, not hidden):
+ *  - Linking a WhatsApp number to an account (`POST /api/gene/whatsapp/link`)
+ *    is NOT OTP-verified in this v1 — it trusts the authenticated web
+ *    session. Good enough for personalizing replies; not good enough to
+ *    treat as proof of phone ownership for anything higher-stakes.
+ *  - No webhook idempotency/dedup — a WhatsApp retry could in theory log a
+ *    duplicate inbound message. Low-impact (chat history, not money) but
+ *    worth hardening before high volume.
+ *  - "Interested tenant" detection from chat is a simple keyword heuristic
+ *    (see INTEREST_KEYWORDS below), not NLU.
+ *
+ * Persistence: shared JSON-file collection store (see ./store.ts).
+ */
+import type { Express, Request, Response } from 'express'
+import { readCollection, writeCollection, nextId, nowIso } from './store'
+import { storage } from '../storage'
+import { sendWhatsAppMessage } from './whatsapp'
+import { issueMagicLoginLink } from './magic-login'
+import {
+    loadProfile,
+    loadSignals,
+    buildRecommendations,
+    templatedRecommendationSummary,
+    callAnthropic,
+    profileSummaryForPrompt,
+    appendAgentMessage,
+} from './personal-agent'
+
+const LINK_COLLECTION = 'gene_whatsapp_user_links'
+const MESSAGE_COLLECTION = 'gene_whatsapp_messages'
+const SIGNAL_COLLECTION = 'gene_agent_signals' // shared contract with personal-agent.ts — read-only here
+
+export interface WhatsappUserLink {
+    id: number
+    userId: number
+    userName: string
+    phone: string
+    linkedAt: string
+    /** Marketing/broadcast opt-in (server/gene/whatsapp-growth.ts's broadcast
+     * route only ever messages numbers where this is true). Absent on rows
+     * written before this field existed — treated as opted-in by default
+     * (see isOptedIntoMarketing below), since these are numbers that
+     * actively engaged with the platform over WhatsApp already; "stop"
+     * opts out at any time, same as any compliant WhatsApp/SMS program. */
+    marketingOptIn?: boolean
+}
+
+export interface WhatsappMessageLog {
+    id: number
+    phone: string
+    direction: 'inbound' | 'outbound'
+    text: string
+    userId?: number
+    matchedPropertyId?: number
+    createdAt: string
+}
+
+const PHONE_SANITY_RE = /^\+?[0-9]{6,20}$/
+const INTEREST_KEYWORDS = ['interested', 'i want', 'i like', 'book', 'viewing', 'visit']
+const TOGGLE_COMMAND_RE = /^(available|unavailable|toggle)\s+(\d+)\s*$/i
+const DASHBOARD_COMMAND_RE = /^(dashboard|my dashboard|login|log me in)\s*$/i
+const STOP_COMMAND_RE = /^(stop|unsubscribe|opt out|optout)\s*$/i
+const START_COMMAND_RE = /^(start|subscribe|opt in|optin)\s*$/i
+
+/**
+ * Digits only, no leading '+' — this is the format WhatsApp's Cloud API
+ * always sends inbound `from` numbers in, so every stored/looked-up phone
+ * must be normalized to the same shape or linking silently never matches.
+ *
+ * Exported so other modules (self-serve-listing.ts) normalize identically.
+ */
+export function normalizePhone(raw: string): string {
+    return raw.replace(/\D/g, '')
+}
+
+export function findLinkByPhone(phone: string): WhatsappUserLink | undefined {
+    const rows = readCollection<WhatsappUserLink>(LINK_COLLECTION)
+    return rows.find((r) => r.phone === phone)
+}
+
+/**
+ * Create or update the WhatsApp link for a user — the same
+ * read-modify-write `/api/gene/whatsapp/link` already did inline, pulled out
+ * so self-serve-listing.ts's OTP-verified flow can reuse it instead of
+ * duplicating the collection logic. `phone` must already be normalized.
+ */
+export function linkPhoneToUser(userId: number, userName: string, phone: string): WhatsappUserLink {
+    const rows = readCollection<WhatsappUserLink>(LINK_COLLECTION)
+    const idx = rows.findIndex((r) => r.userId === userId)
+    const record: WhatsappUserLink = {
+        id: idx === -1 ? nextId(rows) : rows[idx].id,
+        userId,
+        userName,
+        phone,
+        linkedAt: nowIso(),
+    }
+    if (idx === -1) rows.push(record)
+    else rows[idx] = record
+    writeCollection(LINK_COLLECTION, rows)
+    return record
+}
+
+/** Defaults to true (opted-in) for a link with no explicit value — see the
+ * field's docstring. Exported for server/gene/whatsapp-growth.ts's broadcast
+ * route. */
+export function isOptedIntoMarketing(link: WhatsappUserLink): boolean {
+    return link.marketingOptIn !== false
+}
+
+function setMarketingOptIn(phone: string, optIn: boolean): WhatsappUserLink | undefined {
+    const rows = readCollection<WhatsappUserLink>(LINK_COLLECTION)
+    const idx = rows.findIndex((r) => r.phone === phone)
+    if (idx === -1) return undefined
+    rows[idx] = { ...rows[idx], marketingOptIn: optIn }
+    writeCollection(LINK_COLLECTION, rows)
+    return rows[idx]
+}
+
+function logMessage(entry: Omit<WhatsappMessageLog, 'id' | 'createdAt'>): void {
+    const rows = readCollection<WhatsappMessageLog>(MESSAGE_COLLECTION)
+    rows.push({ ...entry, id: nextId(rows), createdAt: nowIso() })
+    writeCollection(MESSAGE_COLLECTION, rows)
+}
+
+/** Read-only reuse of personal-agent.ts's signal collection — log a fresh
+ * "inquired" signal so the property's landlord sees this tenant in their
+ * interested-tenants inbox (see landlord-hub.ts). */
+function logInquirySignal(userId: number, propertyId: number): void {
+    const rows = readCollection<{ id: number; userId: number; propertyId: number; action: string; createdAt: string }>(SIGNAL_COLLECTION)
+    rows.push({ id: nextId(rows), userId, propertyId, action: 'inquired', createdAt: nowIso() })
+    writeCollection(SIGNAL_COLLECTION, rows)
+}
+
+async function replyAndLog(phone: string, text: string, userId?: number, matchedPropertyId?: number): Promise<void> {
+    logMessage({ phone, direction: 'outbound', text, userId, matchedPropertyId })
+    await sendWhatsAppMessage(phone, text)
+}
+
+/** Handles a landlord's "available <id>" / "unavailable <id>" / "toggle <id>"
+ * command. Returns true if the message was a toggle command (handled either
+ * way — success or a clear rejection reply — so the caller should not also
+ * run it through the concierge chat path). */
+async function tryHandleAvailabilityToggle(phone: string, text: string, link: WhatsappUserLink | undefined): Promise<boolean> {
+    const match = text.trim().match(TOGGLE_COMMAND_RE)
+    if (!match) return false
+
+    if (!link) {
+        await replyAndLog(phone, "I recognize that as a listing command, but this number isn't linked to a RealEVR account yet — link your WhatsApp number from your dashboard first.")
+        return true
+    }
+
+    const propertyId = Number(match[2])
+    const property = await storage.getProperty(propertyId)
+    if (!property) {
+        await replyAndLog(phone, `I couldn't find property #${propertyId}.`, link.userId)
+        return true
+    }
+    if (property.ownerId !== link.userId) {
+        await replyAndLog(phone, `Property #${propertyId} ("${property.title}") isn't listed under your account, so I can't toggle it.`, link.userId, propertyId)
+        return true
+    }
+
+    const wantAvailable = match[1].toLowerCase() === 'available' ? true : match[1].toLowerCase() === 'unavailable' ? false : !property.isAvailable
+    if (property.isAvailable === wantAvailable) {
+        await replyAndLog(phone, `"${property.title}" is already marked ${wantAvailable ? 'available' : 'unavailable'}.`, link.userId, propertyId)
+        return true
+    }
+
+    const updated = await storage.togglePropertyAvailability(propertyId)
+    await replyAndLog(
+        phone,
+        `Done — "${property.title}" is now marked ${updated?.isAvailable ? 'available' : 'unavailable'}.`,
+        link.userId,
+        propertyId
+    )
+    return true
+}
+
+/** Handles a linked landlord texting "dashboard" (or "login"/"log me in") —
+ * mints a fresh single-use magic-login link (see ./magic-login.ts) and
+ * texts it back, so a self-serve landlord who never set a password can
+ * always get back into their Agent Dashboard from WhatsApp alone. Returns
+ * true if the message was handled as this command. */
+async function tryHandleDashboardCommand(phone: string, text: string, link: WhatsappUserLink | undefined): Promise<boolean> {
+    if (!DASHBOARD_COMMAND_RE.test(text.trim())) return false
+
+    if (!link) {
+        await replyAndLog(
+            phone,
+            "This number isn't linked to a RealEVR account yet. If you've listed a property with us, link this number from your dashboard's WhatsApp card, or list a property at realevrestates.com/list-your-property to get one."
+        )
+        return true
+    }
+
+    const { url, expiresAt } = issueMagicLoginLink(link.userId)
+    const minutes = Math.round((new Date(expiresAt).getTime() - Date.now()) / 60000)
+    await replyAndLog(
+        phone,
+        `Here's your dashboard link (expires in ~${minutes} min, use it once): ${url}`,
+        link.userId
+    )
+    return true
+}
+
+/** Handles "stop"/"unsubscribe" and "start"/"subscribe" — opts a linked
+ * number out of / back into WhatsApp marketing broadcasts
+ * (server/gene/whatsapp-growth.ts). Returns true if the message was handled
+ * as one of these commands. Unlinked numbers get a short explanation
+ * instead of silently doing nothing — there's nothing to opt out of yet. */
+async function tryHandleMarketingOptCommand(phone: string, text: string, link: WhatsappUserLink | undefined): Promise<boolean> {
+    const trimmed = text.trim()
+    const isStop = STOP_COMMAND_RE.test(trimmed)
+    const isStart = START_COMMAND_RE.test(trimmed)
+    if (!isStop && !isStart) return false
+
+    if (!link) {
+        await replyAndLog(phone, "This number isn't linked to a RealEVR account, so there's nothing to opt out of.")
+        return true
+    }
+
+    setMarketingOptIn(phone, isStart)
+    await replyAndLog(
+        phone,
+        isStart
+            ? "You're opted back in to occasional RealEVR Estates updates. Text STOP anytime to opt out again."
+            : "You won't receive RealEVR Estates broadcast messages anymore. Text START to opt back in.",
+        link.userId
+    )
+    return true
+}
+
+/** The general concierge chat path — reuses the personal agent's real
+ * scoring/recommendation logic when the phone is linked to a profile;
+ * otherwise a lighter, generic reply from real listing data. */
+async function handleConciergeChat(phone: string, text: string, link: WhatsappUserLink | undefined): Promise<void> {
+    const allProperties = await storage.getAllProperties()
+    const mentionsInterest = INTEREST_KEYWORDS.some((k) => text.toLowerCase().includes(k))
+
+    if (link) {
+        const profile = loadProfile(link.userId)
+        if (profile) {
+            const signals = loadSignals(link.userId)
+            const top = buildRecommendations(profile, signals, allProperties, 3)
+
+            if (mentionsInterest && top[0]) {
+                logInquirySignal(link.userId, top[0].property.id)
+            }
+
+            const systemPrompt = [
+                'You are "My RealEVR Agent" replying over WhatsApp to this specific user — keep it SHORT (2-4 sentences,',
+                'WhatsApp-appropriate, no markdown), warm, and only reference the facts given below.',
+                '',
+                'Their profile:',
+                profileSummaryForPrompt(profile),
+                '',
+                'Their current top matches:',
+                ...top.map((t) => `- "${t.property.title}" in ${t.property.location} — ${t.property.currency ?? 'UGX'} ${t.property.price}`),
+            ].join('\n')
+
+            const aiReply = await callAnthropic(systemPrompt, text)
+            const reply = aiReply ?? `${templatedRecommendationSummary(profile, top)} Reply with a property name for more detail, or "more" for other picks.`
+
+            // Mirror this WhatsApp exchange into the same conversation history
+            // the web Chat tab reads, so it's one continuous thread either way.
+            appendAgentMessage(link.userId, 'user', text)
+            appendAgentMessage(link.userId, 'assistant', reply)
+
+            await replyAndLog(phone, reply, link.userId, top[0]?.property.id)
+            return
+        }
+    }
+
+    // Not linked, or linked but hasn't set up a profile yet — generic,
+    // real-data concierge reply (same spirit as chat.ts's rule-based path).
+    const featured = allProperties.filter((p) => p.isAvailable && (p.isFeatured || p.hasTour)).slice(0, 3)
+    const list = featured.length
+        ? featured.map((p) => `• "${p.title}" in ${p.location} — ${p.currency ?? 'UGX'} ${p.price}`).join('\n')
+        : "I don't have live listings to show right now — check realevrestates.com."
+    const reply = `Hi! I'm the RealEVR Estates concierge. A few properties you might like:\n${list}\n\nSign in on the website and link this WhatsApp number from your profile for picks tailored to your budget and interests.`
+    await replyAndLog(phone, reply)
+}
+
+async function handleInboundText(phone: string, text: string): Promise<void> {
+    const link = findLinkByPhone(phone)
+    logMessage({ phone, direction: 'inbound', text, userId: link?.userId })
+
+    const handledAsOptCommand = await tryHandleMarketingOptCommand(phone, text, link)
+    if (handledAsOptCommand) return
+
+    const handledAsDashboard = await tryHandleDashboardCommand(phone, text, link)
+    if (handledAsDashboard) return
+
+    const handledAsToggle = await tryHandleAvailabilityToggle(phone, text, link)
+    if (handledAsToggle) return
+
+    await handleConciergeChat(phone, text, link)
+}
+
+export function registerWhatsappConciergeRoutes(app: Express): void {
+    // GET /api/gene/whatsapp/webhook — Meta's verification handshake.
+    app.get('/api/gene/whatsapp/webhook', (req: Request, res: Response) => {
+        const mode = req.query['hub.mode']
+        const token = req.query['hub.verify_token']
+        const challenge = req.query['hub.challenge']
+        const expected = process.env.WHATSAPP_VERIFY_TOKEN
+
+        if (mode === 'subscribe' && expected && token === expected) {
+            res.status(200).send(String(challenge ?? ''))
+        } else {
+            res.sendStatus(403)
+        }
+    })
+
+    // POST /api/gene/whatsapp/webhook — inbound message delivery.
+    app.post('/api/gene/whatsapp/webhook', async (req: Request, res: Response) => {
+        // Always 200 quickly — WhatsApp retries aggressively on non-2xx.
+        res.sendStatus(200)
+        try {
+            const entry = req.body?.entry?.[0]
+            const value = entry?.changes?.[0]?.value
+            const messages = value?.messages
+            if (!Array.isArray(messages) || messages.length === 0) return
+
+            for (const msg of messages) {
+                const phone = normalizePhone(msg?.from ?? '')
+                const text = msg?.text?.body
+                if (!phone || typeof text !== 'string' || !text.trim()) continue
+                await handleInboundText(phone, text.trim())
+            }
+        } catch (err) {
+            console.error('[gene/whatsapp-concierge] webhook processing failed:', err)
+        }
+    })
+
+    // POST /api/gene/whatsapp/link — [AUTH] link the caller's WhatsApp number.
+    // NOT OTP-verified in this v1 — see file-top "known limitations".
+    app.post('/api/gene/whatsapp/link', (req: Request, res: Response) => {
+        if (!req.isAuthenticated || !req.isAuthenticated() || !req.user) {
+            return res.status(401).json({ message: 'Sign in first.' })
+        }
+        try {
+            const { phone } = req.body ?? {}
+            if (typeof phone !== 'string' || !PHONE_SANITY_RE.test(phone.trim())) {
+                return res.status(400).json({ message: 'A valid phone number (digits, optional leading +) is required.' })
+            }
+            // Store normalized (digits only, no '+') so it matches WhatsApp's
+            // inbound `from` format — see normalizePhone()'s docstring.
+            const normalized = normalizePhone(phone.trim())
+            const user = req.user as any
+
+            linkPhoneToUser(user.id, user.username ?? user.email ?? `user:${user.id}`, normalized)
+
+            res.json({ linked: true, phone: normalized })
+        } catch (err) {
+            console.error('[gene/whatsapp-concierge] link failed:', err)
+            res.status(500).json({ message: 'Failed to link WhatsApp number.' })
+        }
+    })
+
+    // GET /api/gene/whatsapp/link/me — [AUTH]
+    app.get('/api/gene/whatsapp/link/me', (req: Request, res: Response) => {
+        if (!req.isAuthenticated || !req.isAuthenticated() || !req.user) {
+            return res.status(401).json({ message: 'Sign in first.' })
+        }
+        const user = req.user as any
+        const rows = readCollection<WhatsappUserLink>(LINK_COLLECTION)
+        const record = rows.find((r) => r.userId === user.id)
+        res.json({ linked: !!record, phone: record?.phone ?? null })
+    })
+}

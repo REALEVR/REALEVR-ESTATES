@@ -3,7 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>VirtualStay - Virtual Property Tours</title>
+    <title>RealEVR Estates | Virtual Property Tours</title>
+    <meta name="description" content="Discover rental units, vacation BnBs, properties for sale, and bank sales with virtual tours. Search by location, price, and amenities on RealEVR Estates." />
+    <meta name="theme-color" content="#211B17" />
+
+    <!-- Baseline Open Graph / Twitter Card fallback (route-specific tags are set by
+         PageSeo.tsx client-side, and server-side for social-preview bots — see
+         server/social-preview.ts). This is what anything else sees. -->
+    <meta property="og:site_name" content="RealEVR Estates" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="RealEVR Estates | Virtual Property Tours" />
+    <meta property="og:description" content="Discover rental units, vacation BnBs, properties for sale, and bank sales with virtual tours on RealEVR Estates." />
+    <meta property="og:image" content="/og-default.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="en_UG" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="RealEVR Estates | Virtual Property Tours" />
+    <meta name="twitter:description" content="Discover rental units, vacation BnBs, properties for sale, and bank sales with virtual tours on RealEVR Estates." />
+    <meta name="twitter:image" content="/og-default.jpg" />
 
     <!-- Favicon (served from client/public → / at runtime) -->
     <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -11,7 +29,10 @@
     <link rel="apple-touch-icon" href="/favicon.ico" />
     <link rel="manifest" href="/site.webmanifest" />
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Montserrat replaces Inter as the body/UI typeface (Fraunces stays for
+         display headlines) — see client/src/index.css for the full rationale. -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   </head>
   <body>

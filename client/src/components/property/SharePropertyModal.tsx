@@ -11,6 +11,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/hooks/use-auth'
+import { logPropertyShare } from '@/hooks/useRewards'
+import { Share2, Gift } from 'lucide-react'
 
 interface SharePropertyModalProps {
     isOpen: boolean
@@ -25,6 +28,7 @@ export default function SharePropertyModal({ isOpen, onClose, propertyId, proper
     const [isCopied, setIsCopied] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const { toast } = useToast()
+    const { user } = useAuth()
 
     // Generate a unique trackable link with user email embedded
     const generateTrackableLink = () => {
@@ -34,6 +38,30 @@ export default function SharePropertyModal({ isOpen, onClose, propertyId, proper
     }
 
     const trackableLink = generateTrackableLink()
+    const nativeShareSupported = typeof navigator !== 'undefined' && !!(navigator as any).share
+
+    // Real points-earning share logging — see server/gene/referral-rewards.ts.
+    // Signed-out visitors can still share; they just don't earn points (the
+    // endpoint requires auth), so we skip the call and say so instead.
+    const recordShare = async (channel: string) => {
+        if (!user) return
+        const result = await logPropertyShare(propertyId, channel)
+        if (result?.counted) {
+            toast({
+                title: '+1 point earned!',
+                description: `You now have ${result.balance?.totalPoints ?? '?'} points. Keep sharing to redeem for mobile money.`,
+            })
+        }
+    }
+
+    const handleNativeShare = async () => {
+        try {
+            await (navigator as any).share({ title: propertyTitle, text: `Check out ${propertyTitle} on RealEVR Estates`, url: trackableLink })
+            await recordShare('native_share')
+        } catch {
+            // User cancelled the native share sheet — not an error.
+        }
+    }
 
     const handleCopyLink = () => {
         navigator.clipboard.writeText(trackableLink)
@@ -42,6 +70,7 @@ export default function SharePropertyModal({ isOpen, onClose, propertyId, proper
             title: 'Link Copied',
             description: 'The shareable link has been copied to your clipboard.',
         })
+        void recordShare('copy_link')
 
         setTimeout(() => {
             setIsCopied(false)
@@ -100,6 +129,21 @@ export default function SharePropertyModal({ isOpen, onClose, propertyId, proper
                 </DialogHeader>
 
                 <div className="py-4">
+                    {user && (
+                        <div className="mb-4 flex items-center gap-2 rounded-lg bg-secondary p-3 text-sm text-foreground">
+                            <Gift className="h-4 w-4 flex-shrink-0 text-primary" />
+                            Earn points every time you share — 1,000 points = 10,000 UGX, redeemable to mobile
+                            money from your agent's Rewards tab.
+                        </div>
+                    )}
+
+                    {nativeShareSupported && (
+                        <Button onClick={handleNativeShare} className="mb-4 w-full">
+                            <Share2 className="mr-2 h-4 w-4" />
+                            Share now
+                        </Button>
+                    )}
+
                     <div className="mb-6">
                         <Label className="block mb-2">Your Unique Sharing Link</Label>
                         <div className="flex space-x-2">

@@ -73,15 +73,15 @@ export default function ExploreFiltersDialog({ isOpen, onClose }: ExploreFilters
               {propertyTypes.map((type, index) => (
                 <div 
                   key={index}
-                  className="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-secondary transition-colors"
                   onClick={() => handleBrowseCategory(type.route)}
                 >
-                  <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center mr-4">
-                    <i className={`fas fa-${type.icon} text-gray-600`}></i>
+                  <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center mr-4">
+                    <i className={`fas fa-${type.icon} text-muted-foreground`}></i>
                   </div>
                   <div>
                     <h3 className="font-medium">{type.name}</h3>
-                    <p className="text-sm text-gray-500">{type.description}</p>
+                    <p className="text-sm text-muted-foreground">{type.description}</p>
                   </div>
                 </div>
               ))}
@@ -95,7 +95,7 @@ export default function ExploreFiltersDialog({ isOpen, onClose }: ExploreFilters
                 <Badge 
                   key={index}
                   variant="outline"
-                  className="cursor-pointer hover:bg-gray-50 px-4 py-2 text-base"
+                  className="cursor-pointer hover:bg-secondary px-4 py-2 text-base"
                   onClick={() => {
                     // Redirect to a filtered view, we can use any category for now
                     setLocation(`/rental-units?area=${area.toLowerCase()}`);
@@ -126,17 +126,17 @@ export default function ExploreFiltersDialog({ isOpen, onClose }: ExploreFilters
               {priceRanges.map((range, index) => (
                 <div 
                   key={index}
-                  className="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-secondary transition-colors"
                   onClick={() => {
                     // Redirect to a filtered view
                     setLocation(`/rental-units?price=${range.value}`);
                     onClose();
                   }}
                 >
-                  <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center mr-4">
-                    {index === 0 && <i className="fas fa-dollar-sign text-gray-600"></i>}
-                    {index === 1 && <i className="fas fa-dollar-sign text-gray-600"></i>}
-                    {index === 2 && <i className="fas fa-dollar-sign text-gray-600"></i>}
+                  <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center mr-4">
+                    {index === 0 && <i className="fas fa-dollar-sign text-muted-foreground"></i>}
+                    {index === 1 && <i className="fas fa-dollar-sign text-muted-foreground"></i>}
+                    {index === 2 && <i className="fas fa-dollar-sign text-muted-foreground"></i>}
                   </div>
                   <div>
                     <h3 className="font-medium">{range.label}</h3>
@@ -145,7 +145,7 @@ export default function ExploreFiltersDialog({ isOpen, onClose }: ExploreFilters
               ))}
             </div>
             
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <div className="mt-6 p-4 bg-secondary rounded-lg">
               <h3 className="font-medium mb-2">Custom Price Range</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -177,7 +177,7 @@ export default function ExploreFiltersDialog({ isOpen, onClose }: ExploreFilters
               {features.map((feature, index) => (
                 <div 
                   key={index}
-                  className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-secondary transition-colors"
                   onClick={() => {
                     // Redirect to a filtered view
                     setLocation(`/rental-units?feature=${feature.toLowerCase()}`);
@@ -196,12 +196,12 @@ export default function ExploreFiltersDialog({ isOpen, onClose }: ExploreFilters
 
         <Separator className="my-4" />
         
-        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+        <div className="flex items-center justify-between p-4 bg-secondary rounded-lg">
           <div>
             <h3 className="font-medium text-lg">Can't find what you're looking for?</h3>
-            <p className="text-sm text-gray-500">Browse all our available properties</p>
+            <p className="text-sm text-muted-foreground">Browse all our available properties</p>
           </div>
-          <Button className="bg-[#FF5A5F] hover:bg-[#FF7478]" onClick={() => {
+          <Button className="bg-accent hover:bg-accent/90" onClick={() => {
             setLocation("/rental-units"); // Default to rental units as a starting point
             onClose();
           }}>
@@ -213,7 +213,7 @@ export default function ExploreFiltersDialog({ isOpen, onClose }: ExploreFilters
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-muted-foreground">
             <i className="fas fa-info-circle mr-1"></i>
             Browse our collections of RealEVR Estates properties
           </div>

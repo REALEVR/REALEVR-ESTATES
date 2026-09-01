@@ -8,6 +8,7 @@ import PropertyCard from "@/components/home/PropertyCard";
 import type { Property } from "@shared/schema";
 import { PageSeo } from "@/components/seo/PageSeo";
 import { getSiteUrl } from "@/lib/siteUrl";
+import { CATEGORY_PAGE_META } from "@shared/seo";
 
 export default function ForSalePage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -25,10 +26,9 @@ export default function ForSalePage() {
     return {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
-      name: "Properties For Sale | RealEVR Estates",
-      description:
-        "Browse homes and investment properties for sale with virtual tours. Compare price, size, and location.",
-      url: `${site}/for-sale`,
+      name: CATEGORY_PAGE_META.forSale.title,
+      description: CATEGORY_PAGE_META.forSale.description,
+      url: `${site}${CATEGORY_PAGE_META.forSale.path}`,
     };
   }, []);
 
@@ -234,9 +234,9 @@ export default function ForSalePage() {
   return (
     <div className="py-8">
       <PageSeo
-        title="Properties For Sale | RealEVR Estates"
-        description="Explore homes and land for sale with virtual tours. Filter by price, area, and property type on RealEVR Estates."
-        canonicalPath="/for-sale"
+        title={CATEGORY_PAGE_META.forSale.title}
+        description={CATEGORY_PAGE_META.forSale.description}
+        canonicalPath={CATEGORY_PAGE_META.forSale.path}
         jsonLd={forSaleJsonLd}
       />
       <div className="container mx-auto px-6">

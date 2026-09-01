@@ -16,20 +16,20 @@ export default function DownloadApp() {
   };
   
   return (
-    <section className="py-12 bg-gray-900 text-white -mx-4 sm:-mx-6 lg:-mx-8">
+    <section className="py-12 bg-[#211B17] text-white -mx-4 sm:-mx-6 lg:-mx-8">
       <div className="container mx-auto px-4">
         <div className="md:flex items-center">
           <div className="md:w-1/2 mb-8 md:mb-0">
-            <h2 className="text-2xl md:text-3xl font-bold mb-4">Coming soon on mobile</h2>
-            <p className="mb-6 text-gray-300">
-              Download our mobile app to explore virtual tours on the go. Access our full catalog of properties, 
+            <h2 className="text-2xl md:text-3xl font-display font-medium mb-4 text-[#F1E9E0]">Coming soon on mobile</h2>
+            <p className="mb-6 text-[#F1E9E0]/70">
+              Download our mobile app to explore virtual tours on the go. Access our full catalog of properties,
               save favorites, and get notifications about new listings.
             </p>
             <div className="flex flex-wrap gap-4">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => openWaitlist("ios")}
-                className="bg-black border border-gray-700 rounded-xl py-7 px-5 flex items-center hover:bg-gray-800 text-white h-auto"
+                className="bg-transparent border border-[#F1E9E0]/20 rounded-xl py-7 px-5 flex items-center hover:bg-[#F1E9E0]/10 hover:border-accent text-[#F1E9E0] h-auto"
               >
                 <i className="fab fa-apple text-2xl mr-3"></i>
                 <div>
@@ -37,10 +37,10 @@ export default function DownloadApp() {
                   <div className="font-medium">App Store</div>
                 </div>
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => openWaitlist("android")}
-                className="bg-black border border-gray-700 rounded-xl py-7 px-5 flex items-center hover:bg-gray-800 text-white h-auto"
+                className="bg-transparent border border-[#F1E9E0]/20 rounded-xl py-7 px-5 flex items-center hover:bg-[#F1E9E0]/10 hover:border-accent text-[#F1E9E0] h-auto"
               >
                 <i className="fab fa-google-play text-2xl mr-3"></i>
                 <div>
@@ -49,7 +49,7 @@ export default function DownloadApp() {
                 </div>
               </Button>
             </div>
-            <p className="mt-4 text-sm text-gray-400">
+            <p className="mt-4 text-sm text-[#F1E9E0]/50">
               Coming soon! Join our waitlist to be notified when our app is released.
             </p>
           </div>

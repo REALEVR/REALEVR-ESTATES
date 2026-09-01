@@ -49,7 +49,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
     const handleShareClick = (e: React.MouseEvent) => {
         e.preventDefault()
         e.stopPropagation()
-        // setIsShareModalOpen(true)
+        setIsShareModalOpen(true)
     }
 
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
@@ -121,7 +121,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
     return (
         <>
             <AnimatedCard
-                className="property-card bg-white rounded-xl overflow-hidden shadow-md cursor-pointer hover:shadow-lg transition-shadow duration-300"
+                className="property-card bg-card rounded-2xl overflow-hidden shadow-sm border border-border/60 cursor-pointer hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
                 onClick={handleCardClick}
             >
                 <div className="relative">
@@ -147,14 +147,14 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                             aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                             title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                         >
-                            <i className={`${isFavorite ? 'fas text-[#FF5A5F]' : 'far'} fa-heart`}></i>
+                            <i className={`${isFavorite ? 'fas text-accent' : 'far'} fa-heart`}></i>
                         </button>
                     </div>
                     {property.isAvailable !== undefined && (
                         <div className="absolute top-3 left-3 z-10">
                             <span
                                 className={`flex items-center text-xs font-medium rounded-full px-2 py-1 ${
-                                    property.isAvailable ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                                    property.isAvailable ? 'bg-emerald-600 text-white' : 'bg-red-500 text-white'
                                 }`}
                             >
                                 <span
@@ -167,44 +167,44 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                         </div>
                     )}
                     {property.hasTour && (
-                        <span className="absolute bottom-3 left-3 bg-black/50 text-white px-2 py-1 rounded-md text-sm font-medium z-10">
+                        <span className="absolute bottom-3 left-3 bg-foreground/70 backdrop-blur-sm text-white px-2 py-1 rounded-md text-sm font-medium z-10">
                             360° Tour Available
                         </span>
                     )}
                 </div>
                 <div className="p-4">
                     <div className="flex justify-between items-start">
-                        <h3 className="font-bold">{property.title}</h3>
+                        <h3 className="font-display font-medium text-foreground">{property.title}</h3>
                         <div className="flex items-center">
-                            <i className="fas fa-eye text-gray-500 text-sm"></i>
-                            <span className="ml-1 text-sm font-medium text-gray-600">{property.viewCount || 0}</span>
+                            <i className="fas fa-eye text-muted-foreground text-sm"></i>
+                            <span className="ml-1 text-sm font-medium text-muted-foreground">{property.viewCount || 0}</span>
                         </div>
                     </div>
-                    <p className="text-gray-500 text-sm mb-2">{property.location}</p>
-                    <p className="text-gray-500 text-sm mb-3">
+                    <p className="text-muted-foreground text-sm mb-2">{property.location}</p>
+                    <p className="text-muted-foreground text-sm mb-3">
                         {property.bedrooms} bed • {property.bathrooms} bath • {property.squareMeters} sq m
                     </p>
 
                     {/* Property Owner Contact */}
                     {propertyOwner && (
-                        <div className="mb-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+                        <div className="mb-3 p-3 bg-secondary rounded-lg border border-border">
                             <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                     <div className="flex items-center mb-1">
-                                        <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center mr-2">
-                                            <span className="text-xs font-semibold text-blue-600">
+                                        <div className="w-6 h-6 rounded-full bg-accent/15 flex items-center justify-center mr-2">
+                                            <span className="text-xs font-semibold text-accent">
                                                 {propertyOwner.fullName?.charAt(0)?.toUpperCase() || 'A'}
                                             </span>
                                         </div>
-                                        <span className="text-xs font-semibold text-gray-800">
+                                        <span className="text-xs font-semibold text-foreground">
                                             {propertyOwner.fullName}
                                         </span>
                                     </div>
-                                    <div className="text-xs text-blue-600 font-medium mb-1">
+                                    <div className="text-xs text-accent font-medium mb-1">
                                         {propertyOwner.role === 'agent' ? 'Property Agent' : 'Property Manager'}
                                     </div>
                                     {propertyOwner.companyName && (
-                                        <div className="text-xs text-gray-600 mb-1">{propertyOwner.companyName}</div>
+                                        <div className="text-xs text-muted-foreground mb-1">{propertyOwner.companyName}</div>
                                     )}
                                     {propertyOwner.phoneNumber && (
                                         <div className="flex items-center">
@@ -221,25 +221,25 @@ export default function PropertyCard({ property }: PropertyCardProps) {
 
                     <div className="flex justify-between items-center mb-3">
                         <div>
-                            <span className="font-bold">
+                            <span className="font-display font-medium text-foreground text-lg">
                                 {property.price != null ? (
                                     property.price.toLocaleString()
                                 ) : (
-                                    <span className="text-gray-400">N/A</span>
+                                    <span className="text-muted-foreground">N/A</span>
                                 )}{' '}
                                 {property.currency || 'UGX'}
                             </span>
                             {property.category === 'rental_units' && (
-                                <span className="text-gray-500 text-sm"> / month</span>
+                                <span className="text-muted-foreground text-sm"> / month</span>
                             )}
                             {(property.category === 'furnished_houses' || property.category === 'BnB') && (
-                                <span className="text-gray-500 text-sm"> / day</span>
+                                <span className="text-muted-foreground text-sm"> / day</span>
                             )}
                         </div>
                     </div>
                     <Button
                         variant="outline"
-                        className="w-full text-sm h-8 border-[#00A699] text-[#00A699] hover:bg-[#00A699]/5 hover:text-gray-800 transition-colors"
+                        className="w-full text-sm h-8 border-accent text-accent hover:bg-accent hover:text-accent-foreground transition-colors"
                         onClick={(e) => {
                             // Only rental properties require payment for tour viewing
                             // BnBs can view tours for free, but need to pay 20% to book

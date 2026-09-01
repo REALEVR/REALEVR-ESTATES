@@ -23,6 +23,7 @@ import {
     getStaticSitemapEntries,
     propertyToSitemapEntry,
 } from './sitemap'
+import { registerSocialPreviewRoutes } from './social-preview'
 import notificationRoutes from './routes/notifications'
 import { runDepositReminders, runViewingReminders } from './cron/index'
 
@@ -47,6 +48,18 @@ import { registerBtcQrRoutes } from './gene/btc-qr'
 import { registerSlackBridgeRoutes } from './gene/slack-bridge'
 import { registerAgentWhatsappOnboardingRoutes } from './gene/agent-whatsapp-onboarding'
 import { registerTourAccessPassRoutes, issuePass } from './gene/tour-access-pass'
+import { registerPersonalAgentRoutes } from './gene/personal-agent'
+import { registerReferralRewardsRoutes } from './gene/referral-rewards'
+import { registerWhatsappConciergeRoutes } from './gene/whatsapp-concierge'
+import { registerLandlordHubRoutes } from './gene/landlord-hub'
+import { registerMagicLoginRoutes } from './gene/magic-login'
+import { registerSelfServeListingRoutes } from './gene/self-serve-listing'
+import { registerWhatsappGrowthRoutes } from './gene/whatsapp-growth'
+import { registerBoostPlacementRoutes } from './gene/boost-placement'
+import { registerSuccessFeeRoutes } from './gene/success-fee'
+import { registerTourProductionBookingRoutes } from './gene/tour-production-booking'
+import { registerLeadMeteringRoutes } from './gene/lead-metering'
+import { registerTenantConsentRoutes } from './gene/tenant-consent'
 
 // Middleware to check if user is an admin or property manager
 const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -76,8 +89,18 @@ const subscriptionMiddleware = (req: Request, res: Response, next: NextFunction)
         return next()
     }
 
+    // Agents who list a property through the referral flow
+    // (server/gene/self-serve-listing.ts) earn a flat one-time payout per
+    // listing rather than paying a recurring subscription, so they will
+    // never have subscriptionStatus === 'active'. This one additive check
+    // lets that specific, honestly-tagged account type through without
+    // weakening the check for anyone else — an account only gets
+    // membershipPlan: 'self-serve' by going through that landlord-OTP-verified
+    // flow, never by user input.
+    const isSelfServeAccount = user.membershipPlan === 'self-serve'
+
     // For agents, check subscription status
-    if (user.role === 'agent') {
+    if (user.role === 'agent' && !isSelfServeAccount) {
         if (user.subscriptionStatus !== 'active') {
             return res.status(403).json({
                 message: 'Subscription required. Please renew your agent subscription to access this feature.',
@@ -150,6 +173,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.setHeader('Cache-Control', 'public, max-age=86400')
         res.send(buildRobotsTxt(base))
     })
+
+    // Server-rendered Open Graph/Twitter/JSON-LD tags for link-preview bots
+    // (WhatsApp, Facebook, Twitter/X, LinkedIn, Telegram, Slack, Discord, iMessage)
+    // that don't execute the SPA's JavaScript. No-ops for everyone else. See
+    // server/social-preview.ts for why this exists.
+    registerSocialPreviewRoutes(app, storage)
 
     // Apply no-cache middleware to all API routes
     app.use('/api', noCacheMiddleware)
@@ -2356,6 +2385,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerSlackBridgeRoutes(app, adminMiddleware)
     registerAgentWhatsappOnboardingRoutes(app, adminMiddleware)
     registerTourAccessPassRoutes(app, adminMiddleware)
+    registerPersonalAgentRoutes(app)
+    registerReferralRewardsRoutes(app, adminMiddleware)
+    registerWhatsappConciergeRoutes(app)
+    registerLandlordHubRoutes(app)
+    registerMagicLoginRoutes(app)
+    registerSelfServeListingRoutes(app)
+    registerWhatsappGrowthRoutes(app)
+
+    // Monetization playbook (2026-08-29) implementation pass — see
+    // docs/GENE_PLATFORM.md v1.6. Each is additive/independent; none touches
+    // an existing route or table.
+    registerBoostPlacementRoutes(app, adminMiddleware)
+    registerSuccessFeeRoutes(app, adminMiddleware)
+    registerTourProductionBookingRoutes(app, adminMiddleware)
+    registerLeadMeteringRoutes(app, adminMiddleware)
+    registerTenantConsentRoutes(app)
 
     // Admin endpoint to manually trigger reminders for testing
     app.post('/api/admin/test-reminders', adminMiddleware, async (_req: any, res: any) => {

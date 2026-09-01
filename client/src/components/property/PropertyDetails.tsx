@@ -7,11 +7,12 @@ import OwnerContactDetails from './OwnerContactDetails'
 import BookingCalendarModal from './BookingCalendarModal'
 import VirtualTourModal from './VirtualTourModal'
 import TourPaymentModal from './TourPaymentModal'
+import SharePropertyModal from './SharePropertyModal'
 import type { Property, User } from '@shared/schema'
 import { getSafeAmenities } from '@/lib/property-utils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Phone, User as UserIcon } from 'lucide-react'
+import { Phone, User as UserIcon, Share2 } from 'lucide-react'
 
 interface PropertyDescriptionProps {
     description: string
@@ -41,7 +42,7 @@ function PropertyDescription({ description }: PropertyDescriptionProps) {
     const fullText = description
 
     return (
-        <div className="text-gray-500">
+        <div className="text-muted-foreground">
             <p className="leading-relaxed">
                 {isExpanded ? fullText : previewText}
                 {!isExpanded && hasMoreContent && '...'}
@@ -49,7 +50,7 @@ function PropertyDescription({ description }: PropertyDescriptionProps) {
             {hasMoreContent && (
                 <button
                     onClick={() => setIsExpanded(!isExpanded)}
-                    className="mt-2 text-[#FF5A5F] hover:text-[#FF7478] font-medium text-sm transition-colors"
+                    className="mt-2 text-accent hover:text-accent/70 font-medium text-sm transition-colors"
                 >
                     {isExpanded ? 'Show less' : 'Read more'}
                 </button>
@@ -64,6 +65,7 @@ interface PropertyDetailsProps {
 
 export default function PropertyDetails({ property }: PropertyDetailsProps) {
     const [isFavorite, setIsFavorite] = useState(false)
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false)
     const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
     const [isTourModalOpen, setIsTourModalOpen] = useState(false)
     const [isTourPaymentModalOpen, setIsTourPaymentModalOpen] = useState(false)
@@ -182,24 +184,43 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
         <div className="p-6 lg:p-8">
             <div className="flex justify-between items-start">
                 <div>
-                    <h1 className="text-2xl font-bold">{property.title}</h1>
-                    <p className="text-gray-500 mb-2">{property.location}</p>
+                    <h1 className="text-2xl font-display font-medium text-foreground">{property.title}</h1>
+                    <p className="text-muted-foreground mb-2">{property.location}</p>
                     <div className="flex items-center mb-4">
                         <i className="fas fa-star text-[#FFB400]"></i>
                         <span className="ml-1 font-medium">{property.rating}</span>
                         <span className="mx-1">·</span>
-                        <span className="text-gray-500 underline">{property.reviewCount} reviews</span>
+                        <span className="text-muted-foreground underline">{property.reviewCount} reviews</span>
                     </div>
                 </div>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="p-2 hover:bg-gray-100 rounded-full"
-                    onClick={handleFavoriteClick}
-                >
-                    <i className={`${isFavorite ? 'fas text-[#FF5A5F]' : 'far'} fa-heart text-xl`}></i>
-                </Button>
+                <div className="flex gap-1">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="p-2 hover:bg-secondary rounded-full"
+                        onClick={() => setIsShareModalOpen(true)}
+                        aria-label="Share this property"
+                        title="Share this property"
+                    >
+                        <Share2 className="h-5 w-5" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="p-2 hover:bg-secondary rounded-full"
+                        onClick={handleFavoriteClick}
+                    >
+                        <i className={`${isFavorite ? 'fas text-accent' : 'far'} fa-heart text-xl`}></i>
+                    </Button>
+                </div>
             </div>
+
+            <SharePropertyModal
+                isOpen={isShareModalOpen}
+                onClose={() => setIsShareModalOpen(false)}
+                propertyId={property.id}
+                propertyTitle={property.title}
+            />
 
             <Tabs defaultValue="overview" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
@@ -208,11 +229,11 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                 </TabsList>
 
                 <TabsContent value="overview" className="space-y-6">
-                    <div className="border-t border-b border-gray-200 py-6 my-6">
+                    <div className="border-t border-b border-border py-6 my-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <h4 className="font-semibold mb-1">Property Details</h4>
-                                <ul className="space-y-2 text-gray-500">
+                                <ul className="space-y-2 text-muted-foreground">
                                     <li className="flex items-center">
                                         <i className="fas fa-bed w-6"></i>
                                         <span>{property.bedrooms} Bedrooms</span>
@@ -233,7 +254,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                         <span>{property.propertyType}</span>
                                     </li>
                                     {isBnB && (
-                                        <li className="flex items-center text-[#FF5A5F] font-medium">
+                                        <li className="flex items-center text-accent font-medium">
                                             <i className="fas fa-calendar-check w-6"></i>
                                             <span>Pay 20% deposit to book</span>
                                         </li>
@@ -242,7 +263,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                             </div>
                             <div>
                                 <h4 className="font-semibold mb-1">Amenities</h4>
-                                <ul className="space-y-2 text-gray-500">
+                                <ul className="space-y-2 text-muted-foreground">
                                     {getSafeAmenities(property)?.map?.((amenity, index) => (
                                         <li key={index} className="flex items-center">
                                             <i
@@ -262,7 +283,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                             ></i>
                                             <span>{amenity}</span>
                                         </li>
-                                    )) || <li className="text-gray-400 italic">No amenities listed</li>}
+                                    )) || <li className="text-muted-foreground/70 italic">No amenities listed</li>}
                                 </ul>
                             </div>
                         </div>
@@ -275,25 +296,25 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                             <Card>
                                 <CardContent className="p-4">
                                     <div className="flex items-center space-x-3">
-                                        <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center">
-                                            <UserIcon className="h-6 w-6 text-gray-500" />
+                                        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                                            <UserIcon className="h-6 w-6 text-muted-foreground" />
                                         </div>
                                         <div className="flex-1">
                                             <h5 className="font-medium">{propertyOwner.fullName}</h5>
-                                            <p className="text-sm text-gray-500">
+                                            <p className="text-sm text-muted-foreground">
                                                 {propertyOwner.role === 'agent' ? 'Property Agent' : 'Property Manager'}
                                             </p>
                                         </div>
                                         {propertyOwner.phoneNumber && (
                                             <div className="flex items-center space-x-2">
-                                                <Phone className="h-4 w-4 text-gray-500" />
+                                                <Phone className="h-4 w-4 text-muted-foreground" />
                                                 <span className="text-sm font-medium">{propertyOwner.phoneNumber}</span>
                                             </div>
                                         )}
                                     </div>
                                     {propertyOwner.companyName && (
-                                        <div className="mt-3 pt-3 border-t border-gray-100">
-                                            <p className="text-sm text-gray-600">
+                                        <div className="mt-3 pt-3 border-t border-border">
+                                            <p className="text-sm text-muted-foreground">
                                                 <span className="font-medium">Company:</span>{' '}
                                                 {propertyOwner.companyName}
                                             </p>
@@ -324,7 +345,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <h4 className="font-semibold mb-3">Construction & Age</h4>
-                                    <ul className="space-y-2 text-gray-500">
+                                    <ul className="space-y-2 text-muted-foreground">
                                         {property.yearOfConstruction && (
                                             <li className="flex items-center">
                                                 <i className="fas fa-calendar w-6"></i>
@@ -351,7 +372,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                         {!property.yearOfConstruction &&
                                             !property.buildingAge &&
                                             !property.propertyCondition && (
-                                                <li className="text-gray-400 italic">
+                                                <li className="text-muted-foreground/70 italic">
                                                     No construction details available
                                                 </li>
                                             )}
@@ -361,7 +382,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                 {property.category === 'bank-sale' && (
                                     <div>
                                         <h4 className="font-semibold mb-3">Auction Information</h4>
-                                        <ul className="space-y-2 text-gray-500">
+                                        <ul className="space-y-2 text-muted-foreground">
                                             {property.auctionStart && (
                                                 <li className="flex items-center">
                                                     <i className="fas fa-play w-6"></i>
@@ -392,7 +413,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                             {!property.auctionStart &&
                                                 !property.auctionEnd &&
                                                 !property.auctionStatus && (
-                                                    <li className="text-gray-400 italic">
+                                                    <li className="text-muted-foreground/70 italic">
                                                         No auction details available
                                                     </li>
                                                 )}
@@ -408,22 +429,22 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
             {/* Display price differently for BnBs (per night) vs other properties (per month) */}
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
                 <div className="mb-4 md:mb-0">
-                    <span className="text-2xl font-bold">
+                    <span className="text-2xl font-display font-medium text-foreground">
                         {property.price !== undefined && property.price !== null
                             ? property.price.toLocaleString()
                             : 'N/A'}{' '}
                         {property.currency || 'UGX'}
                     </span>
-                    {property.category === 'rental_units' && <span className="text-gray-500"> / month</span>}
+                    {property.category === 'rental_units' && <span className="text-muted-foreground"> / month</span>}
                     {(property.category === 'furnished_houses' || property.category === 'BnB') && (
-                        <span className="text-gray-500"> / day</span>
+                        <span className="text-muted-foreground"> / day</span>
                     )}
                 </div>
                 <div className="flex space-x-3">
-                    <Button variant="outline" className="border-gray-800" onClick={handleScheduleVisit}>
+                    <Button variant="outline" className="border-foreground/30" onClick={handleScheduleVisit}>
                         {isBnB ? 'Book Now' : 'Schedule Visit'}
                     </Button>
-                    <Button variant="default" className="bg-[#FF5A5F] hover:bg-[#FF7478]" onClick={handleViewTour}>
+                    <Button variant="default" className="bg-accent hover:bg-accent/90" onClick={handleViewTour}>
                         {isBnB ? 'View Virtual Tour' : 'View Virtual Tour'}
                     </Button>
                 </div>
@@ -431,8 +452,8 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
 
             {/* Show owner contact details section for BnBs */}
             {isBnB && (
-                <div className="mt-8 border-t border-gray-200 pt-8">
-                    <h3 className="text-xl font-semibold mb-4">Property Owner</h3>
+                <div className="mt-8 border-t border-border pt-8">
+                    <h3 className="text-xl font-display font-medium mb-4 text-foreground">Property Owner</h3>
                     <OwnerContactDetails property={property} bookingConfirmed={bookingConfirmed} />
                 </div>
             )}

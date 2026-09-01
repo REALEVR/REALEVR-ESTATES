@@ -10,6 +10,7 @@ import PropertyCard from '@/components/home/PropertyCard'
 import type { Property } from '@shared/schema'
 import { PageSeo } from '@/components/seo/PageSeo'
 import { getSiteUrl } from '@/lib/siteUrl'
+import { CATEGORY_PAGE_META } from '@shared/seo'
 
 export default function RentalUnitsPage() {
     const { hasActiveViewingPackage, openViewingPaymentPrompt } = usePayment()
@@ -36,10 +37,9 @@ export default function RentalUnitsPage() {
         return {
             '@context': 'https://schema.org',
             '@type': 'CollectionPage',
-            name: 'Rental Units | RealEVR Estates',
-            description:
-                'Long-term and unfurnished rental listings with virtual tours. Compare bedrooms, bathrooms, and monthly rent.',
-            url: `${site}/rental-units`,
+            name: CATEGORY_PAGE_META.rentalUnits.title,
+            description: CATEGORY_PAGE_META.rentalUnits.description,
+            url: `${site}${CATEGORY_PAGE_META.rentalUnits.path}`,
         }
     }, [])
 
@@ -301,9 +301,9 @@ export default function RentalUnitsPage() {
     return (
         <div className="py-8">
             <PageSeo
-                title="Rental Units | RealEVR Estates"
-                description="Find apartments and houses for rent with virtual tours. Filter by bedrooms, bathrooms, area, and monthly rent on RealEVR Estates."
-                canonicalPath="/rental-units"
+                title={CATEGORY_PAGE_META.rentalUnits.title}
+                description={CATEGORY_PAGE_META.rentalUnits.description}
+                canonicalPath={CATEGORY_PAGE_META.rentalUnits.path}
                 jsonLd={rentalJsonLd}
             />
             <div className="container mx-auto px-6">

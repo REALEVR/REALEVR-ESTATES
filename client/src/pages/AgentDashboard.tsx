@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { Redirect } from 'wouter'
 import { Property } from '@shared/schema'
@@ -18,10 +18,18 @@ import {
     MapPin,
     DollarSign,
     Trash2,
+    ToggleLeft,
+    MessageCircle,
+    Star,
+    Loader2,
+    Download,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import PropertyFormNew from '@/components/admin/PropertyFormNew'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useLandlordInbox, useLandlordReviews } from '@/hooks/useLandlordHub'
+import { useInstallPrompt } from '@/hooks/useInstallPrompt'
+import BoostPurchaseCard from '@/components/boost/BoostPurchaseCard'
 
 interface PropertyWithViews extends Property {
     viewCount: number
@@ -47,67 +55,63 @@ export function AgentDashboard() {
         return <Redirect to="/auth" />
     }
 
-    useEffect(() => {
-        const fetchAgentData = async () => {
-            try {
-                setLoading(true)
+    // Hoisted out of useEffect (was previously nested there, unreachable from
+    // the JSX below that calls it — a pre-existing bug fixed incidentally
+    // while wiring in the availability toggle, which also needs to refresh
+    // this list after a successful toggle).
+    const fetchAgentData = useCallback(async () => {
+        try {
+            setLoading(true)
 
-                // Fetch agent's properties
-                console.log('Fetching agen t properties...')
-                console.log('Cookies:', document.cookie)
-                const propertiesResponse = await fetch('/api/agent/properties', {
-                    credentials: 'include',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+            const propertiesResponse = await fetch('/api/agent/properties', {
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            if (propertiesResponse.ok) {
+                const agentProperties = await propertiesResponse.json()
+                setProperties(agentProperties)
+
+                // Calculate stats
+                const totalViews = agentProperties.reduce(
+                    (sum: number, p: PropertyWithViews) => sum + (p.viewCount || 0),
+                    0
+                )
+                const activeListings = agentProperties.filter((p: Property) => p.isAvailable).length
+
+                setStats({
+                    totalProperties: agentProperties.length,
+                    totalViews,
+                    thisMonthViews: Math.floor(totalViews * 0.3), // Mock data
+                    activeListings,
                 })
-                console.log('Properties response status:', propertiesResponse.status)
-                if (propertiesResponse.ok) {
-                    const agentProperties = await propertiesResponse.json()
-                    console.log('Agent properties received:', agentProperties)
-                    setProperties(agentProperties)
-
-                    // Calculate stats
-                    const totalViews = agentProperties.reduce(
-                        (sum: number, p: PropertyWithViews) => sum + (p.viewCount || 0),
-                        0
-                    )
-                    const activeListings = agentProperties.filter((p: Property) => p.isAvailable).length
-
-                    setStats({
-                        totalProperties: agentProperties.length,
-                        totalViews,
-                        thisMonthViews: Math.floor(totalViews * 0.3), // Mock data
-                        activeListings,
-                    })
-                } else {
-                    console.log('-----------------------dsdsdsdsdsd----------')
-                    console.error(
-                        'Failed to fetch properties:',
-                        propertiesResponse.status,
-                        propertiesResponse.statusText
-                    )
-                    const errorData = await propertiesResponse.text()
-                    console.error('Error response:', errorData)
-                    toast({
-                        title: 'Error',
-                        description: `Failed to load properties: ${propertiesResponse.status}`,
-                        variant: 'destructive',
-                    })
-                }
-            } catch (error) {
-                console.error('Error fetching agent data:', error)
+            } else {
+                console.error(
+                    'Failed to fetch properties:',
+                    propertiesResponse.status,
+                    propertiesResponse.statusText
+                )
                 toast({
                     title: 'Error',
-                    description: 'Failed to load dashboard data',
+                    description: `Failed to load properties: ${propertiesResponse.status}`,
                     variant: 'destructive',
                 })
-            } finally {
-                setLoading(false)
             }
+        } catch (error) {
+            console.error('Error fetching agent data:', error)
+            toast({
+                title: 'Error',
+                description: 'Failed to load dashboard data',
+                variant: 'destructive',
+            })
+        } finally {
+            setLoading(false)
         }
+    }, [toast])
 
-        const handleDeleteProperty = async (propertyId: number) => {
+    const handleDeleteProperty = useCallback(
+        async (propertyId: number) => {
             if (!confirm('Are you sure you want to delete this property? This action cannot be undone.')) {
                 return
             }
@@ -126,7 +130,6 @@ export function AgentDashboard() {
                         title: 'Property Deleted',
                         description: 'The property has been successfully deleted',
                     })
-                    // Refresh the properties list
                     fetchAgentData()
                 } else {
                     const errorData = await response.json()
@@ -139,10 +142,46 @@ export function AgentDashboard() {
                     variant: 'destructive',
                 })
             }
-        }
+        },
+        [toast, fetchAgentData]
+    )
 
+    // Availability toggle — reuses the existing admin/agent-gated
+    // /api/properties/:id/toggle-availability route (server/routes.ts), the
+    // same one the WhatsApp concierge's owner-checked toggle mirrors for
+    // landlords texting "available <id>" / "unavailable <id>".
+    const handleToggleAvailability = useCallback(
+        async (propertyId: number) => {
+            try {
+                const response = await fetch(`/api/properties/${propertyId}/toggle-availability`, {
+                    method: 'POST',
+                    credentials: 'include',
+                })
+                if (!response.ok) {
+                    throw new Error('Failed to update availability')
+                }
+                const updated = await response.json()
+                setProperties((prev) =>
+                    prev.map((p) => (p.id === propertyId ? { ...p, isAvailable: updated.isAvailable } : p))
+                )
+                toast({
+                    title: 'Availability updated',
+                    description: `"${updated.title}" is now ${updated.isAvailable ? 'available' : 'unavailable'}.`,
+                })
+            } catch (error: any) {
+                toast({
+                    title: 'Error',
+                    description: error.message || 'Failed to update availability',
+                    variant: 'destructive',
+                })
+            }
+        },
+        [toast]
+    )
+
+    useEffect(() => {
         fetchAgentData()
-    }, [user.id, toast])
+    }, [fetchAgentData])
 
     if (loading) {
         return (
@@ -158,9 +197,12 @@ export function AgentDashboard() {
         <div className="container mx-auto py-8 px-6">
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">Agent Dashboard</h1>
-                    <p className="text-gray-600 mt-2">Manage your properties and track performance</p>
+                <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900">Agent Dashboard</h1>
+                        <p className="text-gray-600 mt-2">Manage your properties and track performance</p>
+                    </div>
+                    <InstallAppButton />
                 </div>
 
                 {/* Stats Cards */}
@@ -216,6 +258,8 @@ export function AgentDashboard() {
                         <TabsTrigger value="properties">My Properties</TabsTrigger>
                         <TabsTrigger value="analytics">Analytics</TabsTrigger>
                         <TabsTrigger value="tours">Virtual Tours</TabsTrigger>
+                        <TabsTrigger value="inbox">Inbox</TabsTrigger>
+                        <TabsTrigger value="reviews">Reviews</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="properties" className="space-y-6">
@@ -305,7 +349,17 @@ export function AgentDashboard() {
                                                       <Trash2 className="mr-1 h-3 w-3" />
                                                       Delete
                                                   </Button>
+                                                  <BoostPurchaseCard propertyId={property.id} />
                                               </div>
+                                              <Button
+                                                  variant={property.isAvailable ? 'outline' : 'default'}
+                                                  size="sm"
+                                                  className="mt-2 w-full"
+                                                  onClick={() => handleToggleAvailability(property.id)}
+                                              >
+                                                  <ToggleLeft className="mr-1 h-3 w-3" />
+                                                  Mark as {property.isAvailable ? 'Unavailable' : 'Available'}
+                                              </Button>
                                           </CardContent>
                                       </Card>
                                   ))
@@ -440,6 +494,14 @@ export function AgentDashboard() {
                             </CardContent>
                         </Card>
                     </TabsContent>
+
+                    <TabsContent value="inbox" className="space-y-6">
+                        <InboxTab />
+                    </TabsContent>
+
+                    <TabsContent value="reviews" className="space-y-6">
+                        <ReviewsTab />
+                    </TabsContent>
                 </Tabs>
             </div>
 
@@ -463,5 +525,164 @@ export function AgentDashboard() {
                 </DialogContent>
             </Dialog>
         </div>
+    )
+}
+
+/** "Install app" button — the practical form of the "mini downloadable app"
+ * for landlords: an installable PWA rather than a native app (see
+ * useInstallPrompt.ts's docstring for why, and the iOS fallback below). */
+function InstallAppButton() {
+    const { promptable, installed, promptInstall } = useInstallPrompt()
+    const isIos = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent)
+
+    if (installed) return null
+
+    if (promptable) {
+        return (
+            <Button variant="outline" onClick={() => promptInstall()}>
+                <Download className="mr-2 h-4 w-4" />
+                Install app
+            </Button>
+        )
+    }
+
+    if (isIos) {
+        return (
+            <p className="max-w-xs text-xs text-muted-foreground">
+                Install this dashboard as an app: tap the Share button in Safari, then "Add to Home Screen".
+            </p>
+        )
+    }
+
+    return null
+}
+
+/** Interested tenants + WhatsApp messages for the properties this landlord
+ * owns (server/gene/landlord-hub.ts). */
+function InboxTab() {
+    const inboxQuery = useLandlordInbox(true)
+
+    if (inboxQuery.isLoading) {
+        return (
+            <div className="flex justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
+
+    const interestedTenants = inboxQuery.data?.interestedTenants ?? []
+    const messages = inboxQuery.data?.messages ?? []
+
+    return (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <Users className="h-4 w-4" /> Interested Tenants
+                    </CardTitle>
+                    <CardDescription>People who viewed, saved, or inquired about your listings.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    {interestedTenants.length === 0 && (
+                        <p className="text-sm text-muted-foreground py-6 text-center">
+                            No tenant activity yet on your properties.
+                        </p>
+                    )}
+                    {interestedTenants.map((t, i) => (
+                        <div key={i} className="flex items-center justify-between rounded-lg border p-3">
+                            <div>
+                                <p className="font-medium text-sm">{t.tenantName}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {t.propertyTitle} · {t.action}
+                                </p>
+                            </div>
+                            <Badge variant="secondary">{new Date(t.createdAt).toLocaleDateString()}</Badge>
+                        </div>
+                    ))}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <MessageCircle className="h-4 w-4" /> WhatsApp Messages
+                    </CardTitle>
+                    <CardDescription>
+                        Conversations about your properties, including availability toggles you sent by text.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    {messages.length === 0 && (
+                        <p className="text-sm text-muted-foreground py-6 text-center">
+                            No WhatsApp activity yet. Link your number from your agent profile to toggle
+                            availability by texting "available &lt;id&gt;" / "unavailable &lt;id&gt;".
+                        </p>
+                    )}
+                    {messages.map((m) => (
+                        <div key={m.id} className="rounded-lg border p-3">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    {m.direction === 'inbound' ? 'Received' : 'Sent'} · {m.propertyTitle ?? 'General'}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                    {new Date(m.createdAt).toLocaleString()}
+                                </span>
+                            </div>
+                            <p className="mt-1 text-sm">{m.text}</p>
+                        </div>
+                    ))}
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+
+/** Reviews left on this landlord's properties (server/gene/landlord-hub.ts). */
+function ReviewsTab() {
+    const reviewsQuery = useLandlordReviews(true)
+
+    if (reviewsQuery.isLoading) {
+        return (
+            <div className="flex justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
+
+    const reviews = reviewsQuery.data ?? []
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                    <Star className="h-4 w-4" /> Reviews
+                </CardTitle>
+                <CardDescription>What tenants and buyers are saying about your properties.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                {reviews.length === 0 && (
+                    <p className="text-sm text-muted-foreground py-6 text-center">No reviews yet.</p>
+                )}
+                {reviews.map((r) => (
+                    <div key={r.id} className="rounded-lg border p-3">
+                        <div className="flex items-center justify-between">
+                            <p className="font-medium text-sm">{r.propertyTitle}</p>
+                            <div className="flex items-center gap-0.5">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                    <Star
+                                        key={i}
+                                        className={`h-3.5 w-3.5 ${i < r.rating ? 'fill-current text-yellow-500' : 'text-muted-foreground/30'}`}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">{r.text}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            — {r.reviewerName}, {new Date(r.createdAt).toLocaleDateString()}
+                        </p>
+                    </div>
+                ))}
+            </CardContent>
+        </Card>
     )
 }
