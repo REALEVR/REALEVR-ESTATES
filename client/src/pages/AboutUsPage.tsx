@@ -9,7 +9,7 @@ export default function AboutUsPage() {
         <div className="space-y-8">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">Our Mission</CardTitle>
+              <CardTitle className="text-2xl text-accent">Our Mission</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-gray-600 leading-relaxed">
@@ -22,7 +22,7 @@ export default function AboutUsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">What We Do</CardTitle>
+              <CardTitle className="text-2xl text-accent">What We Do</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -60,7 +60,7 @@ export default function AboutUsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">Our Story</CardTitle>
+              <CardTitle className="text-2xl text-accent">Our Story</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-gray-600 leading-relaxed mb-4">
@@ -79,13 +79,13 @@ export default function AboutUsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">Our Values</CardTitle>
+              <CardTitle className="text-2xl text-accent">Our Values</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="text-center">
-                  <div className="w-16 h-16 bg-[#FF5A5F]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className="fas fa-shield-alt text-2xl text-[#FF5A5F]"></i>
+                  <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i className="fas fa-shield-alt text-2xl text-accent"></i>
                   </div>
                   <h3 className="font-semibold mb-2">Trust & Security</h3>
                   <p className="text-gray-600 text-sm">
@@ -93,8 +93,8 @@ export default function AboutUsPage() {
                   </p>
                 </div>
                 <div className="text-center">
-                  <div className="w-16 h-16 bg-[#FF5A5F]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className="fas fa-users text-2xl text-[#FF5A5F]"></i>
+                  <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i className="fas fa-users text-2xl text-accent"></i>
                   </div>
                   <h3 className="font-semibold mb-2">Community Focus</h3>
                   <p className="text-gray-600 text-sm">
@@ -102,8 +102,8 @@ export default function AboutUsPage() {
                   </p>
                 </div>
                 <div className="text-center">
-                  <div className="w-16 h-16 bg-[#FF5A5F]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className="fas fa-rocket text-2xl text-[#FF5A5F]"></i>
+                  <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i className="fas fa-rocket text-2xl text-accent"></i>
                   </div>
                   <h3 className="font-semibold mb-2">Innovation</h3>
                   <p className="text-gray-600 text-sm">

@@ -256,7 +256,7 @@ export default function BnBsPage() {
               <h3 className="text-xl font-semibold mb-2">Planning your next stay?</h3>
               <p className="text-gray-600 mb-4">Click on any property to view details and book your stay. Payment is only required after booking confirmation.</p>
               <Button 
-                className="bg-[#FF5A5F] hover:bg-[#FF5A5F]/90"
+                className="bg-accent hover:bg-accent/90"
                 onClick={() => setLocation("/")}
               >
                 Explore More Options

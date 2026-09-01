@@ -9,6 +9,7 @@ import { usePropertyViews } from '@/hooks/usePropertyViews'
 import { Button } from '@/components/ui/button'
 import { AnimatedCard, FadeIn } from '@/components/ui/animated-components'
 import { Phone } from 'lucide-react'
+import VRBadge from '../property/VRBadge'
 
 interface PropertyCardProps {
     property: Property
@@ -167,9 +168,9 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                         </div>
                     )}
                     {property.hasTour && (
-                        <span className="absolute bottom-3 left-3 bg-foreground/70 backdrop-blur-sm text-white px-2 py-1 rounded-md text-sm font-medium z-10">
-                            360° Tour Available
-                        </span>
+                        <div className="absolute bottom-3 left-3 z-10">
+                            <VRBadge size="sm" />
+                        </div>
                     )}
                 </div>
                 <div className="p-4">

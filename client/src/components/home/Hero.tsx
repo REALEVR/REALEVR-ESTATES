@@ -7,6 +7,7 @@ import houseImg from '../../assets/images/hero.jpg';
 import FilterBar from './FilterBar';
 import MotionBackground from '@/components/motion/MotionBackground';
 import CountUp from '@/components/motion/CountUp';
+import VRBadge from '@/components/property/VRBadge';
 
 // Custom hook for mobile detection
 const useIsMobile = () => {
@@ -191,7 +192,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
   };
 
   return (
-    <section className='relative bg-background -mx-4 sm:-mx-6 lg:-mx-8'>
+    <section className='relative bg-background -mx-4 sm:-mx-6 lg:-mx-8 vr-grid-bg'>
       <MotionBackground tone="accent" />
  <section className="relative z-10 w-full mdx_hero p-8 md:p-12 mt-6 flex flex-col gap-8 hero-video-wrapper  newHero">
 
@@ -204,9 +205,12 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         >
+          <div className="mb-4">
+            <VRBadge size="md" />
+          </div>
           <h1 className="text-5xl md:text-7xl font-light leading-tight text-foreground">
-            <span className="font-display italic font-medium text-accent text-6xl md:text-8xl hero-find-text">Find</span> <br />
-            <span className="font-display hero-text-two">Your Modern House</span>
+            <span className="font-display italic font-medium text-accent text-6xl md:text-8xl hero-find-text vr-glow-text">Step Inside</span> <br />
+            <span className="font-display hero-text-two">Before You Arrive</span>
           </h1>
         </motion.div>
         {/* Right: Description and stats */}
@@ -217,7 +221,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
         >
           <p className="text-lg md:text-xl text-muted-foreground mb-4">
-            Experience a seamless real estate journey using VR tailored to your unique needs, where every home search leads to a place that was made specifically just for you.
+            Every listing comes with an immersive 360° virtual tour — walk through real homes on your phone, tablet, or a VR headset, before you ever set foot on the property.
           </p>
           <div className="flex gap-12">
             <div>

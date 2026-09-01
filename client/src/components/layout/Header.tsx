@@ -77,10 +77,10 @@ export default function Header() {
           </Button> */}
           {/* {!user && (
             <>
-              <Link href="/membership" className="hidden md:block text-gray-800 hover:text-[#FF5A5F] font-medium">
+              <Link href="/membership" className="hidden md:block text-gray-800 hover:text-accent font-medium">
                 Become a Member
               </Link>
-              <Link href="/agent/register" className="hidden md:block text-gray-800 hover:text-[#FF5A5F] font-medium">
+              <Link href="/agent/register" className="hidden md:block text-gray-800 hover:text-accent font-medium">
                 Become an Agent
               </Link>
             </>

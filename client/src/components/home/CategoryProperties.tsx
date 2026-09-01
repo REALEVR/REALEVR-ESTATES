@@ -28,7 +28,7 @@ export default function CategoryProperties() {
               <TabsTrigger 
                 key={category.id} 
                 value={category.id}
-                className="flex items-center justify-center py-3 px-4 data-[state=active]:bg-[#FF5A5F] data-[state=active]:text-white"
+                className="flex items-center justify-center py-3 px-4 data-[state=active]:bg-accent data-[state=active]:text-accent-foreground"
               >
                 <i className={`fas fa-${category.icon} mr-2`}></i>
                 <span>{category.label}</span>

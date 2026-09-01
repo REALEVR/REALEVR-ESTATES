@@ -15,16 +15,18 @@ import { motion, useReducedMotion } from 'framer-motion'
 export type MotionBackgroundTone = 'accent' | 'warm' | 'quiet'
 
 const TONE_BLOBS: Record<MotionBackgroundTone, { className: string }[]> = {
-  // Hero — the most visible placement, so the richest tone.
+  // Hero — the most visible placement, so the richest tone. Pure grayscale
+  // (NeoVision theme): every blob is white-on-black at varying opacity —
+  // no hue anywhere, so the ambient motion reads as "light", not "color".
   accent: [
     { className: 'bg-accent/25 w-[32rem] h-[32rem] -left-40 -top-40' },
-    { className: 'bg-[hsl(150,20%,45%)]/15 w-[26rem] h-[26rem] right-0 top-10' },
-    { className: 'bg-[hsl(42,46%,55%)]/20 w-[22rem] h-[22rem] left-1/3 bottom-0' },
+    { className: 'bg-white/12 w-[26rem] h-[26rem] right-0 top-10' },
+    { className: 'bg-white/8 w-[22rem] h-[22rem] left-1/3 bottom-0' },
   ],
   // Secondary CTA bands — noticeable but quieter than the hero.
   warm: [
     { className: 'bg-accent/15 w-[26rem] h-[26rem] -left-20 top-0' },
-    { className: 'bg-[hsl(42,46%,55%)]/15 w-[20rem] h-[20rem] right-0 bottom-0' },
+    { className: 'bg-white/10 w-[20rem] h-[20rem] right-0 bottom-0' },
   ],
   // Barely-there texture for content-dense sections.
   quiet: [{ className: 'bg-accent/10 w-[24rem] h-[24rem] right-0 top-0' }],

@@ -7,7 +7,9 @@ export default {
     extend: {
       fontFamily: {
         sans: ["Montserrat", "ui-sans-serif", "system-ui", "sans-serif"],
-        display: ["Fraunces", "Iowan Old Style", "Georgia", "serif"],
+        // "NeoVision" theme (v2, GENE v1.9) — Space Grotesk replaces
+        // Fraunces for a geometric, technical display face.
+        display: ["Space Grotesk", "Montserrat", "ui-sans-serif", "sans-serif"],
       },
       borderRadius: {
         lg: "var(--radius)",

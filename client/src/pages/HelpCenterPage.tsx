@@ -10,7 +10,7 @@ export default function HelpCenterPage() {
         <div className="space-y-8">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">Frequently Asked Questions</CardTitle>
+              <CardTitle className="text-2xl text-accent">Frequently Asked Questions</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
@@ -69,7 +69,7 @@ export default function HelpCenterPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">Contact Support</CardTitle>
+              <CardTitle className="text-2xl text-accent">Contact Support</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -77,15 +77,15 @@ export default function HelpCenterPage() {
                   <h3 className="font-semibold text-lg mb-4">Get in Touch</h3>
                   <div className="space-y-3">
                     <div className="flex items-center space-x-3">
-                      <i className="fas fa-envelope text-[#FF5A5F]"></i>
+                      <i className="fas fa-envelope text-accent"></i>
                       <span className="text-gray-600">support@realevr.com</span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <i className="fas fa-phone text-[#FF5A5F]"></i>
+                      <i className="fas fa-phone text-accent"></i>
                       <span className="text-gray-600">+256 700 000 000</span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <i className="fas fa-clock text-[#FF5A5F]"></i>
+                      <i className="fas fa-clock text-accent"></i>
                       <span className="text-gray-600">Mon-Fri: 8AM-6PM EAT</span>
                     </div>
                   </div>
@@ -114,45 +114,45 @@ export default function HelpCenterPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">User Guides</CardTitle>
+              <CardTitle className="text-2xl text-accent">User Guides</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="border border-gray-200 rounded-lg p-4">
-                  <div className="w-12 h-12 bg-[#FF5A5F]/10 rounded-lg flex items-center justify-center mb-4">
-                    <i className="fas fa-search text-[#FF5A5F] text-xl"></i>
+                  <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-4">
+                    <i className="fas fa-search text-accent text-xl"></i>
                   </div>
                   <h3 className="font-semibold mb-2">Finding Properties</h3>
                   <p className="text-gray-600 text-sm mb-3">
                     Learn how to search and filter properties to find exactly what you're looking for.
                   </p>
-                  <Button variant="link" className="p-0 h-auto text-[#FF5A5F]">
+                  <Button variant="link" className="p-0 h-auto text-accent">
                     Read Guide →
                   </Button>
                 </div>
                 
                 <div className="border border-gray-200 rounded-lg p-4">
-                  <div className="w-12 h-12 bg-[#FF5A5F]/10 rounded-lg flex items-center justify-center mb-4">
-                    <i className="fas fa-vr-cardboard text-[#FF5A5F] text-xl"></i>
+                  <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-4">
+                    <i className="fas fa-vr-cardboard text-accent text-xl"></i>
                   </div>
                   <h3 className="font-semibold mb-2">Virtual Tours</h3>
                   <p className="text-gray-600 text-sm mb-3">
                     Everything you need to know about experiencing properties through virtual tours.
                   </p>
-                  <Button variant="link" className="p-0 h-auto text-[#FF5A5F]">
+                  <Button variant="link" className="p-0 h-auto text-accent">
                     Read Guide →
                   </Button>
                 </div>
                 
                 <div className="border border-gray-200 rounded-lg p-4">
-                  <div className="w-12 h-12 bg-[#FF5A5F]/10 rounded-lg flex items-center justify-center mb-4">
-                    <i className="fas fa-credit-card text-[#FF5A5F] text-xl"></i>
+                  <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-4">
+                    <i className="fas fa-credit-card text-accent text-xl"></i>
                   </div>
                   <h3 className="font-semibold mb-2">Payments & Billing</h3>
                   <p className="text-gray-600 text-sm mb-3">
                     Understanding our payment system and subscription plans for agents.
                   </p>
-                  <Button variant="link" className="p-0 h-auto text-[#FF5A5F]">
+                  <Button variant="link" className="p-0 h-auto text-accent">
                     Read Guide →
                   </Button>
                 </div>
@@ -162,7 +162,7 @@ export default function HelpCenterPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">Still Need Help?</CardTitle>
+              <CardTitle className="text-2xl text-accent">Still Need Help?</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center">
@@ -170,7 +170,7 @@ export default function HelpCenterPage() {
                   Can't find what you're looking for? Our support team is here to help!
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Button className="bg-[#FF5A5F] hover:bg-[#FF7478]">
+                  <Button className="bg-accent hover:bg-accent/90">
                     <i className="fas fa-envelope mr-2"></i>
                     Email Support
                   </Button>

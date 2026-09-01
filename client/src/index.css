@@ -3,70 +3,98 @@
 @tailwind utilities;
 
 /*
- * RealEVR Estates — "warm luxury minimal" theme.
- * Warm cream/charcoal neutrals with a single confident terracotta accent,
- * paired with a display serif (Fraunces) for headlines and Montserrat for
- * UI/body — a geometric sans that keeps things modern and highly legible
- * while Fraunces still carries the brand's warmth in headlines.
+ * RealEVR Estates — "NeoVision" theme (v2, GENE v1.9).
+ * Strict black & white / grayscale — no brand hue anywhere. Built to carry
+ * a "futuristic tech VR" read: near-black default surface, white as the
+ * one confident "accent" (so primary CTAs read as a deliberate flash of
+ * white against black rather than a color choice), Space Grotesk for
+ * display/headlines (geometric, technical) paired with Montserrat for
+ * UI/body. Replaces the prior "warm luxury minimal" cream/terracotta/
+ * Fraunces system — see git history for that version if ever needed back.
+ *
+ * `:root` IS the default look (this app never toggles a `.dark` class
+ * anywhere today — grep confirms it), so the primary black-on-white-text
+ * look lives here, not gated behind a dark-mode switch. `.dark` is kept
+ * numerically identical so nothing breaks if a toggle is ever added.
+ *
+ * Semantic exception, considered on purpose: `--destructive` stays a real
+ * (if desaturated) red rather than grayscale — admin "Reject"/"Cancel"/
+ * delete actions need a genuinely distinguishable warning color for
+ * safety, not just weight/icon. Everything else is pure 0% saturation.
  */
 :root {
-  --background: 32 38% 97%;      /* warm cream */
-  --foreground: 20 16% 12%;      /* warm near-black */
-  --muted: 30 24% 94%;
-  --muted-foreground: 25 10% 42%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 20 16% 12%;
-  --card: 0 0% 100%;
-  --card-foreground: 20 16% 12%;
-  --border: 30 18% 88%;
-  --input: 30 18% 88%;
-  --primary: 20 16% 12%;         /* charcoal */
-  --primary-foreground: 32 38% 97%;
-  --secondary: 30 24% 94%;
-  --secondary-foreground: 20 16% 12%;
-  --accent: 21 64% 46%;          /* terracotta */
-  --accent-foreground: 0 0% 100%;
-  --destructive: 6 74% 50%;
+  --background: 0 0% 6%;         /* near-black */
+  --foreground: 0 0% 96%;        /* near-white */
+  --muted: 0 0% 13%;
+  --muted-foreground: 0 0% 62%;
+  --popover: 0 0% 8%;
+  --popover-foreground: 0 0% 96%;
+  --card: 0 0% 9%;
+  --card-foreground: 0 0% 96%;
+  --border: 0 0% 20%;
+  --input: 0 0% 20%;
+  --primary: 0 0% 96%;           /* white */
+  --primary-foreground: 0 0% 6%;
+  --secondary: 0 0% 15%;
+  --secondary-foreground: 0 0% 96%;
+  --accent: 0 0% 100%;           /* pure white — the one "confident" tone */
+  --accent-foreground: 0 0% 6%;
+  --destructive: 4 66% 48%;      /* semantic-only exception, see above */
   --destructive-foreground: 0 0% 98%;
-  --ring: 21 64% 46%;
-  --radius: 0.9rem;
-  --chart-1: 21 64% 46%;
-  --chart-2: 20 16% 12%;
-  --chart-3: 42 46% 55%;
-  --chart-4: 30 18% 70%;
-  --chart-5: 150 20% 40%;
-  --sidebar-background: 0 0% 100%;
-  --sidebar-foreground: 20 16% 12%;
-  --sidebar-primary: 30 24% 94%;
-  --sidebar-primary-foreground: 20 16% 12%;
-  --sidebar-accent: 30 18% 88%;
-  --sidebar-accent-foreground: 20 16% 12%;
-  --sidebar-border: 30 18% 88%;
-  --sidebar-ring: 21 64% 46%;
+  --ring: 0 0% 100%;
+  --radius: 0.6rem;
+  --chart-1: 0 0% 92%;
+  --chart-2: 0 0% 74%;
+  --chart-3: 0 0% 56%;
+  --chart-4: 0 0% 38%;
+  --chart-5: 0 0% 24%;
+  --sidebar-background: 0 0% 8%;
+  --sidebar-foreground: 0 0% 96%;
+  --sidebar-primary: 0 0% 15%;
+  --sidebar-primary-foreground: 0 0% 96%;
+  --sidebar-accent: 0 0% 20%;
+  --sidebar-accent-foreground: 0 0% 96%;
+  --sidebar-border: 0 0% 20%;
+  --sidebar-ring: 0 0% 100%;
 
-  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-display: "Space Grotesk", "Montserrat", ui-sans-serif, sans-serif;
 }
 
 .dark {
-  --background: 20 18% 8%;       /* deep warm charcoal */
-  --foreground: 32 30% 94%;      /* warm cream */
-  --muted: 20 14% 16%;
-  --muted-foreground: 30 12% 65%;
-  --popover: 20 18% 8%;
-  --popover-foreground: 32 30% 94%;
-  --card: 20 16% 11%;
-  --card-foreground: 32 30% 94%;
-  --border: 20 14% 20%;
-  --input: 20 14% 20%;
-  --primary: 32 30% 94%;         /* cream */
-  --primary-foreground: 20 18% 8%;
-  --secondary: 20 14% 16%;
-  --secondary-foreground: 32 30% 94%;
-  --accent: 24 70% 55%;          /* brighter terracotta on dark */
-  --accent-foreground: 20 18% 8%;
-  --destructive: 6 60% 40%;
+  --background: 0 0% 6%;
+  --foreground: 0 0% 96%;
+  --muted: 0 0% 13%;
+  --muted-foreground: 0 0% 62%;
+  --popover: 0 0% 8%;
+  --popover-foreground: 0 0% 96%;
+  --card: 0 0% 9%;
+  --card-foreground: 0 0% 96%;
+  --border: 0 0% 20%;
+  --input: 0 0% 20%;
+  --primary: 0 0% 96%;
+  --primary-foreground: 0 0% 6%;
+  --secondary: 0 0% 15%;
+  --secondary-foreground: 0 0% 96%;
+  --accent: 0 0% 100%;
+  --accent-foreground: 0 0% 6%;
+  --destructive: 4 66% 48%;
   --destructive-foreground: 0 0% 98%;
-  --ring: 24 70% 55%;
+  --ring: 0 0% 100%;
+}
+
+/* A rare light surface — for anything that deliberately wants to invert
+   (a "white card on black page" moment, e.g. a callout or the VR badge's
+   inverted state) rather than a site-wide light mode. */
+.surface-light {
+  --background: 0 0% 98%;
+  --foreground: 0 0% 6%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 6%;
+  --border: 0 0% 88%;
+  --muted: 0 0% 94%;
+  --muted-foreground: 0 0% 40%;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
 
 @layer base {
@@ -83,6 +111,46 @@
   .font-display {
     font-family: var(--font-display);
   }
+}
+
+/*
+ * "NeoVision" VR/tech visual motifs — small, reusable, strictly grayscale.
+ * Used by the Hero, VRBadge, and the property-page VR panel rather than
+ * one-off inline styles, so the look stays consistent everywhere it's used.
+ */
+.vr-grid-bg {
+  background-image:
+    linear-gradient(hsla(0, 0%, 100%, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, hsla(0, 0%, 100%, 0.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.vr-glow-ring {
+  box-shadow: 0 0 0 1px hsla(0, 0%, 100%, 0.14), 0 0 40px hsla(0, 0%, 100%, 0.08);
+}
+
+.vr-glow-text {
+  text-shadow: 0 0 24px hsla(0, 0%, 100%, 0.35);
+}
+
+.vr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 9999px;
+  border: 1px solid hsla(0, 0%, 100%, 0.35);
+  /* A dark scrim under the frost, not just a light tint — keeps white text
+     legible over ANY photo underneath (a bright sky, white walls), not
+     just dark ones. */
+  background: hsla(0, 0%, 0%, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.65rem;
 }
 
 .property-card {

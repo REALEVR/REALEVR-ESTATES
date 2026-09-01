@@ -165,7 +165,7 @@ export default function FeaturedTour() {
                   <h3 className="text-2xl font-bold">{featuredProperty.title}</h3>
                   <p className="text-muted-foreground mb-2">{featuredProperty.location}</p>
                   <div className="flex items-center mb-4">
-                    <i className="fas fa-star text-[#FFB400]"></i>
+                    <i className="fas fa-star text-accent"></i>
                     <span className="ml-1 font-medium">{featuredProperty.rating}</span>
                     <span className="mx-1">·</span>
                     <span className="text-muted-foreground underline">{featuredProperty.reviewCount} reviews</span>

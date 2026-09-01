@@ -516,7 +516,7 @@ export default function RentalUnitsPage() {
                             <p className="text-gray-600 mb-4">
                                 We have many more properties available after purchasing a viewing package.
                             </p>
-                            {/* <Button className="bg-[#FF5A5F] hover:bg-[#FF5A5F]/90" onClick={openViewingPaymentPrompt}>
+                            {/* <Button className="bg-accent hover:bg-accent/90" onClick={openViewingPaymentPrompt}>
                                 Unlock All Properties
                             </Button> */}
                         </div>
