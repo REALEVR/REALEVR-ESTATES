@@ -77,6 +77,46 @@ function csvEscape(value: string): string {
     return needsQuoting ? `"${escaped}"` : escaped
 }
 
+/**
+ * Sends `message` to every WhatsApp-linked, marketing-opted-in number.
+ * Extracted from the POST /api/gene/whatsapp/broadcast route body (v1.5)
+ * unchanged, so server/gene/broadcast.ts's unified admin broadcast tool
+ * (v1.8) can reuse the exact same logic instead of duplicating it —
+ * behavior is identical either way this is called. See that route's
+ * docstring above for the honest 24-hour-window limitation.
+ */
+export async function broadcastWhatsappMessage(
+    message: string,
+    templateName?: string,
+    languageCode: string = 'en_US'
+): Promise<{ attempted: number; sent: number; failed: number; failures: Array<{ phone: string; reason?: string }>; note?: string }> {
+    const links = readCollection<WhatsappUserLink>(LINK_COLLECTION).filter(isOptedIntoMarketing)
+    let sent = 0
+    let failed = 0
+    const failures: Array<{ phone: string; reason?: string }> = []
+
+    for (const link of links) {
+        const result = templateName
+            ? await sendWhatsAppTemplateMessage(link.phone, templateName, languageCode, [message])
+            : await sendWhatsAppMessage(link.phone, message)
+        if (result.sent) sent += 1
+        else {
+            failed += 1
+            failures.push({ phone: link.phone, reason: result.reason })
+        }
+    }
+
+    return {
+        attempted: links.length,
+        sent,
+        failed,
+        failures: failures.slice(0, 20), // cap — this is a debugging aid, not a full audit log
+        note: templateName
+            ? undefined
+            : 'Sent as freeform text — WhatsApp only delivers this to numbers that messaged the business within the last 24 hours. Pass templateName (from an approved Meta template) to reach everyone opted in.',
+    }
+}
+
 export function registerWhatsappGrowthRoutes(app: Express): void {
     // 1) Public config for the frontend's click-to-WhatsApp button(s).
     app.get('/api/config/whatsapp-business-number', (_req: Request, res: Response) => {
@@ -111,31 +151,8 @@ export function registerWhatsappGrowthRoutes(app: Express): void {
             const languageCode = typeof req.body?.languageCode === 'string' ? req.body.languageCode.trim() : 'en_US'
             if (!message) return res.status(400).json({ message: 'A broadcast message is required.' })
 
-            const links = readCollection<WhatsappUserLink>(LINK_COLLECTION).filter(isOptedIntoMarketing)
-            let sent = 0
-            let failed = 0
-            const failures: Array<{ phone: string; reason?: string }> = []
-
-            for (const link of links) {
-                const result = templateName
-                    ? await sendWhatsAppTemplateMessage(link.phone, templateName, languageCode, [message])
-                    : await sendWhatsAppMessage(link.phone, message)
-                if (result.sent) sent += 1
-                else {
-                    failed += 1
-                    failures.push({ phone: link.phone, reason: result.reason })
-                }
-            }
-
-            res.json({
-                attempted: links.length,
-                sent,
-                failed,
-                failures: failures.slice(0, 20), // cap — this is a debugging aid, not a full audit log
-                note: templateName
-                    ? undefined
-                    : 'Sent as freeform text — WhatsApp only delivers this to numbers that messaged the business within the last 24 hours. Pass templateName (from an approved Meta template) to reach everyone opted in.',
-            })
+            const result = await broadcastWhatsappMessage(message, templateName, languageCode)
+            res.json(result)
         } catch (err) {
             console.error('[gene/whatsapp-growth] broadcast failed:', err)
             res.status(500).json({ message: 'Broadcast failed.' })

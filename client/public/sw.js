@@ -26,6 +26,38 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// --- Web Push (GENE v1.8 admin broadcast) ---
+// Additive: does not touch the shell-caching logic above. Payload shape is
+// { title, body, url } — see server/gene/web-push.ts's sendPushToAllSubscribers.
+self.addEventListener("push", (event) => {
+  let data = { title: "RealEVR Estates", body: "You have a new update.", url: "/" };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch (e) {
+    // Non-JSON payload — fall back to the default text above rather than failing.
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/favicon.ico",
+      data: { url: data.url || "/" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(targetUrl) && "focus" in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    })
+  );
+});
+
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 

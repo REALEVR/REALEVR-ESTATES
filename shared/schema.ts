@@ -97,6 +97,32 @@ export const users = pgTable("users", {
   licenseNumber: text("license_number"),
   subscriptionPaymentId: text("subscription_payment_id"),
   subscriptionStatus: text("subscription_status").default("inactive"), // "active", "inactive", "expired"
+  // --- Additive fields (GENE v1.8) ---
+  // Real runtime storage is DynamoDB (server/dynamodb-storage.ts), which is
+  // schemaless — these columns exist here only for the shared TS type +
+  // zod validation; no DB migration is needed for them to start being
+  // stored/read, unlike a real Postgres deployment of this schema.
+  //
+  // Dial code (e.g. "+256"), captured alongside phoneNumber at signup so
+  // admin analytics can group users by country without parsing phone
+  // strings. Deliberately separate from phoneNumber rather than baked in.
+  countryCode: text("country_code"),
+  // Set when a user signs in with Google (server/gene/google-auth.ts).
+  // Nullable/unique-by-convention (not DB-enforced, since DynamoDB scans
+  // are used for lookups here, same as email/username).
+  googleId: text("google_id"),
+  // "local" | "google" — which sign-in path created this account. Local
+  // accounts predating this field simply have authProvider === undefined,
+  // treated as "local" everywhere this is read.
+  authProvider: text("auth_provider").default("local"),
+  // server/dynamodb-storage.ts's createUser() already writes these two
+  // (generateTimestamp() ISO strings) on every real account — they just
+  // weren't declared here before, so TypeScript didn't know about them.
+  // Declaring them (not part of insertUserSchema — server-generated, same
+  // as `id`) is what makes server/gene/user-analytics.ts's "signups over
+  // time" possible without an `as any` cast on every read.
+  createdAt: text("created_at"),
+  updatedAt: text("updated_at"),
 });
 
 export const insertUserSchema = createInsertSchema(users)
@@ -114,7 +140,10 @@ export const insertUserSchema = createInsertSchema(users)
     companyName: true,
     licenseNumber: true,
     subscriptionPaymentId: true,
-    subscriptionStatus: true
+    subscriptionStatus: true,
+    countryCode: true,
+    googleId: true,
+    authProvider: true
   })
   .extend({
     password: z.string().min(6, "Password must be at least 6 characters"),
@@ -129,6 +158,9 @@ export const insertUserSchema = createInsertSchema(users)
     licenseNumber: z.string().optional(),
     subscriptionPaymentId: z.string().optional(),
     subscriptionStatus: z.enum(["active", "inactive", "expired"]).optional().default("inactive"),
+    countryCode: z.string().optional(),
+    googleId: z.string().optional(),
+    authProvider: z.enum(["local", "google"]).optional().default("local"),
   })
   .refine(data => data.password === data.confirmPassword, {
     message: "Passwords don't match",

@@ -60,6 +60,11 @@ import { registerSuccessFeeRoutes } from './gene/success-fee'
 import { registerTourProductionBookingRoutes } from './gene/tour-production-booking'
 import { registerLeadMeteringRoutes } from './gene/lead-metering'
 import { registerTenantConsentRoutes } from './gene/tenant-consent'
+import { registerGoogleAuthRoutes } from './gene/google-auth'
+import { registerUserAnalyticsRoutes } from './gene/user-analytics'
+import { registerBroadcastRoutes } from './gene/broadcast'
+import { registerWebPushRoutes } from './gene/web-push'
+import { requireStrictAdmin } from './gene/admin-guard'
 
 // Middleware to check if user is an admin or property manager
 const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -2401,6 +2406,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerTourProductionBookingRoutes(app, adminMiddleware)
     registerLeadMeteringRoutes(app, adminMiddleware)
     registerTenantConsentRoutes(app)
+
+    // Popup Google sign-in, admin user-analytics dashboard, web push
+    // subscriptions, and the unified admin broadcast tool — see
+    // docs/GENE_PLATFORM.md v1.8. Each is additive/independent.
+    registerGoogleAuthRoutes(app)
+    // Strict admin only (not agents) — platform-wide user PII and
+    // mass-messaging blast radius, same reasoning as payout-approvals.
+    registerUserAnalyticsRoutes(app, requireStrictAdmin)
+    registerWebPushRoutes(app, requireStrictAdmin)
+    registerBroadcastRoutes(app, requireStrictAdmin)
 
     // Admin endpoint to manually trigger reminders for testing
     app.post('/api/admin/test-reminders', adminMiddleware, async (_req: any, res: any) => {
