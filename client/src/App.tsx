@@ -48,6 +48,7 @@ import ListYourPropertyPage from '@/pages/ListYourPropertyPage'
 import AdminPayoutApprovals from '@/pages/AdminPayoutApprovals'
 import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
 import WhatsAppFab from '@/components/whatsapp/WhatsAppFab'
+import BrokerOnlinePresence from '@/components/broker/BrokerOnlinePresence'
 
 function Router() {
     return (
@@ -181,6 +182,7 @@ function App() {
                             </div>
                             <AgentLauncher />
                             <WhatsAppFab />
+                            <BrokerOnlinePresence />
                             <ScrollToTop />
                             <Toaster />
                         </TooltipProvider>
