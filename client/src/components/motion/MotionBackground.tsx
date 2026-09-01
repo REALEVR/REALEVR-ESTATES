@@ -16,17 +16,20 @@ export type MotionBackgroundTone = 'accent' | 'warm' | 'quiet'
 
 const TONE_BLOBS: Record<MotionBackgroundTone, { className: string }[]> = {
   // Hero — the most visible placement, so the richest tone. Pure grayscale
-  // (NeoVision theme): every blob is white-on-black at varying opacity —
-  // no hue anywhere, so the ambient motion reads as "light", not "color".
+  // (NeoVision theme): every blob is `foreground`-tinted (near-black on
+  // the v3 light base) at varying opacity — no hue anywhere, so the
+  // ambient motion reads as "light/shadow", not "color". Uses the
+  // `foreground` token rather than a literal color so these automatically
+  // track whichever palette is active (light `:root` today).
   accent: [
-    { className: 'bg-accent/25 w-[32rem] h-[32rem] -left-40 -top-40' },
-    { className: 'bg-white/12 w-[26rem] h-[26rem] right-0 top-10' },
-    { className: 'bg-white/8 w-[22rem] h-[22rem] left-1/3 bottom-0' },
+    { className: 'bg-accent/20 w-[32rem] h-[32rem] -left-40 -top-40' },
+    { className: 'bg-foreground/10 w-[26rem] h-[26rem] right-0 top-10' },
+    { className: 'bg-foreground/6 w-[22rem] h-[22rem] left-1/3 bottom-0' },
   ],
   // Secondary CTA bands — noticeable but quieter than the hero.
   warm: [
-    { className: 'bg-accent/15 w-[26rem] h-[26rem] -left-20 top-0' },
-    { className: 'bg-white/10 w-[20rem] h-[20rem] right-0 bottom-0' },
+    { className: 'bg-accent/12 w-[26rem] h-[26rem] -left-20 top-0' },
+    { className: 'bg-foreground/8 w-[20rem] h-[20rem] right-0 bottom-0' },
   ],
   // Barely-there texture for content-dense sections.
   quiet: [{ className: 'bg-accent/10 w-[24rem] h-[24rem] right-0 top-0' }],

@@ -3,19 +3,24 @@
 @tailwind utilities;
 
 /*
- * RealEVR Estates — "NeoVision" theme (v2, GENE v1.9).
- * Strict black & white / grayscale — no brand hue anywhere. Built to carry
- * a "futuristic tech VR" read: near-black default surface, white as the
- * one confident "accent" (so primary CTAs read as a deliberate flash of
- * white against black rather than a color choice), Space Grotesk for
- * display/headlines (geometric, technical) paired with Montserrat for
- * UI/body. Replaces the prior "warm luxury minimal" cream/terracotta/
- * Fraunces system — see git history for that version if ever needed back.
+ * RealEVR Estates — "NeoVision" theme (v3, GENE v1.10).
+ * Strict black & white / grayscale — no brand hue anywhere. White base
+ * surface with near-black text, near-black reserved as the one confident
+ * "accent" (so primary CTAs read as a deliberate flash of black against
+ * white rather than a color choice), Space Grotesk for display/headlines
+ * (geometric, technical) paired with Montserrat for UI/body.
+ *
+ * v3 flips v2's roles on user feedback ("too dark, make it white with
+ * touches of black") — light is now the default surface, dark is what's
+ * reserved for deliberate accents (the footer band, the mobile-app promo
+ * band) via `.surface-invert` below. Replaces v2's near-black-default
+ * palette — see git history for that version if ever needed back.
  *
  * `:root` IS the default look (this app never toggles a `.dark` class
- * anywhere today — grep confirms it), so the primary black-on-white-text
- * look lives here, not gated behind a dark-mode switch. `.dark` is kept
- * numerically identical so nothing breaks if a toggle is ever added.
+ * anywhere today — grep confirms it), so the light look lives here, not
+ * gated behind a dark-mode switch. `.dark` holds v2's full dark palette,
+ * preserved (not left numerically identical to `:root` this time) in
+ * case a real dark-mode toggle is ever wired up later.
  *
  * Semantic exception, considered on purpose: `--destructive` stays a real
  * (if desaturated) red rather than grayscale — admin "Reject"/"Cancel"/
@@ -23,43 +28,46 @@
  * safety, not just weight/icon. Everything else is pure 0% saturation.
  */
 :root {
-  --background: 0 0% 6%;         /* near-black */
-  --foreground: 0 0% 96%;        /* near-white */
-  --muted: 0 0% 13%;
-  --muted-foreground: 0 0% 62%;
-  --popover: 0 0% 8%;
-  --popover-foreground: 0 0% 96%;
-  --card: 0 0% 9%;
-  --card-foreground: 0 0% 96%;
-  --border: 0 0% 20%;
-  --input: 0 0% 20%;
-  --primary: 0 0% 96%;           /* white */
-  --primary-foreground: 0 0% 6%;
-  --secondary: 0 0% 15%;
-  --secondary-foreground: 0 0% 96%;
-  --accent: 0 0% 100%;           /* pure white — the one "confident" tone */
-  --accent-foreground: 0 0% 6%;
+  --background: 0 0% 98%;        /* near-white */
+  --foreground: 0 0% 9%;         /* near-black */
+  --muted: 0 0% 94%;
+  --muted-foreground: 0 0% 40%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 9%;
+  --card: 0 0% 100%;             /* pure white — pops slightly off the page bg */
+  --card-foreground: 0 0% 9%;
+  --border: 0 0% 88%;
+  --input: 0 0% 88%;
+  --primary: 0 0% 9%;            /* near-black */
+  --primary-foreground: 0 0% 98%;
+  --secondary: 0 0% 94%;
+  --secondary-foreground: 0 0% 9%;
+  --accent: 0 0% 7%;             /* near-black — the one "confident" tone */
+  --accent-foreground: 0 0% 100%;
   --destructive: 4 66% 48%;      /* semantic-only exception, see above */
   --destructive-foreground: 0 0% 98%;
-  --ring: 0 0% 100%;
+  --ring: 0 0% 9%;
   --radius: 0.6rem;
-  --chart-1: 0 0% 92%;
-  --chart-2: 0 0% 74%;
-  --chart-3: 0 0% 56%;
-  --chart-4: 0 0% 38%;
-  --chart-5: 0 0% 24%;
-  --sidebar-background: 0 0% 8%;
-  --sidebar-foreground: 0 0% 96%;
-  --sidebar-primary: 0 0% 15%;
-  --sidebar-primary-foreground: 0 0% 96%;
-  --sidebar-accent: 0 0% 20%;
-  --sidebar-accent-foreground: 0 0% 96%;
-  --sidebar-border: 0 0% 20%;
-  --sidebar-ring: 0 0% 100%;
+  --chart-1: 0 0% 12%;
+  --chart-2: 0 0% 30%;
+  --chart-3: 0 0% 48%;
+  --chart-4: 0 0% 64%;
+  --chart-5: 0 0% 80%;
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 0 0% 9%;
+  --sidebar-primary: 0 0% 9%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent: 0 0% 94%;
+  --sidebar-accent-foreground: 0 0% 9%;
+  --sidebar-border: 0 0% 88%;
+  --sidebar-ring: 0 0% 9%;
 
   --font-display: "Space Grotesk", "Montserrat", ui-sans-serif, sans-serif;
 }
 
+/* v2's dark palette, preserved for a future real dark-mode toggle — not
+   applied anywhere today (grep confirms `.dark` is never added to any
+   element in this codebase), so this is inert until one exists. */
 .dark {
   --background: 0 0% 6%;
   --foreground: 0 0% 96%;
@@ -82,17 +90,24 @@
   --ring: 0 0% 100%;
 }
 
-/* A rare light surface — for anything that deliberately wants to invert
-   (a "white card on black page" moment, e.g. a callout or the VR badge's
-   inverted state) rather than a site-wide light mode. */
-.surface-light {
-  --background: 0 0% 98%;
-  --foreground: 0 0% 6%;
-  --card: 0 0% 100%;
-  --card-foreground: 0 0% 6%;
-  --border: 0 0% 88%;
-  --muted: 0 0% 94%;
-  --muted-foreground: 0 0% 40%;
+/* A deliberate dark band on the now-light site — the footer and the
+   mobile-app promo band use this for a "touch of black" accent section,
+   same variable-scoping trick as v2's `.surface-light` (which this
+   replaces — the base page is light now, so an inverted *light* surface
+   utility is no longer useful; a dark one is). Every semantic Tailwind
+   class (bg-card, text-foreground, text-muted-foreground, bg-accent...)
+   used inside an element with this class automatically resolves to these
+   scoped values instead of the page-level `:root` ones. */
+.surface-invert {
+  --background: 0 0% 8%;
+  --foreground: 0 0% 96%;
+  --card: 0 0% 8%;
+  --card-foreground: 0 0% 96%;
+  --border: 0 0% 22%;
+  --muted: 0 0% 16%;
+  --muted-foreground: 0 0% 66%;
+  --accent: 0 0% 100%;
+  --accent-foreground: 0 0% 6%;
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
 }
@@ -117,20 +132,22 @@
  * "NeoVision" VR/tech visual motifs — small, reusable, strictly grayscale.
  * Used by the Hero, VRBadge, and the property-page VR panel rather than
  * one-off inline styles, so the look stays consistent everywhere it's used.
+ * Dark-on-light values (v3) — white hairlines/glows are invisible against
+ * the light v3 base; see git history for v2's white-on-dark versions.
  */
 .vr-grid-bg {
   background-image:
-    linear-gradient(hsla(0, 0%, 100%, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, hsla(0, 0%, 100%, 0.06) 1px, transparent 1px);
+    linear-gradient(hsla(0, 0%, 0%, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, hsla(0, 0%, 0%, 0.06) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
 .vr-glow-ring {
-  box-shadow: 0 0 0 1px hsla(0, 0%, 100%, 0.14), 0 0 40px hsla(0, 0%, 100%, 0.08);
+  box-shadow: 0 0 0 1px hsla(0, 0%, 0%, 0.12), 0 0 32px hsla(0, 0%, 0%, 0.10);
 }
 
 .vr-glow-text {
-  text-shadow: 0 0 24px hsla(0, 0%, 100%, 0.35);
+  text-shadow: 0 0 20px hsla(0, 0%, 0%, 0.22);
 }
 
 .vr-badge {

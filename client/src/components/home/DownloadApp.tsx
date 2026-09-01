@@ -16,7 +16,7 @@ export default function DownloadApp() {
   };
   
   return (
-    <section className="py-12 bg-card text-card-foreground -mx-4 sm:-mx-6 lg:-mx-8 border-y border-border">
+    <section className="py-12 surface-invert -mx-4 sm:-mx-6 lg:-mx-8 border-y border-border">
       <div className="container mx-auto px-4">
         <div className="md:flex items-center">
           <div className="md:w-1/2 mb-8 md:mb-0">
