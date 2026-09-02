@@ -32,6 +32,7 @@ See `.env.example` for the full list of required environment variables.
 - [S3 tour hosting guide](./S3_TOUR_HOSTING_GUIDE.md)
 - [Upload speed optimization](./UPLOAD_OPTIMIZATION_GUIDE.md)
 - [Email verification setup](./EMAIL_VERIFICATION_SETUP.md)
+- [Social media posting setup](./SOCIAL_MEDIA_SETUP.md)
 
 ## Recently merged in from the SRBS prototype
 
