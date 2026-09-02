@@ -8,6 +8,7 @@ import PropertyCard from "@/components/home/PropertyCard";
 import type { Property } from "@shared/schema";
 import { PageSeo } from "@/components/seo/PageSeo";
 import { getSiteUrl } from "@/lib/siteUrl";
+import { CATEGORY_PAGE_META } from "@shared/seo";
 
 export default function ForSalePage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -25,10 +26,9 @@ export default function ForSalePage() {
     return {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
-      name: "Properties For Sale | RealEVR Estates",
-      description:
-        "Browse homes and investment properties for sale with virtual tours. Compare price, size, and location.",
-      url: `${site}/for-sale`,
+      name: CATEGORY_PAGE_META.forSale.title,
+      description: CATEGORY_PAGE_META.forSale.description,
+      url: `${site}${CATEGORY_PAGE_META.forSale.path}`,
     };
   }, []);
 
@@ -234,9 +234,9 @@ export default function ForSalePage() {
   return (
     <div className="py-8">
       <PageSeo
-        title="Properties For Sale | RealEVR Estates"
-        description="Explore homes and land for sale with virtual tours. Filter by price, area, and property type on RealEVR Estates."
-        canonicalPath="/for-sale"
+        title={CATEGORY_PAGE_META.forSale.title}
+        description={CATEGORY_PAGE_META.forSale.description}
+        canonicalPath={CATEGORY_PAGE_META.forSale.path}
         jsonLd={forSaleJsonLd}
       />
       <div className="container mx-auto px-6">
@@ -396,7 +396,7 @@ export default function ForSalePage() {
               <h3 className="text-xl font-semibold mb-2">Looking for your dream home?</h3>
               <p className="text-gray-600 mb-4">Contact us to schedule a viewing of any of these properties.</p>
               <Button 
-                className="bg-[#FF5A5F] hover:bg-[#FF5A5F]/90"
+                className="bg-accent hover:bg-accent/90"
                 onClick={() => window.location.href = "/membership"}
               >
                 Contact an Agent

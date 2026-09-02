@@ -5,6 +5,12 @@ export default {
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["Montserrat", "ui-sans-serif", "system-ui", "sans-serif"],
+        // "NeoVision" theme (v2, GENE v1.9) — Space Grotesk replaces
+        // Fraunces for a geometric, technical display face.
+        display: ["Space Grotesk", "Montserrat", "ui-sans-serif", "sans-serif"],
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",

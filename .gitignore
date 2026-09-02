@@ -19,6 +19,18 @@ attached_assets/
 *.mov
 *.avi
 
+# Default social share image (Open Graph/Twitter Card fallback) — a checked-in
+# static asset, not user-uploaded media; see client/public/og-default.jpg and
+# server/social-preview.ts.
+!client/public/og-default.jpg
+
+# PWA install icons (checked-in static assets, not user-uploaded media) —
+# see client/public/site.webmanifest and client/public/sw.js.
+!client/public/icon-192.png
+!client/public/icon-512.png
+!client/public/icon-maskable-192.png
+!client/public/icon-maskable-512.png
+
 # Tour configurations (persist across deployments)
 tour-configs.json
 
@@ -33,6 +45,10 @@ pids
 *.pid
 *.seed
 *.pid.lock
+
+# GENE Platform runtime JSON-file store (server/gene/store.ts) — generated
+# data, not source. See docs/GENE_PLATFORM.md.
+data/gene/
 
 # Coverage directory used by tools like istanbul
 coverage/

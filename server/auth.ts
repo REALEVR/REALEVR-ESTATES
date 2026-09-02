@@ -17,6 +17,10 @@ declare global {
 
 const scryptAsync = promisify(scrypt);
 
+// Exported so other additive modules (e.g. server/gene/self-serve-listing.ts,
+// which auto-creates an account for a phone-verified landlord who never set
+// a password) can hash a securely-random password the same way real user
+// registration does, instead of duplicating this logic.
 export async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;

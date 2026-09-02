@@ -215,7 +215,7 @@ export default function BookingCalendarModal({
                                             key={slot}
                                             variant={selectedTimeSlot === slot ? 'default' : 'outline'}
                                             className={
-                                                selectedTimeSlot === slot ? 'bg-[#FF5A5F] hover:bg-[#FF7478]' : ''
+                                                selectedTimeSlot === slot ? 'bg-accent hover:bg-accent/90' : ''
                                             }
                                             onClick={() => handleTimeSlotClick(slot)}
                                         >
@@ -286,7 +286,7 @@ export default function BookingCalendarModal({
                                                 {totalAmount.toLocaleString()} {propertyCurrency}
                                             </span>
                                         </div>
-                                        <div className="flex justify-between text-[#FF5A5F] font-medium border-t pt-2">
+                                        <div className="flex justify-between text-accent font-medium border-t pt-2">
                                             <span>Required deposit (20%):</span>
                                             <span>
                                                 {depositAmount.toLocaleString()} {propertyCurrency}
@@ -296,7 +296,7 @@ export default function BookingCalendarModal({
                                         {/* Payment button directly under deposit amount */}
                                         <Button
                                             onClick={handleBookNow}
-                                            className="w-full mt-3 bg-[#FF5A5F] hover:bg-[#FF7478] text-white"
+                                            className="w-full mt-3 bg-accent hover:bg-accent/90 text-accent-foreground"
                                         >
                                             Pay {depositAmount.toLocaleString()} {propertyCurrency} Deposit Now
                                         </Button>

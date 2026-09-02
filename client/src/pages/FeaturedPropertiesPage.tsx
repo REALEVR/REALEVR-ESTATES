@@ -5,6 +5,7 @@ import PropertyCard from "@/components/home/PropertyCard";
 import { Loader2 } from "lucide-react";
 import { PageSeo } from "@/components/seo/PageSeo";
 import { getSiteUrl } from "@/lib/siteUrl";
+import { CATEGORY_PAGE_META } from "@shared/seo";
 
 export default function FeaturedPropertiesPage() {
   const { data: featuredProperties, isLoading, error } = useQuery<Property[]>({
@@ -16,10 +17,9 @@ export default function FeaturedPropertiesPage() {
     return {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
-      name: "Featured Properties | RealEVR Estates",
-      description:
-        "Editorial picks and highlighted listings with virtual tours across rentals, BnBs, for sale, and bank auctions.",
-      url: `${site}/featured-properties`,
+      name: CATEGORY_PAGE_META.featuredProperties.title,
+      description: CATEGORY_PAGE_META.featuredProperties.description,
+      url: `${site}${CATEGORY_PAGE_META.featuredProperties.path}`,
     };
 
     setTimeout(()=>{
@@ -31,9 +31,9 @@ export default function FeaturedPropertiesPage() {
     return (
       <div className="container mx-auto px-6 py-10 min-h-screen flex items-center justify-center">
         <PageSeo
-          title="Featured Properties | RealEVR Estates"
-          description="Hand-picked featured listings with virtual tours on RealEVR Estates."
-          canonicalPath="/featured-properties"
+          title={CATEGORY_PAGE_META.featuredProperties.title}
+          description={CATEGORY_PAGE_META.featuredProperties.description}
+          canonicalPath={CATEGORY_PAGE_META.featuredProperties.path}
           jsonLd={featuredJsonLd}
         />
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -45,9 +45,9 @@ export default function FeaturedPropertiesPage() {
     return (
       <div className="container mx-auto px-6 py-10 min-h-screen">
         <PageSeo
-          title="Featured Properties | RealEVR Estates"
-          description="Hand-picked featured listings with virtual tours on RealEVR Estates."
-          canonicalPath="/featured-properties"
+          title={CATEGORY_PAGE_META.featuredProperties.title}
+          description={CATEGORY_PAGE_META.featuredProperties.description}
+          canonicalPath={CATEGORY_PAGE_META.featuredProperties.path}
           jsonLd={featuredJsonLd}
         />
         <h1 className="text-3xl font-bold mb-6">Featured Properties</h1>
@@ -59,9 +59,9 @@ export default function FeaturedPropertiesPage() {
   return (
     <div className="container mx-auto px-6 py-10">
       <PageSeo
-        title="Featured Properties | RealEVR Estates"
-        description="Explore curated featured homes, rentals, and bank listings with immersive virtual tours on RealEVR Estates."
-        canonicalPath="/featured-properties"
+        title={CATEGORY_PAGE_META.featuredProperties.title}
+        description={CATEGORY_PAGE_META.featuredProperties.description}
+        canonicalPath={CATEGORY_PAGE_META.featuredProperties.path}
         jsonLd={featuredJsonLd}
       />
       <h1 className="text-3xl font-bold mb-6">Featured Properties</h1>

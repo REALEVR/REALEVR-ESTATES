@@ -12,6 +12,7 @@ import { CalendarIcon, Clock, MapPin, Home, BedDouble, Bath, Maximize } from "lu
 import { useToast } from "@/hooks/use-toast";
 import { PageSeo } from "@/components/seo/PageSeo";
 import { getSiteUrl } from "@/lib/siteUrl";
+import { CATEGORY_PAGE_META } from "@shared/seo";
 
 export default function BankSalesPage() {
   const [activeBankTab, setActiveBankTab] = useState<string>("all");
@@ -61,10 +62,9 @@ export default function BankSalesPage() {
     return {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
-      name: "Bank Property Auctions | RealEVR Estates",
-      description:
-        "Bank-owned and auction properties with schedules, bids, and virtual tours. Explore distressed and foreclosure-related listings.",
-      url: `${site}/bank-sales`,
+      name: CATEGORY_PAGE_META.bankSales.title,
+      description: CATEGORY_PAGE_META.bankSales.description,
+      url: `${site}${CATEGORY_PAGE_META.bankSales.path}`,
     };
   }, []);
 
@@ -87,9 +87,9 @@ export default function BankSalesPage() {
   return (
     <div className="container mx-auto px-6 py-8">
       <PageSeo
-        title="Bank Sales & Property Auctions | RealEVR Estates"
-        description="Browse bank auction and distressed properties with virtual tours. View schedules, bids, and bank details on RealEVR Estates."
-        canonicalPath="/bank-sales"
+        title={CATEGORY_PAGE_META.bankSales.title}
+        description={CATEGORY_PAGE_META.bankSales.description}
+        canonicalPath={CATEGORY_PAGE_META.bankSales.path}
         jsonLd={bankSalesJsonLd}
       />
       <div className="mb-8">

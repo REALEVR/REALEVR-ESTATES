@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>{{TOUR_TITLE}} — Virtual Tour</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.css" />
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0b0b0f; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  #tour-root { position: relative; height: 100%; width: 100%; overflow: hidden; }
+  #viewer { position: absolute; inset: 0; }
+  #gallery { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: #000; }
+  #gallery img { max-width: 100%; max-height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+  .gallery-nav { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,.45); color: #fff; border: none; width: 44px; height: 44px; border-radius: 999px; font-size: 20px; cursor: pointer; }
+  .gallery-nav.prev { left: 16px; }
+  .gallery-nav.next { right: 16px; }
+  .gallery-counter { position: absolute; bottom: 88px; left: 50%; transform: translateX(-50%); color: #fff; background: rgba(0,0,0,.45); padding: 4px 12px; border-radius: 999px; font-size: 13px; }
+  #room-bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 8px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); overflow-x: auto; background: linear-gradient(to top, rgba(0,0,0,.75), transparent); z-index: 10; -webkit-overflow-scrolling: touch; }
+  .room-chip { flex: 0 0 auto; padding: 8px 14px; border-radius: 999px; background: rgba(255,255,255,.12); color: #fff; font-size: 13px; border: 1px solid transparent; cursor: pointer; white-space: nowrap; }
+  .room-chip.active { background: #fff; color: #0b0b0f; font-weight: 600; }
+  .room-chip .badge { opacity: .7; font-size: 11px; margin-left: 6px; }
+  #title-bar { position: absolute; top: 0; left: 0; right: 0; padding: 16px; color: #fff; background: linear-gradient(to bottom, rgba(0,0,0,.6), transparent); z-index: 10; pointer-events: none; }
+  #title-bar h1 { margin: 0; font-size: 16px; font-weight: 600; }
+  #title-bar p { margin: 2px 0 0; font-size: 12px; opacity: .75; }
+  #loading, #empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; opacity: .8; text-align: center; padding: 24px; }
+</style>
+</head>
+<body>
+<div id="tour-root">
+  <div id="loading">Loading tour…</div>
+  <div id="empty" style="display:none">This tour has no rooms yet.</div>
+  <div id="viewer"></div>
+  <div id="gallery">
+    <button class="gallery-nav prev" aria-label="Previous photo">&#8249;</button>
+    <img id="gallery-img" alt="" />
+    <button class="gallery-nav next" aria-label="Next photo">&#8250;</button>
+    <div class="gallery-counter" id="gallery-counter"></div>
+  </div>
+  <div id="title-bar">
+    <h1 id="tour-title">{{TOUR_TITLE}}</h1>
+    <p id="room-subtitle"></p>
+  </div>
+  <div id="room-bar"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.min.js"></script>
+<script>
+(function () {
+  var viewerEl = document.getElementById('viewer');
+  var galleryEl = document.getElementById('gallery');
+  var galleryImg = document.getElementById('gallery-img');
+  var galleryCounter = document.getElementById('gallery-counter');
+  var roomBar = document.getElementById('room-bar');
+  var loadingEl = document.getElementById('loading');
+  var emptyEl = document.getElementById('empty');
+  var subtitleEl = document.getElementById('room-subtitle');
+
+  var psvInstance = null;
+  var galleryIndex = 0;
+  var currentRoom = null;
+
+  function showViewer() { viewerEl.style.display = 'block'; galleryEl.style.display = 'none'; }
+  function showGallery() { viewerEl.style.display = 'none'; galleryEl.style.display = 'flex'; }
+
+  function renderGallery(room) {
+    showGallery();
+    galleryIndex = 0;
+    function render() {
+      galleryImg.src = room.photos[galleryIndex];
+      galleryCounter.textContent = (galleryIndex + 1) + ' / ' + room.photos.length;
+    }
+    render();
+    document.querySelector('.gallery-nav.prev').onclick = function () {
+      galleryIndex = (galleryIndex - 1 + room.photos.length) % room.photos.length;
+      render();
+    };
+    document.querySelector('.gallery-nav.next').onclick = function () {
+      galleryIndex = (galleryIndex + 1) % room.photos.length;
+      render();
+    };
+  }
+
+  function renderPanorama(room) {
+    showViewer();
+    if (psvInstance) {
+      psvInstance.setPanorama(room.panoUrl);
+      return;
+    }
+    psvInstance = new PhotoSphereViewer.Viewer({
+      container: viewerEl,
+      panorama: room.panoUrl,
+      navbar: ['zoom', 'fullscreen'],
+      defaultZoomLvl: 0,
+      loadingImg: undefined,
+    });
+  }
+
+  function selectRoom(room) {
+    currentRoom = room;
+    subtitleEl.textContent = room.mode === 'panorama' ? '360° panorama' : (room.photos.length + ' photos · basic tour');
+    Array.prototype.forEach.call(roomBar.children, function (chip) {
+      chip.classList.toggle('active', chip.dataset.slug === room.slug);
+    });
+    if (room.mode === 'panorama') {
+      renderPanorama(room);
+    } else {
+      renderGallery(room);
+    }
+  }
+
+  fetch('./tour.json')
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      loadingEl.style.display = 'none';
+      var rooms = data.rooms || [];
+      if (rooms.length === 0) {
+        emptyEl.style.display = 'flex';
+        return;
+      }
+      document.getElementById('tour-title').textContent = data.title || '{{TOUR_TITLE}}';
+      rooms.forEach(function (room) {
+        var chip = document.createElement('button');
+        chip.className = 'room-chip';
+        chip.textContent = room.name;
+        chip.dataset.slug = room.slug;
+        if (room.qualityTier === 'photo_sweep_lite') {
+          var badge = document.createElement('span');
+          badge.className = 'badge';
+          badge.textContent = 'basic';
+          chip.appendChild(badge);
+        }
+        chip.onclick = function () { selectRoom(room); };
+        roomBar.appendChild(chip);
+      });
+      selectRoom(rooms[0]);
+    })
+    .catch(function (err) {
+      loadingEl.textContent = 'Could not load this tour (' + err.message + ')';
+    });
+})();
+</script>
+</body>
+</html>

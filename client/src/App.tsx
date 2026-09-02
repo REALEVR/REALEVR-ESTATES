@@ -1,4 +1,5 @@
 import { Switch, Route } from 'wouter'
+import { MotionConfig } from 'framer-motion'
 import { queryClient } from './lib/queryClient'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from '@/components/ui/toaster'
@@ -44,7 +45,14 @@ import { useEffect, useState } from 'react'
 import { paymentEmitter } from './lib/iotec-paymentpatch'
 import IotechMetricCounterPaymentHandle from './components/payment/sio-iotech'
 import AIAssistant from '@/components/AIAssistant'
-import WhatsAppButton from '@/components/WhatsAppButton'
+import AgentLauncher from './components/agent/AgentLauncher'
+import ListYourPropertyPage from '@/pages/ListYourPropertyPage'
+import AdminPayoutApprovals from '@/pages/AdminPayoutApprovals'
+import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
+import AdminAnalytics from '@/pages/AdminAnalytics'
+import AdminBroadcast from '@/pages/AdminBroadcast'
+import WhatsAppFab from '@/components/whatsapp/WhatsAppFab'
+import BrokerOnlinePresence from '@/components/broker/BrokerOnlinePresence'
 
 function Router() {
     return (
@@ -77,6 +85,7 @@ function Router() {
             <Route path="/test-page" component={TestPage} />
             <Route path="/agent/register" component={AgentRegistrationPage} />
             <Route path="/agent/dashboard" component={AgentDashboard} />
+            <Route path="/list-your-property" component={ListYourPropertyPage} />
 
             <Route path="/dashboard" component={UserDashboard} />
 
@@ -99,6 +108,23 @@ function Router() {
             />
 
             <ProtectedAdminRoute path="/admin/users" component={AdminUserManager} allowedRoles={['admin']} />
+            {/* Strictly admin-only (not agents) — see server/gene/admin-guard.ts's
+                requireStrictAdmin, which the underlying APIs actually enforce;
+                this route gate is the matching client-side check. */}
+            <ProtectedAdminRoute path="/admin/payout-approvals" component={AdminPayoutApprovals} allowedRoles={['admin']} />
+            {/* Boost confirmations are money coming IN with no payout
+                conflict-of-interest — matches the backend's shared
+                adminMiddleware (admin OR agent), unlike the strict
+                admin-only payout-approvals route above. */}
+            <ProtectedAdminRoute
+                path="/admin/boost-confirmations"
+                component={AdminBoostConfirmations}
+                allowedRoles={['admin', 'agent']}
+            />
+            {/* Strictly admin-only — platform-wide user PII / mass
+                messaging, same reasoning as payout-approvals above. */}
+            <ProtectedAdminRoute path="/admin/analytics" component={AdminAnalytics} allowedRoles={['admin']} />
+            <ProtectedAdminRoute path="/admin/broadcast" component={AdminBroadcast} allowedRoles={['admin']} />
 
             <Route
                 path="/category/:categorySlug"
@@ -169,9 +195,11 @@ function AppShell() {
                 )}
                 <Footer />
             </div>
+            <AgentLauncher />
+            <WhatsAppFab />
+            <BrokerOnlinePresence />
             <ScrollToTop />
             <AIAssistant />
-            <WhatsAppButton />
         </>
     )
 }
@@ -179,14 +207,21 @@ function AppShell() {
 function App() {
     return (
         <QueryClientProvider client={queryClient}>
-            <AuthProvider>
-                <PaymentProvider>
-                    <TooltipProvider>
-                        <AppShell />
-                        <Toaster />
-                    </TooltipProvider>
-                </PaymentProvider>
-            </AuthProvider>
+            {/* reducedMotion="user": every framer-motion animation in the app
+                (existing components and the new motion/ primitives alike)
+                automatically disables transform/scale animation for anyone
+                with the OS "reduce motion" setting on — one place to get this
+                right instead of every component checking it individually. */}
+            <MotionConfig reducedMotion="user">
+                <AuthProvider>
+                    <PaymentProvider>
+                        <TooltipProvider>
+                            <AppShell />
+                            <Toaster />
+                        </TooltipProvider>
+                    </PaymentProvider>
+                </AuthProvider>
+            </MotionConfig>
         </QueryClientProvider>
     )
 }

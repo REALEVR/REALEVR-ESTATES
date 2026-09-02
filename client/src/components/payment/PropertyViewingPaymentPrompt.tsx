@@ -115,7 +115,7 @@ export default function PropertyViewingPaymentPrompt({ isOpen, onClose }: Proper
                                 </li>
                             </ul>
 
-                            <Button className="w-full bg-[#FF5A5F] hover:bg-[#FF5A5F]/90" onClick={handlePayment}>
+                            <Button className="w-full bg-accent hover:bg-accent/90" onClick={handlePayment}>
                                 Purchase Now
                             </Button>
                         </div>

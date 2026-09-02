@@ -101,7 +101,7 @@ export default function PrivacyPolicy() {
         </div>
         
         <div className="mt-12 pt-8 border-t border-gray-200">
-          <Link href="/" className="text-[#FF5A5F] hover:underline">
+          <Link href="/" className="text-accent hover:underline">
             &larr; Back to Homepage
           </Link>
         </div>

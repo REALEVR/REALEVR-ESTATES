@@ -122,8 +122,36 @@ export function buildSitemapXml(entries: SitemapUrlEntry[]): string {
     return lines.join('\n')
 }
 
+/**
+ * AI crawlers / answer-engine bots (ChatGPT, Claude, Perplexity, Google's AI
+ * features, common-crawl-derived training sets) that a site owner might
+ * plausibly want to allow or block by name, rather than relying only on the
+ * generic `User-agent: *` block. Listed explicitly and set to Allow: / here
+ * — the goal of the AEO pass this ships with (see llms.txt) is to be findable
+ * and citable by these systems, not blocked from them. Functionally this is
+ * no different from the `*` block below (nothing here is disallowed there
+ * either), but naming them explicitly is the documented best practice for
+ * signaling intent, since a future change to the `*` block won't silently
+ * start blocking a bot this file was written to welcome.
+ */
+const AI_CRAWLER_USER_AGENTS = [
+    'GPTBot', // OpenAI
+    'ChatGPT-User', // OpenAI, on-demand browsing
+    'OAI-SearchBot', // OpenAI search
+    'ClaudeBot', // Anthropic
+    'anthropic-ai', // Anthropic
+    'Claude-Web', // Anthropic, on-demand browsing
+    'PerplexityBot', // Perplexity
+    'Perplexity-User', // Perplexity, on-demand browsing
+    'Google-Extended', // Google's AI training/features opt-in signal
+    'CCBot', // Common Crawl (feeds many LLM training sets)
+    'Bytespider', // ByteDance
+    'Amazonbot', // Amazon
+    'cohere-ai', // Cohere
+]
+
 export function buildRobotsTxt(base: string): string {
-    return [
+    const lines = [
         'User-agent: *',
         'Disallow: /api/',
         'Disallow: /admin',
@@ -134,7 +162,23 @@ export function buildRobotsTxt(base: string): string {
         'Disallow: /test-page',
         'Disallow: /verify-email',
         '',
-        `Sitemap: ${base}/sitemap.xml`,
-        '',
-    ].join('\n')
+    ]
+
+    // AI / answer-engine crawlers — explicitly welcomed, same disallow list
+    // as everyone else (no /api, /admin, /dashboard, etc.), so listings and
+    // content pages are crawlable but private/functional routes are not.
+    for (const ua of AI_CRAWLER_USER_AGENTS) {
+        lines.push(`User-agent: ${ua}`)
+        lines.push('Disallow: /api/')
+        lines.push('Disallow: /admin')
+        lines.push('Disallow: /dashboard')
+        lines.push('Disallow: /agent/dashboard')
+        lines.push('Allow: /')
+        lines.push('')
+    }
+
+    lines.push(`Sitemap: ${base}/sitemap.xml`)
+    lines.push('')
+
+    return lines.join('\n')
 }

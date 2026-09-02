@@ -69,10 +69,10 @@ export default function FeaturedProperties() {
 
   if (isLoading) {
     return (
-      <section className="py-10 bg-white">
+      <section className="py-10 bg-card">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl md:text-3xl font-bold">Featured Properties</h2>
+            <h2 className="text-2xl md:text-3xl font-display font-medium">Featured Properties</h2>
             <Button variant="link" asChild>
               <Link href="/explore" className="flex items-center">
                 View all <ChevronRight className="h-4 w-4 ml-1" />
@@ -82,15 +82,15 @@ export default function FeaturedProperties() {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {[...Array(4)].map((_, index) => (
-              <div key={index} className="bg-white rounded-xl overflow-hidden shadow-md animate-pulse">
-                <div className="h-52 bg-gray-200"></div>
+              <div key={index} className="bg-card rounded-xl overflow-hidden shadow-md animate-pulse">
+                <div className="h-52 bg-muted"></div>
                 <div className="p-4">
-                  <div className="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+                  <div className="h-5 bg-muted rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-muted rounded w-1/2 mb-2"></div>
+                  <div className="h-4 bg-muted rounded w-3/4 mb-4"></div>
                   <div className="flex justify-between">
-                    <div className="h-6 bg-gray-200 rounded w-1/4"></div>
-                    <div className="h-6 bg-gray-200 rounded w-1/4"></div>
+                    <div className="h-6 bg-muted rounded w-1/4"></div>
+                    <div className="h-6 bg-muted rounded w-1/4"></div>
                   </div>
                 </div>
               </div>
@@ -106,10 +106,10 @@ export default function FeaturedProperties() {
   }
 
   return (
-    <section className="py-10 bg-white">
+    <section className="py-10 bg-card">
       <div className="container mx-auto px-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl md:text-3xl font-bold">Featured Properties</h2>
+          <h2 className="text-2xl md:text-3xl font-display font-medium">Featured Properties</h2>
           <Button variant="link" asChild>
             <Link href="/featured-properties" className="flex items-center">
               View all <ChevronRight className="h-4 w-4 ml-1" />
@@ -122,7 +122,7 @@ export default function FeaturedProperties() {
           <div className="absolute left-0 top-1/2 -translate-y-1/2 z-10">
             <Button 
               variant="outline" 
-              className="rounded-full h-10 w-10 p-2 bg-white/80 hover:bg-white shadow-md" 
+              className="rounded-full h-10 w-10 p-2 bg-card/80 hover:bg-card shadow-md" 
               onClick={scrollPrev}
             >
               <ChevronLeft className="h-6 w-6" />
@@ -131,7 +131,7 @@ export default function FeaturedProperties() {
           <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10">
             <Button 
               variant="outline" 
-              className="rounded-full h-10 w-10 p-2 bg-white/80 hover:bg-white shadow-md" 
+              className="rounded-full h-10 w-10 p-2 bg-card/80 hover:bg-card shadow-md" 
               onClick={scrollNext}
             >
               <ChevronRight className="h-6 w-6" />

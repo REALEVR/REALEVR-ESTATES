@@ -14,6 +14,7 @@ import fs from 'fs'
 import { createTablesIfNotExist, DynamoDBUtils, TABLES, toNumericId, toStringId } from './dynamodb'
 
 import { uploadPropertyImage, uploadVirtualTour, handleUploadErrors, setupStaticFileRoutes } from './upload'
+import { registerRoomCaptureRoutes } from './room-capture'
 import { registerPaymentGateWayForApp } from './payment/payment-new'
 import {
     buildRobotsTxt,
@@ -22,11 +23,53 @@ import {
     getStaticSitemapEntries,
     propertyToSitemapEntry,
 } from './sitemap'
+import { registerSocialPreviewRoutes } from './social-preview'
 import notificationRoutes from './routes/notifications'
 import reviewRoutes from './routes/reviews'
 import aiRoutes from './routes/ai'
 import { getAllReviews } from './models/Review'
 import { runDepositReminders, runViewingReminders, postDailyUpdate } from './cron/index'
+
+// GENE Platform — additive scaffolding (see docs/GENE_PLATFORM.md)
+import { registerGeneChatRoutes } from './gene/chat'
+import { registerGeneIngestionRoutes } from './gene/ingestion'
+import { registerGeneAnalyticsRoutes } from './gene/analytics'
+import { registerGeneLearningLoopRoutes } from './gene/learning-loop'
+import { registerDataPartnershipsRoutes } from './gene/data-partnerships'
+import { registerListingsApiRoutes } from './gene/listings-api'
+import { registerWhatsappRoutes } from './gene/whatsapp'
+import { registerDataQualityRoutes } from './gene/data-quality'
+import { registerPaymentsCoreRoutes } from './gene/payments-core'
+import { registerBtcPaymentsRoutes } from './gene/btc-payments'
+import { registerInvestorAnalyticsRoutes } from './gene/investor-analytics'
+import { registerListingsLifecycleRoutes } from './gene/listings-lifecycle'
+import { registerContentPromotionRoutes } from './gene/content-promotion'
+import { registerSupportRoutes } from './gene/support'
+import { registerInfraHealthRoutes } from './gene/infra-health'
+import { registerQaSecurityRoutes } from './gene/qa-security'
+import { registerBtcQrRoutes } from './gene/btc-qr'
+import { registerSlackBridgeRoutes } from './gene/slack-bridge'
+import { registerAgentWhatsappOnboardingRoutes } from './gene/agent-whatsapp-onboarding'
+import { registerTourAccessPassRoutes, issuePass } from './gene/tour-access-pass'
+import { registerPersonalAgentRoutes } from './gene/personal-agent'
+import { registerAfricaMediaFeedRoutes } from './gene/africa-media-feed'
+import { registerAiWorkforceRoutes } from './gene/ai-workforce'
+import { registerReferralRewardsRoutes } from './gene/referral-rewards'
+import { registerWhatsappConciergeRoutes } from './gene/whatsapp-concierge'
+import { registerLandlordHubRoutes } from './gene/landlord-hub'
+import { registerMagicLoginRoutes } from './gene/magic-login'
+import { registerSelfServeListingRoutes } from './gene/self-serve-listing'
+import { registerWhatsappGrowthRoutes } from './gene/whatsapp-growth'
+import { registerBoostPlacementRoutes } from './gene/boost-placement'
+import { registerSuccessFeeRoutes } from './gene/success-fee'
+import { registerTourProductionBookingRoutes } from './gene/tour-production-booking'
+import { registerLeadMeteringRoutes } from './gene/lead-metering'
+import { registerTenantConsentRoutes } from './gene/tenant-consent'
+import { registerGoogleAuthRoutes } from './gene/google-auth'
+import { registerUserAnalyticsRoutes } from './gene/user-analytics'
+import { registerBroadcastRoutes } from './gene/broadcast'
+import { registerWebPushRoutes } from './gene/web-push'
+import { requireStrictAdmin } from './gene/admin-guard'
 
 // Middleware to check if user is an admin or property manager
 const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -56,8 +99,18 @@ const subscriptionMiddleware = (req: Request, res: Response, next: NextFunction)
         return next()
     }
 
+    // Agents who list a property through the referral flow
+    // (server/gene/self-serve-listing.ts) earn a flat one-time payout per
+    // listing rather than paying a recurring subscription, so they will
+    // never have subscriptionStatus === 'active'. This one additive check
+    // lets that specific, honestly-tagged account type through without
+    // weakening the check for anyone else — an account only gets
+    // membershipPlan: 'self-serve' by going through that landlord-OTP-verified
+    // flow, never by user input.
+    const isSelfServeAccount = user.membershipPlan === 'self-serve'
+
     // For agents, check subscription status
-    if (user.role === 'agent') {
+    if (user.role === 'agent' && !isSelfServeAccount) {
         if (user.subscriptionStatus !== 'active') {
             return res.status(403).json({
                 message: 'Subscription required. Please renew your agent subscription to access this feature.',
@@ -130,6 +183,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.setHeader('Cache-Control', 'public, max-age=86400')
         res.send(buildRobotsTxt(base))
     })
+
+    // Server-rendered Open Graph/Twitter/JSON-LD tags for link-preview bots
+    // (WhatsApp, Facebook, Twitter/X, LinkedIn, Telegram, Slack, Discord, iMessage)
+    // that don't execute the SPA's JavaScript. No-ops for everyone else. See
+    // server/social-preview.ts for why this exists.
+    registerSocialPreviewRoutes(app, storage)
 
     // Apply no-cache middleware to all API routes
     app.use('/api', noCacheMiddleware)
@@ -347,6 +406,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             })
         } catch (error) {
             console.error('Error recording tour payment:', error)
+        }
+
+        // GENE Platform: mint a real "view up to 5 properties for 24h" tour
+        // pass for this confirmed IoTec payment (see docs/GENE_PLATFORM.md).
+        // Best-effort only — never affects the existing IoTec recording above.
+        try {
+            const numericUserId = Number(user_id)
+            const numericAmount = Number(amount)
+            if (Number.isFinite(numericUserId) && numericUserId > 0 && Number.isFinite(numericAmount) && numericAmount > 0) {
+                issuePass(numericUserId, 'iotec', numericAmount, currency || 'UGX')
+            }
+        } catch (error) {
+            console.error('[GENE] Failed to issue tour pass for IoTec payment:', error)
         }
     })
 
@@ -2189,8 +2261,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
     })
 
-    // Upload virtual tour zip
-    app.post('/api/upload/virtual-tour/:propertyId', (req, res) => {
+    // Upload virtual tour zip (admin/agent only -- was previously unauthenticated)
+    app.post('/api/upload/virtual-tour/:propertyId', adminMiddleware, (req, res) => {
         // console.log("=== VIRTUAL TOUR UPLOAD ENDPOINT ===");
         console.log('Property ID:', req.params.propertyId)
 
@@ -2220,6 +2292,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // SSE endpoint for tour progress
     app.get('/api/upload/virtual-tour/progress/:jobId', sseTourProgress)
+
+    // Guided room-capture upload: agents upload photos/video per room instead of
+    // a pre-built tour ZIP. Reuses the same SSE progress endpoint above (jobId is generic).
+    registerRoomCaptureRoutes(app, adminMiddleware)
 
     // Get tour preview endpoint
     app.get('/api/tours/preview/:propertyId', async (req, res) => {
@@ -2338,6 +2414,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // AI assistant / description generation (Gemini)
     app.use('/api/ai', aiRoutes)
+
+    // GENE Platform — additive scaffolding, 4 teams / 16 modules (see docs/GENE_PLATFORM.md)
+    registerGeneChatRoutes(app, adminMiddleware)
+    registerGeneIngestionRoutes(app, adminMiddleware)
+    registerGeneAnalyticsRoutes(app, adminMiddleware)
+    registerGeneLearningLoopRoutes(app, adminMiddleware)
+    registerDataPartnershipsRoutes(app, adminMiddleware)
+    registerListingsApiRoutes(app, adminMiddleware)
+    registerWhatsappRoutes(app, adminMiddleware)
+    registerDataQualityRoutes(app, adminMiddleware)
+    registerPaymentsCoreRoutes(app, adminMiddleware)
+    registerBtcPaymentsRoutes(app, adminMiddleware)
+    registerInvestorAnalyticsRoutes(app, adminMiddleware)
+    registerListingsLifecycleRoutes(app, adminMiddleware)
+    registerContentPromotionRoutes(app, adminMiddleware)
+    registerSupportRoutes(app, adminMiddleware)
+    registerInfraHealthRoutes(app, adminMiddleware)
+    registerQaSecurityRoutes(app, adminMiddleware)
+    registerBtcQrRoutes(app, adminMiddleware)
+    registerSlackBridgeRoutes(app, adminMiddleware)
+    registerAgentWhatsappOnboardingRoutes(app, adminMiddleware)
+    registerTourAccessPassRoutes(app, adminMiddleware)
+    registerPersonalAgentRoutes(app)
+    registerReferralRewardsRoutes(app, adminMiddleware)
+    registerWhatsappConciergeRoutes(app)
+    registerLandlordHubRoutes(app)
+    registerMagicLoginRoutes(app)
+    registerSelfServeListingRoutes(app)
+    registerWhatsappGrowthRoutes(app)
+
+    // Monetization playbook (2026-08-29) implementation pass — see
+    // docs/GENE_PLATFORM.md v1.6. Each is additive/independent; none touches
+    // an existing route or table.
+    registerBoostPlacementRoutes(app, adminMiddleware)
+    registerSuccessFeeRoutes(app, adminMiddleware)
+    registerTourProductionBookingRoutes(app, adminMiddleware)
+    registerLeadMeteringRoutes(app, adminMiddleware)
+    registerTenantConsentRoutes(app)
+
+    // Popup Google sign-in, admin user-analytics dashboard, web push
+    // subscriptions, and the unified admin broadcast tool — see
+    // docs/GENE_PLATFORM.md v1.8. Each is additive/independent.
+    registerGoogleAuthRoutes(app)
+    // Strict admin only (not agents) — platform-wide user PII and
+    // mass-messaging blast radius, same reasoning as payout-approvals.
+    registerUserAnalyticsRoutes(app, requireStrictAdmin)
+    registerWebPushRoutes(app, requireStrictAdmin)
+    registerBroadcastRoutes(app, requireStrictAdmin)
+
+    // Africa real estate media pulse — see docs/GENE_PLATFORM.md v1.15.
+    // Public (no auth): backs the homepage hero's live news panel.
+    registerAfricaMediaFeedRoutes(app)
+
+    // AI Workforce — 10 scoped "employee agent" roles (content, newsroom
+    // analytics, inbound-only lead replies, human-confirmed sales assist,
+    // credential-gated social publishing, listing quality audits). See
+    // docs/GENE_PLATFORM.md v1.16 and server/gene/ai-workforce.ts's header
+    // for the outreach/sales-authority limits this module deliberately
+    // will not cross.
+    registerAiWorkforceRoutes(app, adminMiddleware)
 
     // Admin endpoint to manually trigger reminders for testing
     app.post('/api/admin/test-reminders', adminMiddleware, async (_req: any, res: any) => {

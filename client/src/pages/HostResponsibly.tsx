@@ -135,10 +135,10 @@ export default function HostResponsibly() {
             For more information on complying with Ugandan property laws and regulations:
           </p>
           <ul className="list-disc pl-6 my-4 space-y-2">
-            <li>Uganda Revenue Authority: <a href="https://www.ura.go.ug" className="text-[#FF5A5F] hover:underline">www.ura.go.ug</a></li>
-            <li>Ministry of Lands, Housing and Urban Development: <a href="https://mlhud.go.ug" className="text-[#FF5A5F] hover:underline">mlhud.go.ug</a></li>
-            <li>National Environment Management Authority: <a href="https://www.nema.go.ug" className="text-[#FF5A5F] hover:underline">www.nema.go.ug</a></li>
-            <li>Kampala Capital City Authority: <a href="https://www.kcca.go.ug" className="text-[#FF5A5F] hover:underline">www.kcca.go.ug</a></li>
+            <li>Uganda Revenue Authority: <a href="https://www.ura.go.ug" className="text-accent hover:underline">www.ura.go.ug</a></li>
+            <li>Ministry of Lands, Housing and Urban Development: <a href="https://mlhud.go.ug" className="text-accent hover:underline">mlhud.go.ug</a></li>
+            <li>National Environment Management Authority: <a href="https://www.nema.go.ug" className="text-accent hover:underline">www.nema.go.ug</a></li>
+            <li>Kampala Capital City Authority: <a href="https://www.kcca.go.ug" className="text-accent hover:underline">www.kcca.go.ug</a></li>
           </ul>
           
           <h2 className="text-xl font-bold mt-8 mb-4">10. Contact Us</h2>
@@ -155,7 +155,7 @@ export default function HostResponsibly() {
         </div>
         
         <div className="mt-12 pt-8 border-t border-gray-200">
-          <Link href="/" className="text-[#FF5A5F] hover:underline">
+          <Link href="/" className="text-accent hover:underline">
             &larr; Back to Homepage
           </Link>
         </div>

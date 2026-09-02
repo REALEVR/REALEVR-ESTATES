@@ -162,7 +162,7 @@ export default function PaymentModal({
 
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center py-8">
-                        <Loader2 className="h-10 w-10 text-[#FF5A5F] animate-spin mb-4" />
+                        <Loader2 className="h-10 w-10 text-accent animate-spin mb-4" />
                         <p className="text-center text-gray-500">
                             Processing your payment...
                             <br />
@@ -201,7 +201,7 @@ export default function PaymentModal({
                                 {
                                     <Button
                                         onClick={handlePayNow}
-                                        className="w-full bg-[#FF5A5F] hover:bg-[#FF7478] text-white"
+                                        className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
                                     >
                                         <CreditCard className="mr-2 h-5 w-5" />
                                         Pay {amount.toLocaleString()} UGX Now
