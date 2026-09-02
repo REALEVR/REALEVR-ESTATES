@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -18,11 +18,15 @@ import type { User } from "@shared/schema";
 const PROMPT_WHATSAPP_FLAG = "realevr_prompt_whatsapp";
 
 /**
- * Full-site takeover shown whenever there's no signed-in user - a single,
- * plain sign-in/sign-up card modeled directly on Airbnb's own auth screen:
- * one "Continue with Google" button, a divider, then a simple log in /
- * sign up form. No AI conversation, no house-photo backdrop - just the
- * fastest, most familiar path in and back out to the actual site.
+ * The sign-in/sign-up card - a single, plain form modeled directly on
+ * Airbnb's own auth screen: one "Continue with Google" button, a divider,
+ * then a simple log in / sign up form. No AI conversation, no house-photo
+ * backdrop - just the fastest, most familiar path in.
+ *
+ * Browsing itself is NOT gated behind this (see SignupNudgeGate.tsx, which
+ * decides when this actually appears and whether it's dismissible) - this
+ * component is just the card/form and doesn't know or care why it's on
+ * screen.
  *
  * - Google reuses the popup + postMessage flow from server/gene/google-auth.ts.
  * - Log in and sign up both go through the same session-based /api/login and
@@ -35,7 +39,7 @@ const PROMPT_WHATSAPP_FLAG = "realevr_prompt_whatsapp";
  *   picker) so every account - not just Google ones - has one on file for
  *   agents/RealEVR to actually reach them on.
  */
-export default function AuthGate() {
+export default function AuthGate({ onDismiss }: { onDismiss?: () => void } = {}) {
     const { loginMutation } = useAuth();
     const { toast } = useToast();
     const [tab, setTab] = useState<"login" | "signup">("login");
@@ -148,8 +152,22 @@ export default function AuthGate() {
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-50 p-4">
-            <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-xl">
+        <div
+            className={`fixed inset-0 z-[100] flex items-center justify-center p-4 ${
+                onDismiss ? "bg-black/50 backdrop-blur-sm" : "bg-gray-50"
+            }`}
+            onClick={onDismiss ? (e) => e.target === e.currentTarget && onDismiss() : undefined}
+        >
+            <div className="relative w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-xl">
+                {onDismiss && (
+                    <button
+                        onClick={onDismiss}
+                        aria-label="Close"
+                        className="absolute right-4 top-4 rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                    >
+                        <X size={18} />
+                    </button>
+                )}
                 <h1 className="text-center font-display text-2xl font-semibold text-gray-900">Log in or sign up</h1>
                 <p className="mt-1 text-center text-sm text-gray-500">Welcome to RealEVR Estates</p>
 
