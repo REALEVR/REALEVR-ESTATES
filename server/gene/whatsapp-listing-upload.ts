@@ -22,12 +22,15 @@
  * on tryHandleListingUploadText(), called first thing in
  * whatsapp-concierge.ts's handleInboundText().
  *
- * Photos: the WhatsApp Cloud API only ever hands the webhook a short-lived
- * media ID, never a fetchable URL — downloadWhatsAppMedia() resolves that
- * to real bytes via two Graph API calls (ID -> signed URL -> bytes), then
- * uploads to the same S3 bucket every other property image already uses
- * (server/s3-util.ts), so a listing created this way is indistinguishable
- * in storage from one added through the dashboard.
+ * Photos: Meta's WhatsApp Cloud API only ever hands the webhook a
+ * short-lived media ID, never a fetchable URL — downloadWhatsAppMediaById()
+ * resolves that to real bytes via two Graph API calls (ID -> signed URL ->
+ * bytes). Infobip's webhook instead hands a directly-fetchable URL already
+ * (see downloadFromUrl()) — whichever provider is configured (see
+ * whatsapp.ts's doc comment), both paths converge on the same
+ * ingestPhoto() step: upload to the same S3 bucket every other property
+ * image already uses (server/s3-util.ts), so a listing created this way is
+ * indistinguishable in storage from one added through the dashboard.
  */
 import { randomBytes } from 'crypto'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
@@ -115,7 +118,9 @@ async function reply(phone: string, text: string): Promise<void> {
 
 // --- Media download ---------------------------------------------------
 
-async function downloadWhatsAppMedia(mediaId: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+/** Meta Cloud API path: media ID -> signed URL -> bytes (two hops, both
+ * needing the same bearer token). */
+async function downloadWhatsAppMediaById(mediaId: string): Promise<{ buffer: Buffer; contentType: string } | null> {
     const token = process.env.WHATSAPP_BUSINESS_TOKEN
     if (!token) return null
 
@@ -132,9 +137,42 @@ async function downloadWhatsAppMedia(mediaId: string): Promise<{ buffer: Buffer;
         const arrayBuffer = await fileRes.arrayBuffer()
         return { buffer: Buffer.from(arrayBuffer), contentType: typeof meta.mime_type === 'string' ? meta.mime_type : 'image/jpeg' }
     } catch (err) {
-        console.error('[gene/whatsapp-listing-upload] media download failed:', err)
+        console.error('[gene/whatsapp-listing-upload] Meta media download failed:', err)
         return null
     }
+}
+
+/** Infobip path: the inbound webhook already hands a directly-fetchable
+ * media URL — no ID-resolution hop needed, just the App API key to
+ * authorize the download. */
+async function downloadWhatsAppMediaFromUrl(url: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+    const apiKey = process.env.INFOBIP_API_KEY
+    if (!apiKey) return null
+
+    try {
+        const fileRes = await fetch(url, { headers: { Authorization: `App ${apiKey}` } })
+        if (!fileRes.ok) return null
+        const arrayBuffer = await fileRes.arrayBuffer()
+        const contentType = fileRes.headers.get('content-type') || 'image/jpeg'
+        return { buffer: Buffer.from(arrayBuffer), contentType }
+    } catch (err) {
+        console.error('[gene/whatsapp-listing-upload] Infobip media download failed:', err)
+        return null
+    }
+}
+
+/** Shared tail end of both image-ingest paths below: upload the downloaded
+ * bytes to S3, record the URL on the draft, and confirm/prompt for more. */
+async function ingestPhoto(phone: string, draft: ListingDraft, media: { buffer: Buffer; contentType: string }): Promise<void> {
+    const key = `properties/whatsapp-${draft.userId}-${Date.now()}-${randomBytes(4).toString('hex')}.${extFromContentType(media.contentType)}`
+    await uploadFileToS3(key, media.buffer, media.contentType)
+    draft.photoUrls.push(getS3FileUrl(key))
+    saveDraft(draft)
+
+    await reply(
+        phone,
+        `Got it (${draft.photoUrls.length} photo${draft.photoUrls.length === 1 ? '' : 's'} so far). Send more, or reply "done" when finished.`
+    )
 }
 
 function extFromContentType(contentType: string): string {
@@ -372,28 +410,37 @@ export async function tryHandleListingUploadText(
     return true
 }
 
-/** Called for inbound image messages. Only relevant while a draft is on
- * the "photos" step; anything else is a no-op (false) so the caller can
- * decide what to do with a stray photo (e.g. the general concierge just
+/** Called for inbound image messages from Meta's Cloud API webhook (which
+ * only ever hands over a media ID, not a URL). Only relevant while a draft
+ * is on the "photos" step; anything else is a no-op (false) so the caller
+ * can decide what to do with a stray photo (e.g. the general concierge just
  * ignores images today). */
 export async function tryHandleListingUploadImage(phone: string, mediaId: string): Promise<boolean> {
     const draft = getActiveDraft(phone)
     if (!draft || draft.step !== 'photos') return false
 
-    const media = await downloadWhatsAppMedia(mediaId)
+    const media = await downloadWhatsAppMediaById(mediaId)
     if (!media) {
         await reply(phone, "Couldn't download that photo — please try sending it again.")
         return true
     }
 
-    const key = `properties/whatsapp-${draft.userId}-${Date.now()}-${randomBytes(4).toString('hex')}.${extFromContentType(media.contentType)}`
-    await uploadFileToS3(key, media.buffer, media.contentType)
-    draft.photoUrls.push(getS3FileUrl(key))
-    saveDraft(draft)
+    await ingestPhoto(phone, draft, media)
+    return true
+}
 
-    await reply(
-        phone,
-        `Got it (${draft.photoUrls.length} photo${draft.photoUrls.length === 1 ? '' : 's'} so far). Send more, or reply "done" when finished.`
-    )
+/** Same as tryHandleListingUploadImage() above, but for Infobip's inbound
+ * webhook, which hands a directly-fetchable media URL instead of an ID. */
+export async function tryHandleListingUploadImageFromUrl(phone: string, url: string): Promise<boolean> {
+    const draft = getActiveDraft(phone)
+    if (!draft || draft.step !== 'photos') return false
+
+    const media = await downloadWhatsAppMediaFromUrl(url)
+    if (!media) {
+        await reply(phone, "Couldn't download that photo — please try sending it again.")
+        return true
+    }
+
+    await ingestPhoto(phone, draft, media)
     return true
 }

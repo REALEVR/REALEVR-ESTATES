@@ -143,7 +143,7 @@ live:
 | Needs | Module | What happens without it |
 |---|---|---|
 | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` (any of the three) | `ai-provider.ts`, used by `chat.ts`, `personal-agent.ts`, `whatsapp-concierge.ts`, and the public assistant widget | Falls back to rule-based canned replies per intent — never errors |
-| `WHATSAPP_BUSINESS_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID` | `whatsapp.ts` | Logs to console instead of sending; the escalation queue itself works fully without it |
+| `INFOBIP_API_KEY` + `INFOBIP_BASE_URL` + `INFOBIP_WHATSAPP_SENDER`, **or** `WHATSAPP_BUSINESS_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID` (Infobip tried first if both are set) | `whatsapp.ts`, `whatsapp-concierge.ts`, `whatsapp-listing-upload.ts` | Logs to console instead of sending; the escalation queue itself works fully without it. Whichever provider you configure, point its webhook at the matching URL: `/api/gene/whatsapp/webhook/infobip` or `/api/gene/whatsapp/webhook` (the latter also needs `WHATSAPP_VERIFY_TOKEN` for Meta's GET handshake) |
 | A live BTC/USD rate feed (e.g. CoinGecko) | `btc-payments.ts` | `/api/gene/btc/quote` requires you to pass the rate explicitly and 400s otherwise, rather than inventing one |
 | **Finance sign-off** | `btc-payments.ts` | Buffer/tolerance percentages are placeholders pending review — flagged in a banner comment at the top of the file, per the product plan's explicit callout |
 | `MOBILE_MONEY_API_KEY` / `STRIPE_SECRET_KEY` | `payments-core.ts` | Those providers throw a clear "not configured" error; only the `manual` (human-confirmed) provider works today |

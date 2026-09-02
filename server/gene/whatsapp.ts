@@ -41,22 +41,67 @@ export interface EscalationRecord {
 }
 
 /**
- * Best-effort WhatsApp Cloud API sender. Never throws — callers should treat
- * this as fire-and-forget with a status they can log/report on.
+ * Two ways to actually reach WhatsApp are supported, tried in this order —
+ * same "whichever is configured wins" contract as ai-provider.ts's
+ * Claude→ChatGPT→Gemini chain, so setting either one (or both) just works:
+ *
+ *  1. Infobip (`INFOBIP_API_KEY` + `INFOBIP_BASE_URL` +
+ *     `INFOBIP_WHATSAPP_SENDER`) — a WhatsApp Business Solution Provider
+ *     with its own onboarding (an Infobip account, a WhatsApp sender they
+ *     provision for you) instead of going through Meta Business Manager
+ *     directly. `INFOBIP_BASE_URL` is the per-account domain shown on
+ *     Infobip's API Keys page (e.g. `xxxxx.api.infobip.com`, no scheme).
+ *  2. Meta WhatsApp Cloud API directly (`WHATSAPP_BUSINESS_TOKEN` +
+ *     `WHATSAPP_PHONE_NUMBER_ID`) — the original integration this file
+ *     shipped with.
+ *
+ * Inbound messages have a matching pair of webhook routes in
+ * whatsapp-concierge.ts (`/api/gene/whatsapp/webhook` for Meta,
+ * `/api/gene/whatsapp/webhook/infobip` for Infobip) — point whichever
+ * provider you actually configured at its matching URL.
  */
-export async function sendWhatsAppMessage(to: string, body: string): Promise<{ sent: boolean; reason?: string }> {
+function infobipConfigured(): { apiKey: string; baseUrl: string; sender: string } | null {
+    const apiKey = process.env.INFOBIP_API_KEY
+    const baseUrl = process.env.INFOBIP_BASE_URL
+    const sender = process.env.INFOBIP_WHATSAPP_SENDER
+    if (!apiKey || !baseUrl || !sender) return null
+    return { apiKey, baseUrl: baseUrl.replace(/^https?:\/\//, '').replace(/\/$/, ''), sender }
+}
+
+async function sendViaInfobipText(to: string, body: string): Promise<{ sent: boolean; reason?: string }> {
+    const cfg = infobipConfigured()
+    if (!cfg) return { sent: false, reason: 'not configured' }
+
+    try {
+        const response = await fetch(`https://${cfg.baseUrl}/whatsapp/1/message/text`, {
+            method: 'POST',
+            headers: {
+                Authorization: `App ${cfg.apiKey}`,
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify({
+                from: cfg.sender,
+                to,
+                content: { text: body },
+            }),
+        })
+        if (!response.ok) {
+            const errText = await response.text().catch(() => '')
+            console.error(`[gene/whatsapp] Infobip send failed (${response.status}): ${errText}`)
+            return { sent: false, reason: `Infobip API returned ${response.status}` }
+        }
+        return { sent: true }
+    } catch (error: any) {
+        console.error('[gene/whatsapp] Infobip send threw:', error)
+        return { sent: false, reason: error?.message ?? 'Unknown error sending via Infobip' }
+    }
+}
+
+async function sendViaMetaText(to: string, body: string): Promise<{ sent: boolean; reason?: string }> {
     const token = process.env.WHATSAPP_BUSINESS_TOKEN
     const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
-
-    if (!token || !phoneNumberId) {
-        console.log(
-            `[gene/whatsapp] WhatsApp not configured — would have sent to ${to}: ${body}`
-        )
-        return {
-            sent: false,
-            reason: 'WhatsApp credentials not configured — see docs/GENE_PLATFORM.md',
-        }
-    }
+    if (!token || !phoneNumberId) return { sent: false, reason: 'not configured' }
 
     try {
         const response = await fetch(`https://graph.facebook.com/v19.0/${phoneNumberId}/messages`, {
@@ -87,6 +132,23 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<{ s
 }
 
 /**
+ * Best-effort WhatsApp sender — tries Infobip, then Meta's Cloud API
+ * directly (see the provider-chain doc comment above). Never throws —
+ * callers should treat this as fire-and-forget with a status they can
+ * log/report on.
+ */
+export async function sendWhatsAppMessage(to: string, body: string): Promise<{ sent: boolean; reason?: string }> {
+    if (infobipConfigured()) return sendViaInfobipText(to, body)
+    if (process.env.WHATSAPP_BUSINESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID) return sendViaMetaText(to, body)
+
+    console.log(`[gene/whatsapp] WhatsApp not configured — would have sent to ${to}: ${body}`)
+    return {
+        sent: false,
+        reason: 'WhatsApp credentials not configured — see docs/GENE_PLATFORM.md',
+    }
+}
+
+/**
  * Sends a pre-approved WhatsApp message *template* rather than freeform
  * text. The WhatsApp Cloud API only allows a business to message a number
  * outside the 24-hour "customer service window" (i.e. the number hasn't
@@ -104,6 +166,42 @@ export async function sendWhatsAppTemplateMessage(
     languageCode: string = 'en_US',
     bodyParams: string[] = []
 ): Promise<{ sent: boolean; reason?: string }> {
+    const infobip = infobipConfigured()
+    if (infobip) {
+        try {
+            const response = await fetch(`https://${infobip.baseUrl}/whatsapp/1/message/template`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `App ${infobip.apiKey}`,
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+                body: JSON.stringify({
+                    messages: [
+                        {
+                            from: infobip.sender,
+                            to,
+                            content: {
+                                templateName,
+                                language: languageCode.split('_')[0] || 'en',
+                                ...(bodyParams.length ? { templateData: { body: { placeholders: bodyParams } } } : {}),
+                            },
+                        },
+                    ],
+                }),
+            })
+            if (!response.ok) {
+                const errText = await response.text().catch(() => '')
+                console.error(`[gene/whatsapp] Infobip template send failed (${response.status}): ${errText}`)
+                return { sent: false, reason: `Infobip API returned ${response.status} — is "${templateName}" an approved template on Infobip?` }
+            }
+            return { sent: true }
+        } catch (error: any) {
+            console.error('[gene/whatsapp] Infobip template send threw:', error)
+            return { sent: false, reason: error?.message ?? 'Unknown error sending template via Infobip' }
+        }
+    }
+
     const token = process.env.WHATSAPP_BUSINESS_TOKEN
     const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
 
