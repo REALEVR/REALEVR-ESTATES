@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { SOCIAL_LINKS, WHATSAPP_NUMBERS, whatsAppLink } from "@/lib/siteLinks";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -49,18 +50,30 @@ export default function Footer() {
         
         <div className="border-t border-gray-200 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
           <div className="flex items-center space-x-4 mb-4 md:mb-0">
-            <Link href="#" className="text-gray-500 hover:text-gray-800">
+            <a href={SOCIAL_LINKS.facebook} className="text-gray-500 hover:text-gray-800">
               <i className="fab fa-facebook-f"></i>
-            </Link>
-            <Link href="#" className="text-gray-500 hover:text-gray-800">
+            </a>
+            <a href={SOCIAL_LINKS.twitter} className="text-gray-500 hover:text-gray-800">
               <i className="fab fa-twitter"></i>
-            </Link>
-            <Link href="#" className="text-gray-500 hover:text-gray-800">
+            </a>
+            <a href={SOCIAL_LINKS.instagram} className="text-gray-500 hover:text-gray-800">
               <i className="fab fa-instagram"></i>
-            </Link>
-            <Link href="#" className="text-gray-500 hover:text-gray-800">
+            </a>
+            <a href={SOCIAL_LINKS.pinterest} className="text-gray-500 hover:text-gray-800">
               <i className="fab fa-pinterest-p"></i>
-            </Link>
+            </a>
+            {WHATSAPP_NUMBERS.map((agent) => (
+              <a
+                key={agent.number}
+                href={whatsAppLink(agent.number)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-500 hover:text-green-600"
+                title={`WhatsApp ${agent.label}`}
+              >
+                <i className="fab fa-whatsapp"></i>
+              </a>
+            ))}
           </div>
           
           <div className="text-gray-500 text-sm">

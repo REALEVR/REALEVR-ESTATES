@@ -122,6 +122,12 @@ export class DynamoDBStorage implements IStorage {
             return this.convertUserFromDynamoDB(updatedItem)
         })
     }
+    async deleteUser(userId: number): Promise<boolean> {
+        return executeWithRetry(async () => {
+            await DynamoDBUtils.deleteItem(TABLES.USERS, { id: toStringId(userId) })
+            return true
+        })
+    }
     async verifyUser(userId: number): Promise<User> {
         return executeWithRetry(async () => {
             const updatedItem = await DynamoDBUtils.updateItem(

@@ -59,3 +59,33 @@ SRBS's VR tour viewer, Firebase-based deposit reminders, and notifications
 were **not** ported, since RealEVR already has more mature equivalents
 (S3-backed virtual tours, DynamoDB cron reminders in `server/cron/`, and a
 full notification hub).
+
+## Authentication
+
+Sign-in is compulsory site-wide: with no active session, visitors get a
+full-screen conversational sign-up (`client/src/components/auth/ConversationalAuthGate.tsx`)
+instead of the app. An AI concierge (`server/routes/ai.ts`, `/api/ai/onboarding-chat`)
+collects name/email/phone/role through natural conversation; the password itself
+is entered through a dedicated UI step and never sent to the AI. Registration
+(`/api/ai/onboarding-register`) creates the account and logs the visitor in
+immediately — no separate email-verification click required. Returning users
+can switch to a plain username/password form from the same screen.
+
+Passwords are scrypt-hashed (`server/auth.ts`); there is no plaintext or
+legacy-format fallback in the comparison path.
+
+## Admin dashboard
+
+`/admin/users` (admin-only) is the single consolidated dashboard: users,
+properties, reviews, agent subscriptions, tour payments, and system analytics
+all in one page. It's backed by one endpoint, `GET /api/admin/overview`, which
+returns everything in a single JSON response — built specifically so an AI
+agent (or any external tool) can get the full picture in one call instead of
+stitching together several endpoints.
+
+## Contact
+
+WhatsApp (`+256771891323`, `+256702742333`) is linked site-wide via a floating
+button and the footer (`client/src/lib/siteLinks.ts`). Social media links in
+the footer are currently placeholders pending real page URLs — update
+`SOCIAL_LINKS` in the same file once available.

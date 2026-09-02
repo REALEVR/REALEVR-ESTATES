@@ -24,6 +24,7 @@ export interface IStorage {
     createUser(user: InsertUser): Promise<User>
     updateUser(userId: number, userUpdate: Partial<User>): Promise<User>
     updateUserRole(userId: number, role: string): Promise<User>
+    deleteUser(userId: number): Promise<boolean>
     verifyUser(userId: number): Promise<User>
     updateVerificationToken(userId: number, token: string, expiry: string): Promise<User>
     deleteAllTourPayments(): Promise<{ deletedCount: number }>

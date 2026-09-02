@@ -30,6 +30,12 @@ export async function getReviewsForProperty(propertyId: number): Promise<Review[
     return reviews.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 }
 
+export async function getAllReviews(): Promise<Review[]> {
+    const items = await DynamoDBUtils.scanTable(TABLE)
+    const reviews = items as unknown as Review[]
+    return reviews.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+}
+
 export async function getReview(reviewId: string): Promise<Review | undefined> {
     const item = await DynamoDBUtils.getItem(TABLE, { id: reviewId })
     return item as Review | undefined

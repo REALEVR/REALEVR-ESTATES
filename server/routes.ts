@@ -25,6 +25,7 @@ import {
 import notificationRoutes from './routes/notifications'
 import reviewRoutes from './routes/reviews'
 import aiRoutes from './routes/ai'
+import { getAllReviews } from './models/Review'
 import { runDepositReminders, runViewingReminders } from './cron/index'
 
 // Middleware to check if user is an admin or property manager
@@ -1659,6 +1660,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
             })
         } catch (error: any) {
             console.error('Error fetching agent analytics:', error)
+            res.status(500).json({ message: error.message })
+        }
+    })
+
+    // Single consolidated admin dashboard payload: everything an admin (or an AI agent
+    // acting on their behalf) needs in one call instead of stitching together several
+    // endpoints - analytics, users, properties, payments, subscriptions, and reviews.
+    app.get('/api/admin/overview', async (req, res) => {
+        try {
+            if (!req.isAuthenticated() || !req.user || req.user.role !== 'admin') {
+                return res.status(403).json({ message: 'Unauthorized. Admin role required.' })
+            }
+
+            const [analytics, users, properties, tourPayments, agentSubscriptions, reviews] = await Promise.all([
+                storage.getAdminAnalytics(),
+                storage.getAllUsers(),
+                storage.getAllProperties(),
+                storage.getAllTourPayments(),
+                storage.getAgentSubscriptions(),
+                getAllReviews(),
+            ])
+
+            const safeUsers = users.map(({ password, emailVerificationToken, ...safe }) => safe)
+
+            res.json({
+                generatedAt: new Date().toISOString(),
+                analytics,
+                users: safeUsers,
+                properties,
+                tourPayments,
+                agentSubscriptions,
+                reviews,
+            })
+        } catch (error: any) {
+            console.error('Error building admin overview:', error)
             res.status(500).json({ message: error.message })
         }
     })

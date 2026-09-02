@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { Redirect } from 'wouter'
-import { User } from '@shared/schema'
+import { User, Property } from '@shared/schema'
+import type { Review } from '../../../shared/schemas/review'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
+    Star,
+    Home,
     Users,
     UserPlus,
     UserMinus,
@@ -73,6 +77,8 @@ export default function AdminUserManager() {
     const [selectedAgent, setSelectedAgent] = useState<AgentSubscription | null>(null)
     const [agentProperties, setAgentProperties] = useState<AgentProperty[]>([])
     const [showAgentDetails, setShowAgentDetails] = useState(false)
+    const [properties, setProperties] = useState<Property[]>([])
+    const [reviews, setReviews] = useState<Review[]>([])
 
     // Redirect if not admin
     if (!user || user.role !== 'admin') {
@@ -84,34 +90,20 @@ export default function AdminUserManager() {
             try {
                 setLoading(true)
 
-                // Fetch users
-                const usersResponse = await fetch('/api/users', {
+                // One consolidated call instead of stitching several endpoints together -
+                // see /api/admin/overview, which is also what an AI agent should hit for
+                // the full picture in a single request.
+                const overviewResponse = await fetch('/api/admin/overview', {
                     credentials: 'include',
                 })
 
-                if (usersResponse.ok) {
-                    const usersData = await usersResponse.json()
-                    setUsers(usersData)
-                }
-
-                // Fetch admin analytics
-                const analyticsResponse = await fetch('/api/analytics/admin-overview', {
-                    credentials: 'include',
-                })
-
-                if (analyticsResponse.ok) {
-                    const analyticsData = await analyticsResponse.json()
-                    setAnalytics(analyticsData)
-                }
-
-                // Fetch agent subscriptions
-                const subscriptionsResponse = await fetch('/api/admin/agent-subscriptions', {
-                    credentials: 'include',
-                })
-
-                if (subscriptionsResponse.ok) {
-                    const subscriptionsData = await subscriptionsResponse.json()
-                    setAgentSubscriptions(subscriptionsData)
+                if (overviewResponse.ok) {
+                    const overview = await overviewResponse.json()
+                    setUsers(overview.users)
+                    setAnalytics(overview.analytics)
+                    setAgentSubscriptions(overview.agentSubscriptions)
+                    setProperties(overview.properties)
+                    setReviews(overview.reviews)
                 }
             } catch (error) {
                 console.error('Error fetching data:', error)
@@ -263,12 +255,16 @@ export default function AdminUserManager() {
         <div className="container mx-auto px-6 py-8">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
-                <p className="text-muted-foreground">Manage users and view system analytics</p>
+                <p className="text-muted-foreground">
+                    Users, properties, reviews, subscriptions, payments, and analytics — all in one place.
+                </p>
             </div>
 
             <Tabs defaultValue="users" className="space-y-6">
                 <TabsList>
                     <TabsTrigger value="users">User Management</TabsTrigger>
+                    <TabsTrigger value="properties">Properties</TabsTrigger>
+                    <TabsTrigger value="reviews">Reviews</TabsTrigger>
                     <TabsTrigger value="subscriptions">Agent Subscriptions</TabsTrigger>
                     <TabsTrigger value="tour-payments">Tour Payments</TabsTrigger>
                     <TabsTrigger value="analytics">System Analytics</TabsTrigger>
@@ -588,6 +584,87 @@ export default function AdminUserManager() {
                             </Card>
                         </>
                     )}
+                </TabsContent>
+
+                <TabsContent value="properties" className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Home className="h-5 w-5" /> Properties ({properties.length})
+                            </CardTitle>
+                            <CardDescription>Every listing on the platform, in one place</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Title</TableHead>
+                                        <TableHead>Location</TableHead>
+                                        <TableHead>Category</TableHead>
+                                        <TableHead>Price</TableHead>
+                                        <TableHead>Views</TableHead>
+                                        <TableHead>Rating</TableHead>
+                                        <TableHead>Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {properties.map((p) => (
+                                        <TableRow key={p.id}>
+                                            <TableCell className="font-medium">{p.title}</TableCell>
+                                            <TableCell>{p.location}</TableCell>
+                                            <TableCell className="capitalize">{p.category}</TableCell>
+                                            <TableCell>
+                                                {p.currency} {p.price.toLocaleString()}
+                                            </TableCell>
+                                            <TableCell>{p.viewCount ?? 0}</TableCell>
+                                            <TableCell>
+                                                {p.rating} ({p.reviewCount})
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant={p.isAvailable ? 'default' : 'secondary'}>
+                                                    {p.isAvailable ? 'Available' : 'Unavailable'}
+                                                </Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="reviews" className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Star className="h-5 w-5" /> Reviews ({reviews.length})
+                            </CardTitle>
+                            <CardDescription>Every review left across all properties</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {reviews.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No reviews yet.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {reviews.map((r) => (
+                                        <div key={r.id} className="rounded-lg border p-4">
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-medium">{r.userName}</span>
+                                                <span className="flex items-center gap-1 text-sm text-amber-500">
+                                                    <Star className="h-4 w-4 fill-amber-400" /> {r.rating}/5
+                                                </span>
+                                            </div>
+                                            <p className="mt-1 text-sm text-muted-foreground">{r.comment}</p>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                Property #{r.propertyId} ·{' '}
+                                                {new Date(r.createdAt).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
                 </TabsContent>
             </Tabs>
 
