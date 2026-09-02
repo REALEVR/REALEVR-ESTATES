@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Bot, Send, LogIn } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import SplitAuthPanel from "./SplitAuthPanel";
 
 interface ChatMessage {
     role: "bot" | "user";
@@ -28,8 +28,6 @@ const WELCOME: ChatMessage = {
 // registration form with a short guided conversation (via Gemini, server-side) that
 // builds the visitor's profile, then a dedicated password step, then auto-signs them in.
 export default function ConversationalAuthGate() {
-    const { loginMutation } = useAuth();
-
     const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
     const [input, setInput] = useState("");
     const [profile, setProfile] = useState<OnboardingProfile>({});
@@ -41,8 +39,6 @@ export default function ConversationalAuthGate() {
     const [registerError, setRegisterError] = useState<string | null>(null);
 
     const [showLoginInstead, setShowLoginInstead] = useState(false);
-    const [loginUsername, setLoginUsername] = useState("");
-    const [loginPassword, setLoginPassword] = useState("");
 
     const endRef = useRef<HTMLDivElement>(null);
     useEffect(() => {
@@ -114,10 +110,13 @@ export default function ConversationalAuthGate() {
         }
     };
 
-    const handleLogin = (e: React.FormEvent) => {
-        e.preventDefault();
-        loginMutation.mutate({ username: loginUsername, password: loginPassword });
-    };
+    if (showLoginInstead) {
+        return (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gradient-to-br from-emerald-900 via-stone-900 to-emerald-950 p-4">
+                <SplitAuthPanel onBackToChat={() => setShowLoginInstead(false)} />
+            </div>
+        );
+    }
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gradient-to-br from-emerald-900 via-stone-900 to-emerald-950 p-4">
@@ -129,8 +128,6 @@ export default function ConversationalAuthGate() {
                     </div>
                 </div>
 
-                {!showLoginInstead ? (
-                    <>
                         <div className="flex h-[420px] flex-col gap-3 overflow-y-auto px-6 py-4">
                             {messages.map((m, i) => (
                                 <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -192,36 +189,14 @@ export default function ConversationalAuthGate() {
                                 </Button>
                             </div>
                         )}
-                    </>
-                ) : (
-                    <form onSubmit={handleLogin} className="space-y-4 p-6">
-                        <p className="text-sm text-gray-600">Sign in with your existing username and password.</p>
-                        <Input
-                            placeholder="Username"
-                            value={loginUsername}
-                            onChange={(e) => setLoginUsername(e.target.value)}
-                            required
-                        />
-                        <Input
-                            type="password"
-                            placeholder="Password"
-                            value={loginPassword}
-                            onChange={(e) => setLoginPassword(e.target.value)}
-                            required
-                        />
-                        <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
-                            {loginMutation.isPending ? "Signing in..." : "Sign in"}
-                        </Button>
-                    </form>
-                )}
 
                 <div className="border-t border-gray-100 px-6 py-3 text-center">
                     <button
-                        onClick={() => setShowLoginInstead((v) => !v)}
+                        onClick={() => setShowLoginInstead(true)}
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-[#FF5A5F]"
                     >
                         <LogIn size={13} />
-                        {showLoginInstead ? "New here? Start the guided sign-up instead" : "Already have an account? Sign in"}
+                        Already have an account? Sign in
                     </button>
                 </div>
             </div>
