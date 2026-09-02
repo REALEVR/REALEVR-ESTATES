@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import VirtualTour from "@/components/property/VirtualTour";
 import BookingCalendarModal from "../property/BookingCalendarModal";
@@ -62,28 +62,46 @@ function PropertyDescription({ description }: PropertyDescriptionProps) {
 }
 
 export default function FeaturedTour() {
-  // Get all properties and select the one with the most views (most popular)
+  // Get all properties and rank by popularity (most viewed, review count as tiebreaker)
   const { data: properties, isLoading, error } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
   });
 
-  // Find the property with the highest view count (most viewed) or highest review count as fallback
-  const featuredProperty = properties?.sort((a, b) => {
-    // First try to sort by view count
-    const aViews = a.viewCount || 0;
-    const bViews = b.viewCount || 0;
-    if (aViews !== bViews) {
-      return bViews - aViews;
-    }
-    // If view counts are equal, sort by review count
-    return (b.reviewCount || 0) - (a.reviewCount || 0);
-  })[0];
+  const sortedByPopularity = useMemo(() => {
+    return [...(properties ?? [])].sort((a, b) => {
+      const aViews = a.viewCount || 0;
+      const bViews = b.viewCount || 0;
+      if (aViews !== bViews) return bViews - aViews;
+      return (b.reviewCount || 0) - (a.reviewCount || 0);
+    });
+  }, [properties]);
 
+  // Rotate through the top tour-ready listings instead of freezing on whichever
+  // one happened to have the most views when this component first loaded - a
+  // "Featured Virtual Tour" that never changes reads as stale to a repeat
+  // visitor. Falls back to the single most-popular listing (the old behavior)
+  // when fewer than 2 properties actually have a real tour to rotate through.
+  const rotationPool = useMemo(() => {
+    const withTours = sortedByPopularity.filter((p) => p.hasTour && p.tourUrl).slice(0, 5);
+    return withTours.length > 0 ? withTours : sortedByPopularity.slice(0, 1);
+  }, [sortedByPopularity]);
 
-
-
-  const { toast } = useToast();
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    if (rotationPool.length < 2 || paused || isFullscreen) return;
+    const timer = setInterval(() => setIndex((i) => (i + 1) % rotationPool.length), 12000);
+    return () => clearInterval(timer);
+  }, [rotationPool.length, paused, isFullscreen]);
+
+  useEffect(() => {
+    if (index >= rotationPool.length) setIndex(0);
+  }, [rotationPool.length, index]);
+
+  const featuredProperty = rotationPool[Math.min(index, rotationPool.length - 1)];
+  const { toast } = useToast();
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
@@ -135,8 +153,26 @@ export default function FeaturedTour() {
   return (
     <section id="featured" className="py-10 bg-secondary -mx-4 sm:-mx-6 lg:-mx-8">
       <div className="container mx-auto px-4">
-        <h2 className="text-2xl md:text-3xl font-display font-medium mb-6">Featured Virtual Tour</h2>
-        <div className="bg-card rounded-xl overflow-hidden shadow-lg">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-2xl md:text-3xl font-display font-medium">Featured Virtual Tour</h2>
+          {rotationPool.length > 1 && (
+            <div className="flex gap-1.5">
+              {rotationPool.map((p, i) => (
+                <button
+                  key={p.id}
+                  onClick={() => setIndex(i)}
+                  aria-label={`Show featured tour ${i + 1}`}
+                  className={`h-1.5 rounded-full transition-all ${i === index ? "w-6 bg-accent" : "w-1.5 bg-border"}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+        <div
+          className="bg-card rounded-xl overflow-hidden shadow-lg"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+        >
           <div className="lg:flex">
             <div className="lg:w-1/2">
               <div className="h-[400px] lg:h-[600px] tour-container bg-muted relative">
