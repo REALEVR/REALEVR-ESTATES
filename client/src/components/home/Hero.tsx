@@ -8,6 +8,7 @@ import FilterBar from './FilterBar';
 import MotionBackground from '@/components/motion/MotionBackground';
 import CountUp from '@/components/motion/CountUp';
 import VRBadge from '@/components/property/VRBadge';
+import ExploreFiltersDialog from './ExploreFiltersDialog';
 
 // Custom hook for mobile detection
 const useIsMobile = () => {
@@ -47,6 +48,13 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
     bedrooms: '',
     bathrooms: ''
   });
+  // Mobile redesign (GENE v1.11.2): the desktop 5-field search bar was
+  // simply hidden on mobile with nothing in its place — a real gap, not a
+  // sizing issue. Airbnb's mobile pattern is a single tappable "Where to?"
+  // pill that opens a full search sheet; reusing the already-shipped
+  // ExploreFiltersDialog (property type/area/price/features tabs) gets
+  // that behavior for free instead of building a second filter UI.
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   // Convert YouTube URL to embed URL
   const getVideoUrl = (url: string) => {
@@ -327,7 +335,26 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           )}
         </button>
         
-        {/* Search bar - hidden on mobile */}
+        {/* Mobile: a single tappable Airbnb-style "Where to?" pill in place
+            of the 5-field bar (which doesn't fit and was previously just
+            hidden with nothing shown instead). Opens the same
+            ExploreFiltersDialog the "Filters" button in FilterBar already
+            uses — one filter UI, not a second one to maintain. */}
+        {isMobile && (
+          <button
+            type="button"
+            onClick={() => setIsMobileSearchOpen(true)}
+            className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] bg-card rounded-full shadow-lg border border-border flex items-center gap-3 px-5 py-3.5 text-left active:scale-[0.98] transition-transform"
+          >
+            <i className="fas fa-search text-foreground"></i>
+            <span className="flex flex-col leading-tight">
+              <span className="text-sm font-semibold text-foreground">Where are you looking?</span>
+              <span className="text-xs text-muted-foreground">Any type · Any price</span>
+            </span>
+          </button>
+        )}
+
+        {/* Search bar - desktop only (5 inline fields need the width) */}
         {!isMobile && (
           <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-[95%] bg-card rounded-full shadow-lg flex flex-wrap md:flex-nowrap items-center px-4 py-2 gap-2 md:gap-4">
           <select
@@ -394,10 +421,15 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
         </div>
         )}
       </div>
-      <div className="h-12" /> {/* Spacer for search bar overlap */}
+      <div className={isMobile ? "h-8" : "h-12"} /> {/* Spacer for search bar overlap — smaller on mobile since the pill sits closer to the image */}
+
+      <ExploreFiltersDialog
+        isOpen={isMobileSearchOpen}
+        onClose={() => setIsMobileSearchOpen(false)}
+      />
     </section>
     </section>
-   
+
   );
 };
 

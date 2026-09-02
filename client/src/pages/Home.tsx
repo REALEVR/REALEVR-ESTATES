@@ -182,12 +182,16 @@ export default function Home() {
                     ) : (
                         <>
                             <Tabs defaultValue="all" className="w-full" onValueChange={setActiveTab}>
-                                <TabsList className="grid grid-cols-5 w-full mb-8">
-                                    <TabsTrigger value="all">All Properties</TabsTrigger>
-                                    <TabsTrigger value="rental_units">Rental Units</TabsTrigger>
-                                    <TabsTrigger value="furnished_houses">Furnished Houses</TabsTrigger>
-                                    <TabsTrigger value="for_sale">For Sale</TabsTrigger>
-                                    <TabsTrigger value="bank_sales">Bank Sales</TabsTrigger>
+                                {/* Mobile: a horizontally-scrollable pill row (Airbnb's category-filter
+                                    pattern, same hide-scrollbar utility FilterBar already uses) instead
+                                    of 5 equal-width grid columns squeezing "Furnished Houses" into ~70px.
+                                    md+: reverts to the original centered grid. */}
+                                <TabsList className="flex md:grid md:grid-cols-5 w-full mb-8 overflow-x-auto hide-scrollbar justify-start md:justify-center gap-1 md:gap-0">
+                                    <TabsTrigger value="all" className="flex-shrink-0">All Properties</TabsTrigger>
+                                    <TabsTrigger value="rental_units" className="flex-shrink-0">Rental Units</TabsTrigger>
+                                    <TabsTrigger value="furnished_houses" className="flex-shrink-0">Furnished Houses</TabsTrigger>
+                                    <TabsTrigger value="for_sale" className="flex-shrink-0">For Sale</TabsTrigger>
+                                    <TabsTrigger value="bank_sales" className="flex-shrink-0">Bank Sales</TabsTrigger>
                                 </TabsList>
 
                                 {Object.entries(propertyCategories).map(([category, categoryProperties]) => (
