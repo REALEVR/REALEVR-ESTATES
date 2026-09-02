@@ -9,7 +9,9 @@ import { MessageCircle, Loader2, CheckCircle2 } from "lucide-react";
 /**
  * Lets a user link their WhatsApp number so they can chat with their agent
  * over WhatsApp (and, for landlords, toggle listing availability by texting
- * "available <id>" / "unavailable <id>") — see
+ * "available <id>" / "unavailable <id>", or an agent submit a whole new
+ * listing by texting "list property" — see
+ * server/gene/whatsapp-listing-upload.ts) — see
  * server/gene/whatsapp-concierge.ts. Not OTP-verified in this v1; the copy
  * below says so plainly rather than implying a stronger guarantee.
  */
@@ -40,10 +42,16 @@ export default function WhatsappLinkCard() {
         <MessageCircle className="h-4 w-4 text-primary" /> Chat via WhatsApp
       </p>
       {linked ? (
-        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <CheckCircle2 className="h-4 w-4 text-primary" /> Linked to {statusQuery.data?.phone} — message our
-          WhatsApp number any time.
-        </p>
+        <div className="space-y-1">
+          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <CheckCircle2 className="h-4 w-4 text-primary" /> Linked to {statusQuery.data?.phone} — message our
+            WhatsApp number any time.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Tip: text "list property" to that number to add a whole new listing — photos and all — straight from
+            WhatsApp.
+          </p>
+        </div>
       ) : (
         <>
           <p className="text-xs text-muted-foreground">

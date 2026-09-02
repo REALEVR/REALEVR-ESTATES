@@ -54,6 +54,7 @@ import {
     appendAgentMessage,
 } from './personal-agent'
 import { getAiReply } from './ai-provider'
+import { tryHandleListingUploadText, tryHandleListingUploadImage } from './whatsapp-listing-upload'
 
 const LINK_COLLECTION = 'gene_whatsapp_user_links'
 const MESSAGE_COLLECTION = 'gene_whatsapp_messages'
@@ -410,6 +411,13 @@ async function handleInboundText(phone: string, text: string): Promise<void> {
         await replyAndLog(phone, GREETING_TEXT(link?.userName ?? ''), link?.userId)
     }
 
+    // Checked first, ahead of every other command: an in-progress "list a
+    // property" draft must win even if an answer happens to look like
+    // another command (e.g. a description that contains the word
+    // "dashboard"). See whatsapp-listing-upload.ts.
+    const handledAsListingUpload = await tryHandleListingUploadText(phone, text, link)
+    if (handledAsListingUpload) return
+
     const handledAsOptCommand = await tryHandleMarketingOptCommand(phone, text, link)
     if (handledAsOptCommand) return
 
@@ -452,8 +460,19 @@ export function registerWhatsappConciergeRoutes(app: Express): void {
 
             for (const msg of messages) {
                 const phone = normalizePhone(msg?.from ?? '')
+                if (!phone) continue
+
+                // Photos only matter mid-listing-upload (see
+                // whatsapp-listing-upload.ts) - anything else with an image
+                // and no active draft is silently ignored today, same as
+                // before this feature existed.
+                if (msg?.type === 'image' && typeof msg?.image?.id === 'string') {
+                    await tryHandleListingUploadImage(phone, msg.image.id)
+                    continue
+                }
+
                 const text = msg?.text?.body
-                if (!phone || typeof text !== 'string' || !text.trim()) continue
+                if (typeof text !== 'string' || !text.trim()) continue
                 await handleInboundText(phone, text.trim())
             }
         } catch (err) {
