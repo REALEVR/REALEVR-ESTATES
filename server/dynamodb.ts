@@ -124,6 +124,7 @@ export const TABLES = {
     TOUR_PAYMENTS: process.env.DYNAMODB_TOUR_PAYMENTS_TABLE || 'realevr-tour-payments',
     SETTINGS: process.env.DYNAMODB_SETTINGS_TABLE || 'realevr-settings',
     NOTIFICATIONS: process.env.DYNAMODB_NOTIFICATIONS_TABLE || 'realevr-notifications',
+    REVIEWS: process.env.DYNAMODB_REVIEWS_TABLE || 'realevr-reviews',
 } as const
 
 // ─── Retry Logic ──────────────────────────────────────────────────────────────
@@ -438,6 +439,12 @@ export async function createTablesIfNotExist(): Promise<void> {
         },
         {
             TableName: TABLES.NOTIFICATIONS,
+            KeySchema: [{ AttributeName: 'id', KeyType: 'HASH' }],
+            AttributeDefinitions: [{ AttributeName: 'id', AttributeType: 'S' }],
+            BillingMode: 'PAY_PER_REQUEST',
+        },
+        {
+            TableName: TABLES.REVIEWS,
             KeySchema: [{ AttributeName: 'id', KeyType: 'HASH' }],
             AttributeDefinitions: [{ AttributeName: 'id', AttributeType: 'S' }],
             BillingMode: 'PAY_PER_REQUEST',

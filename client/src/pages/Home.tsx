@@ -33,7 +33,9 @@ const categoryLabels = {
 
 export default function Home() {
     const [activeTab, setActiveTab] = useState('all')
-    const [heroVideoUrl, setHeroVideoUrl] = useState('https://youtu.be/cgM6poO2JmY?t=9')
+    // Defaults to the house background image; an admin-configured video (set via
+    // /admin/properties) overrides it once /api/video-settings resolves.
+    const [heroVideoUrl, setHeroVideoUrl] = useState('')
 
     const { data: properties, isLoading, error } = useProperties()
 

@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { motion } from 'framer-motion';
 import "../Hero.css"
 
-import houseImg from '../../assets/images/hero.jpg';
+import houseImg from '../../assets/images/hero-house.jpg';
 import FilterBar from './FilterBar';
 import MotionBackground from '@/components/motion/MotionBackground';
 import CountUp from '@/components/motion/CountUp';

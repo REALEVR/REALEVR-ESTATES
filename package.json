@@ -22,6 +22,7 @@
     "@aws-sdk/s3-request-presigner": "^3.864.0",
     "@aws-sdk/util-dynamodb": "^3.821.0",
     "@fortawesome/fontawesome-free": "^6.4.0",
+    "@google/genai": "^1.0.0",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@neondatabase/serverless": "^0.10.4",

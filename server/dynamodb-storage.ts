@@ -122,6 +122,12 @@ export class DynamoDBStorage implements IStorage {
             return this.convertUserFromDynamoDB(updatedItem)
         })
     }
+    async deleteUser(userId: number): Promise<boolean> {
+        return executeWithRetry(async () => {
+            await DynamoDBUtils.deleteItem(TABLES.USERS, { id: toStringId(userId) })
+            return true
+        })
+    }
     async verifyUser(userId: number): Promise<User> {
         return executeWithRetry(async () => {
             const updatedItem = await DynamoDBUtils.updateItem(
@@ -974,16 +980,17 @@ export class DynamoDBStorage implements IStorage {
                 const item = await DynamoDBUtils.getItem(TABLES.SETTINGS, { id: 'video-settings' })
                 if (item) {
                     return {
-                        heroVideoUrl: item.heroVideoUrl || 'https://youtu.be/cgM6poO2JmY?t=9',
+                        heroVideoUrl: item.heroVideoUrl || '',
                         lastUpdated: item.lastUpdated,
                     }
                 }
             } catch (error) {
                 console.log('Video settings not found, returning default')
             }
-            // Return default if not found
+            // No video configured by default - the hero falls back to the house
+            // background image until an admin sets one via /admin/properties.
             return {
-                heroVideoUrl: 'https://youtu.be/cgM6poO2JmY?t=9',
+                heroVideoUrl: '',
             }
         })
     }

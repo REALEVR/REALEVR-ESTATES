@@ -29,22 +29,20 @@ export async function hashPassword(password: string) {
 
 async function comparePasswords(supplied: string, stored: string) {
   try {
-    // Check if the stored password has the expected format (with salt)
+    // Every account must have a properly salted+hashed password. Reject anything else
+    // outright rather than falling back to a plaintext comparison.
     if (!stored.includes('.')) {
-      // For testing purposes: if password is stored as plain text "admin123"
-      return supplied === stored;
+      console.error("Password comparison error: stored password is not in the expected hash.salt format");
+      return false;
     }
 
     const [hashed, salt] = stored.split(".");
     const hashedBuf = Buffer.from(hashed, "hex");
     const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+    if (hashedBuf.length !== suppliedBuf.length) return false;
     return timingSafeEqual(hashedBuf, suppliedBuf);
   } catch (error) {
     console.error("Password comparison error:", error);
-    // Fallback for testing - if we're dealing with test accounts
-    if (supplied === "admin123" && stored === "admin123") {
-      return true;
-    }
     return false;
   }
 }

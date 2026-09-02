@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { SOCIAL_LINKS, WHATSAPP_NUMBERS, whatsAppLink } from "@/lib/siteLinks";
 import logoPath from '../../assets/logo.png';
 
 export default function Footer() {
@@ -56,18 +57,30 @@ export default function Footer() {
 
         <div className="border-t border-border pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center space-x-4">
-            <Link href="#" className="w-9 h-9 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
+            <a href={SOCIAL_LINKS.facebook} className="w-9 h-9 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
               <i className="fab fa-facebook-f text-sm"></i>
-            </Link>
-            <Link href="#" className="w-9 h-9 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
+            </a>
+            <a href={SOCIAL_LINKS.twitter} className="w-9 h-9 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
               <i className="fab fa-twitter text-sm"></i>
-            </Link>
-            <Link href="#" className="w-9 h-9 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
+            </a>
+            <a href={SOCIAL_LINKS.instagram} className="w-9 h-9 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
               <i className="fab fa-instagram text-sm"></i>
-            </Link>
-            <Link href="#" className="w-9 h-9 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
+            </a>
+            <a href={SOCIAL_LINKS.pinterest} className="w-9 h-9 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
               <i className="fab fa-pinterest-p text-sm"></i>
-            </Link>
+            </a>
+            {WHATSAPP_NUMBERS.map((agent) => (
+              <a
+                key={agent.number}
+                href={whatsAppLink(agent.number)}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`WhatsApp ${agent.label}`}
+                className="w-9 h-9 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-[#25D366] hover:text-white transition-colors"
+              >
+                <i className="fab fa-whatsapp text-sm"></i>
+              </a>
+            ))}
           </div>
 
           <div className="text-muted-foreground text-sm text-center">

@@ -33,7 +33,8 @@ import HelpCenterPage from '@/pages/HelpCenterPage'
 import ContactUsPage from '@/pages/ContactUsPage'
 import TrustSafetyPage from '@/pages/TrustSafetyPage'
 import VerifyEmailPage from '@/pages/VerifyEmailPage'
-import { AuthProvider } from '@/hooks/use-auth'
+import { AuthProvider, useAuth } from '@/hooks/use-auth'
+import ConversationalAuthGate from '@/components/auth/ConversationalAuthGate'
 import { PaymentProvider } from '@/contexts/PaymentContext'
 import VirtualTourManager from '@/components/admin/VirtualTourManager'
 import { ProtectedAdminRoute } from './lib/protected-admin-route'
@@ -43,6 +44,7 @@ import IoTecGateway, { IoTecGatewayLight } from './components/payment/io-tech/la
 import { useEffect, useState } from 'react'
 import { paymentEmitter } from './lib/iotec-paymentpatch'
 import IotechMetricCounterPaymentHandle from './components/payment/sio-iotech'
+import AIAssistant from '@/components/AIAssistant'
 import AgentLauncher from './components/agent/AgentLauncher'
 import ListYourPropertyPage from '@/pages/ListYourPropertyPage'
 import AdminPayoutApprovals from '@/pages/AdminPayoutApprovals'
@@ -139,7 +141,11 @@ function Router() {
     )
 }
 
-function App() {
+// Everything that needs to know whether someone is signed in lives here, nested under
+// AuthProvider so useAuth() is available. Sign-in is compulsory: with no user, the
+// conversational sign-in gate takes over the whole screen instead of the site.
+function AppShell() {
+    const { user, isLoading } = useAuth()
     const [gateway, setGateway] = useState<{ accessToken: string; amount: string; source: string } | null>(null)
 
     useEffect(() => {
@@ -157,6 +163,48 @@ function App() {
         }
     }, [])
 
+    if (isLoading) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-stone-900">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/20 border-t-white" />
+            </div>
+        )
+    }
+
+    if (!user) {
+        return <ConversationalAuthGate />
+    }
+
+    return (
+        <>
+            <div className="flex flex-col min-h-screen">
+                <Header />
+                <main className="flex-grow px-4 sm:px-6 lg:px-8">
+                    <AnimatedLayout>
+                        <Router />
+                    </AnimatedLayout>
+                </main>
+                {/* <IotechMetricCounterPaymentHandle/> */}
+                {gateway && (
+                    <IoTecGatewayLight
+                        source={gateway.source}
+                        accessToken={gateway.accessToken}
+                        amount={gateway.amount}
+                        onClose={() => setGateway(null)}
+                    />
+                )}
+                <Footer />
+            </div>
+            <AgentLauncher />
+            <WhatsAppFab />
+            <BrokerOnlinePresence />
+            <ScrollToTop />
+            <AIAssistant />
+        </>
+    )
+}
+
+function App() {
     return (
         <QueryClientProvider client={queryClient}>
             {/* reducedMotion="user": every framer-motion animation in the app
@@ -168,28 +216,7 @@ function App() {
                 <AuthProvider>
                     <PaymentProvider>
                         <TooltipProvider>
-                            <div className="flex flex-col min-h-screen">
-                                <Header />
-                                <main className="flex-grow px-4 sm:px-6 lg:px-8">
-                                    <AnimatedLayout>
-                                        <Router />
-                                    </AnimatedLayout>
-                                </main>
-                                {/* <IotechMetricCounterPaymentHandle/> */}
-                                {gateway && (
-                                    <IoTecGatewayLight
-                                        source={gateway.source}
-                                        accessToken={gateway.accessToken}
-                                        amount={gateway.amount}
-                                        onClose={() => setGateway(null)}
-                                    />
-                                )}
-                                <Footer />
-                            </div>
-                            <AgentLauncher />
-                            <WhatsAppFab />
-                            <BrokerOnlinePresence />
-                            <ScrollToTop />
+                            <AppShell />
                             <Toaster />
                         </TooltipProvider>
                     </PaymentProvider>

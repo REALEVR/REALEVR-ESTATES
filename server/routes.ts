@@ -25,7 +25,10 @@ import {
 } from './sitemap'
 import { registerSocialPreviewRoutes } from './social-preview'
 import notificationRoutes from './routes/notifications'
-import { runDepositReminders, runViewingReminders } from './cron/index'
+import reviewRoutes from './routes/reviews'
+import aiRoutes from './routes/ai'
+import { getAllReviews } from './models/Review'
+import { runDepositReminders, runViewingReminders, postDailyUpdate } from './cron/index'
 
 // GENE Platform — additive scaffolding (see docs/GENE_PLATFORM.md)
 import { registerGeneChatRoutes } from './gene/chat'
@@ -1733,6 +1736,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
     })
 
+    // Single consolidated admin dashboard payload: everything an admin (or an AI agent
+    // acting on their behalf) needs in one call instead of stitching together several
+    // endpoints - analytics, users, properties, payments, subscriptions, and reviews.
+    app.get('/api/admin/overview', async (req, res) => {
+        try {
+            if (!req.isAuthenticated() || !req.user || req.user.role !== 'admin') {
+                return res.status(403).json({ message: 'Unauthorized. Admin role required.' })
+            }
+
+            const [analytics, users, properties, tourPayments, agentSubscriptions, reviews] = await Promise.all([
+                storage.getAdminAnalytics(),
+                storage.getAllUsers(),
+                storage.getAllProperties(),
+                storage.getAllTourPayments(),
+                storage.getAgentSubscriptions(),
+                getAllReviews(),
+            ])
+
+            const safeUsers = users.map(({ password, emailVerificationToken, ...safe }) => safe)
+
+            res.json({
+                generatedAt: new Date().toISOString(),
+                analytics,
+                users: safeUsers,
+                properties,
+                tourPayments,
+                agentSubscriptions,
+                reviews,
+            })
+        } catch (error: any) {
+            console.error('Error building admin overview:', error)
+            res.status(500).json({ message: error.message })
+        }
+    })
+
     // Get admin overview analytics
     app.get('/api/analytics/admin-overview', async (req, res) => {
         try {
@@ -2371,6 +2409,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Notification Hub routes
     app.use('/api/notifications', notificationRoutes)
 
+    // Property reviews & ratings
+    app.use('/api/reviews', reviewRoutes)
+
+    // AI assistant / description generation (Gemini)
+    app.use('/api/ai', aiRoutes)
+
     // GENE Platform — additive scaffolding, 4 teams / 16 modules (see docs/GENE_PLATFORM.md)
     registerGeneChatRoutes(app, adminMiddleware)
     registerGeneIngestionRoutes(app, adminMiddleware)
@@ -2439,6 +2483,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             res.json({ message: 'Reminders triggered successfully' })
         } catch (error: any) {
             console.error('[Admin] Error triggering reminders:', error)
+            res.status(500).json({ message: error.message })
+        }
+    })
+
+    // Admin-only: trigger today's social media post immediately instead of waiting
+    // for the daily cron. Returns per-platform status (posted/skipped/failed).
+    app.post('/api/admin/social/post-now', async (req: any, res: any) => {
+        try {
+            if (!req.isAuthenticated() || !req.user || req.user.role !== 'admin') {
+                return res.status(403).json({ message: 'Unauthorized. Admin role required.' })
+            }
+            console.log('[Admin] Manually triggering daily social post...')
+            const results = await postDailyUpdate()
+            res.json({ results })
+        } catch (error: any) {
+            console.error('[Admin] Error triggering social post:', error)
             res.status(500).json({ message: error.message })
         }
     })
