@@ -50,6 +50,7 @@ import { registerAgentWhatsappOnboardingRoutes } from './gene/agent-whatsapp-onb
 import { registerTourAccessPassRoutes, issuePass } from './gene/tour-access-pass'
 import { registerPersonalAgentRoutes } from './gene/personal-agent'
 import { registerAfricaMediaFeedRoutes } from './gene/africa-media-feed'
+import { registerAiWorkforceRoutes } from './gene/ai-workforce'
 import { registerReferralRewardsRoutes } from './gene/referral-rewards'
 import { registerWhatsappConciergeRoutes } from './gene/whatsapp-concierge'
 import { registerLandlordHubRoutes } from './gene/landlord-hub'
@@ -2421,6 +2422,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Africa real estate media pulse — see docs/GENE_PLATFORM.md v1.15.
     // Public (no auth): backs the homepage hero's live news panel.
     registerAfricaMediaFeedRoutes(app)
+
+    // AI Workforce — 10 scoped "employee agent" roles (content, newsroom
+    // analytics, inbound-only lead replies, human-confirmed sales assist,
+    // credential-gated social publishing, listing quality audits). See
+    // docs/GENE_PLATFORM.md v1.16 and server/gene/ai-workforce.ts's header
+    // for the outreach/sales-authority limits this module deliberately
+    // will not cross.
+    registerAiWorkforceRoutes(app, adminMiddleware)
 
     // Admin endpoint to manually trigger reminders for testing
     app.post('/api/admin/test-reminders', adminMiddleware, async (_req: any, res: any) => {

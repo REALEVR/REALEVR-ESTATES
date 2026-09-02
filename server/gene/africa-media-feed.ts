@@ -49,7 +49,11 @@ interface NewsCacheRow {
     items: AfricaNewsItem[]
 }
 
-async function fetchAfricaRealEstateNews(): Promise<{
+// Exported (not just used internally) so other GENE modules — the AI
+// workforce's Newsroom Analyst / Market Intelligence Scout agents in
+// ai-workforce.ts — can reuse the same real, cached news source instead of
+// hitting NewsAPI a second time for the same query.
+export async function fetchAfricaRealEstateNews(): Promise<{
     configured: boolean
     items: AfricaNewsItem[]
     fetchedAt: string | null
