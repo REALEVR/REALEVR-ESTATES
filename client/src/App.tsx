@@ -165,9 +165,12 @@ function AppShell() {
     }, [])
 
     if (isLoading) {
+        // Light background matching the Airbnb-style gate/site theme below it -
+        // a dark screen here used to flash before the light auth card or site
+        // appeared, which read as broken rather than "loading."
         return (
-            <div className="flex min-h-screen items-center justify-center bg-stone-900">
-                <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/20 border-t-white" />
+            <div className="flex min-h-screen items-center justify-center bg-gray-50">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-[#FF5A5F]" />
             </div>
         )
     }

@@ -6,9 +6,8 @@ import BookingCalendarModal from '../property/BookingCalendarModal'
 import PaymentModal from '../property/PaymentModal'
 import TourPaymentModal from '../property/TourPaymentModal'
 import { usePropertyViews } from '@/hooks/usePropertyViews'
-import { Button } from '@/components/ui/button'
 import { AnimatedCard, FadeIn } from '@/components/ui/animated-components'
-import { Phone } from 'lucide-react'
+import { Star } from 'lucide-react'
 import VRBadge from '../property/VRBadge'
 
 interface PropertyCardProps {
@@ -194,10 +193,14 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                             keeps every card the same title-block height
                             regardless of title length. */}
                         <h3 className="font-display font-medium text-foreground line-clamp-2 min-h-[2.75rem]">{property.title}</h3>
-                        <div className="flex items-center flex-shrink-0">
-                            <i className="fas fa-eye text-muted-foreground text-sm"></i>
-                            <span className="ml-1 text-sm font-medium text-muted-foreground">{property.viewCount || 0}</span>
-                        </div>
+                        {/* Airbnb-style rating, next to the title — only shown once the
+                            property actually has reviews, never a fabricated "new" rating. */}
+                        {property.reviewCount > 0 && (
+                            <div className="flex items-center gap-1 flex-shrink-0 pt-0.5">
+                                <Star className="h-3.5 w-3.5 fill-foreground text-foreground" />
+                                <span className="text-sm font-medium text-foreground">{property.rating}</span>
+                            </div>
+                        )}
                     </div>
                     <p className="text-muted-foreground text-sm mb-2">{property.location}</p>
                     <p className="text-muted-foreground text-sm mb-3">
@@ -261,28 +264,10 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                             )}
                         </div>
                     </div>
-                    <Button
-                        variant="outline"
-                        className="w-full text-sm h-8 border-accent text-accent hover:bg-accent hover:text-accent-foreground transition-colors"
-                        onClick={(e) => {
-                            // Only rental properties require payment for tour viewing
-                            // BnBs can view tours for free, but need to pay 20% to book
-                            const requiresPayment =
-                                property.category === 'rental_units' ||
-                                property.category === 'furnished_houses' ||
-                                property.propertyType === 'Furnished Rental'
-
-                            if (requiresPayment) {
-                                setIsTourPaymentModalOpen(true)
-                            } else {
-                                // For BnBs, for_sale, etc., navigate directly to property page
-                                window.location.href = `/property/${property.id}`
-                            }
-                        }}
-                    >
-                        <i className="fas fa-eye mr-2"></i>
-                        View Tour
-                    </Button>
+                    {/* No separate "View Tour" button — Airbnb-style cards carry no
+                        button at all; the whole card is already clickable via
+                        handleCardClick above, with the exact same payment-gating
+                        logic this button used to duplicate. */}
                 </div>
             </AnimatedCard>
 
