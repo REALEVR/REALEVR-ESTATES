@@ -15,9 +15,18 @@ interface PropertyDescriptionProps {
 
 function PropertyDescription({ description }: PropertyDescriptionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  
+
+  // Defensive guard (found during GENE v1.11.2's mobile-redesign
+  // verification): `description` is typed as required, but a listing
+  // missing/blank description would otherwise throw here on `.split`, and
+  // there's no error boundary above this component to contain it — one bad
+  // property record would blank out this entire homepage section for every
+  // visitor. Real API responses always provide a string; this only guards
+  // against the edge case where they don't.
+  const safeDescription = description ?? '';
+
   // Split description into sentences using a simpler approach
-  const sentences = description.split(/[.!?]+\s+/).filter(s => s.trim().length > 0);
+  const sentences = safeDescription.split(/[.!?]+\s+/).filter(s => s.trim().length > 0);
   
   // Show first 2 sentences by default
   const previewSentences = sentences.slice(0, 2);
@@ -32,7 +41,7 @@ function PropertyDescription({ description }: PropertyDescriptionProps) {
     }
     return sentence;
   }).join(' ');
-  const fullText = description;
+  const fullText = safeDescription;
   
   return (
     <div className="text-muted-foreground">
@@ -165,7 +174,7 @@ export default function FeaturedTour() {
                   <h3 className="text-2xl font-bold">{featuredProperty.title}</h3>
                   <p className="text-muted-foreground mb-2">{featuredProperty.location}</p>
                   <div className="flex items-center mb-4">
-                    <i className="fas fa-star text-[#FFB400]"></i>
+                    <i className="fas fa-star text-accent"></i>
                     <span className="ml-1 font-medium">{featuredProperty.rating}</span>
                     <span className="mx-1">·</span>
                     <span className="text-muted-foreground underline">{featuredProperty.reviewCount} reviews</span>

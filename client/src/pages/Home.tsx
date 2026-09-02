@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Hero from '@/components/home/Hero'
+import AfricaRealEstatePulse from '@/components/home/AfricaRealEstatePulse'
 import MotionBackground from '@/components/motion/MotionBackground'
 import Reveal from '@/components/motion/Reveal'
 import FilterBar from '@/components/home/FilterBar'
@@ -74,8 +75,21 @@ export default function Home() {
                 url: `${site}/`,
                 logo: `${site}/favicon.png`,
                 areaServed: 'UG',
+                contactPoint: {
+                    '@type': 'ContactPoint',
+                    email: 'support@realevr.com',
+                    contactType: 'customer support',
+                    areaServed: 'UG',
+                },
             },
         ]
+        // Note: no `sameAs` social profile URLs here — Footer.tsx's social
+        // icons are still placeholder `#` links (no real accounts connected
+        // yet), and inventing URLs for schema.org would be a fabricated
+        // claim search engines and answer engines could pick up as fact.
+        // Add real profile URLs here the moment real accounts exist — see
+        // the AI employee agent system's "content agents" section in
+        // GENE_PLATFORM.md for the same gap noted from the other direction.
     }, [])
 
     // Group properties by category, filtering out those with no name/title
@@ -98,36 +112,24 @@ export default function Home() {
             />
             <Hero videoUrl={heroVideoUrl} />
 
-            {/* Agent Registration Call-to-Action */}
-            <section className="relative overflow-hidden py-16 bg-gradient-to-r from-accent/10 via-secondary to-accent/10 -mx-4 sm:-mx-6 lg:-mx-8">
-                <MotionBackground tone="warm" />
-                <div className="relative z-10 container mx-auto px-6">
-                    <div className="max-w-4xl mx-auto text-center">
-                        <h2 className="text-3xl md:text-4xl font-display font-medium text-foreground mb-4">
-                            Become a RealEVR broker today
-                        </h2>
-                        <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-                            Join RealEVR Estates as a professional agent/dotcom and start listing properties with
-                            virtual tours. Get access to premium features and reach more clients.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                            <Button
-                                asChild
-                                className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 text-lg font-semibold"
-                            >
-                                <Link href="/agent/register">Become an Agent</Link>
-                            </Button>
-                            <Button
-                                asChild
-                                variant="outline"
-                                className="border-accent text-accent hover:bg-accent hover:text-accent-foreground px-8 py-3 text-lg font-semibold"
-                            >
-                                <Link href="/list-your-property">List a Property, Earn 1,000 UGX</Link>
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            {/* Africa real estate media panel, attached to the hero video
+                space: a live-updating mix of real Africa real estate news
+                (server-fetched, only when NEWS_API_KEY is configured — see
+                server/gene/africa-media-feed.ts) and this platform's own
+                current live listing photos. Renders nothing at all when
+                neither source has content — see AfricaRealEstatePulse.tsx
+                for why a missing panel beats a fake "live" one. */}
+            <AfricaRealEstatePulse />
+
+            {/* Design-review fix (round 2): the agent/broker recruitment CTA
+                used to sit here, immediately after the hero — the very next
+                thing a demand-side visitor (a renter/buyer, the large
+                majority of homepage traffic) saw was a supply-side "become
+                an agent" pitch, ahead of a single property. Moved below the
+                Browse Properties grid (see near the bottom of this file) so
+                property content keeps the momentum coming out of the hero's
+                search bar, and agent recruitment reaches the audience it's
+                actually for without blocking everyone else's path first. */}
 
             <Reveal><FeaturedTour /></Reveal>
             <Reveal><FeaturedProperties /></Reveal>
@@ -182,12 +184,21 @@ export default function Home() {
                     ) : (
                         <>
                             <Tabs defaultValue="all" className="w-full" onValueChange={setActiveTab}>
-                                <TabsList className="grid grid-cols-5 w-full mb-8">
-                                    <TabsTrigger value="all">All Properties</TabsTrigger>
-                                    <TabsTrigger value="rental_units">Rental Units</TabsTrigger>
-                                    <TabsTrigger value="furnished_houses">Furnished Houses</TabsTrigger>
-                                    <TabsTrigger value="for_sale">For Sale</TabsTrigger>
-                                    <TabsTrigger value="bank_sales">Bank Sales</TabsTrigger>
+                                {/* Mobile: a horizontally-scrollable pill row (Airbnb's category-filter
+                                    pattern, same hide-scrollbar utility FilterBar already uses) instead
+                                    of 5 equal-width grid columns squeezing "Furnished Houses" into ~70px.
+                                    md+: reverts to the original centered grid. */}
+                                {/* Design-review fix (round 2): labels now match FilterBar's
+                                    "Browse by" row exactly ("For Rent" / "BnBs", not "Rental
+                                    Units" / "Furnished Houses") — a visitor filtering by icon
+                                    in the hero and then scrolling to this tab bar was seeing
+                                    two different label sets for the same four categories. */}
+                                <TabsList className="flex md:grid md:grid-cols-5 w-full mb-8 overflow-x-auto hide-scrollbar justify-start md:justify-center gap-1 md:gap-0">
+                                    <TabsTrigger value="all" className="flex-shrink-0">All Properties</TabsTrigger>
+                                    <TabsTrigger value="rental_units" className="flex-shrink-0">For Rent</TabsTrigger>
+                                    <TabsTrigger value="furnished_houses" className="flex-shrink-0">BnBs</TabsTrigger>
+                                    <TabsTrigger value="for_sale" className="flex-shrink-0">For Sale</TabsTrigger>
+                                    <TabsTrigger value="bank_sales" className="flex-shrink-0">Bank Sales</TabsTrigger>
                                 </TabsList>
 
                                 {Object.entries(propertyCategories).map(([category, categoryProperties]) => (
@@ -217,6 +228,38 @@ export default function Home() {
                             </div>
                         </>
                     )}
+                </div>
+            </section></Reveal>
+
+            {/* Agent Registration Call-to-Action — moved here from right after
+                the hero, see the comment near <Hero> above. */}
+            <Reveal><section className="relative overflow-hidden py-16 bg-gradient-to-r from-accent/10 via-secondary to-accent/10 -mx-4 sm:-mx-6 lg:-mx-8">
+                <MotionBackground tone="warm" />
+                <div className="relative z-10 container mx-auto px-6">
+                    <div className="max-w-4xl mx-auto text-center">
+                        <h2 className="text-3xl md:text-4xl font-display font-medium text-foreground mb-4">
+                            Become a RealEVR broker today
+                        </h2>
+                        <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
+                            Join RealEVR Estates as a professional agent/dotcom and start listing properties with
+                            virtual tours. Get access to premium features and reach more clients.
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                            <Button
+                                asChild
+                                className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 text-lg font-semibold"
+                            >
+                                <Link href="/agent/register">Become an Agent</Link>
+                            </Button>
+                            <Button
+                                asChild
+                                variant="outline"
+                                className="border-accent text-accent hover:bg-accent hover:text-accent-foreground px-8 py-3 text-lg font-semibold"
+                            >
+                                <Link href="/list-your-property">List a Property, Earn 1,000 UGX</Link>
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             </section></Reveal>
 

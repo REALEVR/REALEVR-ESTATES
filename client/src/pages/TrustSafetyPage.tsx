@@ -9,7 +9,7 @@ export default function TrustSafetyPage() {
         <div className="space-y-8">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">Our Commitment to Safety</CardTitle>
+              <CardTitle className="text-2xl text-accent">Our Commitment to Safety</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-gray-600 leading-relaxed mb-4">
@@ -27,7 +27,7 @@ export default function TrustSafetyPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">Agent Verification</CardTitle>
+              <CardTitle className="text-2xl text-accent">Agent Verification</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -55,13 +55,13 @@ export default function TrustSafetyPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">Property Verification</CardTitle>
+              <CardTitle className="text-2xl text-accent">Property Verification</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
                 <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-[#FF5A5F]/10 rounded-full flex items-center justify-center flex-shrink-0">
-                    <i className="fas fa-check text-[#FF5A5F]"></i>
+                  <div className="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center flex-shrink-0">
+                    <i className="fas fa-check text-accent"></i>
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg mb-2">Property Ownership Verification</h3>
@@ -73,8 +73,8 @@ export default function TrustSafetyPage() {
                 </div>
                 
                 <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-[#FF5A5F]/10 rounded-full flex items-center justify-center flex-shrink-0">
-                    <i className="fas fa-camera text-[#FF5A5F]"></i>
+                  <div className="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center flex-shrink-0">
+                    <i className="fas fa-camera text-accent"></i>
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg mb-2">Photo Verification</h3>
@@ -86,8 +86,8 @@ export default function TrustSafetyPage() {
                 </div>
                 
                 <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-[#FF5A5F]/10 rounded-full flex items-center justify-center flex-shrink-0">
-                    <i className="fas fa-map-marker-alt text-[#FF5A5F]"></i>
+                  <div className="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center flex-shrink-0">
+                    <i className="fas fa-map-marker-alt text-accent"></i>
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg mb-2">Location Verification</h3>
@@ -103,13 +103,13 @@ export default function TrustSafetyPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">Payment Security</CardTitle>
+              <CardTitle className="text-2xl text-accent">Payment Security</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="text-center">
-                  <div className="w-16 h-16 bg-[#FF5A5F]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className="fas fa-shield-alt text-2xl text-[#FF5A5F]"></i>
+                  <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i className="fas fa-shield-alt text-2xl text-accent"></i>
                   </div>
                   <h3 className="font-semibold mb-2">SSL Encryption</h3>
                   <p className="text-gray-600 text-sm">
@@ -118,8 +118,8 @@ export default function TrustSafetyPage() {
                 </div>
                 
                 <div className="text-center">
-                  <div className="w-16 h-16 bg-[#FF5A5F]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className="fas fa-credit-card text-2xl text-[#FF5A5F]"></i>
+                  <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i className="fas fa-credit-card text-2xl text-accent"></i>
                   </div>
                   <h3 className="font-semibold mb-2">Secure Payment Gateway</h3>
                   <p className="text-gray-600 text-sm">
@@ -128,8 +128,8 @@ export default function TrustSafetyPage() {
                 </div>
                 
                 <div className="text-center">
-                  <div className="w-16 h-16 bg-[#FF5A5F]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className="fas fa-lock text-2xl text-[#FF5A5F]"></i>
+                  <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i className="fas fa-lock text-2xl text-accent"></i>
                   </div>
                   <h3 className="font-semibold mb-2">Fraud Protection</h3>
                   <p className="text-gray-600 text-sm">
@@ -142,7 +142,7 @@ export default function TrustSafetyPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">User Protection</CardTitle>
+              <CardTitle className="text-2xl text-accent">User Protection</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -170,7 +170,7 @@ export default function TrustSafetyPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">Reporting & Monitoring</CardTitle>
+              <CardTitle className="text-2xl text-accent">Reporting & Monitoring</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -185,7 +185,7 @@ export default function TrustSafetyPage() {
                     <p className="text-gray-600 text-sm mb-3">
                       If you encounter any suspicious listings or behavior, please report it immediately.
                     </p>
-                    <button className="text-[#FF5A5F] text-sm font-medium hover:underline">
+                    <button className="text-accent text-sm font-medium hover:underline">
                       Report Issue →
                     </button>
                   </div>
@@ -195,7 +195,7 @@ export default function TrustSafetyPage() {
                     <p className="text-gray-600 text-sm mb-3">
                       Learn about best practices for safe property viewing and transactions.
                     </p>
-                    <button className="text-[#FF5A5F] text-sm font-medium hover:underline">
+                    <button className="text-accent text-sm font-medium hover:underline">
                       Read Guidelines →
                     </button>
                   </div>
@@ -206,7 +206,7 @@ export default function TrustSafetyPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">Contact Trust & Safety Team</CardTitle>
+              <CardTitle className="text-2xl text-accent">Contact Trust & Safety Team</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center">
@@ -215,11 +215,11 @@ export default function TrustSafetyPage() {
                   is here to help.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <button className="px-6 py-3 bg-[#FF5A5F] text-white rounded-lg hover:bg-[#FF7478] transition-colors">
+                  <button className="px-6 py-3 bg-accent text-accent-foreground rounded-lg hover:bg-accent/90 transition-colors">
                     <i className="fas fa-exclamation-triangle mr-2"></i>
                     Report Safety Issue
                   </button>
-                  <button className="px-6 py-3 border border-[#FF5A5F] text-[#FF5A5F] rounded-lg hover:bg-[#FF5A5F]/5 transition-colors">
+                  <button className="px-6 py-3 border border-accent text-accent rounded-lg hover:bg-accent/5 transition-colors">
                     <i className="fas fa-envelope mr-2"></i>
                     Contact Safety Team
                   </button>

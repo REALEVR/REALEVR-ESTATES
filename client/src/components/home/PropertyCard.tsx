@@ -9,6 +9,7 @@ import { usePropertyViews } from '@/hooks/usePropertyViews'
 import { Button } from '@/components/ui/button'
 import { AnimatedCard, FadeIn } from '@/components/ui/animated-components'
 import { Phone } from 'lucide-react'
+import VRBadge from '../property/VRBadge'
 
 interface PropertyCardProps {
     property: Property
@@ -121,14 +122,25 @@ export default function PropertyCard({ property }: PropertyCardProps) {
     return (
         <>
             <AnimatedCard
-                className="property-card bg-card rounded-2xl overflow-hidden shadow-sm border border-border/60 cursor-pointer hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
+                className="property-card bg-card rounded-2xl overflow-hidden shadow-sm border-[1.5px] border-border cursor-pointer hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
                 onClick={handleCardClick}
             >
                 <div className="relative">
                     <FadeIn>
+                        {/* Design-review fix (round 3): every property grid on the
+                            homepage (Featured/Popular/Recent/Browse) renders through
+                            this one component, so an uncached homepage load was firing
+                            up to 16+ full-size image requests immediately, most of them
+                            for cards scrolled well out of view. loading="lazy" defers
+                            the offscreen ones to when they're actually about to scroll
+                            into view — a real bandwidth win on the data-constrained
+                            mobile connections this platform's Uganda/Africa audience is
+                            most likely to be using. */}
                         <img
                             src={property.imageUrl}
                             alt={property.title}
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-52 object-cover transition-transform duration-500 hover:scale-110"
                         />
                     </FadeIn>
@@ -167,15 +179,22 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                         </div>
                     )}
                     {property.hasTour && (
-                        <span className="absolute bottom-3 left-3 bg-foreground/70 backdrop-blur-sm text-white px-2 py-1 rounded-md text-sm font-medium z-10">
-                            360° Tour Available
-                        </span>
+                        <div className="absolute bottom-3 left-3 z-10">
+                            <VRBadge size="sm" />
+                        </div>
                     )}
                 </div>
                 <div className="p-4">
-                    <div className="flex justify-between items-start">
-                        <h3 className="font-display font-medium text-foreground">{property.title}</h3>
-                        <div className="flex items-center">
+                    <div className="flex justify-between items-start gap-2">
+                        {/* Design-review fix (round 1): unclamped titles could
+                            wrap to 2 lines on longer real listing titles,
+                            visually colliding with the availability badge
+                            above and breaking row alignment across cards in
+                            the same grid. line-clamp-2 + a fixed min-height
+                            keeps every card the same title-block height
+                            regardless of title length. */}
+                        <h3 className="font-display font-medium text-foreground line-clamp-2 min-h-[2.75rem]">{property.title}</h3>
+                        <div className="flex items-center flex-shrink-0">
                             <i className="fas fa-eye text-muted-foreground text-sm"></i>
                             <span className="ml-1 text-sm font-medium text-muted-foreground">{property.viewCount || 0}</span>
                         </div>
@@ -221,7 +240,12 @@ export default function PropertyCard({ property }: PropertyCardProps) {
 
                     <div className="flex justify-between items-center mb-3">
                         <div>
-                            <span className="font-display font-medium text-foreground text-lg">
+                            {/* Design-review fix (round 2): price was the same
+                                weight/size as the bed/bath/sqm spec line below
+                                it — the single most-scanned number on a
+                                listings card read like metadata, not the
+                                headline it should be. */}
+                            <span className="font-display font-bold text-foreground text-xl md:text-2xl">
                                 {property.price != null ? (
                                     property.price.toLocaleString()
                                 ) : (

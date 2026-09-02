@@ -47,7 +47,10 @@ import AgentLauncher from './components/agent/AgentLauncher'
 import ListYourPropertyPage from '@/pages/ListYourPropertyPage'
 import AdminPayoutApprovals from '@/pages/AdminPayoutApprovals'
 import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
+import AdminAnalytics from '@/pages/AdminAnalytics'
+import AdminBroadcast from '@/pages/AdminBroadcast'
 import WhatsAppFab from '@/components/whatsapp/WhatsAppFab'
+import BrokerOnlinePresence from '@/components/broker/BrokerOnlinePresence'
 
 function Router() {
     return (
@@ -116,6 +119,10 @@ function Router() {
                 component={AdminBoostConfirmations}
                 allowedRoles={['admin', 'agent']}
             />
+            {/* Strictly admin-only — platform-wide user PII / mass
+                messaging, same reasoning as payout-approvals above. */}
+            <ProtectedAdminRoute path="/admin/analytics" component={AdminAnalytics} allowedRoles={['admin']} />
+            <ProtectedAdminRoute path="/admin/broadcast" component={AdminBroadcast} allowedRoles={['admin']} />
 
             <Route
                 path="/category/:categorySlug"
@@ -181,6 +188,7 @@ function App() {
                             </div>
                             <AgentLauncher />
                             <WhatsAppFab />
+                            <BrokerOnlinePresence />
                             <ScrollToTop />
                             <Toaster />
                         </TooltipProvider>

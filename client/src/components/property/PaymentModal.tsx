@@ -82,7 +82,7 @@ export default function PaymentModal({ isOpen, onClose, successCallback, propert
                         <Button variant="outline" onClick={onClose}>
                             Cancel
                         </Button>
-                        <Button onClick={handlePayNow} disabled={isLoading} className="bg-[#FF5A5F]">
+                        <Button onClick={handlePayNow} disabled={isLoading} className="bg-accent">
                             {isLoading ? 'Processing...' : 'Pay'}
                         </Button>
                     </div>

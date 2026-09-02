@@ -396,7 +396,7 @@ export default function ForSalePage() {
               <h3 className="text-xl font-semibold mb-2">Looking for your dream home?</h3>
               <p className="text-gray-600 mb-4">Contact us to schedule a viewing of any of these properties.</p>
               <Button 
-                className="bg-[#FF5A5F] hover:bg-[#FF5A5F]/90"
+                className="bg-accent hover:bg-accent/90"
                 onClick={() => window.location.href = "/membership"}
               >
                 Contact an Agent

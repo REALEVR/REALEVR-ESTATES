@@ -49,6 +49,8 @@ import { registerSlackBridgeRoutes } from './gene/slack-bridge'
 import { registerAgentWhatsappOnboardingRoutes } from './gene/agent-whatsapp-onboarding'
 import { registerTourAccessPassRoutes, issuePass } from './gene/tour-access-pass'
 import { registerPersonalAgentRoutes } from './gene/personal-agent'
+import { registerAfricaMediaFeedRoutes } from './gene/africa-media-feed'
+import { registerAiWorkforceRoutes } from './gene/ai-workforce'
 import { registerReferralRewardsRoutes } from './gene/referral-rewards'
 import { registerWhatsappConciergeRoutes } from './gene/whatsapp-concierge'
 import { registerLandlordHubRoutes } from './gene/landlord-hub'
@@ -60,6 +62,11 @@ import { registerSuccessFeeRoutes } from './gene/success-fee'
 import { registerTourProductionBookingRoutes } from './gene/tour-production-booking'
 import { registerLeadMeteringRoutes } from './gene/lead-metering'
 import { registerTenantConsentRoutes } from './gene/tenant-consent'
+import { registerGoogleAuthRoutes } from './gene/google-auth'
+import { registerUserAnalyticsRoutes } from './gene/user-analytics'
+import { registerBroadcastRoutes } from './gene/broadcast'
+import { registerWebPushRoutes } from './gene/web-push'
+import { requireStrictAdmin } from './gene/admin-guard'
 
 // Middleware to check if user is an admin or property manager
 const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -2401,6 +2408,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerTourProductionBookingRoutes(app, adminMiddleware)
     registerLeadMeteringRoutes(app, adminMiddleware)
     registerTenantConsentRoutes(app)
+
+    // Popup Google sign-in, admin user-analytics dashboard, web push
+    // subscriptions, and the unified admin broadcast tool — see
+    // docs/GENE_PLATFORM.md v1.8. Each is additive/independent.
+    registerGoogleAuthRoutes(app)
+    // Strict admin only (not agents) — platform-wide user PII and
+    // mass-messaging blast radius, same reasoning as payout-approvals.
+    registerUserAnalyticsRoutes(app, requireStrictAdmin)
+    registerWebPushRoutes(app, requireStrictAdmin)
+    registerBroadcastRoutes(app, requireStrictAdmin)
+
+    // Africa real estate media pulse — see docs/GENE_PLATFORM.md v1.15.
+    // Public (no auth): backs the homepage hero's live news panel.
+    registerAfricaMediaFeedRoutes(app)
+
+    // AI Workforce — 10 scoped "employee agent" roles (content, newsroom
+    // analytics, inbound-only lead replies, human-confirmed sales assist,
+    // credential-gated social publishing, listing quality audits). See
+    // docs/GENE_PLATFORM.md v1.16 and server/gene/ai-workforce.ts's header
+    // for the outreach/sales-authority limits this module deliberately
+    // will not cross.
+    registerAiWorkforceRoutes(app, adminMiddleware)
 
     // Admin endpoint to manually trigger reminders for testing
     app.post('/api/admin/test-reminders', adminMiddleware, async (_req: any, res: any) => {

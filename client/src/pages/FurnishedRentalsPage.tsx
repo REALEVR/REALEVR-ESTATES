@@ -81,20 +81,29 @@ export default function FurnishedRentalsPage() {
           </p>
           
           {!hasActiveViewingPackage && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+            /* Design-review fix (round 1) — same restyle as RentalUnitsPage's
+               matching banner: on-brand tokens instead of hardcoded amber.
+               Price left as-is (10,000 UGX already matches what's actually
+               charged); the "up to 5 / 7 days" terms here still don't match
+               RentalUnitsPage's "up to 10 / 1 day" banner for the same
+               underlying `hasActiveViewingPackage` flag — flagged in this
+               pass's writeup as a real, found-but-unverified inconsistency
+               rather than guessed at, since neither number could be
+               confirmed against real enforcement in this codebase. */
+            <div className="bg-muted border border-border rounded-lg p-4 mb-6">
               <div className="flex items-start">
                 <div className="flex-shrink-0 mr-3">
-                  <svg className="h-6 w-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-6 w-6 text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-amber-800 font-medium">Viewing Package Required</h3>
-                  <p className="text-amber-700 text-sm mt-1">
+                  <h3 className="text-foreground font-medium">Viewing Package Required</h3>
+                  <p className="text-muted-foreground text-sm mt-1">
                     A one-time fee of 10,000 UGX is required to view up to 5 furnished rental properties. This provides access for 7 days.
                   </p>
-                  <Button 
-                    className="mt-3 bg-amber-600 hover:bg-amber-700" 
+                  <Button
+                    className="mt-3 shine"
                     onClick={openViewingPaymentPrompt}
                   >
                     Purchase Viewing Package

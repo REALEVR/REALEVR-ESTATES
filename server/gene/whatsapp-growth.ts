@@ -27,7 +27,16 @@
  *    This route reports attempted/sent/failed counts; it never claims
  *    guaranteed delivery.
  *
- * 3) GET /api/gene/whatsapp/catalog-feed.csv — [PUBLIC] a Meta Commerce
+ * 3) GET /api/gene/whatsapp/qr.png — [PUBLIC] a scannable QR code (PNG)
+ *    that deep-links straight into a WhatsApp chat with the configured
+ *    business number — the same "scan to start on WhatsApp" print-marketing
+ *    asset competitors put on banners/business cards. Generated live from
+ *    WHATSAPP_DISPLAY_NUMBER via the `qrcode` package (already a dependency),
+ *    so it always encodes whatever number is actually configured — no stale
+ *    printed asset. 404s with a clear message if unset, same graceful-degrade
+ *    contract as the business-number config route above.
+ *
+ * 4) GET /api/gene/whatsapp/catalog-feed.csv — [PUBLIC] a Meta Commerce
  *    Manager-compatible product feed (id, title, description, availability,
  *    price, link, image_link, ...) generated live from real listings. This
  *    is the buildable half of "WhatsApp catalog of properties" — actually
@@ -46,12 +55,19 @@
  * whatsapp-concierge.ts's existing link collection.
  */
 import type { Express, Request, Response } from 'express'
+import QRCode from 'qrcode'
 import { storage } from '../storage'
 import { requireStrictAdmin } from './admin-guard'
 import { sendWhatsAppMessage, sendWhatsAppTemplateMessage } from './whatsapp'
 import { readCollection } from './store'
 import { isOptedIntoMarketing, type WhatsappUserLink } from './whatsapp-concierge'
 import { getCanonicalBaseUrl } from '../sitemap'
+
+/** Default pre-filled greeting encoded into the QR deep-link — matches the
+ * one WhatsAppFab.tsx already uses for its click-to-chat button, so a
+ * visitor gets the same experience whether they clicked a button on the
+ * site or scanned a printed QR code. */
+const QR_DEFAULT_TEXT = "Hi! I'm interested in a property on RealEVR Estates."
 
 const LINK_COLLECTION = 'gene_whatsapp_user_links' // shared contract with whatsapp-concierge.ts — read-only here
 
@@ -61,11 +77,70 @@ function csvEscape(value: string): string {
     return needsQuoting ? `"${escaped}"` : escaped
 }
 
+/**
+ * Sends `message` to every WhatsApp-linked, marketing-opted-in number.
+ * Extracted from the POST /api/gene/whatsapp/broadcast route body (v1.5)
+ * unchanged, so server/gene/broadcast.ts's unified admin broadcast tool
+ * (v1.8) can reuse the exact same logic instead of duplicating it —
+ * behavior is identical either way this is called. See that route's
+ * docstring above for the honest 24-hour-window limitation.
+ */
+export async function broadcastWhatsappMessage(
+    message: string,
+    templateName?: string,
+    languageCode: string = 'en_US'
+): Promise<{ attempted: number; sent: number; failed: number; failures: Array<{ phone: string; reason?: string }>; note?: string }> {
+    const links = readCollection<WhatsappUserLink>(LINK_COLLECTION).filter(isOptedIntoMarketing)
+    let sent = 0
+    let failed = 0
+    const failures: Array<{ phone: string; reason?: string }> = []
+
+    for (const link of links) {
+        const result = templateName
+            ? await sendWhatsAppTemplateMessage(link.phone, templateName, languageCode, [message])
+            : await sendWhatsAppMessage(link.phone, message)
+        if (result.sent) sent += 1
+        else {
+            failed += 1
+            failures.push({ phone: link.phone, reason: result.reason })
+        }
+    }
+
+    return {
+        attempted: links.length,
+        sent,
+        failed,
+        failures: failures.slice(0, 20), // cap — this is a debugging aid, not a full audit log
+        note: templateName
+            ? undefined
+            : 'Sent as freeform text — WhatsApp only delivers this to numbers that messaged the business within the last 24 hours. Pass templateName (from an approved Meta template) to reach everyone opted in.',
+    }
+}
+
 export function registerWhatsappGrowthRoutes(app: Express): void {
     // 1) Public config for the frontend's click-to-WhatsApp button(s).
     app.get('/api/config/whatsapp-business-number', (_req: Request, res: Response) => {
         const number = process.env.WHATSAPP_DISPLAY_NUMBER || null
         res.json({ number })
+    })
+
+    // 1b) Scannable "start on WhatsApp" QR code — see file-top docs.
+    app.get('/api/gene/whatsapp/qr.png', async (req: Request, res: Response) => {
+        const number = process.env.WHATSAPP_DISPLAY_NUMBER || null
+        if (!number) {
+            return res.status(404).json({ message: 'WhatsApp business number is not configured yet.' })
+        }
+        try {
+            const customText = typeof req.query.text === 'string' && req.query.text.trim() ? req.query.text.trim() : QR_DEFAULT_TEXT
+            const link = `https://wa.me/${number}?text=${encodeURIComponent(customText)}`
+            const png = await QRCode.toBuffer(link, { type: 'png', width: 640, margin: 2 })
+            res.setHeader('Content-Type', 'image/png')
+            res.setHeader('Cache-Control', 'public, max-age=3600')
+            res.send(png)
+        } catch (error: any) {
+            console.error('[gene/whatsapp-growth] QR code generation failed:', error)
+            res.status(500).json({ message: 'Failed to generate QR code.' })
+        }
     })
 
     // 2) Admin-triggered marketing broadcast — strict admin only.
@@ -76,31 +151,8 @@ export function registerWhatsappGrowthRoutes(app: Express): void {
             const languageCode = typeof req.body?.languageCode === 'string' ? req.body.languageCode.trim() : 'en_US'
             if (!message) return res.status(400).json({ message: 'A broadcast message is required.' })
 
-            const links = readCollection<WhatsappUserLink>(LINK_COLLECTION).filter(isOptedIntoMarketing)
-            let sent = 0
-            let failed = 0
-            const failures: Array<{ phone: string; reason?: string }> = []
-
-            for (const link of links) {
-                const result = templateName
-                    ? await sendWhatsAppTemplateMessage(link.phone, templateName, languageCode, [message])
-                    : await sendWhatsAppMessage(link.phone, message)
-                if (result.sent) sent += 1
-                else {
-                    failed += 1
-                    failures.push({ phone: link.phone, reason: result.reason })
-                }
-            }
-
-            res.json({
-                attempted: links.length,
-                sent,
-                failed,
-                failures: failures.slice(0, 20), // cap — this is a debugging aid, not a full audit log
-                note: templateName
-                    ? undefined
-                    : 'Sent as freeform text — WhatsApp only delivers this to numbers that messaged the business within the last 24 hours. Pass templateName (from an approved Meta template) to reach everyone opted in.',
-            })
+            const result = await broadcastWhatsappMessage(message, templateName, languageCode)
+            res.json(result)
         } catch (err) {
             console.error('[gene/whatsapp-growth] broadcast failed:', err)
             res.status(500).json({ message: 'Broadcast failed.' })

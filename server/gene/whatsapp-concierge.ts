@@ -44,6 +44,7 @@ import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
 import { sendWhatsAppMessage } from './whatsapp'
 import { issueMagicLoginLink } from './magic-login'
+import { notifyNewEscalation } from './slack-bridge'
 import {
     loadProfile,
     loadSignals,
@@ -57,6 +58,17 @@ import {
 const LINK_COLLECTION = 'gene_whatsapp_user_links'
 const MESSAGE_COLLECTION = 'gene_whatsapp_messages'
 const SIGNAL_COLLECTION = 'gene_agent_signals' // shared contract with personal-agent.ts — read-only here
+// Shared contract with server/gene/chat.ts's GeneEscalation — same collection,
+// same shape, so a WhatsApp "talk to a human" request lands in the exact same
+// admin inbox (GET /api/gene/whatsapp/inbox in ./whatsapp.ts) as a web-chat
+// escalation. Only ever appends a compatible row here, never redefines it.
+const ESCALATIONS_COLLECTION = 'gene_escalations'
+
+/** Easy to customize — keep in sync with the display name used by the web
+ * popup (client/src/components/broker/BrokerOnlinePresence.tsx) so the
+ * persona is consistent whether a visitor meets "Grace" on the site or on
+ * WhatsApp. */
+const CONCIERGE_NAME = 'Grace'
 
 export interface WhatsappUserLink {
     id: number
@@ -89,6 +101,19 @@ const TOGGLE_COMMAND_RE = /^(available|unavailable|toggle)\s+(\d+)\s*$/i
 const DASHBOARD_COMMAND_RE = /^(dashboard|my dashboard|login|log me in)\s*$/i
 const STOP_COMMAND_RE = /^(stop|unsubscribe|opt out|optout)\s*$/i
 const START_COMMAND_RE = /^(start|subscribe|opt in|optin)\s*$/i
+// First-contact menu, numeric-reply only — deliberately plain text (no
+// WhatsApp Cloud API "interactive" list/button payload) to ship without
+// needing a Meta message-template review; still gives the same "pick one
+// of three things" first-touch flow competitors build with interactive
+// messages.
+const MENU_FIND_RE = /^1\s*$/
+const MENU_LIST_RE = /^2\s*$/
+const MENU_HUMAN_RE = /^3\s*$/
+const GREETING_TEXT = (name: string) =>
+    `👋 Hello${name ? ` ${name}` : ''}! I'm ${CONCIERGE_NAME}, your RealEVR Estates assistant.\n\n` +
+    `✅ Verified listings only\n⚡ Instant replies\n🏠 Move-in ready homes\n\n` +
+    `How can I help?\n1️⃣ Find a property\n2️⃣ List your property (earn 1,000 UGX)\n3️⃣ Talk to a human broker\n\n` +
+    `Reply with a number, or just tell me what you're looking for.`
 
 /**
  * Digits only, no leading '+' — this is the format WhatsApp's Cloud API
@@ -162,6 +187,70 @@ function logInquirySignal(userId: number, propertyId: number): void {
 async function replyAndLog(phone: string, text: string, userId?: number, matchedPropertyId?: number): Promise<void> {
     logMessage({ phone, direction: 'outbound', text, userId, matchedPropertyId })
     await sendWhatsAppMessage(phone, text)
+}
+
+/** True if this phone has never messaged in before — checked BEFORE the
+ * current inbound message is logged, so the very first message correctly
+ * triggers the branded greeting. */
+function isFirstContact(phone: string): boolean {
+    const rows = readCollection<WhatsappMessageLog>(MESSAGE_COLLECTION)
+    return !rows.some((r) => r.phone === phone && r.direction === 'inbound')
+}
+
+/** Writes a compatible row into the SAME `gene_escalations` collection
+ * server/gene/chat.ts's web-chat escalation flow uses, and best-effort pings
+ * Slack the same way — so "talk to a human broker" from WhatsApp shows up in
+ * the existing admin inbox (GET /api/gene/whatsapp/inbox in ./whatsapp.ts)
+ * instead of a new, separate queue nobody's watching. Resolving it there
+ * already texts `customerPhone` back automatically (see whatsapp.ts's
+ * /inbox/:id/resolve route) — no new notification code needed here. */
+function writeHumanHandoffEscalation(phone: string, lastMessage: string): void {
+    type MinimalEscalation = { id: number; sessionId: string; message: string; reason: string; createdAt: string; status: 'open'; customerPhone: string }
+    const rows = readCollection<MinimalEscalation>(ESCALATIONS_COLLECTION)
+    const escalation: MinimalEscalation = {
+        id: nextId(rows),
+        sessionId: `whatsapp:${phone}`,
+        message: lastMessage || '(no message text — requested a human via the WhatsApp menu)',
+        reason: 'whatsapp_menu_human_request',
+        createdAt: nowIso(),
+        status: 'open',
+        customerPhone: phone,
+    }
+    rows.push(escalation)
+    writeCollection(ESCALATIONS_COLLECTION, rows)
+    notifyNewEscalation(escalation).catch((err) => console.error('[gene/whatsapp-concierge] Slack notify failed:', err))
+}
+
+/** Handles a "1"/"2"/"3" reply to the first-contact menu. Returns true if the
+ * message was handled this way. */
+async function tryHandleMenuSelection(phone: string, text: string, link: WhatsappUserLink | undefined): Promise<boolean> {
+    const trimmed = text.trim()
+
+    if (MENU_FIND_RE.test(trimmed)) {
+        await replyAndLog(
+            phone,
+            "Great — tell me what you're looking for (e.g. \"2 bedroom apartment in Kampala under 800k\") and I'll find real matches for you.",
+            link?.userId
+        )
+        return true
+    }
+
+    if (MENU_LIST_RE.test(trimmed)) {
+        await replyAndLog(
+            phone,
+            'Nice — you can list a property (and earn a 1,000 UGX referral once it goes live) at realevrestates.com/list-your-property. Or just tell me the location and I can point you in the right direction.',
+            link?.userId
+        )
+        return true
+    }
+
+    if (MENU_HUMAN_RE.test(trimmed)) {
+        writeHumanHandoffEscalation(phone, text)
+        await replyAndLog(phone, "Got it — connecting you with a human broker. Someone from our team will reply here shortly!", link?.userId)
+        return true
+    }
+
+    return false
 }
 
 /** Handles a landlord's "available <id>" / "unavailable <id>" / "toggle <id>"
@@ -275,7 +364,7 @@ async function handleConciergeChat(phone: string, text: string, link: WhatsappUs
             }
 
             const systemPrompt = [
-                'You are "My RealEVR Agent" replying over WhatsApp to this specific user — keep it SHORT (2-4 sentences,',
+                `You are "${CONCIERGE_NAME}", the RealEVR Estates WhatsApp assistant, replying to this specific user — keep it SHORT (2-4 sentences,`,
                 'WhatsApp-appropriate, no markdown), warm, and only reference the facts given below.',
                 '',
                 'Their profile:',
@@ -304,13 +393,22 @@ async function handleConciergeChat(phone: string, text: string, link: WhatsappUs
     const list = featured.length
         ? featured.map((p) => `• "${p.title}" in ${p.location} — ${p.currency ?? 'UGX'} ${p.price}`).join('\n')
         : "I don't have live listings to show right now — check realevrestates.com."
-    const reply = `Hi! I'm the RealEVR Estates concierge. A few properties you might like:\n${list}\n\nSign in on the website and link this WhatsApp number from your profile for picks tailored to your budget and interests.`
+    const reply = `I'm ${CONCIERGE_NAME} from RealEVR Estates ✅ verified listings only. A few properties you might like:\n${list}\n\nSign in on the website and link this WhatsApp number from your profile for picks tailored to your budget and interests.`
     await replyAndLog(phone, reply)
 }
 
 async function handleInboundText(phone: string, text: string): Promise<void> {
     const link = findLinkByPhone(phone)
+    const firstContact = isFirstContact(phone)
     logMessage({ phone, direction: 'inbound', text, userId: link?.userId })
+
+    // Branded greeting + menu fires once, on the very first message this
+    // number has ever sent in — mirrors the "Hello <name>! Welcome to
+    // <persona>..." first-touch pattern, then still processes whatever they
+    // actually typed below (so "hi" or a real question both get answered).
+    if (firstContact) {
+        await replyAndLog(phone, GREETING_TEXT(link?.userName ?? ''), link?.userId)
+    }
 
     const handledAsOptCommand = await tryHandleMarketingOptCommand(phone, text, link)
     if (handledAsOptCommand) return
@@ -320,6 +418,9 @@ async function handleInboundText(phone: string, text: string): Promise<void> {
 
     const handledAsToggle = await tryHandleAvailabilityToggle(phone, text, link)
     if (handledAsToggle) return
+
+    const handledAsMenu = await tryHandleMenuSelection(phone, text, link)
+    if (handledAsMenu) return
 
     await handleConciergeChat(phone, text, link)
 }

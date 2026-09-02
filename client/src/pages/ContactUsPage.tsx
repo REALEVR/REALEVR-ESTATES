@@ -13,13 +13,13 @@ export default function ContactUsPage() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-2xl text-[#FF5A5F]">Get in Touch</CardTitle>
+                <CardTitle className="text-2xl text-accent">Get in Touch</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-[#FF5A5F]/10 rounded-full flex items-center justify-center">
-                      <i className="fas fa-envelope text-[#FF5A5F]"></i>
+                    <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center">
+                      <i className="fas fa-envelope text-accent"></i>
                     </div>
                     <div>
                       <p className="font-semibold">Email</p>
@@ -28,8 +28,8 @@ export default function ContactUsPage() {
                   </div>
                   
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-[#FF5A5F]/10 rounded-full flex items-center justify-center">
-                      <i className="fas fa-phone text-[#FF5A5F]"></i>
+                    <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center">
+                      <i className="fas fa-phone text-accent"></i>
                     </div>
                     <div>
                       <p className="font-semibold">Phone</p>
@@ -38,8 +38,8 @@ export default function ContactUsPage() {
                   </div>
                   
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-[#FF5A5F]/10 rounded-full flex items-center justify-center">
-                      <i className="fas fa-map-marker-alt text-[#FF5A5F]"></i>
+                    <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center">
+                      <i className="fas fa-map-marker-alt text-accent"></i>
                     </div>
                     <div>
                       <p className="font-semibold">Address</p>
@@ -48,8 +48,8 @@ export default function ContactUsPage() {
                   </div>
                   
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-[#FF5A5F]/10 rounded-full flex items-center justify-center">
-                      <i className="fas fa-clock text-[#FF5A5F]"></i>
+                    <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center">
+                      <i className="fas fa-clock text-accent"></i>
                     </div>
                     <div>
                       <p className="font-semibold">Business Hours</p>
@@ -62,7 +62,7 @@ export default function ContactUsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-2xl text-[#FF5A5F]">Follow Us</CardTitle>
+                <CardTitle className="text-2xl text-accent">Follow Us</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex space-x-4">
@@ -85,7 +85,7 @@ export default function ContactUsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">Send us a Message</CardTitle>
+              <CardTitle className="text-2xl text-accent">Send us a Message</CardTitle>
             </CardHeader>
             <CardContent>
               <form className="space-y-4">
@@ -112,7 +112,7 @@ export default function ContactUsPage() {
                 
                 <div>
                   <label className="block text-sm font-medium mb-2">Subject</label>
-                  <select className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FF5A5F]">
+                  <select className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-accent">
                     <option>General Inquiry</option>
                     <option>Property Listing</option>
                     <option>Technical Support</option>
@@ -130,7 +130,7 @@ export default function ContactUsPage() {
                   />
                 </div>
                 
-                <Button type="submit" className="w-full bg-[#FF5A5F] hover:bg-[#FF7478]">
+                <Button type="submit" className="w-full bg-accent hover:bg-accent/90">
                   <i className="fas fa-paper-plane mr-2"></i>
                   Send Message
                 </Button>
@@ -142,7 +142,7 @@ export default function ContactUsPage() {
         <div className="mt-12">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">Frequently Asked Questions</CardTitle>
+              <CardTitle className="text-2xl text-accent">Frequently Asked Questions</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

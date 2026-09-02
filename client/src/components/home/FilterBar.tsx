@@ -95,7 +95,21 @@ export default function FilterBar() {
                   : 'border-transparent text-foreground hover:border-accent/50'
               } focus:outline-none`}
             >
-              <i className={`fas fa-${category.icon} mb-1 text-base md:text-lg`}></i>
+              {/* Design-review fix (round 3): bare Font Awesome glyphs sitting
+                  directly on the page background read as a plain icon list,
+                  not a set of tappable category chips — the mobile/visual
+                  reviewers both cited this row as flat compared to the rest
+                  of the redesign. A circular badge (Airbnb's category-icon
+                  treatment) gives each icon a contained shape and makes the
+                  active state read clearly as a filled badge, not just a
+                  color change on a tiny glyph. */}
+              <span
+                className={`flex items-center justify-center w-9 h-9 md:w-10 md:h-10 rounded-full mb-1 transition-colors ${
+                  category.isActive ? 'bg-accent/15' : 'bg-secondary'
+                }`}
+              >
+                <i className={`fas fa-${category.icon} text-base md:text-lg`}></i>
+              </span>
               <span className="text-sm md:text-base font-medium">{category.name}</span>
             </button>
           </AnimatedItem>

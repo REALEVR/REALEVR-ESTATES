@@ -3,70 +3,157 @@
 @tailwind utilities;
 
 /*
- * RealEVR Estates — "warm luxury minimal" theme.
- * Warm cream/charcoal neutrals with a single confident terracotta accent,
- * paired with a display serif (Fraunces) for headlines and Montserrat for
- * UI/body — a geometric sans that keeps things modern and highly legible
- * while Fraunces still carries the brand's warmth in headlines.
+ * RealEVR Estates — "Luxury Alabaster" theme (v4, GENE v1.11).
+ * Replaces v3's strict black & white NeoVision palette with a warm
+ * 60-30-10 luxury real-estate palette, requested after a multi-round
+ * design comparison (Airbnb/Zillow structural references, a luxury
+ * palette brief, and Baymard Institute UX research): Soft Alabaster
+ * White as the base surface (60%), Deep Charcoal for text/structure
+ * (30%), and a flat Shiny Silver as the one confident "accent" (10%) —
+ * reserved, same as v3's black accent was, for the site's highest-intent
+ * actions. Space Grotesk for display/headlines, Montserrat for UI/body —
+ * unchanged from v3.
+ *
+ * This pass is a re-theme, not a rebuild: it changes ONLY the palette
+ * variables (plus a small `.shine` utility, see below) — every component
+ * that was already on semantic Tailwind tokens (`bg-card`, `text-foreground`,
+ * `bg-accent`, etc. — the whole v1.9/v1.10 architecture) re-themes for free.
+ * No component's actual functionality (VR badges, tour modal, auth, search,
+ * property data) changed to make this pass.
+ *
+ * "Shiny silver" is intentionally NOT baked into `--accent` as an animated
+ * gradient — every `bg-accent` site across ~20 files would shimmer, which
+ * reads as noise rather than emphasis. `--accent` stays a flat, calm silver
+ * for everyday accent usage (active states, hover, small badges); the
+ * metallic shimmer lives in the separate `.shine` utility below, applied
+ * by hand to the handful of highest-intent CTAs where it's meant to draw
+ * the eye (see Hero's primary search button).
+ *
+ * `:root` IS the default look (this app never toggles a `.dark` class
+ * anywhere today — grep confirms it). `.dark` still holds v3's full dark
+ * (near-black) palette, preserved in case a real dark-mode toggle is ever
+ * wired up — untouched by this pass.
+ *
+ * Semantic exception, unchanged from v3: `--destructive` stays a real red —
+ * admin "Reject"/"Cancel"/delete actions need a genuinely distinguishable
+ * warning color, not just a palette-matched tone.
  */
 :root {
-  --background: 32 38% 97%;      /* warm cream */
-  --foreground: 20 16% 12%;      /* warm near-black */
-  --muted: 30 24% 94%;
-  --muted-foreground: 25 10% 42%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 20 16% 12%;
-  --card: 0 0% 100%;
-  --card-foreground: 20 16% 12%;
-  --border: 30 18% 88%;
-  --input: 30 18% 88%;
-  --primary: 20 16% 12%;         /* charcoal */
-  --primary-foreground: 32 38% 97%;
-  --secondary: 30 24% 94%;
-  --secondary-foreground: 20 16% 12%;
-  --accent: 21 64% 46%;          /* terracotta */
-  --accent-foreground: 0 0% 100%;
-  --destructive: 6 74% 50%;
+  --background: 60 20% 98%;      /* Soft Alabaster White #FBFBF9 — 60% */
+  --foreground: 235 21% 21%;     /* Deep Charcoal/Onyx #2B2D42 — 30% */
+  --muted: 48 22% 93%;
+  --muted-foreground: 100 5% 37%;
+  --popover: 60 100% 100%;
+  --popover-foreground: 235 21% 21%;
+  --card: 60 100% 100%;          /* near-pure white — pops slightly off the alabaster page bg */
+  --card-foreground: 235 21% 21%;
+  --border: 46 23% 85%;
+  --input: 46 23% 85%;
+  --primary: 235 21% 21%;        /* charcoal */
+  --primary-foreground: 60 20% 98%;
+  --secondary: 48 22% 93%;
+  --secondary-foreground: 235 21% 21%;
+  --accent: 217 5% 52%;          /* flat Shiny Silver base #7D828A — the one "confident" tone */
+  --accent-foreground: 235 21% 21%;
+  --destructive: 4 66% 48%;      /* semantic-only exception, see above */
   --destructive-foreground: 0 0% 98%;
-  --ring: 21 64% 46%;
-  --radius: 0.9rem;
-  --chart-1: 21 64% 46%;
-  --chart-2: 20 16% 12%;
-  --chart-3: 42 46% 55%;
-  --chart-4: 30 18% 70%;
-  --chart-5: 150 20% 40%;
-  --sidebar-background: 0 0% 100%;
-  --sidebar-foreground: 20 16% 12%;
-  --sidebar-primary: 30 24% 94%;
-  --sidebar-primary-foreground: 20 16% 12%;
-  --sidebar-accent: 30 18% 88%;
-  --sidebar-accent-foreground: 20 16% 12%;
-  --sidebar-border: 30 18% 88%;
-  --sidebar-ring: 21 64% 46%;
+  --ring: 235 21% 21%;
+  --radius: 0.6rem;
+  --chart-1: 235 20% 20%;
+  --chart-2: 235 15% 38%;
+  --chart-3: 235 10% 55%;
+  --chart-4: 235 8% 70%;
+  --chart-5: 235 6% 85%;
+  --sidebar-background: 60 100% 100%;
+  --sidebar-foreground: 235 21% 21%;
+  --sidebar-primary: 235 21% 21%;
+  --sidebar-primary-foreground: 60 20% 98%;
+  --sidebar-accent: 48 22% 93%;
+  --sidebar-accent-foreground: 235 21% 21%;
+  --sidebar-border: 46 23% 85%;
+  --sidebar-ring: 235 21% 21%;
 
-  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-display: "Space Grotesk", "Montserrat", ui-sans-serif, sans-serif;
 }
 
+/* v2's dark palette, preserved for a future real dark-mode toggle — not
+   applied anywhere today (grep confirms `.dark` is never added to any
+   element in this codebase), so this is inert until one exists. */
 .dark {
-  --background: 20 18% 8%;       /* deep warm charcoal */
-  --foreground: 32 30% 94%;      /* warm cream */
-  --muted: 20 14% 16%;
-  --muted-foreground: 30 12% 65%;
-  --popover: 20 18% 8%;
-  --popover-foreground: 32 30% 94%;
-  --card: 20 16% 11%;
-  --card-foreground: 32 30% 94%;
-  --border: 20 14% 20%;
-  --input: 20 14% 20%;
-  --primary: 32 30% 94%;         /* cream */
-  --primary-foreground: 20 18% 8%;
-  --secondary: 20 14% 16%;
-  --secondary-foreground: 32 30% 94%;
-  --accent: 24 70% 55%;          /* brighter terracotta on dark */
-  --accent-foreground: 20 18% 8%;
-  --destructive: 6 60% 40%;
+  --background: 0 0% 6%;
+  --foreground: 0 0% 96%;
+  --muted: 0 0% 13%;
+  --muted-foreground: 0 0% 62%;
+  --popover: 0 0% 8%;
+  --popover-foreground: 0 0% 96%;
+  --card: 0 0% 9%;
+  --card-foreground: 0 0% 96%;
+  --border: 0 0% 20%;
+  --input: 0 0% 20%;
+  --primary: 0 0% 96%;
+  --primary-foreground: 0 0% 6%;
+  --secondary: 0 0% 15%;
+  --secondary-foreground: 0 0% 96%;
+  --accent: 0 0% 100%;
+  --accent-foreground: 0 0% 6%;
+  --destructive: 4 66% 48%;
   --destructive-foreground: 0 0% 98%;
-  --ring: 24 70% 55%;
+  --ring: 0 0% 100%;
+}
+
+/* A deliberate dark band on the light site — the footer and the
+   mobile-app promo band use this for a "touch of black" accent section
+   (also functionally required: the footer logo relies on a `brightness-0
+   invert` filter to render white, which needs a dark surface behind it —
+   see Footer.tsx). Retinted in v1.11 to a charcoal-family dark (235° hue)
+   instead of plain grayscale, so it reads as "deep charcoal, darkened"
+   rather than an unrelated black — consistent with the new warm palette.
+   Every semantic Tailwind class (bg-card, text-foreground, bg-accent...)
+   used inside an element with this class automatically resolves to these
+   scoped values instead of the page-level `:root` ones. */
+.surface-invert {
+  --background: 235 15% 10%;
+  --foreground: 60 20% 96%;
+  --card: 235 15% 10%;
+  --card-foreground: 60 20% 96%;
+  --border: 235 10% 22%;
+  --muted: 235 10% 16%;
+  --muted-foreground: 60 8% 66%;
+  --accent: 220 10% 88%;
+  --accent-foreground: 235 21% 15%;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+/* "Shiny silver" — the metallic, animated treatment for the handful of
+   highest-intent CTAs (GENE v1.11). Deliberately separate from `--accent`
+   itself: baking the shimmer into the variable would animate every
+   `bg-accent` site across the app at once, which reads as noise, not
+   emphasis. Apply `.shine` by hand instead (see Hero's primary search
+   button). Respects reduced-motion. */
+@keyframes shine-sweep {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.shine {
+  /* Design-review fix (round 1): the lightest stops were near-white
+     (96%/94% lightness), which a static screenshot can catch mid-sweep and
+     make the button read as washed-out/disabled rather than a confident
+     metallic CTA. Floors raised to ~88% so no frame of the sweep gets that
+     pale, and text/border weight bumped slightly so the label stays legible
+     at every point in the animation, not just the darker frames. */
+  background: linear-gradient(120deg,
+    hsl(213 9% 78%) 0%, hsl(220 14% 88%) 22%, hsl(220 6% 60%) 45%,
+    hsl(220 10% 86%) 68%, hsl(218 7% 66%) 100%);
+  background-size: 250% 250%;
+  animation: shine-sweep 4.5s ease-in-out infinite;
+  color: hsl(var(--foreground));
+  font-weight: 600;
+  border: 1px solid hsla(0, 0%, 100%, 0.5);
+  box-shadow: inset 0 1px 0 hsla(0, 0%, 100%, 0.65), 0 2px 8px hsl(var(--foreground) / 0.14);
+}
+@media (prefers-reduced-motion: reduce) {
+  .shine { animation: none; }
 }
 
 @layer base {
@@ -83,6 +170,48 @@
   .font-display {
     font-family: var(--font-display);
   }
+}
+
+/*
+ * "NeoVision" VR/tech visual motifs — small, reusable, dark-on-light.
+ * Used by the Hero, VRBadge, and the property-page VR panel rather than
+ * one-off inline styles, so the look stays consistent everywhere it's used.
+ * Retinted in v1.11 to the charcoal hue (235°) instead of plain black, to
+ * match the new palette family — same opacities/effect, just warmer.
+ */
+.vr-grid-bg {
+  background-image:
+    linear-gradient(hsla(235, 21%, 21%, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, hsla(235, 21%, 21%, 0.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.vr-glow-ring {
+  box-shadow: 0 0 0 1px hsla(235, 21%, 21%, 0.12), 0 0 32px hsla(235, 21%, 21%, 0.10);
+}
+
+.vr-glow-text {
+  text-shadow: 0 0 20px hsla(235, 21%, 21%, 0.22);
+}
+
+.vr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 9999px;
+  border: 1px solid hsla(0, 0%, 100%, 0.35);
+  /* A dark scrim under the frost, not just a light tint — keeps white text
+     legible over ANY photo underneath (a bright sky, white walls), not
+     just dark ones. */
+  background: hsla(0, 0%, 0%, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.65rem;
 }
 
 .property-card {

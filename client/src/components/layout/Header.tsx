@@ -11,13 +11,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Loader2, LogOut, Settings, User, Glasses, Building, Users, Wallet, Rocket } from "lucide-react";
+import { Loader2, LogOut, Settings, User, Glasses, Building, Users, Wallet, Rocket, BarChart3, Send } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import NotificationCenter from "@/components/NotificationCenter";
+import AuthModal from "@/components/auth/AuthModal";
 
 export default function Header() {
   const [location, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const { user, logoutMutation } = useAuth();
 
   const handleSearch = (e: React.FormEvent) => {
@@ -75,10 +77,10 @@ export default function Header() {
           </Button> */}
           {/* {!user && (
             <>
-              <Link href="/membership" className="hidden md:block text-gray-800 hover:text-[#FF5A5F] font-medium">
+              <Link href="/membership" className="hidden md:block text-gray-800 hover:text-accent font-medium">
                 Become a Member
               </Link>
-              <Link href="/agent/register" className="hidden md:block text-gray-800 hover:text-[#FF5A5F] font-medium">
+              <Link href="/agent/register" className="hidden md:block text-gray-800 hover:text-accent font-medium">
                 Become an Agent
               </Link>
             </>
@@ -210,6 +212,18 @@ export default function Header() {
                           <span>Boost Confirmations</span>
                         </Link>
                       </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/analytics">
+                          <BarChart3 className="mr-2 h-4 w-4" />
+                          <span>Analytics</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/broadcast">
+                          <Send className="mr-2 h-4 w-4" />
+                          <span>Broadcast</span>
+                        </Link>
+                      </DropdownMenuItem>
                     </>
                   )}
                   <DropdownMenuSeparator />
@@ -238,15 +252,18 @@ export default function Header() {
                   <DropdownMenuItem asChild>
                     <Link href="/list-your-property">List a Property, Earn 1,000 UGX</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/auth">Sign In</Link>
-                  </DropdownMenuItem>
+                  {/* Popup sign-in (GENE v1.8) — the plain /auth page still
+                      exists as a fallback for anywhere else that links to
+                      it directly (e.g. a redirect after email verification). */}
+                  <DropdownMenuItem onSelect={() => setAuthModalOpen(true)}>Sign In</DropdownMenuItem>
                 </>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
         </nav>
       </div>
+
+      <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
 
       {/* Mobile Search (Only visible on mobile) */}
       <div className="md:hidden px-6 pb-4">

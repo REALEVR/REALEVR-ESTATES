@@ -315,11 +315,20 @@ export default function RentalUnitsPage() {
                     </p>
 
                     {!hasActiveViewingPackage && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                        /* Design-review fix (round 1): was bg-amber-50/text-amber-800/
+                           bg-amber-600 — a hardcoded warning-yellow palette that
+                           clashes with the site's charcoal/alabaster/silver system
+                           and visually reads as an ad/dark-pattern banner rather
+                           than an on-brand notice. Restyled onto the same semantic
+                           tokens every other card on the site uses. Price corrected
+                           from "15,000 UGX" to "10,000 UGX" to match what this
+                           button's actual payment flow (PropertyViewingPaymentPrompt)
+                           charges — the two had drifted apart. */
+                        <div className="bg-muted border border-border rounded-lg p-4 mb-6">
                             <div className="flex items-start">
                                 <div className="flex-shrink-0 mr-3">
                                     <svg
-                                        className="h-6 w-6 text-amber-500"
+                                        className="h-6 w-6 text-foreground"
                                         fill="none"
                                         viewBox="0 0 24 24"
                                         stroke="currentColor"
@@ -333,16 +342,16 @@ export default function RentalUnitsPage() {
                                     </svg>
                                 </div>
                                 <div className="flex-1">
-                                    <h3 className="text-amber-800 font-medium">Viewing Package Required</h3>
-                                    <p className="text-amber-700 text-sm mt-1">
-                                        A one-time fee of 15,000 UGX is required to view contact details for up to 10
+                                    <h3 className="text-foreground font-medium">Viewing Package Required</h3>
+                                    <p className="text-muted-foreground text-sm mt-1">
+                                        A one-time fee of 10,000 UGX is required to view contact details for up to 10
                                         rental properties. This provides access for 1 day only.
                                     </p>
                                     <Button
-                                        className="mt-3 bg-amber-600 hover:bg-amber-700"
+                                        className="mt-3 shine"
                                         onClick={carryOutPaymentModel}
                                     >
-                                        Purchase Viewing 
+                                        Purchase Viewing
                                     </Button>
                                 </div>
                             </div>
@@ -516,7 +525,7 @@ export default function RentalUnitsPage() {
                             <p className="text-gray-600 mb-4">
                                 We have many more properties available after purchasing a viewing package.
                             </p>
-                            {/* <Button className="bg-[#FF5A5F] hover:bg-[#FF5A5F]/90" onClick={openViewingPaymentPrompt}>
+                            {/* <Button className="bg-accent hover:bg-accent/90" onClick={openViewingPaymentPrompt}>
                                 Unlock All Properties
                             </Button> */}
                         </div>

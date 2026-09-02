@@ -9,12 +9,12 @@ export default function HowItWorksPage() {
         <div className="space-y-8">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">For Property Seekers</CardTitle>
+              <CardTitle className="text-2xl text-accent">For Property Seekers</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
                 <div className="flex items-start space-x-4">
-                  <div className="w-8 h-8 bg-[#FF5A5F] text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                  <div className="w-8 h-8 bg-accent text-accent-foreground rounded-full flex items-center justify-center font-bold flex-shrink-0">
                     1
                   </div>
                   <div>
@@ -27,7 +27,7 @@ export default function HowItWorksPage() {
                 </div>
                 
                 <div className="flex items-start space-x-4">
-                  <div className="w-8 h-8 bg-[#FF5A5F] text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                  <div className="w-8 h-8 bg-accent text-accent-foreground rounded-full flex items-center justify-center font-bold flex-shrink-0">
                     2
                   </div>
                   <div>
@@ -40,7 +40,7 @@ export default function HowItWorksPage() {
                 </div>
                 
                 <div className="flex items-start space-x-4">
-                  <div className="w-8 h-8 bg-[#FF5A5F] text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                  <div className="w-8 h-8 bg-accent text-accent-foreground rounded-full flex items-center justify-center font-bold flex-shrink-0">
                     3
                   </div>
                   <div>
@@ -53,7 +53,7 @@ export default function HowItWorksPage() {
                 </div>
                 
                 <div className="flex items-start space-x-4">
-                  <div className="w-8 h-8 bg-[#FF5A5F] text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                  <div className="w-8 h-8 bg-accent text-accent-foreground rounded-full flex items-center justify-center font-bold flex-shrink-0">
                     4
                   </div>
                   <div>
@@ -70,12 +70,12 @@ export default function HowItWorksPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">For Property Owners & Agents</CardTitle>
+              <CardTitle className="text-2xl text-accent">For Property Owners & Agents</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
                 <div className="flex items-start space-x-4">
-                  <div className="w-8 h-8 bg-[#00A699] text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                  <div className="w-8 h-8 bg-accent text-accent-foreground rounded-full flex items-center justify-center font-bold flex-shrink-0">
                     1
                   </div>
                   <div>
@@ -88,7 +88,7 @@ export default function HowItWorksPage() {
                 </div>
                 
                 <div className="flex items-start space-x-4">
-                  <div className="w-8 h-8 bg-[#00A699] text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                  <div className="w-8 h-8 bg-accent text-accent-foreground rounded-full flex items-center justify-center font-bold flex-shrink-0">
                     2
                   </div>
                   <div>
@@ -101,7 +101,7 @@ export default function HowItWorksPage() {
                 </div>
                 
                 <div className="flex items-start space-x-4">
-                  <div className="w-8 h-8 bg-[#00A699] text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                  <div className="w-8 h-8 bg-accent text-accent-foreground rounded-full flex items-center justify-center font-bold flex-shrink-0">
                     3
                   </div>
                   <div>
@@ -114,7 +114,7 @@ export default function HowItWorksPage() {
                 </div>
                 
                 <div className="flex items-start space-x-4">
-                  <div className="w-8 h-8 bg-[#00A699] text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                  <div className="w-8 h-8 bg-accent text-accent-foreground rounded-full flex items-center justify-center font-bold flex-shrink-0">
                     4
                   </div>
                   <div>
@@ -131,13 +131,13 @@ export default function HowItWorksPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">Subscription Plans</CardTitle>
+              <CardTitle className="text-2xl text-accent">Subscription Plans</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="border border-gray-200 rounded-lg p-6 text-center">
                   <h3 className="font-bold text-xl mb-2">Basic</h3>
-                  <p className="text-3xl font-bold text-[#FF5A5F] mb-4">Free</p>
+                  <p className="text-3xl font-bold text-accent mb-4">Free</p>
                   <ul className="text-sm text-gray-600 space-y-2">
                     <li>• Limited property views</li>
                     <li>• Basic search features</li>
@@ -145,9 +145,9 @@ export default function HowItWorksPage() {
                   </ul>
                 </div>
                 
-                <div className="border border-[#FF5A5F] rounded-lg p-6 text-center bg-[#FF5A5F]/5">
+                <div className="border border-accent rounded-lg p-6 text-center bg-accent/5">
                   <h3 className="font-bold text-xl mb-2">Professional</h3>
-                  <p className="text-3xl font-bold text-[#FF5A5F] mb-4">50K UGX</p>
+                  <p className="text-3xl font-bold text-accent mb-4">50K UGX</p>
                   <p className="text-sm text-gray-500 mb-4">per month</p>
                   <ul className="text-sm text-gray-600 space-y-2">
                     <li>• Unlimited property views</li>
@@ -159,7 +159,7 @@ export default function HowItWorksPage() {
                 
                 <div className="border border-gray-200 rounded-lg p-6 text-center">
                   <h3 className="font-bold text-xl mb-2">Enterprise</h3>
-                  <p className="text-3xl font-bold text-[#FF5A5F] mb-4">100K UGX</p>
+                  <p className="text-3xl font-bold text-accent mb-4">100K UGX</p>
                   <p className="text-sm text-gray-500 mb-4">per month</p>
                   <ul className="text-sm text-gray-600 space-y-2">
                     <li>• All Professional features</li>
@@ -174,7 +174,7 @@ export default function HowItWorksPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-[#FF5A5F]">Payment & Security</CardTitle>
+              <CardTitle className="text-2xl text-accent">Payment & Security</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

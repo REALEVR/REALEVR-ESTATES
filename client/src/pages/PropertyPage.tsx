@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRoute } from "wouter";
 import VirtualTour from "@/components/property/VirtualTour";
+import VRBadge from "@/components/property/VRBadge";
+import { Headset } from "lucide-react";
 import PropertyDetails from "@/components/property/PropertyDetails";
 import { Button } from "@/components/ui/button";
 import { useProperty, trackPropertyView } from "@/hooks/usePropertyData";
@@ -161,12 +163,21 @@ export default function PropertyPage() {
       <div className="bg-card rounded-xl overflow-hidden shadow-lg">
         <div className="lg:flex">
           <div className="lg:w-1/2">
-            <div className="h-[400px] lg:h-[600px] tour-container bg-muted relative">
-              <VirtualTour 
-                tourUrl={(property as Property).tourUrl || "https://realevr.com/LA%20ROSE%20ROYAL%20APARTMENTS/"} 
+            {(property as Property).hasTour && (
+              <div className="flex items-center justify-between gap-2 bg-background px-4 py-2.5 border-b border-border">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Headset className="h-4 w-4" />
+                  Experience this home in VR
+                </div>
+                <VRBadge size="sm" />
+              </div>
+            )}
+            <div className="h-[400px] lg:h-[600px] tour-container bg-muted relative vr-glow-ring">
+              <VirtualTour
+                tourUrl={(property as Property).tourUrl || "https://realevr.com/LA%20ROSE%20ROYAL%20APARTMENTS/"}
                 isFullscreen={isFullscreen}
               />
-              
+
               <div className="absolute bottom-4 right-4 bg-card/80 backdrop-blur-sm rounded-lg p-2 shadow-lg">
                 <div className="flex space-x-3">
                   <button className="p-2 hover:bg-card rounded-full" title="Zoom in">
