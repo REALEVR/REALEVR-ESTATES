@@ -34,7 +34,7 @@ import ContactUsPage from '@/pages/ContactUsPage'
 import TrustSafetyPage from '@/pages/TrustSafetyPage'
 import VerifyEmailPage from '@/pages/VerifyEmailPage'
 import { AuthProvider, useAuth } from '@/hooks/use-auth'
-import AuthGate from '@/components/auth/AuthGate'
+import SignupNudgeGate from '@/components/auth/SignupNudgeGate'
 import WhatsAppNumberPrompt from '@/components/auth/WhatsAppNumberPrompt'
 import { PaymentProvider } from '@/contexts/PaymentContext'
 import VirtualTourManager from '@/components/admin/VirtualTourManager'
@@ -143,10 +143,14 @@ function Router() {
 }
 
 // Everything that needs to know whether someone is signed in lives here, nested under
-// AuthProvider so useAuth() is available. Sign-in is compulsory: with no user, the
-// sign-in gate takes over the whole screen instead of the site.
+// AuthProvider so useAuth() is available. Browsing itself is NOT gated - visitors
+// land straight on the real site. SignupNudgeGate handles nudging anyone not signed
+// in toward AuthGate on its own schedule (see that file): a dismissible popup after
+// 20s, a handful more dismissible reappearances over the next 10 minutes, then a
+// final one at the 10-minute mark that behaves like the old compulsory gate and
+// stays up until they actually sign in.
 function AppShell() {
-    const { user, isLoading } = useAuth()
+    const { isLoading } = useAuth()
     const [gateway, setGateway] = useState<{ accessToken: string; amount: string; source: string } | null>(null)
 
     useEffect(() => {
@@ -175,10 +179,6 @@ function AppShell() {
         )
     }
 
-    if (!user) {
-        return <AuthGate />
-    }
-
     return (
         <>
             <div className="flex flex-col min-h-screen">
@@ -205,6 +205,7 @@ function AppShell() {
             <ScrollToTop />
             <AIAssistant />
             <WhatsAppNumberPrompt />
+            <SignupNudgeGate />
         </>
     )
 }
