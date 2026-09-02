@@ -106,7 +106,12 @@ export function setupAuth(app: Express) {
         // console.log("Attempting login for username:", username);
         // console.log("Password provided:", password ? "***" : "NO PASSWORD");
 
-        const user = await storage.getUserByUsername(username);
+        // Accept either a username or an email address in the same field - the
+        // conversational login step asks for "username or email" since most
+        // visitors won't know/remember the username their account was given.
+        const user =
+            (await storage.getUserByUsername(username)) ||
+            (username.includes("@") ? await storage.getUserByEmail(username) : undefined);
         // console.log("User found:", user ? `${user.username} (ID: ${user.id})` : "NO USER FOUND");
         if (user) {
           // console.log("User details:", { id: user.id, username: user.username, email: user.email, role: user.role });
