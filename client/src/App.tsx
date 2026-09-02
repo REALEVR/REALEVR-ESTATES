@@ -34,7 +34,8 @@ import ContactUsPage from '@/pages/ContactUsPage'
 import TrustSafetyPage from '@/pages/TrustSafetyPage'
 import VerifyEmailPage from '@/pages/VerifyEmailPage'
 import { AuthProvider, useAuth } from '@/hooks/use-auth'
-import ConversationalAuthGate from '@/components/auth/ConversationalAuthGate'
+import AuthGate from '@/components/auth/AuthGate'
+import WhatsAppNumberPrompt from '@/components/auth/WhatsAppNumberPrompt'
 import { PaymentProvider } from '@/contexts/PaymentContext'
 import VirtualTourManager from '@/components/admin/VirtualTourManager'
 import { ProtectedAdminRoute } from './lib/protected-admin-route'
@@ -143,7 +144,7 @@ function Router() {
 
 // Everything that needs to know whether someone is signed in lives here, nested under
 // AuthProvider so useAuth() is available. Sign-in is compulsory: with no user, the
-// conversational sign-in gate takes over the whole screen instead of the site.
+// sign-in gate takes over the whole screen instead of the site.
 function AppShell() {
     const { user, isLoading } = useAuth()
     const [gateway, setGateway] = useState<{ accessToken: string; amount: string; source: string } | null>(null)
@@ -172,7 +173,7 @@ function AppShell() {
     }
 
     if (!user) {
-        return <ConversationalAuthGate />
+        return <AuthGate />
     }
 
     return (
@@ -200,6 +201,7 @@ function AppShell() {
             <BrokerOnlinePresence />
             <ScrollToTop />
             <AIAssistant />
+            <WhatsAppNumberPrompt />
         </>
     )
 }

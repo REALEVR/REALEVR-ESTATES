@@ -113,7 +113,9 @@ async function findOrCreateGoogleUser(profile: Profile) {
     } as any)
 }
 
-function popupResponseHtml(payload: { ok: true; user: Record<string, unknown> } | { ok: false; error: string }): string {
+function popupResponseHtml(
+    payload: { ok: true; user: Record<string, unknown>; needsPhone?: boolean } | { ok: false; error: string }
+): string {
     // Posts the result back to the window that opened this popup, then
     // closes itself. `'*'` targetOrigin would work but is deliberately
     // avoided — the opener's own origin is used via document.referrer /
@@ -173,7 +175,17 @@ export function registerGoogleAuthRoutes(app: Express): void {
                 }
                 req.session.save(() => {
                     const { password, ...userWithoutPassword } = user
-                    res.send(popupResponseHtml({ ok: true, user: userWithoutPassword }))
+                    // Google never gives us a phone number - flag it so the client can
+                    // offer a one-time "add your WhatsApp number" prompt after landing.
+                    // Covers both a brand-new Google account and an existing local
+                    // account that just linked Google but never had a number on file.
+                    res.send(
+                        popupResponseHtml({
+                            ok: true,
+                            user: userWithoutPassword,
+                            needsPhone: !user.phoneNumber,
+                        })
+                    )
                 })
             })
         })(req, res, next)

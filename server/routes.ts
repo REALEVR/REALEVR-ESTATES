@@ -1959,16 +1959,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
 
             const userId = req.user.id
-            const { phoneNumber, companyName, fullName } = req.body
+            const { phoneNumber, countryCode, companyName, fullName } = req.body
 
             // Explicit whitelist (NO role, NO membership, NO isVerified)
             const updateData: Partial<{
                 phoneNumber: string
+                countryCode: string
                 companyName: string
                 fullName: string
             }> = {}
 
             if (typeof phoneNumber === 'string') updateData.phoneNumber = phoneNumber
+            if (typeof countryCode === 'string') updateData.countryCode = countryCode
             if (typeof companyName === 'string') updateData.companyName = companyName
             if (typeof fullName === 'string') updateData.fullName = fullName
 
