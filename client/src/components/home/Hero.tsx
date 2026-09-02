@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import "../Hero.css"
 
-import houseImg from '../../assets/images/hero.jpg';
+import houseImg from '../../assets/images/hero-house.jpg';
 import FilterBar from './FilterBar';
 
 // Custom hook for mobile detection
@@ -282,8 +282,9 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           />
         )}
         
-        {/* Play/Pause button overlay - always show in top right */}
-        <button 
+        {/* Play/Pause button overlay - only relevant while a video is actually playing */}
+        {videoUrl && !showImage && (
+        <button
           onClick={handlePlayPause}
           className="absolute top-4 right-4 bg-white rounded-full p-3 shadow-lg border border-gray-200 hover:bg-gray-50 transition-colors"
         >
@@ -300,7 +301,8 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             </svg>
           )}
         </button>
-        
+        )}
+
         {/* Search bar - hidden on mobile */}
         {!isMobile && (
           <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-[95%] bg-white rounded-full shadow-lg flex flex-wrap md:flex-nowrap items-center px-4 py-2 gap-2 md:gap-4">

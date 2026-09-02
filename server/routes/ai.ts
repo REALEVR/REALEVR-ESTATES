@@ -1,7 +1,8 @@
 import { Router } from 'express'
-import { GoogleGenAI, Type } from '@google/genai'
+import { Type } from '@google/genai'
 import { storage } from '../storage'
 import { hashPassword } from '../auth'
+import { getGeminiClient as getClient } from '../lib/gemini'
 
 const router = Router()
 
@@ -11,12 +12,6 @@ const SYSTEM_INSTRUCTION =
     'professional, friendly, and knowledgeable about Ugandan real estate (Kampala, Entebbe, Jinja, etc.). ' +
     'Mention features like immersive VR property tours, secure payments, and verified listings. Keep ' +
     'responses concise and helpful.'
-
-function getClient(): GoogleGenAI | null {
-    const apiKey = process.env.GEMINI_API_KEY
-    if (!apiKey) return null
-    return new GoogleGenAI({ apiKey })
-}
 
 // POST /api/ai/chat - Proxy a single-turn chat message to Gemini for the AI Assistant widget.
 // The API key stays server-side; the client never sees it.

@@ -26,7 +26,7 @@ import notificationRoutes from './routes/notifications'
 import reviewRoutes from './routes/reviews'
 import aiRoutes from './routes/ai'
 import { getAllReviews } from './models/Review'
-import { runDepositReminders, runViewingReminders } from './cron/index'
+import { runDepositReminders, runViewingReminders, postDailyUpdate } from './cron/index'
 
 // Middleware to check if user is an admin or property manager
 const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -2347,6 +2347,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             res.json({ message: 'Reminders triggered successfully' })
         } catch (error: any) {
             console.error('[Admin] Error triggering reminders:', error)
+            res.status(500).json({ message: error.message })
+        }
+    })
+
+    // Admin-only: trigger today's social media post immediately instead of waiting
+    // for the daily cron. Returns per-platform status (posted/skipped/failed).
+    app.post('/api/admin/social/post-now', async (req: any, res: any) => {
+        try {
+            if (!req.isAuthenticated() || !req.user || req.user.role !== 'admin') {
+                return res.status(403).json({ message: 'Unauthorized. Admin role required.' })
+            }
+            console.log('[Admin] Manually triggering daily social post...')
+            const results = await postDailyUpdate()
+            res.json({ results })
+        } catch (error: any) {
+            console.error('[Admin] Error triggering social post:', error)
             res.status(500).json({ message: error.message })
         }
     })
