@@ -49,6 +49,7 @@ import { registerSlackBridgeRoutes } from './gene/slack-bridge'
 import { registerAgentWhatsappOnboardingRoutes } from './gene/agent-whatsapp-onboarding'
 import { registerTourAccessPassRoutes, issuePass } from './gene/tour-access-pass'
 import { registerPersonalAgentRoutes } from './gene/personal-agent'
+import { registerAfricaMediaFeedRoutes } from './gene/africa-media-feed'
 import { registerReferralRewardsRoutes } from './gene/referral-rewards'
 import { registerWhatsappConciergeRoutes } from './gene/whatsapp-concierge'
 import { registerLandlordHubRoutes } from './gene/landlord-hub'
@@ -2416,6 +2417,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerUserAnalyticsRoutes(app, requireStrictAdmin)
     registerWebPushRoutes(app, requireStrictAdmin)
     registerBroadcastRoutes(app, requireStrictAdmin)
+
+    // Africa real estate media pulse — see docs/GENE_PLATFORM.md v1.15.
+    // Public (no auth): backs the homepage hero's live news panel.
+    registerAfricaMediaFeedRoutes(app)
 
     // Admin endpoint to manually trigger reminders for testing
     app.post('/api/admin/test-reminders', adminMiddleware, async (_req: any, res: any) => {

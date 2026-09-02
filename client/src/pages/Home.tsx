@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Hero from '@/components/home/Hero'
+import AfricaRealEstatePulse from '@/components/home/AfricaRealEstatePulse'
 import MotionBackground from '@/components/motion/MotionBackground'
 import Reveal from '@/components/motion/Reveal'
 import FilterBar from '@/components/home/FilterBar'
@@ -110,6 +111,15 @@ export default function Home() {
                 jsonLd={homeJsonLd}
             />
             <Hero videoUrl={heroVideoUrl} />
+
+            {/* Africa real estate media panel, attached to the hero video
+                space: a live-updating mix of real Africa real estate news
+                (server-fetched, only when NEWS_API_KEY is configured — see
+                server/gene/africa-media-feed.ts) and this platform's own
+                current live listing photos. Renders nothing at all when
+                neither source has content — see AfricaRealEstatePulse.tsx
+                for why a missing panel beats a fake "live" one. */}
+            <AfricaRealEstatePulse />
 
             {/* Design-review fix (round 2): the agent/broker recruitment CTA
                 used to sit here, immediately after the hero — the very next
