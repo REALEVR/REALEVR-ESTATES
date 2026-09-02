@@ -229,7 +229,12 @@ export default function PropertyCard({ property }: PropertyCardProps) {
 
                     <div className="flex justify-between items-center mb-3">
                         <div>
-                            <span className="font-display font-medium text-foreground text-lg">
+                            {/* Design-review fix (round 2): price was the same
+                                weight/size as the bed/bath/sqm spec line below
+                                it — the single most-scanned number on a
+                                listings card read like metadata, not the
+                                headline it should be. */}
+                            <span className="font-display font-bold text-foreground text-xl md:text-2xl">
                                 {property.price != null ? (
                                     property.price.toLocaleString()
                                 ) : (

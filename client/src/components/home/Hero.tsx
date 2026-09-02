@@ -9,6 +9,7 @@ import MotionBackground from '@/components/motion/MotionBackground';
 import CountUp from '@/components/motion/CountUp';
 import VRBadge from '@/components/property/VRBadge';
 import ExploreFiltersDialog from './ExploreFiltersDialog';
+import { useProperties } from '@/hooks/usePropertyData';
 
 // Custom hook for mobile detection
 const useIsMobile = () => {
@@ -35,6 +36,26 @@ interface HeroProps {
 const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
   const [, setLocation] = useLocation();
   const isMobile = useIsMobile();
+  // Design-review fix (round 2): the hero stats used to read "1,000+
+  // Target House Listings" / "98% Target Customer Satisfaction" — both
+  // visibly labeled as unmet goals, which self-discredits the one place
+  // on the page meant to build trust at a glance. Real, live listing
+  // count instead (react-query dedupes this against Home.tsx's own
+  // useProperties() call — same query key, no extra network request).
+  // The satisfaction percentage is dropped entirely below rather than
+  // replaced with another number — there's no real survey/rating data
+  // behind it anywhere in this codebase to report honestly.
+  const { data: heroProperties } = useProperties();
+  const liveHeroListings = (heroProperties ?? []).filter((p) => p.title && p.title.trim() !== '');
+  const liveListingCount = liveHeroListings.length;
+  // Second stat is a real computed share of live listings that actually
+  // have a tour (property.hasTour), not an assumed 100% — falls back to
+  // null (stat hidden) rather than a divide-by-zero NaN% when there's no
+  // data yet.
+  const tourCoveragePercent =
+    liveListingCount > 0
+      ? Math.round((liveHeroListings.filter((p) => p.hasTour).length / liveListingCount) * 100)
+      : null;
   const [isVideoLoading, setIsVideoLoading] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [showImage, setShowImage] = useState(!videoUrl);
@@ -240,17 +261,21 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           <div className="flex gap-12">
             <div>
               <div className="text-3xl md:text-4xl font-display font-medium text-foreground">
-                <CountUp value={1000} suffix="+" />
+                <CountUp value={liveListingCount} suffix="+" />
               </div>
-              <div className="text-muted-foreground text-base">Target House Listings</div>
+              <div className="text-muted-foreground text-base">Live Listings Today</div>
             </div>
-            <div className="border-l border-border h-12 mx-4"></div>
-            <div>
-              <div className="text-3xl md:text-4xl font-display font-medium text-foreground">
-                <CountUp value={98} suffix="%" />
-              </div>
-              <div className="text-muted-foreground text-base">Target Customer Satisfaction</div>
-            </div>
+            {tourCoveragePercent !== null && (
+              <>
+                <div className="border-l border-border h-12 mx-4"></div>
+                <div>
+                  <div className="text-3xl md:text-4xl font-display font-medium text-foreground">
+                    <CountUp value={tourCoveragePercent} suffix="%" />
+                  </div>
+                  <div className="text-muted-foreground text-base">Listings With a Virtual Tour</div>
+                </div>
+              </>
+            )}
           </div>
         </motion.div>
       </div>

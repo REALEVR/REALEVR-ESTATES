@@ -111,36 +111,15 @@ export default function Home() {
             />
             <Hero videoUrl={heroVideoUrl} />
 
-            {/* Agent Registration Call-to-Action */}
-            <section className="relative overflow-hidden py-16 bg-gradient-to-r from-accent/10 via-secondary to-accent/10 -mx-4 sm:-mx-6 lg:-mx-8">
-                <MotionBackground tone="warm" />
-                <div className="relative z-10 container mx-auto px-6">
-                    <div className="max-w-4xl mx-auto text-center">
-                        <h2 className="text-3xl md:text-4xl font-display font-medium text-foreground mb-4">
-                            Become a RealEVR broker today
-                        </h2>
-                        <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-                            Join RealEVR Estates as a professional agent/dotcom and start listing properties with
-                            virtual tours. Get access to premium features and reach more clients.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                            <Button
-                                asChild
-                                className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 text-lg font-semibold"
-                            >
-                                <Link href="/agent/register">Become an Agent</Link>
-                            </Button>
-                            <Button
-                                asChild
-                                variant="outline"
-                                className="border-accent text-accent hover:bg-accent hover:text-accent-foreground px-8 py-3 text-lg font-semibold"
-                            >
-                                <Link href="/list-your-property">List a Property, Earn 1,000 UGX</Link>
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            {/* Design-review fix (round 2): the agent/broker recruitment CTA
+                used to sit here, immediately after the hero — the very next
+                thing a demand-side visitor (a renter/buyer, the large
+                majority of homepage traffic) saw was a supply-side "become
+                an agent" pitch, ahead of a single property. Moved below the
+                Browse Properties grid (see near the bottom of this file) so
+                property content keeps the momentum coming out of the hero's
+                search bar, and agent recruitment reaches the audience it's
+                actually for without blocking everyone else's path first. */}
 
             <Reveal><FeaturedTour /></Reveal>
             <Reveal><FeaturedProperties /></Reveal>
@@ -199,10 +178,15 @@ export default function Home() {
                                     pattern, same hide-scrollbar utility FilterBar already uses) instead
                                     of 5 equal-width grid columns squeezing "Furnished Houses" into ~70px.
                                     md+: reverts to the original centered grid. */}
+                                {/* Design-review fix (round 2): labels now match FilterBar's
+                                    "Browse by" row exactly ("For Rent" / "BnBs", not "Rental
+                                    Units" / "Furnished Houses") — a visitor filtering by icon
+                                    in the hero and then scrolling to this tab bar was seeing
+                                    two different label sets for the same four categories. */}
                                 <TabsList className="flex md:grid md:grid-cols-5 w-full mb-8 overflow-x-auto hide-scrollbar justify-start md:justify-center gap-1 md:gap-0">
                                     <TabsTrigger value="all" className="flex-shrink-0">All Properties</TabsTrigger>
-                                    <TabsTrigger value="rental_units" className="flex-shrink-0">Rental Units</TabsTrigger>
-                                    <TabsTrigger value="furnished_houses" className="flex-shrink-0">Furnished Houses</TabsTrigger>
+                                    <TabsTrigger value="rental_units" className="flex-shrink-0">For Rent</TabsTrigger>
+                                    <TabsTrigger value="furnished_houses" className="flex-shrink-0">BnBs</TabsTrigger>
                                     <TabsTrigger value="for_sale" className="flex-shrink-0">For Sale</TabsTrigger>
                                     <TabsTrigger value="bank_sales" className="flex-shrink-0">Bank Sales</TabsTrigger>
                                 </TabsList>
@@ -234,6 +218,38 @@ export default function Home() {
                             </div>
                         </>
                     )}
+                </div>
+            </section></Reveal>
+
+            {/* Agent Registration Call-to-Action — moved here from right after
+                the hero, see the comment near <Hero> above. */}
+            <Reveal><section className="relative overflow-hidden py-16 bg-gradient-to-r from-accent/10 via-secondary to-accent/10 -mx-4 sm:-mx-6 lg:-mx-8">
+                <MotionBackground tone="warm" />
+                <div className="relative z-10 container mx-auto px-6">
+                    <div className="max-w-4xl mx-auto text-center">
+                        <h2 className="text-3xl md:text-4xl font-display font-medium text-foreground mb-4">
+                            Become a RealEVR broker today
+                        </h2>
+                        <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
+                            Join RealEVR Estates as a professional agent/dotcom and start listing properties with
+                            virtual tours. Get access to premium features and reach more clients.
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                            <Button
+                                asChild
+                                className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 text-lg font-semibold"
+                            >
+                                <Link href="/agent/register">Become an Agent</Link>
+                            </Button>
+                            <Button
+                                asChild
+                                variant="outline"
+                                className="border-accent text-accent hover:bg-accent hover:text-accent-foreground px-8 py-3 text-lg font-semibold"
+                            >
+                                <Link href="/list-your-property">List a Property, Earn 1,000 UGX</Link>
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             </section></Reveal>
 

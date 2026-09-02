@@ -264,26 +264,39 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                             <div>
                                 <h4 className="font-semibold mb-1">Amenities</h4>
                                 <ul className="space-y-2 text-muted-foreground">
-                                    {getSafeAmenities(property)?.map?.((amenity, index) => (
-                                        <li key={index} className="flex items-center">
-                                            <i
-                                                className={`fas fa-${
-                                                    amenity.includes('Pool')
-                                                        ? 'swimming-pool'
-                                                        : amenity.includes('Fitness')
-                                                        ? 'dumbbell'
-                                                        : amenity.includes('Pet')
-                                                        ? 'paw'
-                                                        : amenity.includes('Internet')
-                                                        ? 'wifi'
-                                                        : amenity.includes('parking')
-                                                        ? 'parking'
-                                                        : 'check'
-                                                } w-6`}
-                                            ></i>
-                                            <span>{amenity}</span>
-                                        </li>
-                                    )) || <li className="text-muted-foreground/70 italic">No amenities listed</li>}
+                                    {/* Design-review fix (round 2): `array.map(...) || fallback`
+                                        never actually falls back — `.map()` on an empty array
+                                        returns `[]`, which is truthy in JS, so the "No amenities
+                                        listed" text could never render; a property with zero
+                                        amenities just showed a silently blank column instead
+                                        (confirmed via the design-review panel's screenshot).
+                                        Checking `.length` explicitly fixes the real bug. */}
+                                    {(() => {
+                                        const amenities = getSafeAmenities(property) ?? []
+                                        if (amenities.length === 0) {
+                                            return <li className="text-muted-foreground/70 italic">No amenities listed</li>
+                                        }
+                                        return amenities.map((amenity, index) => (
+                                            <li key={index} className="flex items-center">
+                                                <i
+                                                    className={`fas fa-${
+                                                        amenity.includes('Pool')
+                                                            ? 'swimming-pool'
+                                                            : amenity.includes('Fitness')
+                                                            ? 'dumbbell'
+                                                            : amenity.includes('Pet')
+                                                            ? 'paw'
+                                                            : amenity.includes('Internet')
+                                                            ? 'wifi'
+                                                            : amenity.includes('parking')
+                                                            ? 'parking'
+                                                            : 'check'
+                                                    } w-6`}
+                                                ></i>
+                                                <span>{amenity}</span>
+                                            </li>
+                                        ))
+                                    })()}
                                 </ul>
                             </div>
                         </div>
@@ -427,9 +440,13 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
             </Tabs>
 
             {/* Display price differently for BnBs (per night) vs other properties (per month) */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-3">
                 <div className="mb-4 md:mb-0">
-                    <span className="text-2xl font-display font-medium text-foreground">
+                    {/* Design-review fix (round 2): bumped from text-2xl/font-medium
+                        to match the same price-hierarchy fix applied to
+                        PropertyCard — the price is the most-scanned number on
+                        this page and should read as a headline. */}
+                    <span className="text-3xl font-display font-bold text-foreground">
                         {property.price !== undefined && property.price !== null
                             ? property.price.toLocaleString()
                             : 'N/A'}{' '}
@@ -449,6 +466,22 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                     </Button>
                 </div>
             </div>
+
+            {/* Design-review fix (round 2): the trust/credibility review
+                flagged that "Schedule Visit" / "Book Now" gave no indication
+                of what happens next or how to know you're dealing with the
+                verified agent — exactly the hesitation point for a
+                scam-wary first-time visitor. One honest, real line, linking
+                to the platform's actual existing Trust & Safety page rather
+                than inventing a new policy. */}
+            <p className="text-sm text-muted-foreground mb-8 flex items-center gap-1.5">
+                <i className="fas fa-shield-halved text-xs"></i>
+                You'll be contacted by the listing agent to arrange next steps.{' '}
+                <a href="/trust-safety" className="text-accent hover:underline">
+                    Read our safety guidance
+                </a>{' '}
+                before paying any deposit outside the platform.
+            </p>
 
             {/* Show owner contact details section for BnBs */}
             {isBnB && (
