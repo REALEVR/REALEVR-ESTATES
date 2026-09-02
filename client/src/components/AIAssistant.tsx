@@ -14,14 +14,41 @@ const WELCOME_MESSAGE: ChatMessage = {
     text: "Hello! I'm the RealEVR Assistant. Ask me about properties, VR tours, or how booking works.",
 }
 
-// Floating AI chat widget. All Gemini calls are proxied through /api/ai/chat so the
-// API key never reaches the browser.
+// sessionId ties this widget's conversation to the same GENE backend/history
+// the "My Agent" chat tab and the WhatsApp concierge use - persisted in
+// localStorage so refreshing the page (or closing and reopening the widget)
+// doesn't lose the thread.
+const SESSION_STORAGE_KEY = 'realevr_gene_chat_session_id'
+
+function getOrCreateSessionId(): string {
+    try {
+        const existing = localStorage.getItem(SESSION_STORAGE_KEY)
+        if (existing) return existing
+        const fresh = crypto.randomUUID()
+        localStorage.setItem(SESSION_STORAGE_KEY, fresh)
+        return fresh
+    } catch {
+        // Storage unavailable (private browsing, etc.) - a per-load id still
+        // lets this one conversation work, it just won't persist a reload.
+        return crypto.randomUUID()
+    }
+}
+
+// Floating AI chat widget - talks to the same GENE assistant backend
+// (/api/gene/chat) as the signed-in "My Agent" chat tab and the WhatsApp
+// concierge, instead of a separate, single-provider implementation. That
+// backend tries Claude, then ChatGPT, then Gemini (server/gene/ai-provider.ts)
+// and always has a real per-intent fallback reply even if none of the three
+// are configured, so there's no "not configured" error state to show here
+// anymore - every reply is a real one.
 export default function AIAssistant() {
     const [isOpen, setIsOpen] = useState(false)
     const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE])
     const [input, setInput] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const endRef = useRef<HTMLDivElement>(null)
+    const sessionIdRef = useRef<string>()
+    if (!sessionIdRef.current) sessionIdRef.current = getOrCreateSessionId()
 
     useEffect(() => {
         endRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -36,19 +63,14 @@ export default function AIAssistant() {
         setIsLoading(true)
 
         try {
-            const res = await apiRequest('POST', '/api/ai/chat', { message })
+            const res = await apiRequest('POST', '/api/gene/chat', { message, sessionId: sessionIdRef.current })
             const data = await res.json()
+            if (typeof data.sessionId === 'string') sessionIdRef.current = data.sessionId
             setMessages((prev) => [...prev, { role: 'bot', text: data.reply }])
-        } catch (error: any) {
-            const notConfigured = String(error?.message || '').includes('503')
+        } catch {
             setMessages((prev) => [
                 ...prev,
-                {
-                    role: 'bot',
-                    text: notConfigured
-                        ? "The AI Assistant isn't configured yet. Please contact support directly for now."
-                        : "I'm having trouble connecting right now. Please try again shortly.",
-                },
+                { role: 'bot', text: "I'm having trouble connecting right now. Please try again shortly." },
             ])
         } finally {
             setIsLoading(false)

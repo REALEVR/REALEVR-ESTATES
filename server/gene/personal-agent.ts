@@ -14,10 +14,11 @@
  * Design choices carried over from the rest of GENE:
  *  - Same JSON-file collection store as every other module (./store) —
  *    additive, no new DynamoDB tables required to review this.
- *  - AI (Anthropic) is used only to WRITE the natural-language explanation
- *    on top of a deterministic, real-data scoring pass — it never picks
- *    which properties to recommend or invents a number. Absent
- *    ANTHROPIC_API_KEY, everything still works via templated text.
+ *  - AI (via ./ai-provider's getAiReply — Claude, then ChatGPT, then Gemini,
+ *    whichever is configured) is used only to WRITE the natural-language
+ *    explanation on top of a deterministic, real-data scoring pass — it
+ *    never picks which properties to recommend or invents a number. Absent
+ *    all three provider keys, everything still works via templated text.
  *  - The news feed requires NEWS_API_KEY (https://newsapi.org or a
  *    compatible provider using the same query shape). Without it, the
  *    endpoint returns `{ configured: false, items: [] }` rather than
@@ -28,6 +29,7 @@ import type { Express, Request, Response, NextFunction } from 'express'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
 import type { Property } from '@shared/schema'
+import { getAiReply } from './ai-provider'
 
 const PROFILE_COLLECTION = 'gene_agent_profiles'
 const SIGNAL_COLLECTION = 'gene_agent_signals'
@@ -394,42 +396,14 @@ function templatedLocationReason(stat: LocationStat, profile: AgentProfile): str
 }
 
 // ---------------------------------------------------------------------------
-// Anthropic — optional narrative layer over the deterministic data above.
-// Same fallback discipline as ./chat.ts: never block or 500 without the key.
+// AI narrative layer over the deterministic data above, via ./ai-provider.
+// Same fallback discipline as before: never block or 500 without a key -
+// now with three providers to try instead of one.
 // ---------------------------------------------------------------------------
 
-export async function callAnthropic(systemPrompt: string, userMessage: string): Promise<string | null> {
-    const apiKey = process.env.ANTHROPIC_API_KEY
-    if (!apiKey) return null
-    try {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'content-type': 'application/json',
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01',
-            },
-            body: JSON.stringify({
-                model: 'claude-3-5-haiku-latest',
-                max_tokens: 500,
-                system: systemPrompt,
-                messages: [{ role: 'user', content: userMessage }],
-            }),
-        })
-        if (!response.ok) {
-            console.error('[gene/personal-agent] Anthropic API error', response.status, await response.text())
-            return null
-        }
-        const data: any = await response.json()
-        const textBlocks: string[] = Array.isArray(data?.content)
-            ? data.content.filter((b: any) => b?.type === 'text').map((b: any) => b.text)
-            : []
-        const reply = textBlocks.join('\n').trim()
-        return reply.length > 0 ? reply : null
-    } catch (err) {
-        console.error('[gene/personal-agent] Anthropic call failed, falling back:', err)
-        return null
-    }
+async function callAi(systemPrompt: string, userMessage: string, history: { role: 'user' | 'assistant'; text: string }[] = []): Promise<string | null> {
+    const result = await getAiReply(systemPrompt, userMessage, history)
+    return result?.reply ?? null
 }
 
 export function profileSummaryForPrompt(profile: AgentProfile): string {
@@ -565,7 +539,7 @@ export function registerPersonalAgentRoutes(app: Express): void {
             const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '6'), 10) || 6, 1), 20)
             const top = buildRecommendations(profile, signals, allProperties, limit)
 
-            const aiSummary = await callAnthropic(
+            const aiSummary = await callAi(
                 [
                     'You are the user\'s personal real-estate agent on RealEVR Estates, operating across East Africa.',
                     'Write a warm, concise (2-4 sentence) summary of why the following pre-selected properties suit them.',
@@ -607,7 +581,7 @@ export function registerPersonalAgentRoutes(app: Express): void {
             const stats = buildLocationStats(allProperties)
             const ranked = rankLocationsForProfile(stats, profile).slice(0, 5)
 
-            const aiNarrative = await callAnthropic(
+            const aiNarrative = await callAi(
                 [
                     'You are the user\'s personal real-estate investment advisor for RealEVR Estates, covering East Africa.',
                     'Below is a REAL snapshot of the platform\'s own current listings by area (not a time series — say so if relevant),',
@@ -690,7 +664,12 @@ export function registerPersonalAgentRoutes(app: Express): void {
                     ...top.map((t) => `- "${t.property.title}" in ${t.property.location} — ${t.property.currency ?? 'UGX'} ${t.property.price}`),
                 ].join('\n')
 
-                const aiReply = await callAnthropic(systemPrompt, message)
+                // Previously this only ever sent the latest message with no memory of
+                // earlier turns, even though the conversation was already being
+                // persisted below - a real gap for anything but one-off questions.
+                // Now the last few turns go along as real conversation history.
+                const recentHistory = conversation.messages.slice(0, -1).slice(-8).map((m) => ({ role: m.role, text: m.text }))
+                const aiReply = await callAi(systemPrompt, message, recentHistory)
                 usedAi = aiReply !== null
                 reply =
                     aiReply ??

@@ -50,10 +50,10 @@ import {
     loadSignals,
     buildRecommendations,
     templatedRecommendationSummary,
-    callAnthropic,
     profileSummaryForPrompt,
     appendAgentMessage,
 } from './personal-agent'
+import { getAiReply } from './ai-provider'
 
 const LINK_COLLECTION = 'gene_whatsapp_user_links'
 const MESSAGE_COLLECTION = 'gene_whatsapp_messages'
@@ -374,8 +374,8 @@ async function handleConciergeChat(phone: string, text: string, link: WhatsappUs
                 ...top.map((t) => `- "${t.property.title}" in ${t.property.location} — ${t.property.currency ?? 'UGX'} ${t.property.price}`),
             ].join('\n')
 
-            const aiReply = await callAnthropic(systemPrompt, text)
-            const reply = aiReply ?? `${templatedRecommendationSummary(profile, top)} Reply with a property name for more detail, or "more" for other picks.`
+            const aiResult = await getAiReply(systemPrompt, text)
+            const reply = aiResult?.reply ?? `${templatedRecommendationSummary(profile, top)} Reply with a property name for more detail, or "more" for other picks.`
 
             // Mirror this WhatsApp exchange into the same conversation history
             // the web Chat tab reads, so it's one continuous thread either way.

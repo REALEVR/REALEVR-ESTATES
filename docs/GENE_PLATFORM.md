@@ -118,8 +118,11 @@ Every module was runtime-smoke-tested end-to-end against real logic (not
 just type-checked) — see "Verification" below. What's real today:
 
 - **Chat** actually classifies intent and replies (rule-based out of the
-  box; calls the real Anthropic API automatically if `ANTHROPIC_API_KEY` is
-  set, with live property data as context).
+  box; calls a real AI provider automatically if `ANTHROPIC_API_KEY`,
+  `OPENAI_API_KEY`, or `GEMINI_API_KEY` is set — tried in that order via
+  `server/gene/ai-provider.ts`, shared by this endpoint, the signed-in
+  personal agent, the WhatsApp concierge, and the public floating
+  assistant widget — with live property data as context).
 - **Ingestion** actually pulls your real DynamoDB properties and normalizes
   them.
 - **Analytics/forecast** computes real confidence intervals from your real
@@ -139,7 +142,7 @@ live:
 
 | Needs | Module | What happens without it |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | `chat.ts` | Falls back to rule-based canned replies per intent — never errors |
+| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` (any of the three) | `ai-provider.ts`, used by `chat.ts`, `personal-agent.ts`, `whatsapp-concierge.ts`, and the public assistant widget | Falls back to rule-based canned replies per intent — never errors |
 | `WHATSAPP_BUSINESS_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID` | `whatsapp.ts` | Logs to console instead of sending; the escalation queue itself works fully without it |
 | A live BTC/USD rate feed (e.g. CoinGecko) | `btc-payments.ts` | `/api/gene/btc/quote` requires you to pass the rate explicitly and 400s otherwise, rather than inventing one |
 | **Finance sign-off** | `btc-payments.ts` | Buffer/tolerance percentages are placeholders pending review — flagged in a banner comment at the top of the file, per the product plan's explicit callout |
