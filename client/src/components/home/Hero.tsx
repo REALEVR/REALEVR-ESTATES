@@ -217,7 +217,13 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             <VRBadge size="md" />
           </div>
           <h1 className="text-5xl md:text-7xl font-light leading-tight text-foreground">
-            <span className="font-display italic font-medium text-accent text-6xl md:text-8xl hero-find-text vr-glow-text">Step Inside</span> <br />
+            {/* Design-review fix (round 1): this was `text-accent` — the flat
+                shiny-silver token (#7D828A-ish) at italic/medium weight over
+                the alabaster background reads as near-illegible watermark
+                text rather than an intentional two-tone headline. Softened
+                charcoal (`text-foreground/70`) keeps the same "understated
+                second line" effect while staying clearly readable. */}
+            <span className="font-display italic font-medium text-foreground/70 text-6xl md:text-8xl hero-find-text vr-glow-text">Step Inside</span> <br />
             <span className="font-display hero-text-two">Before You Arrive</span>
           </h1>
         </motion.div>
@@ -319,6 +325,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
         {/* Play/Pause button overlay - always show in top right */}
         <button
           onClick={handlePlayPause}
+          aria-label={isVideoPlaying ? 'Pause video' : 'Play video'}
           className="absolute top-4 right-4 bg-card rounded-full p-3 shadow-lg border border-border hover:bg-secondary transition-colors"
         >
           {isVideoPlaying ? (

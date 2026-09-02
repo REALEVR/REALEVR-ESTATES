@@ -74,8 +74,21 @@ export default function Home() {
                 url: `${site}/`,
                 logo: `${site}/favicon.png`,
                 areaServed: 'UG',
+                contactPoint: {
+                    '@type': 'ContactPoint',
+                    email: 'support@realevr.com',
+                    contactType: 'customer support',
+                    areaServed: 'UG',
+                },
             },
         ]
+        // Note: no `sameAs` social profile URLs here — Footer.tsx's social
+        // icons are still placeholder `#` links (no real accounts connected
+        // yet), and inventing URLs for schema.org would be a fabricated
+        // claim search engines and answer engines could pick up as fact.
+        // Add real profile URLs here the moment real accounts exist — see
+        // the AI employee agent system's "content agents" section in
+        // GENE_PLATFORM.md for the same gap noted from the other direction.
     }, [])
 
     // Group properties by category, filtering out those with no name/title

@@ -174,9 +174,16 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                     )}
                 </div>
                 <div className="p-4">
-                    <div className="flex justify-between items-start">
-                        <h3 className="font-display font-medium text-foreground">{property.title}</h3>
-                        <div className="flex items-center">
+                    <div className="flex justify-between items-start gap-2">
+                        {/* Design-review fix (round 1): unclamped titles could
+                            wrap to 2 lines on longer real listing titles,
+                            visually colliding with the availability badge
+                            above and breaking row alignment across cards in
+                            the same grid. line-clamp-2 + a fixed min-height
+                            keeps every card the same title-block height
+                            regardless of title length. */}
+                        <h3 className="font-display font-medium text-foreground line-clamp-2 min-h-[2.75rem]">{property.title}</h3>
+                        <div className="flex items-center flex-shrink-0">
                             <i className="fas fa-eye text-muted-foreground text-sm"></i>
                             <span className="ml-1 text-sm font-medium text-muted-foreground">{property.viewCount || 0}</span>
                         </div>
