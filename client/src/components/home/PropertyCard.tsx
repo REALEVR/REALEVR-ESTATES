@@ -127,9 +127,20 @@ export default function PropertyCard({ property }: PropertyCardProps) {
             >
                 <div className="relative">
                     <FadeIn>
+                        {/* Design-review fix (round 3): every property grid on the
+                            homepage (Featured/Popular/Recent/Browse) renders through
+                            this one component, so an uncached homepage load was firing
+                            up to 16+ full-size image requests immediately, most of them
+                            for cards scrolled well out of view. loading="lazy" defers
+                            the offscreen ones to when they're actually about to scroll
+                            into view — a real bandwidth win on the data-constrained
+                            mobile connections this platform's Uganda/Africa audience is
+                            most likely to be using. */}
                         <img
                             src={property.imageUrl}
                             alt={property.title}
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-52 object-cover transition-transform duration-500 hover:scale-110"
                         />
                     </FadeIn>

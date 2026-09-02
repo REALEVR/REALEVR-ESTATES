@@ -10,6 +10,7 @@
  * motion" turned on, since a *static* blurry blob still adds paint cost for
  * zero benefit to someone who asked for less motion.
  */
+import { useEffect, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 
 export type MotionBackgroundTone = 'accent' | 'warm' | 'quiet'
@@ -43,13 +44,36 @@ export default function MotionBackground({
   className?: string
 }) {
   const reduceMotion = useReducedMotion()
+  const containerRef = useRef<HTMLDivElement>(null)
+  // Design-review fix (round 3): each blob runs an infinite framer-motion
+  // RAF loop for as long as it's mounted. The homepage renders several
+  // MotionBackground instances (hero + the agent-recruitment CTA band), so
+  // every one of them was animating continuously even while scrolled well
+  // out of view — wasted CPU/battery for zero visible benefit, worst on
+  // exactly the lower-end mobile devices this platform's audience is most
+  // likely using. An IntersectionObserver unmounts the animated blobs once
+  // their section leaves the viewport (stopping the RAF loop outright) and
+  // remounts them on re-entry. Starts `true` so an above-the-fold instance
+  // (the hero) never flashes empty before the observer's first callback.
+  const [isInView, setIsInView] = useState(true)
+
+  useEffect(() => {
+    const node = containerRef.current
+    if (!node || typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver(([entry]) => setIsInView(entry.isIntersecting), {
+      rootMargin: '200px 0px',
+    })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+
   if (reduceMotion) return null
 
   const blobs = TONE_BLOBS[tone]
 
   return (
-    <div className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`} aria-hidden="true">
-      {blobs.map((blob, i) => (
+    <div ref={containerRef} className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`} aria-hidden="true">
+      {isInView && blobs.map((blob, i) => (
         <motion.div
           key={i}
           className={`absolute rounded-full blur-3xl ${blob.className}`}

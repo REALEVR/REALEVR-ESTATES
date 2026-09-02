@@ -77,6 +77,27 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
   // that behavior for free instead of building a second filter UI.
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
+  // Design-review fix (round 3): the YouTube embed was set to autoplay
+  // unconditionally, including on mobile — the mobile/performance reviewer
+  // flagged this as a real data-cost concern for a platform whose audience
+  // is disproportionately on constrained mobile data plans across Africa.
+  // On mobile, a single (non-playlist) YouTube video now shows a static
+  // thumbnail with a tap-to-play control instead of autoplaying; tapping
+  // it loads and plays the real embed. Desktop behavior is unchanged.
+  // Playlists are left autoplaying as before — YouTube doesn't expose one
+  // predictable thumbnail per playlist the way it does per video.
+  const getYouTubeVideoId = (url: string): string | null => {
+    if (!url.includes('youtube.com') && !url.includes('youtu.be')) return null;
+    if (url.includes('playlist?list=') || url.includes('&list=')) return null;
+    const videoId = url.includes('youtube.com')
+      ? url.split('v=')[1]?.split('&')[0]
+      : url.split('youtu.be/')[1]?.split('?')[0];
+    return videoId || null;
+  };
+  const [mobileFacadeDismissed, setMobileFacadeDismissed] = useState(false);
+  const youtubeVideoId = videoUrl ? getYouTubeVideoId(videoUrl) : null;
+  const showYoutubeFacade = Boolean(isMobile && youtubeVideoId && !mobileFacadeDismissed);
+
   // Convert YouTube URL to embed URL
   const getVideoUrl = (url: string) => {
     if (url.includes('youtube.com') || url.includes('youtu.be')) {
@@ -286,34 +307,62 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
         {videoUrl && !showImage ? (
           // Video content - full width and height
           <div className="relative w-full h-96 md:h-[500px] lg:h-[600px] rounded-2xl shadow-md overflow-hidden">
-            {/* Loading spinner */}
-            {isVideoLoading && (
+            {/* Loading spinner — suppressed while the tap-to-play facade is
+                showing, since nothing is actually loading yet at that point. */}
+            {isVideoLoading && !showYoutubeFacade && (
               <div className="absolute inset-0 bg-muted flex items-center justify-center z-10">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
                 <span className="ml-3 text-muted-foreground">Loading video...</span>
               </div>
             )}
-            
+
             {/* YouTube iframe */}
             {videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be') ? (
               <div className="absolute inset-0 w-full h-full overflow-hidden">
-                <iframe
-                  ref={iframeRef}
-                  src={getVideoUrl(videoUrl)}
-                  className="w-full h-full"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    minWidth: '100%',
-                    minHeight: '100%',
-                    border: 'none'
-                  }}
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  onLoad={handleVideoLoad}
-                  onError={handleVideoError}
-                />
+                {showYoutubeFacade && youtubeVideoId ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileFacadeDismissed(true);
+                      setIsVideoLoading(true);
+                      setIsVideoPlaying(true);
+                    }}
+                    aria-label="Play video"
+                    className="relative w-full h-full block"
+                  >
+                    <img
+                      src={`https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`}
+                      alt=""
+                      loading="lazy"
+                      className="w-full h-full object-cover"
+                    />
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/25">
+                      <span className="flex items-center justify-center w-16 h-16 rounded-full bg-white/90 shadow-lg">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="translate-x-0.5">
+                          <polygon points="8,5 19,12 8,19" fill="currentColor" className="text-foreground" />
+                        </svg>
+                      </span>
+                    </span>
+                  </button>
+                ) : (
+                  <iframe
+                    ref={iframeRef}
+                    src={getVideoUrl(videoUrl)}
+                    className="w-full h-full"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      minWidth: '100%',
+                      minHeight: '100%',
+                      border: 'none'
+                    }}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    onLoad={handleVideoLoad}
+                    onError={handleVideoError}
+                  />
+                )}
               </div>
             ) : (
               // Regular video element
@@ -347,25 +396,29 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           />
         )}
         
-        {/* Play/Pause button overlay - always show in top right */}
-        <button
-          onClick={handlePlayPause}
-          aria-label={isVideoPlaying ? 'Pause video' : 'Play video'}
-          className="absolute top-4 right-4 bg-card rounded-full p-3 shadow-lg border border-border hover:bg-secondary transition-colors"
-        >
-          {isVideoPlaying ? (
-            // Pause icon
-            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <rect x="6" y="4" width="4" height="16" fill="currentColor" />
-              <rect x="14" y="4" width="4" height="16" fill="currentColor" />
-            </svg>
-          ) : (
-            // Play icon
-            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <polygon points="8,5 19,12 8,19" fill="currentColor" />
-            </svg>
-          )}
-        </button>
+        {/* Play/Pause button overlay - top right. Hidden while the mobile
+            tap-to-play facade is showing — tapping the facade itself is the
+            play action, so a second play control would be redundant. */}
+        {!showYoutubeFacade && (
+          <button
+            onClick={handlePlayPause}
+            aria-label={isVideoPlaying ? 'Pause video' : 'Play video'}
+            className="absolute top-4 right-4 bg-card rounded-full p-3 shadow-lg border border-border hover:bg-secondary transition-colors"
+          >
+            {isVideoPlaying ? (
+              // Pause icon
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <rect x="6" y="4" width="4" height="16" fill="currentColor" />
+                <rect x="14" y="4" width="4" height="16" fill="currentColor" />
+              </svg>
+            ) : (
+              // Play icon
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <polygon points="8,5 19,12 8,19" fill="currentColor" />
+              </svg>
+            )}
+          </button>
+        )}
         
         {/* Mobile: a single tappable Airbnb-style "Where to?" pill in place
             of the 5-field bar (which doesn't fit and was previously just
