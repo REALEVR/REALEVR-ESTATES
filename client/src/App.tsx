@@ -34,7 +34,8 @@ import ContactUsPage from '@/pages/ContactUsPage'
 import TrustSafetyPage from '@/pages/TrustSafetyPage'
 import VerifyEmailPage from '@/pages/VerifyEmailPage'
 import { AuthProvider, useAuth } from '@/hooks/use-auth'
-import ConversationalAuthGate from '@/components/auth/ConversationalAuthGate'
+import AuthGate from '@/components/auth/AuthGate'
+import WhatsAppNumberPrompt from '@/components/auth/WhatsAppNumberPrompt'
 import { PaymentProvider } from '@/contexts/PaymentContext'
 import VirtualTourManager from '@/components/admin/VirtualTourManager'
 import { ProtectedAdminRoute } from './lib/protected-admin-route'
@@ -143,7 +144,7 @@ function Router() {
 
 // Everything that needs to know whether someone is signed in lives here, nested under
 // AuthProvider so useAuth() is available. Sign-in is compulsory: with no user, the
-// conversational sign-in gate takes over the whole screen instead of the site.
+// sign-in gate takes over the whole screen instead of the site.
 function AppShell() {
     const { user, isLoading } = useAuth()
     const [gateway, setGateway] = useState<{ accessToken: string; amount: string; source: string } | null>(null)
@@ -164,15 +165,18 @@ function AppShell() {
     }, [])
 
     if (isLoading) {
+        // Light background matching the Airbnb-style gate/site theme below it -
+        // a dark screen here used to flash before the light auth card or site
+        // appeared, which read as broken rather than "loading."
         return (
-            <div className="flex min-h-screen items-center justify-center bg-stone-900">
-                <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/20 border-t-white" />
+            <div className="flex min-h-screen items-center justify-center bg-gray-50">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-[#FF5A5F]" />
             </div>
         )
     }
 
     if (!user) {
-        return <ConversationalAuthGate />
+        return <AuthGate />
     }
 
     return (
@@ -200,6 +204,7 @@ function AppShell() {
             <BrokerOnlinePresence />
             <ScrollToTop />
             <AIAssistant />
+            <WhatsAppNumberPrompt />
         </>
     )
 }

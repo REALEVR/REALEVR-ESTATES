@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bot, Send, X, Minimize2 } from 'lucide-react'
+import { Send, X, Minimize2 } from 'lucide-react'
 import { apiRequest } from '@/lib/queryClient'
 import { Button } from '@/components/ui/button'
+import logoIcon from '@/assets/logo-icon.png'
 
 interface ChatMessage {
     role: 'user' | 'bot'
@@ -58,10 +59,10 @@ export default function AIAssistant() {
         return (
             <button
                 onClick={() => setIsOpen(true)}
-                className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#FF5A5F] text-white shadow-xl transition-transform hover:scale-110"
+                className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#FF5A5F] p-2.5 text-white shadow-xl transition-transform hover:scale-110"
                 aria-label="Open AI Assistant"
             >
-                <Bot size={26} />
+                <img src={logoIcon} alt="" className="h-full w-full object-contain brightness-0 invert" />
             </button>
         )
     }
@@ -70,7 +71,7 @@ export default function AIAssistant() {
         <div className="fixed bottom-6 right-6 z-50 flex h-[480px] w-[340px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
             <div className="flex items-center justify-between bg-[#FF5A5F] px-4 py-3 text-white">
                 <div className="flex items-center gap-2">
-                    <Bot size={18} />
+                    <img src={logoIcon} alt="" className="h-5 w-5 object-contain brightness-0 invert" />
                     <span className="font-semibold text-sm">RealEVR Assistant</span>
                 </div>
                 <div className="flex items-center gap-1">

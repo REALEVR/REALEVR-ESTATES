@@ -64,13 +64,17 @@ full notification hub).
 ## Authentication
 
 Sign-in is compulsory site-wide: with no active session, visitors get a
-full-screen conversational sign-up (`client/src/components/auth/ConversationalAuthGate.tsx`)
-instead of the app. An AI concierge (`server/routes/ai.ts`, `/api/ai/onboarding-chat`)
-collects name/email/phone/role through natural conversation; the password itself
-is entered through a dedicated UI step and never sent to the AI. Registration
-(`/api/ai/onboarding-register`) creates the account and logs the visitor in
-immediately — no separate email-verification click required. Returning users
-can switch to a plain username/password form from the same screen.
+full-screen sign-in/sign-up card (`client/src/components/auth/AuthGate.tsx`),
+styled after Airbnb's own auth screen, instead of the app — a "Continue with
+Google" button up top, then plain Log in / Sign up tabs. Signing up (still via
+`/api/ai/onboarding-register` under the hood, despite the name — no AI/Gemini
+call involved) creates the account and logs the visitor in immediately, no
+separate email-verification click required, and collects a WhatsApp number up
+front. A Google sign-in that lands on an account with no number on file gets a
+one-time follow-up prompt for it instead (`WhatsAppNumberPrompt.tsx`), since
+Google never shares one. The AI-guided conversational sign-up this project
+used to have was retired in favor of this simpler flow; `/api/ai/onboarding-chat`
+still exists server-side but nothing in the UI calls it anymore.
 
 Passwords are scrypt-hashed (`server/auth.ts`); there is no plaintext or
 legacy-format fallback in the comparison path.
