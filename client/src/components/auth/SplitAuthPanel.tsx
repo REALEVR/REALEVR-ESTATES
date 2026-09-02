@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Loader2, LogIn, ShieldCheck } from "lucide-react";
+import { ChevronLeft, ChevronRight, Home, Loader2, LogIn, ShieldCheck } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useProperties } from "@/hooks/usePropertyData";
@@ -145,22 +145,37 @@ export default function SplitAuthPanel({ onBackToChat }: { onBackToChat: () => v
 function PropertyShowcase({ properties }: { properties: Array<{ id: number; title: string; location: string; price: number; currency: string; imageUrl: string; hasTour?: boolean | null }> }) {
     const slides = properties.filter((p) => p.imageUrl).slice(0, 6);
     const [index, setIndex] = useState(0);
+    const [paused, setPaused] = useState(false);
 
     useEffect(() => {
-        if (slides.length < 2) return;
+        if (slides.length < 2 || paused) return;
         const timer = setInterval(() => setIndex((i) => (i + 1) % slides.length), 4000);
         return () => clearInterval(timer);
-    }, [slides.length]);
+    }, [slides.length, paused]);
+
+    // Keep `index` in range if the property list shrinks out from under it.
+    useEffect(() => {
+        if (index >= slides.length && slides.length > 0) setIndex(0);
+    }, [slides.length, index]);
 
     if (slides.length === 0) {
-        return <div className="h-full min-h-[520px] bg-muted" />;
+        return (
+            <div className="flex h-full min-h-[520px] flex-col items-center justify-center gap-3 bg-gradient-to-br from-emerald-900 to-stone-900 text-emerald-100">
+                <Home size={32} className="opacity-70" />
+                <p className="text-sm">New listings are on their way.</p>
+            </div>
+        );
     }
 
     const current = slides[index];
     const tourReadyCount = properties.filter((p) => p.hasTour).length;
 
     return (
-        <div className="relative h-full min-h-[520px]">
+        <div
+            className="relative h-full min-h-[520px]"
+            onMouseEnter={() => setPaused(true)}
+            onMouseLeave={() => setPaused(false)}
+        >
             {slides.map((slide, i) => (
                 <div
                     key={slide.id}
@@ -218,6 +233,7 @@ function PropertyShowcase({ properties }: { properties: Array<{ id: number; titl
                             key={i}
                             onClick={() => setIndex(i)}
                             aria-label={`Go to slide ${i + 1}`}
+                            aria-current={i === index}
                             className={`h-1.5 rounded-full transition-all ${i === index ? "w-8 bg-white" : "w-1.5 bg-white/40"}`}
                         />
                     ))}
