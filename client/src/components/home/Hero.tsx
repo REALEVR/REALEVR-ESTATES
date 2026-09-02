@@ -439,11 +439,16 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           </button>
         )}
 
-        {/* Search bar - desktop only (5 inline fields need the width) */}
+        {/* Search bar - desktop only (5 inline fields need the width).
+            One seamless pill with thin dividers between segments (Airbnb's
+            actual search-bar signature - "Where / Check in / ... / Who" as
+            one bar, not five separate boxes) instead of five individually
+            bordered/rounded selects. Same fields, same handleSearch - purely
+            a container/border restyle. */}
         {!isMobile && (
-          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-[95%] bg-card rounded-full shadow-lg flex flex-wrap md:flex-nowrap items-center px-4 py-2 gap-2 md:gap-4">
+          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-[95%] bg-card rounded-full shadow-lg flex flex-wrap md:flex-nowrap items-center pl-2 pr-2 py-2">
           <select
-            className="flex-1 min-w-[120px] bg-transparent px-4 py-2 rounded-full border border-border text-foreground focus:outline-none focus:border-accent transition-colors"
+            className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none border-r border-border last:border-r-0"
             value={searchFilters.location}
             onChange={(e) => handleFilterChange('location', e.target.value)}
           >
@@ -454,7 +459,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             ))}
           </select>
           <select
-            className="flex-1 min-w-[120px] bg-transparent px-4 py-2 rounded-full border border-border text-foreground focus:outline-none focus:border-accent transition-colors"
+            className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none border-r border-border last:border-r-0"
             value={searchFilters.propertyType}
             onChange={(e) => handleFilterChange('propertyType', e.target.value)}
           >
@@ -465,7 +470,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             ))}
           </select>
           <select
-            className="flex-1 min-w-[120px] bg-transparent px-4 py-2 rounded-full border border-border text-foreground focus:outline-none focus:border-accent transition-colors"
+            className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none border-r border-border last:border-r-0"
             value={searchFilters.priceRange}
             onChange={(e) => handleFilterChange('priceRange', e.target.value)}
           >
@@ -476,7 +481,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             ))}
           </select>
           <select
-            className="flex-1 min-w-[120px] bg-transparent px-4 py-2 rounded-full border border-border text-foreground focus:outline-none focus:border-accent transition-colors"
+            className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none border-r border-border last:border-r-0"
             value={searchFilters.bedrooms}
             onChange={(e) => handleFilterChange('bedrooms', e.target.value)}
           >
@@ -487,7 +492,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             ))}
           </select>
           <select
-            className="flex-1 min-w-[120px] bg-transparent px-4 py-2 rounded-full border border-border text-foreground focus:outline-none focus:border-accent transition-colors"
+            className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none"
             value={searchFilters.bathrooms}
             onChange={(e) => handleFilterChange('bathrooms', e.target.value)}
           >
@@ -498,9 +503,10 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             ))}
           </select>
           <button
-            className="shine rounded-full px-8 py-2 font-semibold text-lg hover:opacity-90 transition"
+            className="shine rounded-full px-8 py-2.5 font-semibold text-lg hover:opacity-90 transition ml-2"
             onClick={handleSearch}
           >
+            <i className="fas fa-search mr-2 text-base"></i>
             Search
           </button>
         </div>
