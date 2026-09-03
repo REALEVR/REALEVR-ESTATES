@@ -106,12 +106,10 @@ export default function PropertyCard({ property }: PropertyCardProps) {
         window.location.href = `/property/${property.id}`
     }
 
-    const handleCardClick = (e: React.MouseEvent) => {
-        // Don't trigger if clicking on buttons or interactive elements
-        if ((e.target as HTMLElement).closest('button')) {
-            return
-        }
-
+    // Shared by the whole-card click and the explicit "View Tour" button on
+    // the picture (added on request — a visible affordance in addition to
+    // the whole card already being clickable, not a replacement for it).
+    const openTourOrPay = () => {
         // Only rental properties require payment for tour viewing
         // BnBs can view tours for free, but need to pay 20% to book
         const requiresPayment =
@@ -131,6 +129,20 @@ export default function PropertyCard({ property }: PropertyCardProps) {
             // pass — go straight to the property page.
             window.location.href = `/property/${property.id}`
         }
+    }
+
+    const handleCardClick = (e: React.MouseEvent) => {
+        // Don't trigger if clicking on buttons or interactive elements
+        if ((e.target as HTMLElement).closest('button')) {
+            return
+        }
+        openTourOrPay()
+    }
+
+    const handleViewTourClick = (e: React.MouseEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        openTourOrPay()
     }
 
     return (
@@ -197,6 +209,27 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                             <VRBadge size="sm" />
                         </div>
                     )}
+                    {/* Explicit "View Tour" affordance on the picture itself
+                        — the whole card is already clickable (handleCardClick
+                        above), but a visible button removes any doubt about
+                        what tapping the photo does: opens the tour directly,
+                        or the IoTec pay-to-view prompt first for
+                        rental/BnB categories that require it. Always visible
+                        (not a hover-reveal) — this platform's audience is
+                        mostly on phones, which have no hover state, so
+                        anything shown only on :hover is effectively invisible
+                        to most visitors here. */}
+                    <button
+                        type="button"
+                        onClick={handleViewTourClick}
+                        aria-label="View virtual tour"
+                        className="absolute inset-0 z-[5] flex items-center justify-center bg-black/0 active:bg-black/10 transition-colors"
+                    >
+                        <span className="flex items-center gap-2 rounded-full bg-black/55 backdrop-blur-sm px-4 py-2 text-sm font-medium text-white shadow-lg">
+                            <i className="fas fa-play text-xs"></i>
+                            View Tour
+                        </span>
+                    </button>
                 </div>
                 <div className="p-4">
                     <div className="flex justify-between items-start gap-2">

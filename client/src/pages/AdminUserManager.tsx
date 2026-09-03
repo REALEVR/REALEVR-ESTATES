@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import {
     Star,
     Home,
@@ -89,6 +90,7 @@ export default function AdminUserManager() {
     const [showAgentDetails, setShowAgentDetails] = useState(false)
     const [properties, setProperties] = useState<Property[]>([])
     const [reviews, setReviews] = useState<Review[]>([])
+    const [profileUser, setProfileUser] = useState<User | null>(null)
 
     useEffect(() => {
         const fetchData = async () => {
@@ -109,6 +111,20 @@ export default function AdminUserManager() {
                     setAgentSubscriptions(overview.agentSubscriptions)
                     setProperties(overview.properties)
                     setReviews(overview.reviews)
+                } else {
+                    // BUG FIX: a non-2xx response (401/403/500) used to be
+                    // silently ignored here — `users` etc. just stayed at
+                    // their empty initial state with no error shown at all,
+                    // which looks identical to "there are no users" even
+                    // when the real cause is e.g. a rejected/expired
+                    // session. Now it's surfaced.
+                    const body = await overviewResponse.json().catch(() => ({}))
+                    console.error('[AdminUserManager] /api/admin/overview failed:', overviewResponse.status, body)
+                    toast({
+                        title: `Couldn't load admin data (${overviewResponse.status})`,
+                        description: body?.message || 'Try refreshing — if this keeps happening, your session may need a fresh sign-in.',
+                        variant: 'destructive',
+                    })
                 }
             } catch (error) {
                 console.error('Error fetching data:', error)
@@ -298,54 +314,72 @@ export default function AdminUserManager() {
                             <CardDescription>Manage user roles and permissions</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="space-y-4">
-                                {users.map((user) => (
-                                    <div
-                                        key={user.id}
-                                        className="flex items-center justify-between p-4 border rounded-lg"
-                                    >
-                                        <div className="flex items-center space-x-3">
-                                            <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                                                <Users className="h-5 w-5 text-gray-600" />
-                                            </div>
-                                            <div>
-                                                <p className="font-medium">{user.fullName}</p>
-                                                <p className="text-sm text-muted-foreground">{user.email}</p>
-                                                <p className="text-xs text-muted-foreground">@{user.username}</p>
+                            {users.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                                    <h3 className="text-lg font-semibold mb-2">No users to show</h3>
+                                    <p className="text-muted-foreground">
+                                        If you expected real users here, check the toast above for a load error —
+                                        an empty list and a failed request used to look identical.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {users.map((user) => (
+                                        <div
+                                            key={user.id}
+                                            className="flex items-center justify-between p-4 border rounded-lg"
+                                        >
+                                            <button
+                                                type="button"
+                                                onClick={() => setProfileUser(user)}
+                                                className="flex items-center space-x-3 text-left hover:opacity-75 transition-opacity"
+                                            >
+                                                <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                                                    <Users className="h-5 w-5 text-gray-600" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium">{user.fullName}</p>
+                                                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                                                    <p className="text-xs text-muted-foreground">@{user.username}</p>
+                                                </div>
+                                            </button>
+                                            <div className="flex items-center space-x-3">
+                                                {getRoleBadge(user.role)}
+                                                <div className="flex space-x-1">
+                                                    <Button variant="outline" size="sm" onClick={() => setProfileUser(user)}>
+                                                        View Profile
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleRoleUpdate(user.id, 'normal')}
+                                                        disabled={user.role === 'normal'}
+                                                    >
+                                                        Normal
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleRoleUpdate(user.id, 'agent')}
+                                                        disabled={user.role === 'agent'}
+                                                    >
+                                                        Agent
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleRoleUpdate(user.id, 'admin')}
+                                                        disabled={user.role === 'admin'}
+                                                    >
+                                                        Admin
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="flex items-center space-x-3">
-                                            {getRoleBadge(user.role)}
-                                            <div className="flex space-x-1">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handleRoleUpdate(user.id, 'normal')}
-                                                    disabled={user.role === 'normal'}
-                                                >
-                                                    Normal
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handleRoleUpdate(user.id, 'agent')}
-                                                    disabled={user.role === 'agent'}
-                                                >
-                                                    Agent
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handleRoleUpdate(user.id, 'admin')}
-                                                    disabled={user.role === 'admin'}
-                                                >
-                                                    Admin
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -871,6 +905,87 @@ export default function AdminUserManager() {
                     </div>
                 </div>
             )}
+
+            {/* "I want to see their profiles" — every field the app actually
+                collects for a user, in one place, reached from a "View
+                Profile" button on each row above. */}
+            <Dialog open={profileUser !== null} onOpenChange={(open) => !open && setProfileUser(null)}>
+                <DialogContent className="max-w-lg">
+                    {profileUser && (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle className="flex items-center gap-2">
+                                    <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center shrink-0">
+                                        <Users className="h-5 w-5 text-gray-600" />
+                                    </div>
+                                    {profileUser.fullName}
+                                </DialogTitle>
+                                <DialogDescription>@{profileUser.username} — {getRoleBadge(profileUser.role)}</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-3 text-sm">
+                                <ProfileField label="Email" value={profileUser.email} />
+                                <ProfileField label="Phone" value={(profileUser as any).phoneNumber} />
+                                <ProfileField label="Country code" value={(profileUser as any).countryCode} />
+                                <ProfileField
+                                    label="Verified"
+                                    value={profileUser.isVerified ? 'Yes' : 'No'}
+                                />
+                                <ProfileField
+                                    label="Sign-in method"
+                                    value={(profileUser as any).authProvider || 'local'}
+                                />
+                                {profileUser.role === 'agent' && (
+                                    <>
+                                        <ProfileField label="Company" value={(profileUser as any).companyName} />
+                                        <ProfileField label="License number" value={(profileUser as any).licenseNumber} />
+                                        <ProfileField label="Membership plan" value={(profileUser as any).membershipPlan} />
+                                        <ProfileField
+                                            label="Subscription status"
+                                            value={(profileUser as any).subscriptionStatus}
+                                        />
+                                    </>
+                                )}
+                                <ProfileField
+                                    label="Joined"
+                                    value={(profileUser as any).createdAt ? formatDate((profileUser as any).createdAt) : undefined}
+                                />
+                                {(() => {
+                                    const owned = properties.filter((p) => (p as any).ownerId === profileUser.id)
+                                    if (owned.length === 0) return null
+                                    return (
+                                        <div className="pt-2 border-t">
+                                            <p className="text-muted-foreground mb-1">
+                                                {owned.length} propert{owned.length === 1 ? 'y' : 'ies'} listed
+                                            </p>
+                                            <ul className="space-y-1">
+                                                {owned.slice(0, 5).map((p) => (
+                                                    <li key={p.id} className="text-xs">
+                                                        {p.title} — {p.location}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )
+                                })()}
+                            </div>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
+        </div>
+    )
+}
+
+/** One label/value row in the profile dialog — skips rendering entirely
+ * when the field is genuinely absent, rather than showing a blank or
+ * "undefined" (this app has real accounts predating several of these
+ * fields — see shared/schema.ts's v1.8-addition comments). */
+function ProfileField({ label, value }: { label: string; value?: string | null }) {
+    if (!value) return null
+    return (
+        <div className="flex justify-between gap-4">
+            <span className="text-muted-foreground">{label}</span>
+            <span className="font-medium text-right">{value}</span>
         </div>
     )
 }
