@@ -316,17 +316,38 @@ export const DynamoDBUtils = {
     ) {
         if (!tableName) throw new DynamoDBValidationError('tableName is required for scanTable')
 
-        const result = await executeWithRetry(
-            () => dynamoDb.send(new ScanCommand({
-                TableName: tableName,
-                FilterExpression: filterExpression,
-                ExpressionAttributeValues: expressionAttributeValues,
-                ExpressionAttributeNames: expressionAttributeNames,
-            })),
-            `scanTable:${tableName}`
-        )
+        // A single Scan only ever reads up to 1MB of table data before
+        // applying FilterExpression — and DynamoDB *filters after* reading
+        // that page, so any items that would match but happen to sit past
+        // the first 1MB were silently dropped here (no error, just missing
+        // rows) instead of being fetched via the next page. This is real
+        // for every caller of scanTable — getAllUsers()/getAllProperties()
+        // etc. as tables grow past that size, and *already* real today for
+        // any filtered lookup (getUserByUsername/getUserByEmail/...) if the
+        // matching row happens to land past page 1 of an otherwise large
+        // table. Paginate via LastEvaluatedKey until DynamoDB reports none
+        // left, same as any correct Scan usage.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches
+        // every existing caller's loose item typing; this fix is about
+        // pagination correctness, not tightening types across the codebase.
+        const items: any[] = []
+        let lastEvaluatedKey: Record<string, unknown> | undefined
+        do {
+            const result = await executeWithRetry(
+                () => dynamoDb.send(new ScanCommand({
+                    TableName: tableName,
+                    FilterExpression: filterExpression,
+                    ExpressionAttributeValues: expressionAttributeValues,
+                    ExpressionAttributeNames: expressionAttributeNames,
+                    ExclusiveStartKey: lastEvaluatedKey,
+                })),
+                `scanTable:${tableName}`
+            )
+            items.push(...(result.Items ?? []))
+            lastEvaluatedKey = result.LastEvaluatedKey as Record<string, unknown> | undefined
+        } while (lastEvaluatedKey)
 
-        return result.Items ?? []
+        return items
     },
 
     async queryTable(

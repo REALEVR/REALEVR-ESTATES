@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { useLocation } from 'wouter'
 import { useAuth } from '@/hooks/use-auth'
+import { usePropertyViews } from '@/hooks/usePropertyViews'
 import OwnerContactDetails from './OwnerContactDetails'
 import ReviewsSection from './ReviewsSection'
 import BookingCalendarModal from './BookingCalendarModal'
@@ -78,6 +79,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
     const [location] = useLocation()
     const { toast } = useToast()
     const { user } = useAuth()
+    const { hasValidPayment, registerPayment } = usePropertyViews()
 
     // Check if this is a BnB property
     const isBnB = property.category === 'BnB' || property.category === 'furnished_houses'
@@ -125,24 +127,25 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
     }
 
     const handleViewTour = () => {
-        // Only rental properties require payment to view tours
-        // BnBs can view tours for free, but need to pay 20% to book
-        // const requiresPayment = property.category === 'rental_units' ||
-        //                        property.category === 'furnished_houses' ||
-        //                        property.propertyType === "Furnished Rental";
+        // BUG FIX: this had degenerated to a blanket "BnB is free, anything
+        // else pays" — which meant for_sale and bank_sales properties (never
+        // meant to be gated at all, per PropertyCard.tsx's own
+        // requiresPayment definition and its "For other property types,
+        // allow direct viewing" comment) were demanding a payment here that
+        // the rest of the app doesn't ask for. The correct, category-aware
+        // check was sitting right above this, commented out — restored it
+        // instead of re-deriving it, and made it respect an existing valid
+        // pass (hasValidPayment) the same way PropertyCard.tsx's click
+        // handler now does, so someone who already paid isn't asked again.
+        const requiresPayment =
+            property.category === 'rental_units' ||
+            property.category === 'furnished_houses' ||
+            property.propertyType === 'Furnished Rental'
 
-        // if (requiresPayment) {
-        //   // For rental properties, show payment modal
-        //   setIsTourPaymentModalOpen(true);
-        // } else {
-        //   // For BnBs, for_sale, etc., show tour directly
-        //   setIsTourModalOpen(true);
-        // }
-
-        if (isBnB) {
-            setIsTourModalOpen(true)
-        } else {
+        if (requiresPayment && !hasValidPayment) {
             setIsTourPaymentModalOpen(true)
+        } else {
+            setIsTourModalOpen(true)
         }
     }
 
@@ -179,7 +182,12 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
     }
 
     const handleTourPaymentSuccess = () => {
-        // Close payment modal and open tour modal
+        // Same fix as PropertyCard.tsx's handleTourPaymentSuccess: actually
+        // register the payment so hasValidPayment is true for the rest of
+        // this session — previously a successful payment here was forgotten
+        // immediately, so re-opening the tour (or viewing another gated
+        // property) would ask again.
+        registerPayment()
         setIsTourPaymentModalOpen(false)
         setIsTourModalOpen(true)
     }
