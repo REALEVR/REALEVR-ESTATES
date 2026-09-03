@@ -53,7 +53,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
     }
 
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
-    const { viewedProperties, hasValidPayment } = usePropertyViews()
+    const { viewedProperties, hasValidPayment, registerPayment } = usePropertyViews()
 
     const handlePropertyView = (e: React.MouseEvent) => {
         e.preventDefault()
@@ -92,7 +92,16 @@ export default function PropertyCard({ property }: PropertyCardProps) {
     }
 
     const handleTourPaymentSuccess = () => {
-        // Close payment modal and redirect to property page
+        // BUG FIX: this used to only close the modal and redirect — it never
+        // called registerPayment(), so hasValidPayment stayed false even
+        // after a real, successful IoTec payment. Combined with
+        // handleCardClick below never checking hasValidPayment either, the
+        // result was that EVERY click on ANY rental/BnB property demanded a
+        // fresh payment, even seconds after a successful one — completely
+        // defeating the "pay once, view up to 5 properties for 24h" promise
+        // TourPaymentModal's own sibling PaymentModal advertises. Now a
+        // successful payment actually sticks.
+        registerPayment()
         setIsTourPaymentModalOpen(false)
         window.location.href = `/property/${property.id}`
     }
@@ -110,10 +119,16 @@ export default function PropertyCard({ property }: PropertyCardProps) {
             property.category === 'furnished_houses' ||
             property.propertyType === 'Furnished Rental'
 
-        if (requiresPayment) {
+        // BUG FIX: this never checked hasValidPayment before — see
+        // handleTourPaymentSuccess's comment above for the full picture.
+        // Someone who already has a valid pass now skips straight to the
+        // tour, same as the (previously unused) handlePropertyView above
+        // always intended.
+        if (requiresPayment && !hasValidPayment) {
             setIsTourPaymentModalOpen(true)
         } else {
-            // For BnBs, for_sale, etc., navigate directly to property page
+            // Free categories, or a rental/BnB already covered by a valid
+            // pass — go straight to the property page.
             window.location.href = `/property/${property.id}`
         }
     }

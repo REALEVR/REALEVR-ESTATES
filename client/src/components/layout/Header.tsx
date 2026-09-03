@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Loader2, LogOut, Settings, User, Glasses, Building, Users, Wallet, Rocket, BarChart3, Send } from "lucide-react";
+import { Loader2, LogOut, User, Glasses, Building, Rocket, BarChart3 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import NotificationCenter from "@/components/NotificationCenter";
 import AuthModal from "@/components/auth/AuthModal";
@@ -146,29 +146,6 @@ export default function Header() {
                       <span>Profile</span>
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile?tab=settings">
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Settings</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  {user.role === "admin" && (
-                    <>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/properties">
-                          <Building className="mr-2 h-4 w-4" />
-                          <span>Property Manager</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/virtual-tours">
-                          <Glasses className="mr-2 h-4 w-4" />
-                          <span>Virtual Tour Manager</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-
                   {user.role === "agent" && (
                     <>
                   <DropdownMenuItem asChild>
@@ -192,39 +169,21 @@ export default function Header() {
                     </>
                   )}
 
+                  {/* Trimmed to just Analytics (per user request) — every other
+                      admin destination this dropdown used to link to
+                      (Property Manager, Virtual Tour Manager, User
+                      Management, Payout Approvals, Boost Confirmations,
+                      Broadcast, Settings) is still fully reachable, just via
+                      AdminDashboardLayout's sidebar once inside the admin
+                      area (Analytics -> /admin/analytics is the entry
+                      point), not duplicated here too. */}
                   {user.role === "admin" && (
-                    <>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/users">
-                          <Users className="mr-2 h-4 w-4" />
-                          <span>User Management</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/payout-approvals">
-                          <Wallet className="mr-2 h-4 w-4" />
-                          <span>Payout Approvals</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/boost-confirmations">
-                          <Rocket className="mr-2 h-4 w-4" />
-                          <span>Boost Confirmations</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/analytics">
-                          <BarChart3 className="mr-2 h-4 w-4" />
-                          <span>Analytics</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/broadcast">
-                          <Send className="mr-2 h-4 w-4" />
-                          <span>Broadcast</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin/analytics">
+                        <BarChart3 className="mr-2 h-4 w-4" />
+                        <span>Analytics</span>
+                      </Link>
+                    </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} disabled={logoutMutation.isPending}>
