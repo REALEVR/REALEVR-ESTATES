@@ -200,10 +200,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     app.post('/api/payment/iotec/token', async (_req: any, res: any) => {
         try {
-            console.log('credentials', process.env.IOTEC_CLIENT_ID, process.env.IOTEC_CLIENT_SECRET)
+            // This gates every rental/BnB virtual-tour view (see
+            // TourPaymentModal.tsx) - without these two set, every attempt
+            // to pay to view a tour fails here, which from a visitor's side
+            // just looks like "the tour won't open." Checked explicitly
+            // (rather than letting `undefined` silently get URL-encoded as
+            // the literal string "undefined" and sent to iotec's real
+            // token endpoint) so that failure shows up clearly in logs
+            // instead of as a cryptic downstream auth error.
+            if (!process.env.IOTEC_CLIENT_ID || !process.env.IOTEC_CLIENT_SECRET) {
+                console.error('[payment/iotec] IOTEC_CLIENT_ID / IOTEC_CLIENT_SECRET not configured - tour-viewing payments cannot succeed')
+                return res.status(503).json({ error: 'Payment gateway not configured' })
+            }
+            // Never log the actual secret value - this used to log both
+            // IOTEC_CLIENT_ID and IOTEC_CLIENT_SECRET on every request,
+            // putting a real credential in plaintext server logs.
             const body = new URLSearchParams({
-                client_id: process.env.IOTEC_CLIENT_ID!,
-                client_secret: process.env.IOTEC_CLIENT_SECRET!,
+                client_id: process.env.IOTEC_CLIENT_ID,
+                client_secret: process.env.IOTEC_CLIENT_SECRET,
                 grant_type: 'client_credentials',
             })
 
