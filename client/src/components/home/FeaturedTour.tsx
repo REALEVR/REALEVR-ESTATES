@@ -92,7 +92,10 @@ export default function FeaturedTour() {
 
   useEffect(() => {
     if (rotationPool.length < 2 || paused || isFullscreen) return;
-    const timer = setInterval(() => setIndex((i) => (i + 1) % rotationPool.length), 12000);
+    // 5 minutes per tour - long enough for someone to actually look around
+    // the embedded 360 view before it switches, instead of yanking them into
+    // the next property mid-look.
+    const timer = setInterval(() => setIndex((i) => (i + 1) % rotationPool.length), 5 * 60 * 1000);
     return () => clearInterval(timer);
   }, [rotationPool.length, paused, isFullscreen]);
 
