@@ -329,16 +329,13 @@ export function AgentDashboard() {
                                                       size="sm"
                                                       className="flex-1"
                                                       onClick={() => {
-                                                          // Set tab selection to 'tour' and open edit dialog
-                                                          try {
-                                                              if (typeof window !== 'undefined') {
-                                                                  window.localStorage.setItem('propertyFormTab', 'tour')
-                                                              }
-                                                          } catch (e) {
-                                                              console.error('LocalStorage error:', e)
-                                                          }
-                                                          // Open property form for editing tour
-                                                          setIsAddPropertyOpen(true)
+                                                          // Straight to the full Virtual Tour Manager (3D Vista ZIP
+                                                          // *and* guided phone capture) rather than the property
+                                                          // form's own narrower "tour" tab (ZIP upload only, no
+                                                          // phone-capture option) — see PropertyFormNew.tsx's own
+                                                          // "Capture with your phone" callout for the other entry
+                                                          // point into the same page.
+                                                          window.location.href = `/admin/virtual-tour-manager?propertyId=${property.id}`
                                                       }}
                                                   >
                                                       <Upload className="mr-1 h-3 w-3" />
@@ -471,30 +468,58 @@ export function AgentDashboard() {
                     </TabsContent>
 
                     <TabsContent value="tours" className="space-y-6">
+                        {/* This used to be a static "drag and drop your tour
+                            files here" box with no file input and no onClick
+                            on either button — pure decoration, not wired to
+                            anything. A tour upload needs to know which
+                            property it's for, so this is a real picker into
+                            the actual Virtual Tour Manager (3D Vista ZIP +
+                            guided phone capture) per property instead. */}
                         <Card>
                             <CardHeader>
                                 <CardTitle>Virtual Tour Management</CardTitle>
-                                <CardDescription>Upload and manage virtual tours for your properties</CardDescription>
+                                <CardDescription>Pick a property to upload or manage its virtual tour</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center">
-                                        <h3 className="text-lg font-semibold">Upload New Tour</h3>
-                                        <Button>
-                                            <Upload className="mr-2 h-4 w-4" />
-                                            Upload Tour
-                                        </Button>
+                                {properties.length === 0 ? (
+                                    <div className="text-center py-8 text-muted-foreground">
+                                        Add a property first, then come back here to give it a tour.
                                     </div>
-
-                                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                                        <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                                        <h3 className="text-lg font-semibold mb-2">Upload Virtual Tour</h3>
-                                        <p className="text-muted-foreground mb-4">
-                                            Drag and drop your tour files here or click to browse
-                                        </p>
-                                        <Button variant="outline">Choose Files</Button>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {properties.map((property) => (
+                                            <div
+                                                key={property.id}
+                                                className="flex items-center justify-between gap-4 rounded-lg border border-border p-3"
+                                            >
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-medium truncate">{property.title}</p>
+                                                    <p className="text-xs text-muted-foreground truncate">
+                                                        {property.location} —{' '}
+                                                        {property.hasTour && property.tourUrl ? (
+                                                            <span className="text-emerald-600">
+                                                                Tour uploaded{property.tourQuality ? ` (${property.tourQuality})` : ''}
+                                                            </span>
+                                                        ) : (
+                                                            'No tour yet'
+                                                        )}
+                                                    </p>
+                                                </div>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="shrink-0"
+                                                    onClick={() => {
+                                                        window.location.href = `/admin/virtual-tour-manager?propertyId=${property.id}`
+                                                    }}
+                                                >
+                                                    <Upload className="mr-1 h-3 w-3" />
+                                                    {property.hasTour ? 'Manage Tour' : 'Add Tour'}
+                                                </Button>
+                                            </div>
+                                        ))}
                                     </div>
-                                </div>
+                                )}
                             </CardContent>
                         </Card>
                     </TabsContent>
