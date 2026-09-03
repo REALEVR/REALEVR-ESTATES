@@ -10,11 +10,14 @@ import { COUNTRY_CODES, DEFAULT_COUNTRY_CODE } from "@/lib/country-codes";
 import { PROMPT_WHATSAPP_FLAG } from "./AuthGate";
 
 /**
- * A one-time nudge shown right after a Google sign-in lands on an account
- * with no phone number on file (AuthGate sets the sessionStorage flag this
- * watches for - Google never gives us a phone number, unlike the sign-up
- * form's own WhatsApp field). Lives outside AuthGate itself since it needs
- * to render over the real site, after the gate has already handed off.
+ * A one-time nudge shown 5 seconds after a Google sign-in lands on an
+ * account with no phone number on file (AuthGate sets the sessionStorage
+ * flag this watches for - Google never gives us a phone number, unlike the
+ * sign-up form's own WhatsApp field). Lives outside AuthGate itself since it
+ * needs to render over the real site, after the gate has already handed off.
+ * The delay is deliberate - popping a dialog the instant the welcome toast
+ * lands reads as a wall between the user and the site they just signed into;
+ * a few seconds lets that moment land first.
  */
 export default function WhatsAppNumberPrompt() {
     const { user } = useAuth();
@@ -26,11 +29,16 @@ export default function WhatsAppNumberPrompt() {
 
     useEffect(() => {
         if (!user) return;
+        let flagged = false;
         try {
-            if (sessionStorage.getItem(PROMPT_WHATSAPP_FLAG) === "1") setOpen(true);
+            flagged = sessionStorage.getItem(PROMPT_WHATSAPP_FLAG) === "1";
         } catch {
             // Storage unavailable - just skip the prompt rather than error.
         }
+        if (!flagged) return;
+
+        const timer = setTimeout(() => setOpen(true), 5000);
+        return () => clearTimeout(timer);
     }, [user]);
 
     const dismiss = () => {
