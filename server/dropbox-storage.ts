@@ -5,10 +5,16 @@ import { promisify } from 'util';
 import pLimit from 'p-limit';
 import { getOptimizedConfig, shouldSkipFile, shouldSkipDirectory } from './upload-config';
 
-// Initialize Dropbox client with your credentials
+// Initialize Dropbox client with your credentials. These come from Railway
+// env vars only — no hardcoded fallback. (There used to be one here: real
+// app credentials baked directly into this file, meaning anyone with repo
+// read access had them regardless of what's actually configured at
+// runtime, and they'd keep being used even if the real env vars were
+// unset or rotated. Removed — Railway's values are the single source of
+// truth now, same as every other credential in this codebase.)
 const dbx = new Dropbox({
-  clientId: process.env.DROPBOX_CLIENT_ID || 'wifh2kcy9zxidec',
-  clientSecret: process.env.DROPBOX_CLIENT_SECRET || 'mkm08rg0k06ohja',
+  clientId: process.env.DROPBOX_CLIENT_ID,
+  clientSecret: process.env.DROPBOX_CLIENT_SECRET,
   accessToken: process.env.DROPBOX_ACCESS_TOKEN, // You'll need to get this through OAuth flow
 });
 
