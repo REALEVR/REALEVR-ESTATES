@@ -45,7 +45,6 @@ import IoTecGateway, { IoTecGatewayLight } from './components/payment/io-tech/la
 import { useEffect, useState } from 'react'
 import { paymentEmitter } from './lib/iotec-paymentpatch'
 import IotechMetricCounterPaymentHandle from './components/payment/sio-iotech'
-import AIAssistant from '@/components/AIAssistant'
 import AgentLauncher from './components/agent/AgentLauncher'
 import ListYourPropertyPage from '@/pages/ListYourPropertyPage'
 import AdminPayoutApprovals from '@/pages/AdminPayoutApprovals'
@@ -203,7 +202,6 @@ function AppShell() {
             <WhatsAppFab />
             <BrokerOnlinePresence />
             <ScrollToTop />
-            <AIAssistant />
             <WhatsAppNumberPrompt />
             <SignupNudgeGate />
         </>

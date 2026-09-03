@@ -843,7 +843,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                 price: String(formValues.price),
                 bedrooms: String(formValues.bedrooms),
                 bathrooms: String(formValues.bathrooms),
-                squareMeters: String(formValues.squareFeet), // Map squareFeet to squareMeters for backend
+                squareMeters: String(sqftToSqm(Number(formValues.squareFeet))), // Convert square feet to square meters (was storing the raw sq-ft number as sqm, unconverted)
                 imageUrl: imagePreview || formValues.imageUrl || '/uploads/images/default-property.jpg',
                 rating: formValues.rating || '0',
                 reviewCount: String(formValues.reviewCount || 0),
