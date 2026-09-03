@@ -6,41 +6,12 @@ import { getGeminiClient as getClient } from '../lib/gemini'
 
 const router = Router()
 
-const SYSTEM_INSTRUCTION =
-    'You are a helpful real estate assistant for RealEVR Estates in Uganda. You help users find ' +
-    'properties, explain the rental/purchase process, and answer questions about the platform. Be ' +
-    'professional, friendly, and knowledgeable about Ugandan real estate (Kampala, Entebbe, Jinja, etc.). ' +
-    'Mention features like immersive VR property tours, secure payments, and verified listings. Keep ' +
-    'responses concise and helpful.'
-
-// POST /api/ai/chat - Proxy a single-turn chat message to Gemini for the AI Assistant widget.
-// The API key stays server-side; the client never sees it.
-router.post('/chat', async (req: any, res: any) => {
-    try {
-        const { message } = req.body || {}
-        if (!message || typeof message !== 'string' || !message.trim()) {
-            return res.status(400).json({ message: 'A message is required' })
-        }
-
-        const ai = getClient()
-        if (!ai) {
-            return res.status(503).json({
-                message: 'AI Assistant is not configured. Set GEMINI_API_KEY on the server to enable it.',
-            })
-        }
-
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: message,
-            config: { systemInstruction: SYSTEM_INSTRUCTION },
-        })
-
-        res.json({ reply: response.text || "I'm sorry, I couldn't process that. Please try again." })
-    } catch (error: any) {
-        console.error('[AI] Chat error:', error)
-        res.status(500).json({ message: 'AI Assistant is temporarily unavailable. Please try again later.' })
-    }
-})
+// POST /api/ai/chat used to live here (Gemini-only, single-turn, no memory
+// or property context) - the floating AI Assistant widget now calls
+// /api/gene/chat instead (server/gene/chat.ts), the same backend the
+// signed-in "My Agent" chat and the WhatsApp concierge use, via the shared
+// multi-provider server/gene/ai-provider.ts (Claude, then ChatGPT, then
+// Gemini). One assistant brain instead of two.
 
 // POST /api/ai/generate-description - Draft a listing description from title + location.
 // Restricted to authenticated agents/admins, mirroring how property creation is gated elsewhere.

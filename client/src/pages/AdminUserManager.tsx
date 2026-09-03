@@ -68,7 +68,17 @@ interface AgentProperty {
 }
 
 export default function AdminUserManager() {
-    const { user } = useAuth()
+    // isLoading matters here: useAuth's /api/user query is still in flight on
+    // first mount, so `user` is `undefined` for a beat even for a genuinely
+    // logged-in admin. The old code checked only `!user`, which fired the
+    // redirect below during that beat — bouncing real admins to /auth on
+    // every load — and did it *before* the useEffect hook further down,
+    // which is a Rules-of-Hooks violation (a conditional early return between
+    // hooks changes how many hooks get called between renders once `user`
+    // resolves). Fixed by calling every hook unconditionally first and only
+    // branching on `user`/`isLoading` in the render below, once, after all
+    // of them.
+    const { user, isLoading: authLoading } = useAuth()
     const { toast } = useToast()
     const [users, setUsers] = useState<User[]>([])
     const [loading, setLoading] = useState(true)
@@ -79,11 +89,6 @@ export default function AdminUserManager() {
     const [showAgentDetails, setShowAgentDetails] = useState(false)
     const [properties, setProperties] = useState<Property[]>([])
     const [reviews, setReviews] = useState<Review[]>([])
-
-    // Redirect if not admin
-    if (!user || user.role !== 'admin') {
-        return <Redirect to="/auth" />
-    }
 
     useEffect(() => {
         const fetchData = async () => {
@@ -241,6 +246,22 @@ export default function AdminUserManager() {
             style: 'currency',
             currency: 'UGX',
         }).format(amount)
+    }
+
+    // Wait for the session check itself before judging who's logged in —
+    // `user` is legitimately `undefined` for a beat on first load even for a
+    // real admin, and redirecting during that beat is exactly the bug this
+    // page had (see the comment at the top of the component).
+    if (authLoading) {
+        return (
+            <div className="container mx-auto px-6 py-8">
+                <div className="text-center">Loading...</div>
+            </div>
+        )
+    }
+
+    if (!user || user.role !== 'admin') {
+        return <Redirect to="/auth" />
     }
 
     if (loading) {

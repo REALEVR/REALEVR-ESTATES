@@ -25,7 +25,15 @@ function toAbsoluteUrl(base: string, urlOrPath: string): string {
 }
 
 /** Static, hand-written metadata for the handful of high-traffic, shareable routes. */
-export type CategoryPageKey = 'home' | 'bnbs' | 'bankSales' | 'forSale' | 'rentalUnits' | 'featuredProperties'
+export type CategoryPageKey =
+    | 'home'
+    | 'bnbs'
+    | 'bankSales'
+    | 'forSale'
+    | 'rentalUnits'
+    | 'featuredProperties'
+    | 'allProperties'
+    | 'newListings'
 
 export const CATEGORY_PAGE_META: Record<CategoryPageKey, { path: string; title: string; description: string }> = {
     home: {
@@ -62,6 +70,17 @@ export const CATEGORY_PAGE_META: Record<CategoryPageKey, { path: string; title: 
         path: '/featured-properties',
         title: 'Featured Properties | RealEVR Estates',
         description: 'Explore curated featured homes, rentals, and bank listings with immersive virtual tours on RealEVR Estates.',
+    },
+    allProperties: {
+        path: '/properties',
+        title: 'All Properties | RealEVR Estates',
+        description:
+            'Browse every rental, BnB, sale, and bank-sale listing on RealEVR Estates in one place — filter by type, area, and price.',
+    },
+    newListings: {
+        path: '/new-listings',
+        title: 'New Listings | RealEVR Estates',
+        description: 'The newest rentals, BnBs, sale, and bank-sale listings added to RealEVR Estates.',
     },
 }
 

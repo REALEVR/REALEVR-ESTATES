@@ -2,6 +2,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { Loader2 } from 'lucide-react'
 import { useEffect } from 'react'
 import { Redirect, Route } from 'wouter'
+import AdminDashboardLayout from '@/components/admin/AdminDashboardLayout'
 
 export function ProtectedAdminRoute({
     path,
@@ -50,5 +51,15 @@ export function ProtectedAdminRoute({
         )
     }
 
-    return <Route path={path} component={Component} />
+    // Every admin page gets the same sidebar+topbar chrome (see
+    // AdminDashboardLayout's doc comment) — the dropdown menu of separate,
+    // chrome-less pages this replaced is gone; every destination it used to
+    // hold is a sidebar item there instead.
+    return (
+        <Route path={path}>
+            <AdminDashboardLayout>
+                <Component />
+            </AdminDashboardLayout>
+        </Route>
+    )
 }

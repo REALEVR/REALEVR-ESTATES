@@ -4,13 +4,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Hero from '@/components/home/Hero'
-import AfricaRealEstatePulse from '@/components/home/AfricaRealEstatePulse'
 import MotionBackground from '@/components/motion/MotionBackground'
 import Reveal from '@/components/motion/Reveal'
 import FilterBar from '@/components/home/FilterBar'
 import FeaturedTour from '@/components/home/FeaturedTour'
 import FeaturedProperties from '@/components/home/FeaturedProperties'
-import PopularProperties from '@/components/home/PopularProperties'
 import RecentProperties from '@/components/home/RecentProperties'
 import PropertyCard from '@/components/home/PropertyCard'
 import AmenitiesHighlight from '@/components/home/AmenitiesHighlight'
@@ -112,16 +110,14 @@ export default function Home() {
                 canonicalPath="/"
                 jsonLd={homeJsonLd}
             />
+            {/* The Africa real estate news/live-listings panel (real Africa
+                property news when NEWS_API_KEY is configured, plus this
+                platform's own live listing photos) now lives *inside* Hero
+                itself, as the second of 2 slides sharing the tour video's
+                container — see Hero.tsx's heroSlide state and
+                HeroNewsSlide.tsx. Used to be its own section rendered here,
+                below the hero. */}
             <Hero videoUrl={heroVideoUrl} />
-
-            {/* Africa real estate media panel, attached to the hero video
-                space: a live-updating mix of real Africa real estate news
-                (server-fetched, only when NEWS_API_KEY is configured — see
-                server/gene/africa-media-feed.ts) and this platform's own
-                current live listing photos. Renders nothing at all when
-                neither source has content — see AfricaRealEstatePulse.tsx
-                for why a missing panel beats a fake "live" one. */}
-            <AfricaRealEstatePulse />
 
             {/* Design-review fix (round 2): the agent/broker recruitment CTA
                 used to sit here, immediately after the hero — the very next
@@ -135,10 +131,14 @@ export default function Home() {
 
             <Reveal><FeaturedTour /></Reveal>
             <Reveal><FeaturedProperties /></Reveal>
-            <Reveal><PopularProperties /></Reveal>
             <Reveal><RecentProperties /></Reveal>
 
-            {/* Property Listings */}
+            {/* Property Listings — "All Properties", the 3rd of the 3
+                top-level browsing destinations (see FilterBar.tsx). Popular
+                Properties (sorted by view count) used to be its own section
+                here too, but that's the same "most viewed" idea this
+                section's own "Newest" sort option already covers — removed
+                as redundant rather than kept as a 4th thing to maintain. */}
             <Reveal><section className="py-10">
                 <div className="container mx-auto px-6">
                     <div className="flex justify-between items-center mb-6">

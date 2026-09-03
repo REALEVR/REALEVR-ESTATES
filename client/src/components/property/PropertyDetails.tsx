@@ -9,6 +9,8 @@ import BookingCalendarModal from './BookingCalendarModal'
 import VirtualTourModal from './VirtualTourModal'
 import TourPaymentModal from './TourPaymentModal'
 import SharePropertyModal from './SharePropertyModal'
+import MessageAgentModal from './MessageAgentModal'
+import SimilarProperties from './SimilarProperties'
 import type { Property, User } from '@shared/schema'
 import { getSafeAmenities } from '@/lib/property-utils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -70,6 +72,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
     const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
     const [isTourModalOpen, setIsTourModalOpen] = useState(false)
     const [isTourPaymentModalOpen, setIsTourPaymentModalOpen] = useState(false)
+    const [isMessageAgentModalOpen, setIsMessageAgentModalOpen] = useState(false)
     const [bookingConfirmed, setBookingConfirmed] = useState(false)
     const [propertyOwner, setPropertyOwner] = useState<User | null>(null)
     const [location] = useLocation()
@@ -466,6 +469,11 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                     )}
                 </div>
                 <div className="flex space-x-3">
+                    {property.ownerId && user?.id !== property.ownerId && (
+                        <Button variant="outline" className="border-foreground/30" onClick={() => setIsMessageAgentModalOpen(true)}>
+                            Message Agent
+                        </Button>
+                    )}
                     <Button variant="outline" className="border-foreground/30" onClick={handleScheduleVisit}>
                         {isBnB ? 'Book Now' : 'Schedule Visit'}
                     </Button>
@@ -474,6 +482,16 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                     </Button>
                 </div>
             </div>
+
+            {property.ownerId && (
+                <MessageAgentModal
+                    isOpen={isMessageAgentModalOpen}
+                    onClose={() => setIsMessageAgentModalOpen(false)}
+                    propertyId={property.id}
+                    propertyTitle={property.title}
+                    ownerId={property.ownerId}
+                />
+            )}
 
             {/* Design-review fix (round 2): the trust/credibility review
                 flagged that "Schedule Visit" / "Book Now" gave no indication
@@ -498,6 +516,8 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                     <OwnerContactDetails property={property} bookingConfirmed={bookingConfirmed} owner={propertyOwner} />
                 </div>
             )}
+
+            <SimilarProperties property={property} />
 
             {/* Booking Calendar Modal */}
             <BookingCalendarModal

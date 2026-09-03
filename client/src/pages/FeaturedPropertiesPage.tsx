@@ -21,10 +21,6 @@ export default function FeaturedPropertiesPage() {
       description: CATEGORY_PAGE_META.featuredProperties.description,
       url: `${site}${CATEGORY_PAGE_META.featuredProperties.path}`,
     };
-
-    setTimeout(()=>{
-      console.log('welcomet0')
-    },3000)
   }, []);
 
   if (isLoading) {

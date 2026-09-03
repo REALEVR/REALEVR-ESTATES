@@ -19,12 +19,15 @@
  * marketing-broadcast opt-in on a linked number — see `marketingOptIn` on
  * WhatsappUserLink and server/gene/whatsapp-growth.ts's broadcast route.
  *
- * Gated behind the same WHATSAPP_BUSINESS_TOKEN + WHATSAPP_PHONE_NUMBER_ID
- * env vars as whatsapp.ts (reuses its `sendWhatsAppMessage`), plus a new
- * WHATSAPP_VERIFY_TOKEN for the webhook handshake Meta requires. Absent
- * those, the webhook still accepts and logs messages (so nothing 500s) but
- * cannot send a reply — logged instead, same graceful-degrade policy as
- * the rest of GENE.
+ * Two inbound transports, matching whatsapp.ts's two outbound providers:
+ * `/api/gene/whatsapp/webhook` (Meta Cloud API, gated behind
+ * WHATSAPP_BUSINESS_TOKEN + WHATSAPP_PHONE_NUMBER_ID + WHATSAPP_VERIFY_TOKEN
+ * for its GET handshake) and `/api/gene/whatsapp/webhook/infobip` (Infobip,
+ * gated behind INFOBIP_API_KEY + INFOBIP_BASE_URL + INFOBIP_WHATSAPP_SENDER).
+ * Point whichever provider you configured for sending at its matching
+ * webhook URL. Absent both, the webhooks still accept and log messages (so
+ * nothing 500s) but cannot send a reply — logged instead, same
+ * graceful-degrade policy as the rest of GENE.
  *
  * KNOWN LIMITATIONS (documented honestly, not hidden):
  *  - Linking a WhatsApp number to an account (`POST /api/gene/whatsapp/link`)
@@ -50,10 +53,11 @@ import {
     loadSignals,
     buildRecommendations,
     templatedRecommendationSummary,
-    callAnthropic,
     profileSummaryForPrompt,
     appendAgentMessage,
 } from './personal-agent'
+import { getAiReply } from './ai-provider'
+import { tryHandleListingUploadText, tryHandleListingUploadImage, tryHandleListingUploadImageFromUrl } from './whatsapp-listing-upload'
 
 const LINK_COLLECTION = 'gene_whatsapp_user_links'
 const MESSAGE_COLLECTION = 'gene_whatsapp_messages'
@@ -374,8 +378,8 @@ async function handleConciergeChat(phone: string, text: string, link: WhatsappUs
                 ...top.map((t) => `- "${t.property.title}" in ${t.property.location} — ${t.property.currency ?? 'UGX'} ${t.property.price}`),
             ].join('\n')
 
-            const aiReply = await callAnthropic(systemPrompt, text)
-            const reply = aiReply ?? `${templatedRecommendationSummary(profile, top)} Reply with a property name for more detail, or "more" for other picks.`
+            const aiResult = await getAiReply(systemPrompt, text)
+            const reply = aiResult?.reply ?? `${templatedRecommendationSummary(profile, top)} Reply with a property name for more detail, or "more" for other picks.`
 
             // Mirror this WhatsApp exchange into the same conversation history
             // the web Chat tab reads, so it's one continuous thread either way.
@@ -397,7 +401,10 @@ async function handleConciergeChat(phone: string, text: string, link: WhatsappUs
     await replyAndLog(phone, reply)
 }
 
-async function handleInboundText(phone: string, text: string): Promise<void> {
+/** Exported so the Infobip webhook route below (and any future inbound
+ * transport) can reuse the exact same command routing as the Meta webhook,
+ * rather than re-implementing it. */
+export async function handleInboundText(phone: string, text: string): Promise<void> {
     const link = findLinkByPhone(phone)
     const firstContact = isFirstContact(phone)
     logMessage({ phone, direction: 'inbound', text, userId: link?.userId })
@@ -409,6 +416,13 @@ async function handleInboundText(phone: string, text: string): Promise<void> {
     if (firstContact) {
         await replyAndLog(phone, GREETING_TEXT(link?.userName ?? ''), link?.userId)
     }
+
+    // Checked first, ahead of every other command: an in-progress "list a
+    // property" draft must win even if an answer happens to look like
+    // another command (e.g. a description that contains the word
+    // "dashboard"). See whatsapp-listing-upload.ts.
+    const handledAsListingUpload = await tryHandleListingUploadText(phone, text, link)
+    if (handledAsListingUpload) return
 
     const handledAsOptCommand = await tryHandleMarketingOptCommand(phone, text, link)
     if (handledAsOptCommand) return
@@ -452,12 +466,57 @@ export function registerWhatsappConciergeRoutes(app: Express): void {
 
             for (const msg of messages) {
                 const phone = normalizePhone(msg?.from ?? '')
+                if (!phone) continue
+
+                // Photos only matter mid-listing-upload (see
+                // whatsapp-listing-upload.ts) - anything else with an image
+                // and no active draft is silently ignored today, same as
+                // before this feature existed.
+                if (msg?.type === 'image' && typeof msg?.image?.id === 'string') {
+                    await tryHandleListingUploadImage(phone, msg.image.id)
+                    continue
+                }
+
                 const text = msg?.text?.body
-                if (!phone || typeof text !== 'string' || !text.trim()) continue
+                if (typeof text !== 'string' || !text.trim()) continue
                 await handleInboundText(phone, text.trim())
             }
         } catch (err) {
             console.error('[gene/whatsapp-concierge] webhook processing failed:', err)
+        }
+    })
+
+    // POST /api/gene/whatsapp/webhook/infobip — inbound message delivery when
+    // Infobip is the configured provider (see whatsapp.ts's doc comment).
+    // Point this URL at Infobip's "Received WhatsApp Messages" webhook
+    // config (Channels and Numbers > WhatsApp > your sender > forwarding).
+    // Infobip has no GET handshake like Meta's — just a POST with an API
+    // key you can optionally have Infobip send back for verification (not
+    // required to get this working, so not enforced here).
+    app.post('/api/gene/whatsapp/webhook/infobip', async (req: Request, res: Response) => {
+        res.sendStatus(200)
+        try {
+            const results = req.body?.results
+            if (!Array.isArray(results) || results.length === 0) return
+
+            for (const result of results) {
+                const phone = normalizePhone(result?.from ?? '')
+                if (!phone) continue
+
+                const message = result?.message
+                const type = typeof message?.type === 'string' ? message.type.toUpperCase() : ''
+
+                if (type === 'IMAGE' && typeof message?.url === 'string') {
+                    await tryHandleListingUploadImageFromUrl(phone, message.url)
+                    continue
+                }
+
+                const text = typeof message?.text === 'string' ? message.text : undefined
+                if (!text || !text.trim()) continue
+                await handleInboundText(phone, text.trim())
+            }
+        } catch (err) {
+            console.error('[gene/whatsapp-concierge] Infobip webhook processing failed:', err)
         }
     })
 

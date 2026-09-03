@@ -22,6 +22,8 @@ import PropertyManager from '@/pages/PropertyManager'
 import AdminUserManager from '@/pages/AdminUserManager'
 import AuthPage from '@/pages/auth-page'
 import FeaturedPropertiesPage from '@/pages/FeaturedPropertiesPage'
+import AllPropertiesPage from '@/pages/AllPropertiesPage'
+import NewListingsPage from '@/pages/NewListingsPage'
 import ProfilePage from '@/pages/ProfilePage'
 import TestPage from '@/pages/TestPage' // Added test page
 import { AgentDashboard } from '@/pages/AgentDashboard'
@@ -45,13 +47,15 @@ import IoTecGateway, { IoTecGatewayLight } from './components/payment/io-tech/la
 import { useEffect, useState } from 'react'
 import { paymentEmitter } from './lib/iotec-paymentpatch'
 import IotechMetricCounterPaymentHandle from './components/payment/sio-iotech'
-import AIAssistant from '@/components/AIAssistant'
 import AgentLauncher from './components/agent/AgentLauncher'
 import ListYourPropertyPage from '@/pages/ListYourPropertyPage'
 import AdminPayoutApprovals from '@/pages/AdminPayoutApprovals'
 import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
 import AdminAnalytics from '@/pages/AdminAnalytics'
 import AdminBroadcast from '@/pages/AdminBroadcast'
+import AdminDashboardHome from '@/pages/AdminDashboardHome'
+import AdminBrokerApplications from '@/pages/AdminBrokerApplications'
+import AdminMessages from '@/pages/AdminMessages'
 import WhatsAppFab from '@/components/whatsapp/WhatsAppFab'
 import BrokerOnlinePresence from '@/components/broker/BrokerOnlinePresence'
 
@@ -66,6 +70,8 @@ function Router() {
             <Route path="/rental-units" component={RentalUnitsPage} />
             <Route path="/for-sale" component={ForSalePage} />
             <Route path="/featured-properties" component={FeaturedPropertiesPage} />
+            <Route path="/properties" component={AllPropertiesPage} />
+            <Route path="/new-listings" component={NewListingsPage} />
 
             {/* Legal and Information Pages */}
             <Route path="/privacy" component={PrivacyPolicy} />
@@ -90,7 +96,16 @@ function Router() {
 
             <Route path="/dashboard" component={UserDashboard} />
 
-            {/* Admin routes - protected by role */}
+            {/* Admin routes - protected by role. All wrapped in
+                AdminDashboardLayout inside ProtectedAdminRoute itself — see
+                that file — so every page below shares one sidebar/topbar. */}
+            <ProtectedAdminRoute path="/admin" component={AdminDashboardHome} allowedRoles={['admin']} />
+            <ProtectedAdminRoute
+                path="/admin/broker-applications"
+                component={AdminBrokerApplications}
+                allowedRoles={['admin']}
+            />
+            <ProtectedAdminRoute path="/admin/messages" component={AdminMessages} allowedRoles={['admin']} />
             <ProtectedAdminRoute
                 path="/admin/virtual-tours"
                 component={VirtualTourManager}
@@ -203,7 +218,6 @@ function AppShell() {
             <WhatsAppFab />
             <BrokerOnlinePresence />
             <ScrollToTop />
-            <AIAssistant />
             <WhatsAppNumberPrompt />
             <SignupNudgeGate />
         </>

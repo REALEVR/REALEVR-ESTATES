@@ -20,6 +20,7 @@ import {
     ShoppingCart,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import MessagesInbox from '@/components/messaging/MessagesInbox'
 
 interface ViewedTour {
     tourId: string
@@ -171,6 +172,7 @@ export function UserDashboard() {
                 <Tabs defaultValue="tours" className="space-y-6">
                     <TabsList>
                         <TabsTrigger value="tours">Viewed Tours</TabsTrigger>
+                        <TabsTrigger value="messages">Messages</TabsTrigger>
                         <TabsTrigger value="whitelist">Whitelist</TabsTrigger>
                         <TabsTrigger value="profile">Profile</TabsTrigger>
                     </TabsList>
@@ -253,6 +255,14 @@ export function UserDashboard() {
                                 </CardContent>
                             </Card>
                         )}
+                    </TabsContent>
+
+                    <TabsContent value="messages" className="space-y-6">
+                        <h2 className="text-xl font-semibold mb-4">Messages</h2>
+                        <MessagesInbox
+                            kindFilter="tenant_agent"
+                            emptyLabel="No conversations yet — message an agent from any property page to start one."
+                        />
                     </TabsContent>
 
                     <TabsContent value="whitelist" className="space-y-6">

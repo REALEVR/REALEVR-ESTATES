@@ -80,9 +80,6 @@ export default function BnBsPage() {
     return 0; // default: no sorting
   });
   
-  // Sample furnished properties (for demonstration)
-  // 
-
   const handleViewProperty = (propertyId: number) => {
     setLocation(`/property/${propertyId}`);
   };
@@ -232,35 +229,6 @@ export default function BnBsPage() {
                   <PropertyCard property={property} />
                 </div>
               ))}
-            </div>
-          </div>
-        ) : sampleFurnishedProperties.length ? (
-          <div>
-            <div className="mb-4 text-gray-500">
-              Showing {sampleFurnishedProperties.length} sample properties
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {sampleFurnishedProperties.map(property => (
-                <div 
-                  key={property.id} 
-                  className="cursor-pointer"
-                  onClick={() => handleViewProperty(property.id)}
-                >
-                  <PropertyCard property={property} />
-                </div>
-              ))}
-            </div>
-            
-            <div className="mt-8 p-6 bg-gray-50 rounded-lg border border-gray-200 text-center">
-              <h3 className="text-xl font-semibold mb-2">Planning your next stay?</h3>
-              <p className="text-gray-600 mb-4">Click on any property to view details and book your stay. Payment is only required after booking confirmation.</p>
-              <Button 
-                className="bg-accent hover:bg-accent/90"
-                onClick={() => setLocation("/")}
-              >
-                Explore More Options
-              </Button>
             </div>
           </div>
         ) : (

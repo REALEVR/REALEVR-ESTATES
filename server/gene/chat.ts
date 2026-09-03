@@ -2,13 +2,20 @@
  * GENE Platform — Team 1: conversational agent endpoint.
  *
  * Public-facing chat surface for GENE, the East-Africa real-estate
- * assistant. Persists conversation turns via the shared JSON-file store
- * (`./store`) under the `gene_conversations` collection, does light
- * rule-based intent classification, and (when `ANTHROPIC_API_KEY` is set)
- * calls the Anthropic Messages API for the actual reply — falling back to a
- * clear, still-useful canned response per intent whenever the key is absent
- * or the call fails for any reason. This module never 500s just because an
- * AI provider isn't configured.
+ * assistant - also the backend now shared by the site's public floating
+ * "RealEVR Assistant" widget (client/src/components/AIAssistant.tsx used
+ * to call a separate, Gemini-only /api/ai/chat with no memory, no intent
+ * classification, and no property context; it now calls this endpoint
+ * instead, so there's one public assistant, not two disagreeing ones).
+ *
+ * Persists conversation turns via the shared JSON-file store (`./store`)
+ * under the `gene_conversations` collection, does light rule-based intent
+ * classification, and calls out to ./ai-provider's getAiReply (Anthropic
+ * Claude, then OpenAI ChatGPT, then Google Gemini - first configured
+ * provider that succeeds wins) for the actual reply, falling back to a
+ * clear, still-useful canned response per intent whenever none of the
+ * three are configured or all fail. This module never 500s just because
+ * no AI provider is configured.
  *
  * Escalations (human handoff / low-confidence replies) are written to the
  * `gene_escalations` collection — see `GeneEscalation` below. Team 2's
@@ -20,6 +27,7 @@ import { randomUUID } from 'crypto'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
 import { notifyNewEscalation } from './slack-bridge'
+import { getAiReply } from './ai-provider'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -118,7 +126,8 @@ function isLowConfidence(intent: GeneIntent, usedAi: boolean, reply: string): bo
 }
 
 // ---------------------------------------------------------------------------
-// Anthropic call (optional — only when ANTHROPIC_API_KEY is set)
+// AI reply (optional — via ./ai-provider, whichever of ANTHROPIC_API_KEY /
+// OPENAI_API_KEY / GEMINI_API_KEY is configured)
 // ---------------------------------------------------------------------------
 
 async function buildPropertyContext(): Promise<string> {
@@ -134,57 +143,24 @@ async function buildPropertyContext(): Promise<string> {
     }
 }
 
-async function callAnthropic(history: GeneChatMessage[], message: string): Promise<string | null> {
-    const apiKey = process.env.ANTHROPIC_API_KEY
-    if (!apiKey) return null
+async function getReply(history: GeneChatMessage[], message: string): Promise<string | null> {
+    const propertyContext = await buildPropertyContext()
+    const systemPrompt = [
+        'You are GENE, a helpful, concise real-estate assistant for a property platform operating across East Africa',
+        '(Uganda, Kenya, Tanzania, Rwanda). You help prospective tenants/buyers with pricing, availability, and',
+        'booking viewings. Be friendly, brief (2-4 sentences), and honest — if you do not know a specific fact',
+        '(exact price, exact availability), say so and offer to connect them with a human agent rather than guessing.',
+        propertyContext,
+    ]
+        .filter(Boolean)
+        .join('\n')
 
-    try {
-        const propertyContext = await buildPropertyContext()
-        const systemPrompt = [
-            'You are GENE, a helpful, concise real-estate assistant for a property platform operating across East Africa',
-            '(Uganda, Kenya, Tanzania, Rwanda). You help prospective tenants/buyers with pricing, availability, and',
-            'booking viewings. Be friendly, brief (2-4 sentences), and honest — if you do not know a specific fact',
-            '(exact price, exact availability), say so and offer to connect them with a human agent rather than guessing.',
-            propertyContext,
-        ]
-            .filter(Boolean)
-            .join('\n')
-
-        const messages = [
-            ...history.slice(-8).map((m) => ({ role: m.role, content: m.text })),
-            { role: 'user' as const, content: message },
-        ]
-
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'content-type': 'application/json',
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01',
-            },
-            body: JSON.stringify({
-                model: 'claude-3-5-haiku-latest',
-                max_tokens: 400,
-                system: systemPrompt,
-                messages,
-            }),
-        })
-
-        if (!response.ok) {
-            console.error('[gene/chat] Anthropic API error', response.status, await response.text())
-            return null
-        }
-
-        const data: any = await response.json()
-        const textBlocks: string[] = Array.isArray(data?.content)
-            ? data.content.filter((block: any) => block?.type === 'text').map((block: any) => block.text)
-            : []
-        const reply = textBlocks.join('\n').trim()
-        return reply.length > 0 ? reply : null
-    } catch (err) {
-        console.error('[gene/chat] Anthropic call failed, falling back to rule-based reply:', err)
-        return null
-    }
+    const result = await getAiReply(
+        systemPrompt,
+        message,
+        history.slice(-8).map((m) => ({ role: m.role, text: m.text }))
+    )
+    return result?.reply ?? null
 }
 
 // ---------------------------------------------------------------------------
@@ -249,7 +225,7 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             const intent = classifyIntent(message)
             conversation.messages.push({ role: 'user', text: message, intent, createdAt: nowIso() })
 
-            const aiReply = await callAnthropic(conversation.messages.slice(0, -1), message)
+            const aiReply = await getReply(conversation.messages.slice(0, -1), message)
             const usedAi = aiReply !== null
             const reply = aiReply ?? CANNED_REPLIES[intent]
 

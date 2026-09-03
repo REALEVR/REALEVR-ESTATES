@@ -9,6 +9,7 @@ import MotionBackground from '@/components/motion/MotionBackground';
 import CountUp from '@/components/motion/CountUp';
 import VRBadge from '@/components/property/VRBadge';
 import ExploreFiltersDialog from './ExploreFiltersDialog';
+import HeroNewsSlide from './HeroNewsSlide';
 import { useProperties } from '@/hooks/usePropertyData';
 
 // Custom hook for mobile detection
@@ -62,6 +63,21 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
   const [isVideoPlaying, setIsVideoPlaying] = useState(true);
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const iframeRef = React.useRef<HTMLIFrameElement>(null);
+  // Tour video and the Africa Real Estate Pulse news/listings feed now
+  // share this one slide container instead of the news feed being a
+  // separate section further down the page — "let the news be put where
+  // the video is... let the 2 slide as part of the same container." Pauses
+  // on hover, same pattern as every other rotation in this codebase
+  // (FeaturedTour.tsx, AfricaRealEstatePulse's own internal rotation).
+  const [heroSlide, setHeroSlide] = useState<'tour' | 'news'>('tour');
+  const [isSlidePaused, setIsSlidePaused] = useState(false);
+  useEffect(() => {
+    if (isSlidePaused) return;
+    const timer = setInterval(() => {
+      setHeroSlide((s) => (s === 'tour' ? 'news' : 'tour'));
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [isSlidePaused]);
   const [searchFilters, setSearchFilters] = useState({
     location: '',
     propertyType: '',
@@ -302,9 +318,20 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
       </div>
        <FilterBar />
 
-      {/* House image/video and search bar */}
-      <div className="relative mt-4">
-        {videoUrl && !showImage ? (
+      {/* House image/video and search bar — plus, sharing this same
+          container, the "news" slide (HeroNewsSlide, real Africa
+          property/housing news + this platform's own live listings),
+          alternating with the tour video/image every 10s. */}
+      <div
+        className="relative mt-4"
+        onMouseEnter={() => setIsSlidePaused(true)}
+        onMouseLeave={() => setIsSlidePaused(false)}
+      >
+        {heroSlide === 'news' ? (
+          <div className="relative w-full h-96 md:h-[500px] lg:h-[600px] rounded-2xl shadow-md overflow-hidden bg-muted">
+            <HeroNewsSlide active={heroSlide === 'news'} />
+          </div>
+        ) : videoUrl && !showImage ? (
           // Video content - full width and height
           <div className="relative w-full h-96 md:h-[500px] lg:h-[600px] rounded-2xl shadow-md overflow-hidden">
             {/* Loading spinner — suppressed while the tap-to-play facade is
@@ -398,8 +425,10 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
         
         {/* Play/Pause button overlay - top right. Hidden while the mobile
             tap-to-play facade is showing — tapping the facade itself is the
-            play action, so a second play control would be redundant. */}
-        {!showYoutubeFacade && (
+            play action, so a second play control would be redundant —
+            and while the news slide is showing, since it controls video
+            playback specifically. */}
+        {heroSlide === 'tour' && !showYoutubeFacade && (
           <button
             onClick={handlePlayPause}
             aria-label={isVideoPlaying ? 'Pause video' : 'Play video'}
@@ -419,7 +448,25 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             )}
           </button>
         )}
-        
+
+        {/* Tour / News slide indicators — the "2 slide" dots. Sits just
+            below the top-right play/pause button (shown on the tour slide
+            only) and clear of the news slide's own top-left "Pulse" badge
+            and the search bar overlapping the bottom edge. */}
+        <div className="absolute top-20 right-4 z-10 flex gap-1.5">
+          {(['tour', 'news'] as const).map((slide) => (
+            <button
+              key={slide}
+              type="button"
+              onClick={() => setHeroSlide(slide)}
+              aria-label={slide === 'tour' ? 'Show tour video' : 'Show real estate news'}
+              className={`h-1.5 rounded-full transition-all ${
+                heroSlide === slide ? 'w-6 bg-white' : 'w-1.5 bg-white/50'
+              }`}
+            />
+          ))}
+        </div>
+
         {/* Mobile: a single tappable Airbnb-style "Where to?" pill in place
             of the 5-field bar (which doesn't fit and was previously just
             hidden with nothing shown instead). Opens the same
