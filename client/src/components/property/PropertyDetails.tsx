@@ -10,6 +10,7 @@ import VirtualTourModal from './VirtualTourModal'
 import TourPaymentModal from './TourPaymentModal'
 import SharePropertyModal from './SharePropertyModal'
 import MessageAgentModal from './MessageAgentModal'
+import SimilarProperties from './SimilarProperties'
 import type { Property, User } from '@shared/schema'
 import { getSafeAmenities } from '@/lib/property-utils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -515,6 +516,8 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                     <OwnerContactDetails property={property} bookingConfirmed={bookingConfirmed} owner={propertyOwner} />
                 </div>
             )}
+
+            <SimilarProperties property={property} />
 
             {/* Booking Calendar Modal */}
             <BookingCalendarModal

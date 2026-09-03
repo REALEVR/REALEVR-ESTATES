@@ -51,6 +51,7 @@ import { registerBtcQrRoutes } from './gene/btc-qr'
 import { registerSlackBridgeRoutes } from './gene/slack-bridge'
 import { registerAgentWhatsappOnboardingRoutes } from './gene/agent-whatsapp-onboarding'
 import { registerTourAccessPassRoutes, issuePass } from './gene/tour-access-pass'
+import { registerSimilarPropertiesPassRoutes } from './gene/similar-properties-pass'
 import { registerPersonalAgentRoutes } from './gene/personal-agent'
 import { registerAfricaMediaFeedRoutes } from './gene/africa-media-feed'
 import { registerAiWorkforceRoutes } from './gene/ai-workforce'
@@ -2453,6 +2454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerSlackBridgeRoutes(app, adminMiddleware)
     registerAgentWhatsappOnboardingRoutes(app, adminMiddleware)
     registerTourAccessPassRoutes(app, adminMiddleware)
+    registerSimilarPropertiesPassRoutes(app)
     registerPersonalAgentRoutes(app)
     registerReferralRewardsRoutes(app, adminMiddleware)
     registerWhatsappConciergeRoutes(app)
