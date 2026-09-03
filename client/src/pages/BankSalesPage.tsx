@@ -189,6 +189,24 @@ function AuctionPropertyCard({ property, onPlaceBid }: AuctionPropertyCardProps)
         <Badge className="absolute top-3 left-3 bg-black/70 text-white">
           {property.propertyType}
         </Badge>
+        {/* Bank-sale listings use this bespoke card, not the shared
+            PropertyCard.tsx the rest of the site fixed to open tours on tap
+            — this one had no click handler on the picture at all and no
+            "View Tour" affordance, so tapping the photo did nothing.
+            Bank sales are never payment-gated (see PropertyCard.tsx's own
+            requiresPayment check, which excludes this category), so this
+            goes straight to the property page — always visible, not a
+            hover-reveal, since most visitors here are on phones. */}
+        <Link
+          href={`/property/${property.id}`}
+          aria-label="View virtual tour"
+          className="absolute inset-0 z-10 flex items-center justify-center bg-black/0 active:bg-black/10 transition-colors"
+        >
+          <span className="flex items-center gap-2 rounded-full bg-black/55 backdrop-blur-sm px-4 py-2 text-sm font-medium text-white shadow-lg">
+            <i className="fas fa-play text-xs"></i>
+            View Tour
+          </span>
+        </Link>
 
         {isAuctionActive && (
           <Badge className="absolute bottom-3 right-3 bg-green-600 text-white">
