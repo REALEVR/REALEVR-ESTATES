@@ -10,7 +10,6 @@ import Reveal from '@/components/motion/Reveal'
 import FilterBar from '@/components/home/FilterBar'
 import FeaturedTour from '@/components/home/FeaturedTour'
 import FeaturedProperties from '@/components/home/FeaturedProperties'
-import PopularProperties from '@/components/home/PopularProperties'
 import RecentProperties from '@/components/home/RecentProperties'
 import PropertyCard from '@/components/home/PropertyCard'
 import AmenitiesHighlight from '@/components/home/AmenitiesHighlight'
@@ -135,10 +134,14 @@ export default function Home() {
 
             <Reveal><FeaturedTour /></Reveal>
             <Reveal><FeaturedProperties /></Reveal>
-            <Reveal><PopularProperties /></Reveal>
             <Reveal><RecentProperties /></Reveal>
 
-            {/* Property Listings */}
+            {/* Property Listings — "All Properties", the 3rd of the 3
+                top-level browsing destinations (see FilterBar.tsx). Popular
+                Properties (sorted by view count) used to be its own section
+                here too, but that's the same "most viewed" idea this
+                section's own "Newest" sort option already covers — removed
+                as redundant rather than kept as a 4th thing to maintain. */}
             <Reveal><section className="py-10">
                 <div className="container mx-auto px-6">
                     <div className="flex justify-between items-center mb-6">

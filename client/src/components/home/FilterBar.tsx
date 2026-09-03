@@ -11,71 +11,40 @@ type CategoryType = {
   isActive?: boolean;
 };
 
+// The 4 property-type categories (For Rent / BnBs / For Sale / Bank Sales)
+// used to each be their own top-level "Browse by" entry here, each linking
+// to its own page. Reduced to 3 broader entries instead — Featured / All
+// Properties / New Listings — with the 4 property types now reachable as
+// filter tabs inside "All Properties" (see AllPropertiesPage.tsx) and the
+// "Filters" dialog's Property Type tab (ExploreFiltersDialog.tsx), not as
+// separate top-level destinations.
+const ROUTE_BY_SLUG: Record<string, string> = {
+  featured: '/featured-properties',
+  all: '/properties',
+  new: '/new-listings',
+};
+
 export default function FilterBar() {
   const [location, setLocation] = useLocation();
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
-  
+
   const [categories, setCategories] = useState<CategoryType[]>([
-    { name: "For Rent", icon: "home", slug: "rental_units", isActive: false },
-    { name: "BnBs", icon: "couch", slug: "furnished_houses", isActive: false },
-    { name: "For Sale", icon: "tag", slug: "for_sale", isActive: false },
-    { name: "Bank Sales", icon: "landmark", slug: "bank_sales", isActive: false }
+    { name: "Featured", icon: "star", slug: "featured", isActive: false },
+    { name: "All Properties", icon: "building", slug: "all", isActive: false },
+    { name: "New Listings", icon: "clock", slug: "new", isActive: false }
   ]);
 
   // Set the active category based on the current URL route
   useEffect(() => {
-    // Map routes to category slugs
-    const routeMap: Record<string, string> = {
-      '/rental-units': 'rental_units',
-      '/bnbs': 'furnished_houses',
-      '/for-sale': 'for_sale',
-      '/bank-sales': 'bank_sales'
-    };
-    
-    let categorySlug = '';
-    
-    // Check if location matches one of our defined routes
-    if (routeMap[location]) {
-      categorySlug = routeMap[location];
-    } 
-    // Check if it's a category URL
-    else if (location.includes("/category/")) {
-      categorySlug = location.split("/category/")[1];
-    }
-    
-    if (categorySlug) {
-      const newCategories = [...categories];
-      
-      newCategories.forEach(cat => {
-        cat.isActive = (cat.slug === categorySlug);
-      });
-      
-      setCategories(newCategories);
-    }
-  }, [location, categories]);
+    const currentSlug = Object.entries(ROUTE_BY_SLUG).find(([, route]) => route === location)?.[0]
+
+    setCategories((prev) => prev.map((cat) => ({ ...cat, isActive: cat.slug === currentSlug })))
+  }, [location]);
 
   const toggleCategory = (index: number) => {
-    const newCategories = [...categories];
-    
-    // Deactivate all categories first
-    newCategories.forEach(cat => {
-      cat.isActive = false;
-    });
-    
-    // Activate the selected category
-    newCategories[index].isActive = true;
-    setCategories(newCategories);
-    
-    // Map category slugs to specific routes
-    const routeMap: Record<string, string> = {
-      'rental_units': '/rental-units',
-      'furnished_houses': '/bnbs',
-      'for_sale': '/for-sale',
-      'bank_sales': '/bank-sales'
-    };
-    
-    // Navigate to the appropriate category page
-    const route = routeMap[newCategories[index].slug] || `/category/${newCategories[index].slug}`;
+    setCategories((prev) => prev.map((cat, i) => ({ ...cat, isActive: i === index })))
+
+    const route = ROUTE_BY_SLUG[categories[index].slug]
     setLocation(route);
   };
 

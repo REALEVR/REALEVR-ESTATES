@@ -22,6 +22,8 @@ import PropertyManager from '@/pages/PropertyManager'
 import AdminUserManager from '@/pages/AdminUserManager'
 import AuthPage from '@/pages/auth-page'
 import FeaturedPropertiesPage from '@/pages/FeaturedPropertiesPage'
+import AllPropertiesPage from '@/pages/AllPropertiesPage'
+import NewListingsPage from '@/pages/NewListingsPage'
 import ProfilePage from '@/pages/ProfilePage'
 import TestPage from '@/pages/TestPage' // Added test page
 import { AgentDashboard } from '@/pages/AgentDashboard'
@@ -68,6 +70,8 @@ function Router() {
             <Route path="/rental-units" component={RentalUnitsPage} />
             <Route path="/for-sale" component={ForSalePage} />
             <Route path="/featured-properties" component={FeaturedPropertiesPage} />
+            <Route path="/properties" component={AllPropertiesPage} />
+            <Route path="/new-listings" component={NewListingsPage} />
 
             {/* Legal and Information Pages */}
             <Route path="/privacy" component={PrivacyPolicy} />
