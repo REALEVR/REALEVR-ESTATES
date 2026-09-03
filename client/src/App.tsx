@@ -51,6 +51,8 @@ import AdminPayoutApprovals from '@/pages/AdminPayoutApprovals'
 import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
 import AdminAnalytics from '@/pages/AdminAnalytics'
 import AdminBroadcast from '@/pages/AdminBroadcast'
+import AdminDashboardHome from '@/pages/AdminDashboardHome'
+import AdminBrokerApplications from '@/pages/AdminBrokerApplications'
 import WhatsAppFab from '@/components/whatsapp/WhatsAppFab'
 import BrokerOnlinePresence from '@/components/broker/BrokerOnlinePresence'
 
@@ -89,7 +91,15 @@ function Router() {
 
             <Route path="/dashboard" component={UserDashboard} />
 
-            {/* Admin routes - protected by role */}
+            {/* Admin routes - protected by role. All wrapped in
+                AdminDashboardLayout inside ProtectedAdminRoute itself — see
+                that file — so every page below shares one sidebar/topbar. */}
+            <ProtectedAdminRoute path="/admin" component={AdminDashboardHome} allowedRoles={['admin']} />
+            <ProtectedAdminRoute
+                path="/admin/broker-applications"
+                component={AdminBrokerApplications}
+                allowedRoles={['admin']}
+            />
             <ProtectedAdminRoute
                 path="/admin/virtual-tours"
                 component={VirtualTourManager}
