@@ -11,6 +11,7 @@ import {
     BarChart3,
     Megaphone,
     UserPlus,
+    MessageSquare,
     Bell,
     Search,
 } from 'lucide-react'
@@ -37,6 +38,7 @@ const NAV_ITEMS: Array<{ href: string; label: string; icon: typeof LayoutDashboa
     { href: '/admin/properties', label: 'Properties', icon: Building2, roles: ['admin', 'agent'] },
     { href: '/admin/virtual-tour-manager', label: 'Virtual Tours', icon: Video, roles: ['admin', 'agent'] },
     { href: '/admin/users', label: 'Users', icon: Users, roles: ['admin'] },
+    { href: '/admin/messages', label: 'Messages', icon: MessageSquare, roles: ['admin'] },
     { href: '/admin/broker-applications', label: 'Broker Applications', icon: UserPlus, roles: ['admin'] },
     { href: '/admin/payout-approvals', label: 'Payout Approvals', icon: Wallet, roles: ['admin'] },
     { href: '/admin/boost-confirmations', label: 'Boost Confirmations', icon: Rocket, roles: ['admin', 'agent'] },

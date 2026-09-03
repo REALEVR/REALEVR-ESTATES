@@ -5,6 +5,7 @@ import { Property } from '@shared/schema'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
     Building,
@@ -28,6 +29,8 @@ import { useToast } from '@/hooks/use-toast'
 import PropertyFormNew from '@/components/admin/PropertyFormNew'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useLandlordInbox, useLandlordReviews } from '@/hooks/useLandlordHub'
+import { useStartAgentAdminConversation } from '@/hooks/useMessaging'
+import MessagesInbox from '@/components/messaging/MessagesInbox'
 import { useInstallPrompt } from '@/hooks/useInstallPrompt'
 import BoostPurchaseCard from '@/components/boost/BoostPurchaseCard'
 
@@ -259,6 +262,7 @@ export function AgentDashboard() {
                         <TabsTrigger value="analytics">Analytics</TabsTrigger>
                         <TabsTrigger value="tours">Virtual Tours</TabsTrigger>
                         <TabsTrigger value="inbox">Inbox</TabsTrigger>
+                        <TabsTrigger value="messages">Messages</TabsTrigger>
                         <TabsTrigger value="reviews">Reviews</TabsTrigger>
                     </TabsList>
 
@@ -499,6 +503,10 @@ export function AgentDashboard() {
                         <InboxTab />
                     </TabsContent>
 
+                    <TabsContent value="messages" className="space-y-6">
+                        <MessagesTab />
+                    </TabsContent>
+
                     <TabsContent value="reviews" className="space-y-6">
                         <ReviewsTab />
                     </TabsContent>
@@ -555,6 +563,53 @@ function InstallAppButton() {
     }
 
     return null
+}
+
+/** Real two-way conversations (server/gene/messaging.ts) — tenants who
+ * messaged about a property, plus this agent's own support thread with
+ * platform admins. Distinct from InboxTab below, which is read-only
+ * interest signals, not a conversation you can reply into. */
+function MessagesTab() {
+    const startAgentAdmin = useStartAgentAdminConversation()
+    const { toast } = useToast()
+    const [supportDraft, setSupportDraft] = useState('')
+
+    const handleContactSupport = async () => {
+        const text = supportDraft.trim()
+        if (!text) return
+        try {
+            await startAgentAdmin.mutateAsync({ message: text })
+            setSupportDraft('')
+            toast({ title: 'Message sent to RealEVR support' })
+        } catch (err: any) {
+            toast({ title: "Couldn't send", description: err?.message, variant: 'destructive' })
+        }
+    }
+
+    return (
+        <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base">Contact RealEVR Support</CardTitle>
+                    <CardDescription>Questions about a listing, payout, or your account — an admin will reply here.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex gap-2">
+                    <Textarea
+                        value={supportDraft}
+                        onChange={(e) => setSupportDraft(e.target.value)}
+                        placeholder="What do you need help with?"
+                        className="min-h-[44px] max-h-32 resize-none"
+                    />
+                    <Button onClick={handleContactSupport} disabled={!supportDraft.trim() || startAgentAdmin.isPending}>
+                        {startAgentAdmin.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Send
+                    </Button>
+                </CardContent>
+            </Card>
+
+            <MessagesInbox emptyLabel="No conversations yet — tenants who message you about a listing will show up here." />
+        </div>
+    )
 }
 
 /** Interested tenants + WhatsApp messages for the properties this landlord

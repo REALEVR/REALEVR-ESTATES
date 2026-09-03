@@ -53,6 +53,7 @@ import AdminAnalytics from '@/pages/AdminAnalytics'
 import AdminBroadcast from '@/pages/AdminBroadcast'
 import AdminDashboardHome from '@/pages/AdminDashboardHome'
 import AdminBrokerApplications from '@/pages/AdminBrokerApplications'
+import AdminMessages from '@/pages/AdminMessages'
 import WhatsAppFab from '@/components/whatsapp/WhatsAppFab'
 import BrokerOnlinePresence from '@/components/broker/BrokerOnlinePresence'
 
@@ -100,6 +101,7 @@ function Router() {
                 component={AdminBrokerApplications}
                 allowedRoles={['admin']}
             />
+            <ProtectedAdminRoute path="/admin/messages" component={AdminMessages} allowedRoles={['admin']} />
             <ProtectedAdminRoute
                 path="/admin/virtual-tours"
                 component={VirtualTourManager}

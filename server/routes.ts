@@ -56,6 +56,7 @@ import { registerAfricaMediaFeedRoutes } from './gene/africa-media-feed'
 import { registerAiWorkforceRoutes } from './gene/ai-workforce'
 import { registerReferralRewardsRoutes } from './gene/referral-rewards'
 import { registerWhatsappConciergeRoutes } from './gene/whatsapp-concierge'
+import { registerMessagingRoutes } from './gene/messaging'
 import { registerLandlordHubRoutes } from './gene/landlord-hub'
 import { registerMagicLoginRoutes } from './gene/magic-login'
 import { registerSelfServeListingRoutes } from './gene/self-serve-listing'
@@ -2441,6 +2442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerPersonalAgentRoutes(app)
     registerReferralRewardsRoutes(app, adminMiddleware)
     registerWhatsappConciergeRoutes(app)
+    registerMessagingRoutes(app, requireStrictAdmin)
     registerLandlordHubRoutes(app)
     registerMagicLoginRoutes(app)
     registerSelfServeListingRoutes(app)
