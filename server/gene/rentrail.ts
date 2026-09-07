@@ -1,6 +1,6 @@
 /**
- * RentRail — pay any landlord's mobile money number, keep a UGX 100 service
- * fee, send the rest straight to the landlord. See the build brief this
+ * RentRail — pay any landlord's mobile money number, keep a UGX 1,000
+ * service fee, send the rest straight to the landlord. See the build brief this
  * implements: EFRIS receipts can only be issued by the registered taxpayer
  * against their own TIN (never by whoever processed the payment), so this
  * is deliberately Phase 1 / "Path A" only — no EFRIS/URA API integration:
@@ -12,7 +12,7 @@
  * fakes a successful money movement. The collection leg (charging the
  * tenant) reuses the same Flutterwave verify-by-transaction_id pattern
  * already live in server/routes.ts's /api/pay-property-deposit. The payout
- * leg (splitting UGX 100 off and sending the rest to the landlord's own
+ * leg (splitting UGX 1,000 off and sending the rest to the landlord's own
  * number) is a NEW capability this app didn't have before — a real call to
  * Flutterwave's Transfers API — and it is asynchronous by nature: a
  * transfer can sit "pending" at Flutterwave for a few minutes before their
@@ -39,13 +39,13 @@ import crypto from 'crypto'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 
 const COLLECTION = 'rentrail_payments'
-const SERVICE_FEE_UGX = 100
+const SERVICE_FEE_UGX = 1000
 
 export type RentRailStatus =
     | 'pending_collection' // payment link created, tenant hasn't paid yet
     | 'collected' // Flutterwave confirms the tenant's charge succeeded
     | 'payout_pending' // transfer to the landlord was requested, awaiting Flutterwave's confirmation
-    | 'paid_out' // landlord has been paid (net of the UGX 100 fee)
+    | 'paid_out' // landlord has been paid (net of the UGX 1,000 fee)
     | 'collection_failed'
     | 'payout_failed' // money was collected but the payout to the landlord did not go through — needs manual follow-up
 
@@ -182,7 +182,7 @@ async function attemptPayout(payment: RentRailPayment, secretKey: string): Promi
 
 /**
  * The one place that turns "tenant paid" into "landlord got paid, minus
- * UGX 100" — called from both the redirect callback (immediate UX) and the
+ * UGX 1,000" — called from both the redirect callback (immediate UX) and the
  * webhook (source of truth if the tenant closes the tab before redirecting
  * back). Idempotent: a payment already past 'collected' is left alone.
  */
@@ -422,8 +422,8 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
     })
 
     /** [STRICT ADMIN] Full ledger, for reconciliation — see the build brief's
-     * "does UGX 100 actually cover it" question; this is where that gets
-     * checked against real numbers instead of the brief's illustrative ones. */
+     * "does the flat service fee actually cover the rail" question; this is
+     * where that gets checked against real numbers, not illustrative ones. */
     app.get('/api/gene/rentrail/admin/payments', requireStrictAdmin, (_req: Request, res: Response) => {
         const rows = loadPayments().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         res.json(rows)

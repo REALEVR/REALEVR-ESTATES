@@ -23,7 +23,7 @@ import { Link } from 'wouter'
  * paid; the actual EFRIS receipt still has to come from the landlord, which
  * the result page after payment says plainly.
  */
-const SERVICE_FEE_UGX = 100
+const SERVICE_FEE_UGX = 1000
 
 export default function RentRail() {
     const { user } = useAuth()
@@ -80,7 +80,7 @@ export default function RentRail() {
         <div className="container mx-auto px-4 py-12 max-w-xl">
             <PageSeo
                 title="RentRail — Pay Rent Instantly"
-                description="Pay any landlord's mobile money number directly. A flat UGX 100 service fee, the rest goes straight to your landlord."
+                description="Pay any landlord's mobile money number directly. A flat UGX 1,000 service fee, the rest goes straight to your landlord."
                 canonicalPath="/rentrail"
             />
 
