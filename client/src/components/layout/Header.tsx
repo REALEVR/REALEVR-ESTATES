@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Loader2, LogOut, User, Glasses, Building, Rocket, BarChart3 } from "lucide-react";
+import { Loader2, LogOut, User, Glasses, Building, Rocket, BarChart3, Receipt } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import NotificationCenter from "@/components/NotificationCenter";
 import AuthModal from "@/components/auth/AuthModal";
@@ -99,6 +99,16 @@ export default function Header() {
             </span>
           )}
 
+          {/* RentRail — pay any landlord's momo number directly, not tied to
+              a RealEVR listing. Always visible: this isn't gated by having
+              an account, since paying rent shouldn't require signing up first. */}
+          <Link href="/rentrail" className="hidden md:block">
+            <Button variant="outline" className="rounded-full gap-2 border-accent/40 text-accent hover:bg-accent/10 hover:text-accent">
+              <Receipt className="h-4 w-4" />
+              Pay Rent
+            </Button>
+          </Link>
+
           <Button variant="ghost" size="icon" className="hidden md:flex rounded-full p-2 hover:bg-secondary">
             <i className="fas fa-globe text-foreground"></i>
           </Button>
@@ -115,6 +125,13 @@ export default function Header() {
             <DropdownMenuContent align="end" className="w-56">
               {/* Navigation Links (Mobile) */}
               <div className="md:hidden">
+                <DropdownMenuItem asChild>
+                  <Link href="/rentrail">
+                    <Receipt className="mr-2 h-4 w-4" />
+                    <span>Pay Rent</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <div className="px-2 py-1.5 text-sm font-semibold">
                   Property Categories
                 </div>

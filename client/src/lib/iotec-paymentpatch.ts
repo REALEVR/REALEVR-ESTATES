@@ -12,6 +12,7 @@ export const PaymentSources = {
     paymentTour: 'PAYMENT-TOUR',
     paymentSubscription: 'PAYMENT-SUBSCRIPTION',
     paymentSimilarProperties: 'PAYMENT-SIMILAR-PROPERTIES',
+    paymentRentRail: 'PAYMENT-RENTRAIL',
 }
 
 export const makePaymentString = (paymentSource: string) => {

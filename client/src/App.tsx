@@ -19,6 +19,9 @@ import PrivacyPolicy from '@/pages/PrivacyPolicy'
 import TermsOfService from '@/pages/TermsOfService'
 import CookiePolicy from '@/pages/CookiePolicy'
 import RefundPolicy from '@/pages/RefundPolicy'
+import ComingSoonPage from '@/pages/ComingSoonPage'
+import RentRail from '@/pages/RentRail'
+import RentRailCallback from '@/pages/RentRailCallback'
 import HostResponsibly from '@/pages/HostResponsibly'
 import PropertyManager from '@/pages/PropertyManager'
 import AdminUserManager from '@/pages/AdminUserManager'
@@ -54,6 +57,7 @@ import ErrorBoundary from '@/components/layout/ErrorBoundary'
 import CookieConsentBanner from '@/components/layout/CookieConsentBanner'
 import ListYourPropertyPage from '@/pages/ListYourPropertyPage'
 import AdminPayoutApprovals from '@/pages/AdminPayoutApprovals'
+import AdminRentRailPayouts from '@/pages/AdminRentRailPayouts'
 import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
 import AdminAnalytics from '@/pages/AdminAnalytics'
 import AdminBroadcast from '@/pages/AdminBroadcast'
@@ -77,11 +81,42 @@ function Router() {
             <Route path="/properties" component={AllPropertiesPage} />
             <Route path="/new-listings" component={NewListingsPage} />
 
+            {/* RentRail — pay any landlord's mobile money number directly,
+                not tied to a RealEVR listing. See server/gene/rentrail.ts. */}
+            <Route path="/rentrail" component={RentRail} />
+            <Route path="/rentrail/callback" component={RentRailCallback} />
+
             {/* Legal and Information Pages */}
             <Route path="/privacy" component={PrivacyPolicy} />
             <Route path="/terms" component={TermsOfService} />
             <Route path="/cookies" component={CookiePolicy} />
             <Route path="/refund-policy" component={RefundPolicy} />
+            {/* Footer previously linked these three at "#" — no real content
+                exists for them yet (no job listings, investor materials, or
+                news articles to show honestly), so each gets a real,
+                non-fabricated "not live yet, here's how to reach us" page
+                instead of a dead link. */}
+            <Route path="/careers">
+                <ComingSoonPage
+                    title="Careers"
+                    description="We're not running a public careers page yet. If you're interested in working with RealEVR Estates, reach out and we'll follow up directly."
+                    canonicalPath="/careers"
+                />
+            </Route>
+            <Route path="/investors">
+                <ComingSoonPage
+                    title="Investors"
+                    description="Investor materials aren't published here yet. Get in touch and we'll share what's relevant directly."
+                    canonicalPath="/investors"
+                />
+            </Route>
+            <Route path="/news">
+                <ComingSoonPage
+                    title="News"
+                    description="We haven't started publishing news here yet. Check back later, or contact us for anything time-sensitive."
+                    canonicalPath="/news"
+                />
+            </Route>
             <Route path="/host-responsibly" component={HostResponsibly} />
 
             {/* Footer Pages */}
@@ -134,6 +169,7 @@ function Router() {
                 requireStrictAdmin, which the underlying APIs actually enforce;
                 this route gate is the matching client-side check. */}
             <ProtectedAdminRoute path="/admin/payout-approvals" component={AdminPayoutApprovals} allowedRoles={['admin']} />
+            <ProtectedAdminRoute path="/admin/rentrail-payouts" component={AdminRentRailPayouts} allowedRoles={['admin']} />
             {/* Boost confirmations are money coming IN with no payout
                 conflict-of-interest — matches the backend's shared
                 adminMiddleware (admin OR agent), unlike the strict

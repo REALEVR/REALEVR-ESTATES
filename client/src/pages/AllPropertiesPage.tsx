@@ -7,6 +7,7 @@ import { PageSeo } from '@/components/seo/PageSeo'
 import { getSiteUrl } from '@/lib/siteUrl'
 import { CATEGORY_PAGE_META } from '@shared/seo'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import PropertyLocationMap from '@/components/property/PropertyLocationMap'
 
 /**
  * "All Properties" — the second of the 3 top-level browsing destinations
@@ -17,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
  */
 export default function AllPropertiesPage() {
     const [activeTab, setActiveTab] = useState('all')
+    const [mapLocation, setMapLocation] = useState<string | null>(null)
     const { data: properties, isLoading, error } = useQuery<Property[]>({
         queryKey: ['/api/properties'],
     })
@@ -32,7 +34,10 @@ export default function AllPropertiesPage() {
         }
     }, [])
 
-    const live = (properties ?? []).filter((p) => p.title && p.title.trim() !== '')
+    const liveAll = (properties ?? []).filter((p) => p.title && p.title.trim() !== '')
+    const live = mapLocation
+        ? liveAll.filter((p) => p.location?.toLowerCase().includes(mapLocation.toLowerCase()))
+        : liveAll
     const byCategory: Record<string, Property[]> = {
         all: live,
         rental_units: live.filter((p) => p.category === 'rental_units'),
@@ -80,6 +85,12 @@ export default function AllPropertiesPage() {
             />
             <h1 className="text-3xl font-bold mb-6">All Properties</h1>
 
+            <PropertyLocationMap
+                properties={liveAll}
+                selectedLocation={mapLocation}
+                onSelectLocation={setMapLocation}
+            />
+
             <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="flex md:grid md:grid-cols-5 w-full mb-8 overflow-x-auto hide-scrollbar justify-start md:justify-center gap-1 md:gap-0">
                     <TabsTrigger value="all" className="flex-shrink-0">All</TabsTrigger>
@@ -92,7 +103,9 @@ export default function AllPropertiesPage() {
                     <TabsContent value={category} key={category}>
                         {categoryProperties.length === 0 ? (
                             <div className="text-center py-12 text-muted-foreground">
-                                <p>No properties found in this category.</p>
+                                <p>
+                                    No properties found{mapLocation ? ` in ${mapLocation}` : ''} in this category.
+                                </p>
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
