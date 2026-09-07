@@ -67,6 +67,20 @@ export interface RentRailPayment {
     collectionError?: string
     payoutConfirmedBy?: string
     payoutConfirmedAt?: string
+    // Legal/dispute protection: the tenant must affirmatively declare, at the
+    // moment of payment, that the amount is the full rent due (RentRail has
+    // no lease record to check it against — this is the honest ceiling on
+    // what "ensure full payment" can mean here) and accept RentRail's terms
+    // (client/src/pages/RefundPolicy.tsx section 4). Both are required to
+    // create a payment (see POST /pay below) and timestamped, so there's a
+    // real record if a landlord later disputes the amount paid.
+    confirmedFullAmount: boolean
+    policyAcceptedAt: string
+    // Set once the WhatsApp payment-confirmation message (NOT an EFRIS
+    // receipt — see finalizePayout below) has been sent to the tenant.
+    receiptSent: boolean
+    receiptSentAt?: string
+    receiptDeliveryError?: string
     createdAt: string
     updatedAt: string
 }
@@ -149,7 +163,8 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
                 })
             }
 
-            const { landlordPhone, landlordName, tenantName, tenantPhone, amount, propertyId } = req.body ?? {}
+            const { landlordPhone, landlordName, tenantName, tenantPhone, amount, propertyId, confirmedFullAmount, acceptedPolicy } =
+                req.body ?? {}
 
             const normalizedLandlordPhone = normalizeUgandaPhone(String(landlordPhone ?? ''))
             const normalizedTenantPhone = normalizeUgandaPhone(String(tenantPhone ?? ''))
@@ -167,11 +182,25 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
             if (!Number.isFinite(amountNum) || amountNum <= SERVICE_FEE_UGX) {
                 return res.status(400).json({ message: `Amount must be a number greater than the ${SERVICE_FEE_UGX} UGX service fee.` })
             }
+            // RentRail has no lease record to check the amount against — the
+            // most this can honestly enforce is requiring (and permanently
+            // recording, with a timestamp below) the tenant's own affirmative
+            // statement that this is the full rent due and that they've read
+            // the terms, not a computed check. See RefundPolicy.tsx section 4.
+            if (confirmedFullAmount !== true) {
+                return res.status(400).json({
+                    message: 'Confirm this is your full rent payment (not a partial payment) before continuing.',
+                })
+            }
+            if (acceptedPolicy !== true) {
+                return res.status(400).json({ message: "You must agree to RentRail's payment terms before continuing." })
+            }
 
             const rows = loadPayments()
             const id = nextId(rows)
             const txRef = `rentrail-${id}-${crypto.randomBytes(4).toString('hex')}`
             const tenantUserId = req.isAuthenticated?.() && req.user ? (req.user as any).id : undefined
+            const now = nowIso()
 
             const payment: RentRailPayment = {
                 id,
@@ -187,8 +216,11 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
                 serviceFee: SERVICE_FEE_UGX,
                 netPayout: amountNum - SERVICE_FEE_UGX,
                 status: 'pending_collection',
-                createdAt: nowIso(),
-                updatedAt: nowIso(),
+                confirmedFullAmount: true,
+                policyAcceptedAt: now,
+                receiptSent: false,
+                createdAt: now,
+                updatedAt: now,
             }
             rows.push(payment)
             savePayments(rows)
@@ -284,7 +316,7 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
      * payout-requests/:id/approve exactly, same reasoning: no automated
      * disbursement rail is verified yet, so a human closes the loop.
      */
-    app.post('/api/gene/rentrail/admin/payments/:id/mark-paid-out', requireStrictAdmin, (req: Request, res: Response) => {
+    app.post('/api/gene/rentrail/admin/payments/:id/mark-paid-out', requireStrictAdmin, async (req: Request, res: Response) => {
         try {
             const id = Number(req.params.id)
             if (!Number.isFinite(id)) return res.status(400).json({ message: 'Invalid payment id.' })
@@ -306,6 +338,15 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
                 payoutConfirmedAt: nowIso(),
                 updatedAt: nowIso(),
             }
+
+            // Deliver the tenant's payment confirmation the instant the
+            // payout is confirmed — this is what the UGX 1,000 fee is
+            // described as covering (see RefundPolicy.tsx section 4). Never
+            // blocks or fails this request: a delivery failure is recorded
+            // on the row (visible in the admin queue) rather than left
+            // silent, but the payout confirmation itself already happened
+            // and shouldn't be undone by a messaging hiccup.
+            await deliverReceipt(rows[idx])
             savePayments(rows)
 
             res.json(rows[idx])
@@ -314,4 +355,37 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
             res.status(500).json({ message: 'Failed to confirm payout', error: error?.message })
         }
     })
+}
+
+/**
+ * Sends the tenant their payment-confirmation via WhatsApp (the same
+ * channel this app already uses for every other outbound message — see
+ * ./whatsapp.ts's sendWhatsAppMessage) the moment a payout is confirmed.
+ * Deliberately NOT called an EFRIS receipt anywhere in its text — see
+ * this file's top doc comment and RefundPolicy.tsx section 4 for why that
+ * distinction actually matters here. Mutates `payment`'s receipt fields in
+ * place; never throws.
+ */
+async function deliverReceipt(payment: RentRailPayment): Promise<void> {
+    try {
+        const { sendWhatsAppMessage } = await import('./whatsapp')
+        const message = [
+            `RentRail payment confirmation`,
+            ``,
+            `Amount paid: ${payment.amount.toLocaleString()} ${payment.currency}`,
+            `Sent to: ${payment.landlordName || 'your landlord'} (${toLocalFormat(payment.landlordPhone)})`,
+            `Service fee: ${payment.serviceFee.toLocaleString()} ${payment.currency}`,
+            `Reference: ${payment.txRef}`,
+            ``,
+            `This confirms your rent was sent to your landlord. This is NOT a tax receipt — Ugandan law requires your landlord, not RentRail, to issue your EFRIS receipt. Please request it from them directly.`,
+        ].join('\n')
+
+        const result = await sendWhatsAppMessage(payment.tenantPhone, message)
+        payment.receiptSent = result.sent
+        payment.receiptSentAt = result.sent ? nowIso() : undefined
+        payment.receiptDeliveryError = result.sent ? undefined : result.reason
+    } catch (err: any) {
+        payment.receiptSent = false
+        payment.receiptDeliveryError = err?.message || 'Unexpected error sending the receipt.'
+    }
 }

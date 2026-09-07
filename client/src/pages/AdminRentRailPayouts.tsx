@@ -30,6 +30,8 @@ interface RentRailPayment {
     collectionError?: string
     payoutConfirmedBy?: string
     payoutConfirmedAt?: string
+    receiptSent: boolean
+    receiptDeliveryError?: string
     createdAt: string
 }
 
@@ -179,6 +181,13 @@ export default function AdminRentRailPayouts() {
                                             {r.collectionError && (
                                                 <p className="text-sm mt-1 text-destructive flex items-start gap-1">
                                                     <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" /> {r.collectionError}
+                                                </p>
+                                            )}
+                                            {r.status === 'paid_out' && !r.receiptSent && (
+                                                <p className="text-sm mt-1 text-amber-600 flex items-start gap-1">
+                                                    <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                                                    WhatsApp confirmation not delivered{r.receiptDeliveryError ? ` — ${r.receiptDeliveryError}` : ''}.
+                                                    Tenant still has the result page as their record.
                                                 </p>
                                             )}
                                         </div>

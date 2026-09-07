@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Loader2, Receipt, ShieldCheck, ArrowRight } from 'lucide-react'
 
 /**
@@ -49,6 +50,8 @@ export default function RentRail() {
     const [tenantName, setTenantName] = useState(user?.fullName || '')
     const [tenantPhone, setTenantPhone] = useState(user?.phoneNumber || '')
     const [amount, setAmount] = useState('')
+    const [confirmFullAmount, setConfirmFullAmount] = useState(false)
+    const [acceptedPolicy, setAcceptedPolicy] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [pendingPaymentId, setPendingPaymentId] = useState<number | null>(null)
 
@@ -95,6 +98,14 @@ export default function RentRail() {
             })
             return
         }
+        if (!confirmFullAmount || !acceptedPolicy) {
+            toast({
+                title: 'Confirm before paying',
+                description: 'Check both boxes below — that this is your full rent, and that you agree to the payment terms.',
+                variant: 'destructive',
+            })
+            return
+        }
 
         setIsSubmitting(true)
         try {
@@ -104,6 +115,8 @@ export default function RentRail() {
                 tenantName: tenantName.trim(),
                 tenantPhone: tenantPhone.trim(),
                 amount: amountNum,
+                confirmedFullAmount: true,
+                acceptedPolicy: true,
             })
             const data = await res.json()
             setPendingPaymentId(data.paymentId)
@@ -221,7 +234,35 @@ export default function RentRail() {
                             </div>
                         </div>
 
-                        <Button type="submit" className="w-full" disabled={isSubmitting}>
+                        <div className="border-t border-border pt-5 space-y-3">
+                            <label className="flex items-start gap-2.5 text-sm cursor-pointer select-none">
+                                <Checkbox
+                                    checked={confirmFullAmount}
+                                    onCheckedChange={(v) => setConfirmFullAmount(v === true)}
+                                    className="mt-0.5"
+                                />
+                                <span>
+                                    This is my <strong>full</strong> rent payment for this period — not a partial
+                                    payment. RentRail doesn't support partial rent payments.
+                                </span>
+                            </label>
+                            <label className="flex items-start gap-2.5 text-sm cursor-pointer select-none">
+                                <Checkbox
+                                    checked={acceptedPolicy}
+                                    onCheckedChange={(v) => setAcceptedPolicy(v === true)}
+                                    className="mt-0.5"
+                                />
+                                <span>
+                                    I agree to RentRail's{' '}
+                                    <Link href="/refund-policy" target="_blank" className="underline hover:text-accent">
+                                        payment terms
+                                    </Link>
+                                    , including that the service fee is non-refundable and this is not a tax receipt.
+                                </span>
+                            </label>
+                        </div>
+
+                        <Button type="submit" className="w-full" disabled={isSubmitting || !confirmFullAmount || !acceptedPolicy}>
                             {isSubmitting ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Starting payment...
@@ -245,9 +286,10 @@ export default function RentRail() {
             <div className="mt-6 flex items-start gap-3 text-sm text-muted-foreground bg-muted/40 rounded-lg p-4">
                 <ShieldCheck className="h-5 w-5 flex-shrink-0 mt-0.5 text-accent" />
                 <p>
-                    RentRail records this payment as your own proof of what you paid — but under Ugandan law, only
-                    your landlord can issue a valid EFRIS tax receipt. After paying, we'll remind you to ask them for
-                    it directly. Read{' '}
+                    The moment your landlord's payout is confirmed, we send you a WhatsApp payment confirmation —
+                    that's what the service fee covers. But under Ugandan law, only your landlord can issue a valid
+                    EFRIS tax receipt, so that confirmation isn't one — ask your landlord for the real receipt
+                    directly. Full details in{' '}
                     <Link href="/refund-policy" className="underline hover:text-accent">
                         our payment terms
                     </Link>
