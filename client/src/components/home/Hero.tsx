@@ -411,16 +411,25 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
           </div>
         ) : (
-          // Image content (fallback or default) - also larger
-          <motion.img
-            src={houseImg}
-            alt="Modern house"
-            className="w-full h-96 md:h-[500px] lg:h-[600px] object-cover rounded-2xl shadow-md"
-            initial={{ scale: 1.06, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            whileHover={{ scale: 1.02 }}
-            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-          />
+          // Image content (fallback or default) - also larger. Wrapped the
+          // same way the video branch above is (a relative container
+          // holding the media plus its own gradient overlay) so the static
+          // fallback gets the same subtle bottom-lit vignette instead of a
+          // flat, uncomposited photo — a small thing, but it's what most of
+          // this page's visitors actually see before any admin-configured
+          // video is set.
+          <div className="relative w-full h-96 md:h-[500px] lg:h-[600px] rounded-2xl shadow-md overflow-hidden">
+            <motion.img
+              src={houseImg}
+              alt="Modern house"
+              className="w-full h-full object-cover"
+              initial={{ scale: 1.06, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              whileHover={{ scale: 1.02 }}
+              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent"></div>
+          </div>
         )}
         
         {/* Play/Pause button overlay - top right. Hidden while the mobile

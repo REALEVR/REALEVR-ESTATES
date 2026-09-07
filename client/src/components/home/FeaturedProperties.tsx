@@ -120,19 +120,21 @@ export default function FeaturedProperties() {
         <div className="relative">
           {/* Carousel controls */}
           <div className="absolute left-0 top-1/2 -translate-y-1/2 z-10">
-            <Button 
-              variant="outline" 
-              className="rounded-full h-10 w-10 p-2 bg-card/80 hover:bg-card shadow-md" 
+            <Button
+              variant="outline"
+              className="rounded-full h-10 w-10 p-2 bg-card/80 hover:bg-card shadow-md"
               onClick={scrollPrev}
+              aria-label="Previous property"
             >
               <ChevronLeft className="h-6 w-6" />
             </Button>
           </div>
           <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10">
-            <Button 
-              variant="outline" 
-              className="rounded-full h-10 w-10 p-2 bg-card/80 hover:bg-card shadow-md" 
+            <Button
+              variant="outline"
+              className="rounded-full h-10 w-10 p-2 bg-card/80 hover:bg-card shadow-md"
               onClick={scrollNext}
+              aria-label="Next property"
             >
               <ChevronRight className="h-6 w-6" />
             </Button>

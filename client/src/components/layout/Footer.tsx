@@ -90,6 +90,10 @@ export default function Footer() {
             <span className="mx-2">·</span>
             <Link href="/terms" className="hover:text-accent hover:underline">Terms</Link>
             <span className="mx-2">·</span>
+            <Link href="/cookies" className="hover:text-accent hover:underline">Cookies</Link>
+            <span className="mx-2">·</span>
+            <Link href="/refund-policy" className="hover:text-accent hover:underline">Refund Policy</Link>
+            <span className="mx-2">·</span>
             <Link href="/sitemap.xml" className="hover:text-accent hover:underline">Sitemap</Link>
           </div>
         </div>

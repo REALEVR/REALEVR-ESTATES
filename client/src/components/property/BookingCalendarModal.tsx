@@ -157,7 +157,7 @@ export default function BookingCalendarModal({
         toast({
             title: isBnB ? 'Booking Confirmed!' : 'Viewing Booked!',
             description: isBnB
-                ? `Your booking for ${propertyTitle} has been confirmed. You've paid a ${depositAmount.toLocaleString()} ${propertyCurrency} deposit. Transaction ID: ${
+                ? `Your booking for ${propertyTitle} has been confirmed. You've paid a ${depositAmount.toLocaleString()} ${propertyCurrency} deposit (non-refundable). Transaction ID: ${
                       response.transaction_id
                   }`
                 : `Your viewing for ${propertyTitle} has been scheduled on ${format(
@@ -304,6 +304,9 @@ export default function BookingCalendarModal({
 
                                     <div className="mt-2 text-center text-sm text-gray-500">
                                         <p>After payment, you'll receive the owner's contact information</p>
+                                        {/* Non-refundable disclosure, stated plainly before money moves —
+                                            not buried in fine print after the fact. */}
+                                        <p className="mt-1 font-medium text-gray-700">This deposit is non-refundable.</p>
                                     </div>
                                 </div>
 

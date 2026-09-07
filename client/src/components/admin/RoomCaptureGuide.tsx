@@ -526,7 +526,7 @@ export default function RoomCaptureGuide({ propertyId, onPublished }: RoomCaptur
                     onChange={(e) => setNewRoomName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && addRoom()}
                 />
-                <Button type="button" variant="outline" onClick={addRoom}>
+                <Button type="button" variant="outline" onClick={addRoom} aria-label="Add room">
                     <Plus className="h-4 w-4" />
                 </Button>
             </div>

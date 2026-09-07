@@ -50,15 +50,24 @@ export default function TourPaymentsDashboard() {
         queryKey: ['/api/admin/tour-payments'],
     })
 
-    // Filter payments based on search term
+    // Filter payments based on search term.
+    // BUG FIX: these fields are typed as required strings, but a real
+    // payment row can genuinely have any of them missing - a property that
+    // was deleted after the payment, a user record that no longer has a
+    // name/email on file, etc. `.toLowerCase()` on undefined threw here
+    // with no error boundary anywhere in the app to catch it (see
+    // client/src/components/layout/ErrorBoundary.tsx), which took the
+    // entire admin page down to a blank white screen instead of just
+    // this one card failing to filter correctly.
+    const term = searchTerm.toLowerCase()
     const filteredPayments =
         tourPayments?.filter(
             (payment) =>
-                payment.propertyTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                payment.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                payment.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                payment.propertyLocation.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                payment.transactionId.toLowerCase().includes(searchTerm.toLowerCase())
+                (payment.propertyTitle ?? '').toLowerCase().includes(term) ||
+                (payment.userName ?? '').toLowerCase().includes(term) ||
+                (payment.userEmail ?? '').toLowerCase().includes(term) ||
+                (payment.propertyLocation ?? '').toLowerCase().includes(term) ||
+                (payment.transactionId ?? '').toLowerCase().includes(term)
         ) || []
 
     // Calculate statistics
@@ -132,10 +141,15 @@ export default function TourPaymentsDashboard() {
     }
 
     const formatCurrency = (amount: number, currency: string) => {
+        // BUG FIX: Intl.NumberFormat throws a RangeError - not returns a
+        // fallback - when `currency` isn't a valid ISO 4217 code, undefined
+        // included. A payment record missing its currency (or `amount` being
+        // undefined, which .format() also rejects) crashed this whole page;
+        // same root cause as the .toLowerCase() calls above.
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
-            currency: currency,
-        }).format(amount)
+            currency: currency || 'UGX',
+        }).format(amount ?? 0)
     }
 
     const formatDate = (dateString: string) => {
@@ -298,7 +312,7 @@ export default function TourPaymentsDashboard() {
                                     filteredPayments.map((payment) => (
                                         <TableRow key={payment.id}>
                                             <TableCell className="font-mono text-sm">
-                                                {payment.transactionId.slice(0, 8)}...
+                                                {(payment.transactionId ?? '').slice(0, 8)}...
                                             </TableCell>
                                             <TableCell>
                                                 <div>
