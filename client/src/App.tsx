@@ -66,6 +66,7 @@ import AdminBrokerApplications from '@/pages/AdminBrokerApplications'
 import AdminMessages from '@/pages/AdminMessages'
 import WhatsAppFab from '@/components/whatsapp/WhatsAppFab'
 import BrokerOnlinePresence from '@/components/broker/BrokerOnlinePresence'
+import MobileTabBar from '@/components/layout/MobileTabBar'
 
 function Router() {
     return (
@@ -241,7 +242,12 @@ function AppShell() {
         <>
             <div className="flex flex-col min-h-screen">
                 <Header />
-                <main className="flex-grow px-4 sm:px-6 lg:px-8">
+                {/* pb-28 (112px), not pb-20: the tab bar itself is only 64px
+                    (h-16) but adds env(safe-area-inset-bottom) on top of that
+                    for the home-indicator area on notched phones (~34px) -
+                    pb-20 alone would leave content peeking out from behind it
+                    on exactly those devices. */}
+                <main className="flex-grow px-4 sm:px-6 lg:px-8 pb-28 md:pb-0">
                     <AnimatedLayout>
                         {/* Keyed by location: a crash on one page resets this boundary's
                             state on the very next navigation, instead of the error screen
@@ -272,6 +278,7 @@ function AppShell() {
             <WhatsAppNumberPrompt />
             <SignupNudgeGate />
             <CookieConsentBanner />
+            <MobileTabBar />
         </>
     )
 }
