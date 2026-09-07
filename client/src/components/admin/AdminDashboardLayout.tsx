@@ -14,6 +14,7 @@ import {
     MessageSquare,
     Bell,
     Search,
+    Receipt,
 } from 'lucide-react'
 
 /**
@@ -41,6 +42,7 @@ const NAV_ITEMS: Array<{ href: string; label: string; icon: typeof LayoutDashboa
     { href: '/admin/messages', label: 'Messages', icon: MessageSquare, roles: ['admin'] },
     { href: '/admin/broker-applications', label: 'Broker Applications', icon: UserPlus, roles: ['admin'] },
     { href: '/admin/payout-approvals', label: 'Payout Approvals', icon: Wallet, roles: ['admin'] },
+    { href: '/admin/rentrail-payouts', label: 'RentRail Payouts', icon: Receipt, roles: ['admin'] },
     { href: '/admin/boost-confirmations', label: 'Boost Confirmations', icon: Rocket, roles: ['admin', 'agent'] },
     { href: '/admin/analytics', label: 'User Analytics', icon: BarChart3, roles: ['admin'] },
     { href: '/admin/broadcast', label: 'Broadcast', icon: Megaphone, roles: ['admin'] },

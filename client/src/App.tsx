@@ -57,6 +57,7 @@ import ErrorBoundary from '@/components/layout/ErrorBoundary'
 import CookieConsentBanner from '@/components/layout/CookieConsentBanner'
 import ListYourPropertyPage from '@/pages/ListYourPropertyPage'
 import AdminPayoutApprovals from '@/pages/AdminPayoutApprovals'
+import AdminRentRailPayouts from '@/pages/AdminRentRailPayouts'
 import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
 import AdminAnalytics from '@/pages/AdminAnalytics'
 import AdminBroadcast from '@/pages/AdminBroadcast'
@@ -168,6 +169,7 @@ function Router() {
                 requireStrictAdmin, which the underlying APIs actually enforce;
                 this route gate is the matching client-side check. */}
             <ProtectedAdminRoute path="/admin/payout-approvals" component={AdminPayoutApprovals} allowedRoles={['admin']} />
+            <ProtectedAdminRoute path="/admin/rentrail-payouts" component={AdminRentRailPayouts} allowedRoles={['admin']} />
             {/* Boost confirmations are money coming IN with no payout
                 conflict-of-interest — matches the backend's shared
                 adminMiddleware (admin OR agent), unlike the strict

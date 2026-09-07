@@ -1,6 +1,6 @@
 /**
  * RentRail — pay any landlord's mobile money number, keep a UGX 1,000
- * service fee, send the rest straight to the landlord. See the build brief this
+ * service fee, send the rest to the landlord. See the build brief this
  * implements: EFRIS receipts can only be issued by the registered taxpayer
  * against their own TIN (never by whoever processed the payment), so this
  * is deliberately Phase 1 / "Path A" only — no EFRIS/URA API integration:
@@ -8,35 +8,30 @@
  * this module's own record of the payment (amount, date, who it went to)
  * is the tenant's proof of what they paid in the meantime.
  *
- * HONESTY NOTE (same posture as ./payments-core.ts): this module never
- * fakes a successful money movement. The collection leg (charging the
- * tenant) reuses the same Flutterwave verify-by-transaction_id pattern
- * already live in server/routes.ts's /api/pay-property-deposit. The payout
- * leg (splitting UGX 1,000 off and sending the rest to the landlord's own
- * number) is a NEW capability this app didn't have before — a real call to
- * Flutterwave's Transfers API — and it is asynchronous by nature: a
- * transfer can sit "pending" at Flutterwave for a few minutes before it
- * lands. Confirmation can arrive two ways: Flutterwave's transfer.completed
- * webhook (fast, requires FLUTTERWAVE_WEBHOOK_SECRET_HASH + a registered
- * webhook URL — see .env.example), or a direct GET /v3/transfers/:id
- * lookup that the status endpoint (payments/by-ref/:txRef) makes on its
- * own while a payment is pending (see refreshTransferStatus below) — so
- * the system is correct even if the webhook is never configured, just
- * slower to notice. A payment is only ever marked `paid_out` once one of
- * those two confirms it; if the payout
- * fails, the record says `payout_failed` with a real error message rather
- * than silently claiming success — this is the one place actual money
- * could be collected from a tenant but stuck on the way to a landlord, so
- * it has to fail loudly, not quietly.
+ * PROVIDER: IoTec, not Flutterwave — reuses the exact collection flow
+ * already live elsewhere in this app (client/src/lib/iotec-paymentpatch.ts
+ * + client/src/components/payment/io-tech/layoutGate.tsx's IoTecGatewayLight
+ * modal, and server/routes.ts's /api/payment/iotec/* routes): a tenant
+ * types their mobile money number into that shared modal, gets a USSD
+ * push, and the client tells this module once IoTec confirms success.
  *
- * Uganda mobile-money transfer routing: Flutterwave requires an
- * `account_bank` code for the Transfers API, and that code is looked up
- * live from Flutterwave's own `GET /v3/banks/UG` (see
- * resolveUgandaMobileMoneyBankCode) rather than hardcoded here — this repo
- * has no way to verify that code from inside this environment, and a wrong
- * hardcoded value risks sending a real payout to the wrong rail. Set
- * FLUTTERWAVE_UG_MOBILEMONEY_BANK_CODE once it's been confirmed against
- * Flutterwave's UG bank list (or their support) to skip the lookup.
+ * HONESTY NOTE (same posture as ./payments-core.ts and
+ * ./referral-rewards.ts): the collection leg above is real and verified —
+ * it's the same IoTec Collections API this app already charges tour-view
+ * and BnB-deposit payments through. The PAYOUT leg (sending the landlord
+ * their share) is NOT automated here. IoTec does offer a disbursements/
+ * withdrawal product, but its API shape isn't documented anywhere in this
+ * codebase (nothing here has ever called it — every existing payout flow
+ * in this app, e.g. ./referral-rewards.ts's agent payout requests, is
+ * manual-admin-confirmed for the same reason), and iotec.io / pay.iotec.io
+ * are both unreachable from this environment to verify it firsthand. Rather
+ * than guess at an endpoint and request body for a call that moves real
+ * money, this module marks a collected payment `payout_pending_manual` and
+ * gives an admin a one-click "mark as paid out" once they've sent the
+ * landlord their share by hand — exactly ./referral-rewards.ts's pattern.
+ * Wiring up real IoTec disbursements later is a contained change: replace
+ * the manual-confirm step in registerRentRailRoutes' admin route with an
+ * automated call, once the real API details are available.
  *
  * Persistence: shared JSON-file collection store (./store.ts).
  */
@@ -48,16 +43,15 @@ const COLLECTION = 'rentrail_payments'
 const SERVICE_FEE_UGX = 1000
 
 export type RentRailStatus =
-    | 'pending_collection' // payment link created, tenant hasn't paid yet
-    | 'collected' // Flutterwave confirms the tenant's charge succeeded
-    | 'payout_pending' // transfer to the landlord was requested, awaiting Flutterwave's confirmation
-    | 'paid_out' // landlord has been paid (net of the UGX 1,000 fee)
+    | 'pending_collection' // record created, tenant hasn't paid yet
+    | 'collected' // IoTec confirms the tenant's mobile money charge succeeded
+    | 'payout_pending_manual' // collected; an admin needs to send the landlord their share by hand and confirm
+    | 'paid_out' // an admin has confirmed the landlord was paid (net of the UGX 1,000 fee)
     | 'collection_failed'
-    | 'payout_failed' // money was collected but the payout to the landlord did not go through — needs manual follow-up
 
 export interface RentRailPayment {
     id: number
-    txRef: string // our own unique reference, also Flutterwave's tx_ref
+    txRef: string // opaque lookup token, not tied to any provider
     tenantUserId?: number
     tenantName: string
     tenantPhone: string // canonical 256XXXXXXXXX
@@ -69,10 +63,10 @@ export interface RentRailPayment {
     serviceFee: number
     netPayout: number
     status: RentRailStatus
-    flutterwaveTransactionId?: string
-    flutterwaveTransferId?: number
+    iotecTransactionId?: string
     collectionError?: string
-    payoutError?: string
+    payoutConfirmedBy?: string
+    payoutConfirmedAt?: string
     createdAt: string
     updatedAt: string
 }
@@ -97,181 +91,61 @@ export function normalizeUgandaPhone(input: string): string | null {
     return null
 }
 
-/** The local "0XXXXXXXXX" form Flutterwave's Uganda mobile money endpoints expect
- * for `customer.phonenumber` / transfer `account_number`. */
+/** The local "0XXXXXXXXX" form that's more natural for an ops person manually
+ * sending a mobile money payout to read/dial than the 256-prefixed one. */
 function toLocalFormat(canonical256: string): string {
     return `0${canonical256.slice(3)}`
 }
 
-let cachedBankCode: { code: string; expiresAt: number } | null = null
-
 /**
- * Resolves the Flutterwave `account_bank` code for Uganda mobile money
- * transfers. Prefers FLUTTERWAVE_UG_MOBILEMONEY_BANK_CODE if set (the
- * confirmed-correct value, once someone has actually verified it against
- * Flutterwave's UG bank list or their support); otherwise looks it up live
- * from GET /v3/banks/UG and caches the result for an hour. Throws — never
- * guesses — if it can't find exactly one unambiguous "mobile money" entry,
- * since sending a payout on the wrong code either fails or, worse, doesn't.
+ * Mints a fresh IoTec OAuth token server-side, using this app's own
+ * IOTEC_CLIENT_ID/IOTEC_CLIENT_SECRET — the same credentials
+ * server/routes.ts's POST /api/payment/iotec/token already uses. Done here
+ * independently (rather than trusting a token the client already holds) so
+ * the collection-confirmation check below trusts only the transactionId a
+ * client reports, never a client-supplied access token — same trust model
+ * as /api/pay-property-deposit's Flutterwave verify.
  */
-async function resolveUgandaMobileMoneyBankCode(secretKey: string): Promise<string> {
-    const override = process.env.FLUTTERWAVE_UG_MOBILEMONEY_BANK_CODE
-    if (override) return override
-
-    if (cachedBankCode && cachedBankCode.expiresAt > Date.now()) {
-        return cachedBankCode.code
+async function getIotecAccessToken(): Promise<string> {
+    const clientId = process.env.IOTEC_CLIENT_ID
+    const clientSecret = process.env.IOTEC_CLIENT_SECRET
+    if (!clientId || !clientSecret) {
+        throw new Error('IOTEC_CLIENT_ID / IOTEC_CLIENT_SECRET not configured.')
     }
-
-    const response = await fetch('https://api.flutterwave.com/v3/banks/UG', {
-        headers: { Authorization: `Bearer ${secretKey}` },
+    const response = await fetch('https://id.iotec.io/connect/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: 'client_credentials' }),
     })
-    const data = (await response.json()) as { status: string; data?: Array<{ code: string; name: string }> }
-    if (data.status !== 'success' || !Array.isArray(data.data)) {
-        throw new Error('Could not fetch Uganda bank/transfer codes from Flutterwave.')
-    }
-
-    const matches = data.data.filter((b) => /mobile\s*money/i.test(b.name))
-    if (matches.length !== 1) {
-        throw new Error(
-            matches.length === 0
-                ? 'No "mobile money" entry found in Flutterwave\'s UG bank list — set FLUTTERWAVE_UG_MOBILEMONEY_BANK_CODE manually once you know the right code.'
-                : `Flutterwave's UG bank list has ${matches.length} "mobile money" entries (${matches
-                      .map((m) => `${m.name}=${m.code}`)
-                      .join(', ')}) — ambiguous. Set FLUTTERWAVE_UG_MOBILEMONEY_BANK_CODE to the correct one.`
-        )
-    }
-
-    cachedBankCode = { code: matches[0].code, expiresAt: Date.now() + 60 * 60 * 1000 }
-    return matches[0].code
+    const data = (await response.json()) as { access_token?: string }
+    if (!data.access_token) throw new Error('IoTec did not return an access token.')
+    return data.access_token
 }
 
-/**
- * Attempts the payout leg: transfer `payment.netPayout` to the landlord's
- * own number. Mutates and persists `payment`'s status in place. Never
- * throws — always resolves, leaving payment.status as either
- * 'payout_pending' (Flutterwave accepted the transfer request; a later
- * transfer.completed/transfer.failed webhook moves it to its final state)
- * or 'payout_failed' (with payoutError set).
- */
-async function attemptPayout(payment: RentRailPayment, secretKey: string): Promise<void> {
-    try {
-        const bankCode = await resolveUgandaMobileMoneyBankCode(secretKey)
-        const response = await fetch('https://api.flutterwave.com/v3/transfers', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${secretKey}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                account_bank: bankCode,
-                account_number: toLocalFormat(payment.landlordPhone),
-                amount: payment.netPayout,
-                currency: payment.currency,
-                narration: `RentRail rent payment${payment.propertyId ? ` (property #${payment.propertyId})` : ''} from ${payment.tenantName}`,
-                reference: `rentrail-payout-${payment.txRef}`,
-            }),
-        })
-        const data = (await response.json()) as { status: string; message?: string; data?: { id: number; status: string } }
-
-        if (data.status !== 'success' || !data.data) {
-            payment.status = 'payout_failed'
-            payment.payoutError = data.message || 'Flutterwave rejected the transfer request.'
-            return
-        }
-
-        payment.flutterwaveTransferId = data.data.id
-        // Flutterwave transfers are asynchronous — NEW_TRANSFER/PENDING here just
-        // means the request was accepted, not that the landlord has been paid yet.
-        payment.status = 'payout_pending'
-    } catch (err: any) {
-        payment.status = 'payout_failed'
-        payment.payoutError = err?.message || 'Unexpected error while requesting the payout.'
-    }
-}
-
-/**
- * The webhook (transfer.completed/transfer.failed) is the fast path for
- * moving a payment out of 'payout_pending', but it depends on
- * FLUTTERWAVE_WEBHOOK_SECRET_HASH actually being configured with a
- * reachable URL in the Flutterwave dashboard — easy to forget, and this
- * module shouldn't silently stall forever if it is. So the status endpoint
- * the frontend polls (GET /payments/by-ref/:txRef) also double-checks
- * directly with Flutterwave on every call while a payment is stuck
- * 'payout_pending', via GET /v3/transfers/:id — the same source of truth
- * the webhook would have relayed, just pulled instead of pushed. Mutates
- * and persists `payment` in place if the transfer has actually resolved;
- * a lookup failure is swallowed (leaves the payment as-is) so a transient
- * Flutterwave/network hiccup doesn't turn a real pending payout into a
- * false failure.
- */
-async function refreshTransferStatus(payment: RentRailPayment, secretKey: string): Promise<boolean> {
-    if (payment.status !== 'payout_pending' || !payment.flutterwaveTransferId) return false
-
-    try {
-        const response = await fetch(`https://api.flutterwave.com/v3/transfers/${payment.flutterwaveTransferId}`, {
-            headers: { Authorization: `Bearer ${secretKey}` },
-        })
-        const data = (await response.json()) as { status: string; data?: { status: string } }
-        if (data.status !== 'success' || !data.data) return false
-
-        if (data.data.status === 'SUCCESSFUL') {
-            payment.status = 'paid_out'
-            return true
-        }
-        if (data.data.status === 'FAILED') {
-            payment.status = 'payout_failed'
-            payment.payoutError = `Flutterwave transfer status: ${data.data.status}`
-            return true
-        }
-        return false // still genuinely pending at Flutterwave's end
-    } catch {
-        return false
-    }
-}
-
-/**
- * The one place that turns "tenant paid" into "landlord got paid, minus
- * UGX 1,000" — called from both the redirect callback (immediate UX) and the
- * webhook (source of truth if the tenant closes the tab before redirecting
- * back). Idempotent: a payment already past 'collected' is left alone.
- */
-async function finalizeCollection(payment: RentRailPayment, transactionId: string, secretKey: string): Promise<RentRailPayment> {
-    if (payment.status !== 'pending_collection') return payment // already handled
-
-    const verifyRes = await fetch(`https://api.flutterwave.com/v3/transactions/${transactionId}/verify`, {
-        headers: { Authorization: `Bearer ${secretKey}` },
+/** Same endpoint server/routes.ts's GET /api/payment/iotec/status proxies to —
+ * called here directly (not through that route) so this module can verify
+ * server-side without round-tripping through the client's token. */
+async function getIotecCollectionStatus(accessToken: string, transactionId: string): Promise<string> {
+    const response = await fetch(`https://pay.iotec.io/api/collections/status/${transactionId}`, {
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     })
-    const verify = (await verifyRes.json()) as {
-        status: string
-        data?: { status: string; amount: number; currency: string; tx_ref: string }
-    }
-
-    const ok =
-        verify.status === 'success' &&
-        verify.data?.status === 'successful' &&
-        verify.data?.currency === payment.currency &&
-        Math.abs((verify.data?.amount ?? 0) - payment.amount) < 1
-
-    if (!ok) {
-        payment.status = 'collection_failed'
-        payment.collectionError = 'Payment verification with Flutterwave failed or amount/currency mismatch.'
-        return payment
-    }
-
-    payment.flutterwaveTransactionId = transactionId
-    payment.status = 'collected'
-    await attemptPayout(payment, secretKey)
-    return payment
+    const data = (await response.json()) as { status?: string }
+    if (!data.status) throw new Error('IoTec did not return a transaction status.')
+    return data.status
 }
 
 export function registerRentRailRoutes(app: Express, requireStrictAdmin: RequestHandler): void {
     /**
-     * [PUBLIC] Start a rent payment. Creates a pending record and returns a
-     * Flutterwave hosted-checkout link to redirect the tenant to.
+     * [PUBLIC] Start a rent payment: creates the pending record. Collection
+     * itself happens client-side through the shared IoTec gateway modal
+     * (see client/src/pages/RentRail.tsx) — this endpoint doesn't call
+     * IoTec at all, it just reserves the record the client reports back to.
      */
     app.post('/api/gene/rentrail/pay', async (req: Request, res: Response) => {
         try {
-            const secretKey = process.env.FLUTTERWAVE_SECRET_KEY
-            if (!secretKey) {
+            if (!process.env.IOTEC_CLIENT_ID || !process.env.IOTEC_CLIENT_SECRET) {
                 return res.status(503).json({
-                    message: 'RentRail payments are not configured yet — set FLUTTERWAVE_SECRET_KEY to enable them.',
+                    message: 'RentRail payments are not configured yet — IOTEC_CLIENT_ID/IOTEC_CLIENT_SECRET are not set.',
                 })
             }
 
@@ -319,39 +193,7 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
             rows.push(payment)
             savePayments(rows)
 
-            const baseUrl = (process.env.BASE_URL || 'http://localhost:5000').replace(/\/$/, '')
-            const chargeRes = await fetch('https://api.flutterwave.com/v3/payments', {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${secretKey}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    tx_ref: txRef,
-                    amount: amountNum,
-                    currency: 'UGX',
-                    redirect_url: `${baseUrl}/rentrail/callback?ref=${txRef}`,
-                    payment_options: 'mobilemoneyuganda,mobilemoney,card',
-                    customer: {
-                        phonenumber: toLocalFormat(normalizedTenantPhone),
-                        name: tenantName.trim(),
-                        email: `${normalizedTenantPhone}@rentrail.realevrestates.com`,
-                    },
-                    customizations: {
-                        title: 'RentRail — Pay Rent',
-                        description: payment.landlordName
-                            ? `Rent payment to ${payment.landlordName}`
-                            : 'Rent payment',
-                    },
-                    meta: { rentrailPaymentId: id },
-                }),
-            })
-            const charge = (await chargeRes.json()) as { status: string; message?: string; data?: { link: string } }
-
-            if (charge.status !== 'success' || !charge.data?.link) {
-                rows[rows.findIndex((r) => r.id === id)] = { ...payment, status: 'collection_failed', collectionError: charge.message || 'Flutterwave could not start this payment.' }
-                savePayments(rows)
-                return res.status(502).json({ message: charge.message || 'Could not start the payment with Flutterwave.' })
-            }
-
-            res.status(201).json({ paymentLink: charge.data.link, txRef, id })
+            res.status(201).json({ paymentId: id, txRef })
         } catch (error: any) {
             console.error('[gene/rentrail] pay error', error)
             res.status(500).json({ message: 'Failed to start payment', error: error?.message })
@@ -359,112 +201,59 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
     })
 
     /**
-     * [PUBLIC] Polled by the callback page (and usable directly) to check a
-     * payment's current state by its tx_ref — deliberately not by sequential
-     * id, so one tenant can't page through another's payments.
+     * [PUBLIC] Called by the client once the shared IoTec gateway modal
+     * reports a successful charge. Trusts only the transactionId — verifies
+     * it independently against IoTec's own collections/status endpoint
+     * before marking anything collected, the same way
+     * /api/pay-property-deposit never trusts a client-reported "it worked."
+     * Idempotent: a payment already past pending_collection is untouched.
      */
-    app.get('/api/gene/rentrail/payments/by-ref/:txRef', async (req: Request, res: Response) => {
-        const rows = loadPayments()
-        const idx = rows.findIndex((r) => r.txRef === req.params.txRef)
-        if (idx === -1) return res.status(404).json({ message: 'Payment not found.' })
-
-        const secretKey = process.env.FLUTTERWAVE_SECRET_KEY
-        if (secretKey) {
-            const changed = await refreshTransferStatus(rows[idx], secretKey)
-            if (changed) {
-                rows[idx].updatedAt = nowIso()
-                savePayments(rows)
-            }
-        }
-
-        res.json(rows[idx])
-    })
-
-    /**
-     * [PUBLIC] Flutterwave redirects the tenant's browser here after checkout.
-     * Verifies + triggers the payout immediately, so the result page doesn't
-     * have to wait on the webhook for the common case. Idempotent with the
-     * webhook below — whichever fires first wins, the other is a no-op.
-     */
-    app.get('/api/gene/rentrail/verify', async (req: Request, res: Response) => {
+    app.post('/api/gene/rentrail/payments/:id/collected', async (req: Request, res: Response) => {
         try {
-            const secretKey = process.env.FLUTTERWAVE_SECRET_KEY
-            if (!secretKey) return res.status(503).json({ message: 'RentRail payments are not configured.' })
-
-            const txRef = String(req.query.tx_ref ?? req.query.ref ?? '')
-            const transactionId = String(req.query.transaction_id ?? '')
-            if (!txRef || !transactionId) {
-                return res.status(400).json({ message: 'tx_ref and transaction_id are required.' })
+            const id = Number(req.params.id)
+            const transactionId = String(req.body?.transactionId ?? '')
+            if (!Number.isFinite(id) || !transactionId) {
+                return res.status(400).json({ message: 'A valid payment id and transactionId are required.' })
             }
 
             const rows = loadPayments()
-            const idx = rows.findIndex((r) => r.txRef === txRef)
+            const idx = rows.findIndex((r) => r.id === id)
             if (idx === -1) return res.status(404).json({ message: 'Payment not found.' })
 
-            const updated = await finalizeCollection(rows[idx], transactionId, secretKey)
-            updated.updatedAt = nowIso()
-            rows[idx] = updated
+            const payment = rows[idx]
+            if (payment.status !== 'pending_collection') {
+                return res.json(payment) // already handled — idempotent
+            }
+
+            const accessToken = await getIotecAccessToken()
+            const status = await getIotecCollectionStatus(accessToken, transactionId)
+
+            if (status === 'Success') {
+                payment.iotecTransactionId = transactionId
+                payment.status = 'payout_pending_manual'
+            } else {
+                payment.status = 'collection_failed'
+                payment.collectionError = `IoTec reported status "${status}" for this transaction.`
+            }
+            payment.updatedAt = nowIso()
+            rows[idx] = payment
             savePayments(rows)
 
-            res.json(updated)
+            res.json(payment)
         } catch (error: any) {
-            console.error('[gene/rentrail] verify error', error)
-            res.status(500).json({ message: 'Failed to verify payment', error: error?.message })
+            console.error('[gene/rentrail] collected error', error)
+            res.status(500).json({ message: 'Failed to confirm payment', error: error?.message })
         }
     })
 
-    /**
-     * [PUBLIC, signature-checked] Flutterwave webhook — source of truth for
-     * both the collection (charge.completed) and payout (transfer.completed /
-     * transfer.failed) legs, in case the tenant never makes it back to the
-     * redirect_url. Verified via the `verif-hash` header Flutterwave sends,
-     * matched against FLUTTERWAVE_WEBHOOK_SECRET_HASH (set the same string as
-     * the "Secret Hash" in the Flutterwave dashboard's webhook settings).
-     */
-    app.post('/api/gene/rentrail/webhook', async (req: Request, res: Response) => {
-        try {
-            const secretKey = process.env.FLUTTERWAVE_SECRET_KEY
-            const webhookSecret = process.env.FLUTTERWAVE_WEBHOOK_SECRET_HASH
-            if (!secretKey) return res.status(503).json({ message: 'RentRail payments are not configured.' })
-            if (webhookSecret && req.headers['verif-hash'] !== webhookSecret) {
-                return res.status(401).json({ message: 'Invalid webhook signature.' })
-            }
-
-            const body = req.body ?? {}
-            const event = body.event as string | undefined
-            const rows = loadPayments()
-
-            if (event === 'charge.completed') {
-                const txRef = body.data?.tx_ref as string | undefined
-                const transactionId = body.data?.id ? String(body.data.id) : undefined
-                const idx = txRef ? rows.findIndex((r) => r.txRef === txRef) : -1
-                if (idx !== -1 && transactionId) {
-                    const updated = await finalizeCollection(rows[idx], transactionId, secretKey)
-                    updated.updatedAt = nowIso()
-                    rows[idx] = updated
-                    savePayments(rows)
-                }
-            } else if (event === 'transfer.completed') {
-                const transferId = body.data?.id as number | undefined
-                const transferStatus = body.data?.status as string | undefined
-                const idx = rows.findIndex((r) => r.flutterwaveTransferId === transferId)
-                if (idx !== -1) {
-                    rows[idx].status = transferStatus === 'SUCCESSFUL' ? 'paid_out' : 'payout_failed'
-                    if (transferStatus !== 'SUCCESSFUL') {
-                        rows[idx].payoutError = `Flutterwave transfer status: ${transferStatus}`
-                    }
-                    rows[idx].updatedAt = nowIso()
-                    savePayments(rows)
-                }
-            }
-
-            res.status(200).json({ received: true })
-        } catch (error: any) {
-            console.error('[gene/rentrail] webhook error', error)
-            // Flutterwave retries on non-2xx — still ack so a bug here doesn't
-            // pile up retries, but log loudly so it's visible in ops.
-            res.status(200).json({ received: true, error: error?.message })
-        }
+    /** [PUBLIC] Polled by the result page — by id, since there's no external
+     * redirect party involved anymore (collection happens in-app). */
+    app.get('/api/gene/rentrail/payments/:id', (req: Request, res: Response) => {
+        const id = Number(req.params.id)
+        if (!Number.isFinite(id)) return res.status(400).json({ message: 'Invalid payment id.' })
+        const payment = loadPayments().find((r) => r.id === id)
+        if (!payment) return res.status(404).json({ message: 'Payment not found.' })
+        res.json(payment)
     })
 
     /** [PUBLIC] A tenant's own payment history — needs to be signed in. */
@@ -477,11 +266,52 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
         res.json(rows)
     })
 
-    /** [STRICT ADMIN] Full ledger, for reconciliation — see the build brief's
-     * "does the flat service fee actually cover the rail" question; this is
+    /** [STRICT ADMIN] Full ledger, for reconciliation and for actually
+     * working the payout_pending_manual queue — see the build brief's "does
+     * the flat service fee actually cover the rail" question too; this is
      * where that gets checked against real numbers, not illustrative ones. */
     app.get('/api/gene/rentrail/admin/payments', requireStrictAdmin, (_req: Request, res: Response) => {
-        const rows = loadPayments().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        const rows = loadPayments()
+            .map((r) => ({ ...r, landlordPhoneLocal: toLocalFormat(r.landlordPhone) }))
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         res.json(rows)
+    })
+
+    /**
+     * [STRICT ADMIN] An admin has sent the landlord their share (netPayout)
+     * by hand — mobile money, bank transfer, whatever's actually available
+     * today — and confirms it here. Mirrors ./referral-rewards.ts's
+     * payout-requests/:id/approve exactly, same reasoning: no automated
+     * disbursement rail is verified yet, so a human closes the loop.
+     */
+    app.post('/api/gene/rentrail/admin/payments/:id/mark-paid-out', requireStrictAdmin, (req: Request, res: Response) => {
+        try {
+            const id = Number(req.params.id)
+            if (!Number.isFinite(id)) return res.status(400).json({ message: 'Invalid payment id.' })
+
+            const rows = loadPayments()
+            const idx = rows.findIndex((r) => r.id === id)
+            if (idx === -1) return res.status(404).json({ message: 'Payment not found.' })
+            if (rows[idx].status !== 'payout_pending_manual') {
+                return res.status(400).json({
+                    message: `Cannot mark a payment in status "${rows[idx].status}" as paid out; only payout_pending_manual may be confirmed.`,
+                })
+            }
+
+            const confirmedBy = (req.user as any)?.username ?? (req.user as any)?.email ?? 'unknown-admin'
+            rows[idx] = {
+                ...rows[idx],
+                status: 'paid_out',
+                payoutConfirmedBy: confirmedBy,
+                payoutConfirmedAt: nowIso(),
+                updatedAt: nowIso(),
+            }
+            savePayments(rows)
+
+            res.json(rows[idx])
+        } catch (error: any) {
+            console.error('[gene/rentrail] mark-paid-out error', error)
+            res.status(500).json({ message: 'Failed to confirm payout', error: error?.message })
+        }
     })
 }

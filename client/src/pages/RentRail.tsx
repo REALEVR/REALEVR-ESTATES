@@ -1,14 +1,21 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useLocation, Link } from 'wouter'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { apiRequest } from '@/lib/queryClient'
+import {
+    intiateGateWay,
+    makePaymentString,
+    paymentEmitter,
+    PaymentSources,
+    sendPaymentRequest,
+} from '@/lib/iotec-paymentpatch'
 import { PageSeo } from '@/components/seo/PageSeo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Loader2, Receipt, ShieldCheck, ArrowRight } from 'lucide-react'
-import { Link } from 'wouter'
 
 /**
  * RentRail — pay any landlord's mobile money number directly, no listing on
@@ -22,21 +29,55 @@ import { Link } from 'wouter'
  * payment record this page produces is the tenant's own proof of what was
  * paid; the actual EFRIS receipt still has to come from the landlord, which
  * the result page after payment says plainly.
+ *
+ * Collection runs through the same IoTec mobile-money gateway every other
+ * payment on this site already uses (see client/src/lib/iotec-paymentpatch.ts
+ * and the global <IoTecGatewayLight> modal AppShell renders) — sendPaymentRequest
+ * gets an access token, intiateGateWay opens that shared modal, and the
+ * `paymentEmitter` event below fires once IoTec confirms the charge. The
+ * payout to the landlord is NOT automatic today (see server/gene/rentrail.ts's
+ * doc comment for why) — an admin sends it by hand shortly after.
  */
 const SERVICE_FEE_UGX = 1000
 
 export default function RentRail() {
     const { user } = useAuth()
     const { toast } = useToast()
+    const [, setLocation] = useLocation()
     const [landlordName, setLandlordName] = useState('')
     const [landlordPhone, setLandlordPhone] = useState('')
     const [tenantName, setTenantName] = useState(user?.fullName || '')
     const [tenantPhone, setTenantPhone] = useState(user?.phoneNumber || '')
     const [amount, setAmount] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [pendingPaymentId, setPendingPaymentId] = useState<number | null>(null)
 
     const amountNum = Number(amount)
     const netToLandlord = Number.isFinite(amountNum) && amountNum > SERVICE_FEE_UGX ? amountNum - SERVICE_FEE_UGX : null
+
+    // Fires once the shared IoTec gateway modal confirms this specific
+    // payment's charge succeeded — see PaymentSources.paymentRentRail.
+    useEffect(() => {
+        const eventName = makePaymentString(PaymentSources.paymentRentRail)
+        const handler = async (data: { transactionID: string }) => {
+            if (pendingPaymentId === null) return
+            try {
+                await apiRequest('POST', `/api/gene/rentrail/payments/${pendingPaymentId}/collected`, {
+                    transactionId: data.transactionID,
+                })
+            } catch (error) {
+                // The result page re-fetches the payment's real status regardless,
+                // so a failure to report it here just means that page shows
+                // "processing" a little longer, never a lost payment.
+                console.error('Failed to report RentRail collection:', error)
+            }
+            setLocation(`/rentrail/callback?paymentId=${pendingPaymentId}`)
+        }
+        paymentEmitter.on(eventName, handler)
+        return () => {
+            paymentEmitter.off(eventName, handler)
+        }
+    }, [pendingPaymentId, setLocation])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -65,13 +106,22 @@ export default function RentRail() {
                 amount: amountNum,
             })
             const data = await res.json()
-            window.location.href = data.paymentLink
+            setPendingPaymentId(data.paymentId)
+
+            const tokenResult = await sendPaymentRequest()
+            if (tokenResult.error) {
+                toast({ title: 'Payment error', description: tokenResult.errorMessage, variant: 'destructive' })
+                setIsSubmitting(false)
+                return
+            }
+            intiateGateWay(tokenResult.accessToken, `${amountNum}`, PaymentSources.paymentRentRail)
         } catch (error: any) {
             toast({
                 title: 'Could not start payment',
                 description: error?.message?.replace(/^\d+:\s*/, '') || 'Something went wrong. Please try again.',
                 variant: 'destructive',
             })
+        } finally {
             setIsSubmitting(false)
         }
     }
@@ -90,8 +140,8 @@ export default function RentRail() {
                 </div>
                 <h1 className="text-2xl font-display font-bold mb-2">Pay your rent, instantly</h1>
                 <p className="text-muted-foreground">
-                    Enter your landlord's mobile money number. We keep a flat {SERVICE_FEE_UGX} UGX service fee and
-                    send the rest straight to them.
+                    Enter your landlord's mobile money number. We keep a flat {SERVICE_FEE_UGX.toLocaleString()} UGX
+                    service fee and send the rest to them.
                 </p>
             </div>
 
@@ -185,8 +235,8 @@ export default function RentRail() {
                         </Button>
 
                         <p className="text-xs text-center text-muted-foreground">
-                            You'll pay by mobile money on the next screen. The {SERVICE_FEE_UGX} UGX service fee is
-                            non-refundable once the payment completes.
+                            You'll get a mobile money prompt on the next screen. The {SERVICE_FEE_UGX.toLocaleString()}{' '}
+                            UGX service fee is non-refundable once the payment completes.
                         </p>
                     </form>
                 </CardContent>
