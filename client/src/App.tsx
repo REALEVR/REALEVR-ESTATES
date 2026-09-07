@@ -1,4 +1,4 @@
-import { Switch, Route } from 'wouter'
+import { Switch, Route, useLocation } from 'wouter'
 import { MotionConfig } from 'framer-motion'
 import { queryClient } from './lib/queryClient'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -48,6 +48,7 @@ import { useEffect, useState } from 'react'
 import { paymentEmitter } from './lib/iotec-paymentpatch'
 import IotechMetricCounterPaymentHandle from './components/payment/sio-iotech'
 import AgentLauncher from './components/agent/AgentLauncher'
+import ErrorBoundary from '@/components/layout/ErrorBoundary'
 import ListYourPropertyPage from '@/pages/ListYourPropertyPage'
 import AdminPayoutApprovals from '@/pages/AdminPayoutApprovals'
 import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
@@ -167,6 +168,7 @@ function Router() {
 function AppShell() {
     const { isLoading } = useAuth()
     const [gateway, setGateway] = useState<{ accessToken: string; amount: string; source: string } | null>(null)
+    const [location] = useLocation()
 
     useEffect(() => {
         const handler = (data: { accessToken: string; amount: string; source: string }) => {
@@ -200,7 +202,15 @@ function AppShell() {
                 <Header />
                 <main className="flex-grow px-4 sm:px-6 lg:px-8">
                     <AnimatedLayout>
-                        <Router />
+                        {/* Keyed by location: a crash on one page resets this boundary's
+                            state on the very next navigation, instead of the error screen
+                            following the visitor to every route until a full reload. See
+                            ErrorBoundary.tsx for why this exists at all - there was no
+                            error boundary anywhere before, so any single render crash on
+                            any page took the whole app down to a blank white screen. */}
+                        <ErrorBoundary key={location}>
+                            <Router />
+                        </ErrorBoundary>
                     </AnimatedLayout>
                 </main>
                 {/* <IotechMetricCounterPaymentHandle/> */}
