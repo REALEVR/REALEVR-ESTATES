@@ -153,7 +153,7 @@ export default function PaymentModal({
                         {isSuccess
                             ? 'Your payment has been processed successfully.'
                             : paymentType === 'BnBBookingDeposit'
-                            ? `Pay a 20% deposit (${amount.toLocaleString()} ${currency}) to secure your booking.`
+                            ? `Pay a 20% deposit (${amount.toLocaleString()} ${currency}) to secure your booking. This deposit is non-refundable.`
                             : paymentType === 'ViewingFee'
                             ? `Pay the standard viewing fee of ${amount.toLocaleString()} ${currency}.`
                             : `Complete your payment of ${amount.toLocaleString()} ${currency}.`}

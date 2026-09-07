@@ -81,8 +81,24 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
     const { user } = useAuth()
     const { hasValidPayment, registerPayment } = usePropertyViews()
 
-    // Check if this is a BnB property
-    const isBnB = property.category === 'BnB' || property.category === 'furnished_houses'
+    // Check if this is a BnB property — a property explicitly tagged as a
+    // furnished/serviced rental reads the same "free to view, 20% deposit
+    // to book" policy as a category="furnished_houses"/"BnB" listing (see
+    // requiresTourPayment below), even if its category field happens to be
+    // "rental_units".
+    const isBnB =
+        property.category === 'BnB' ||
+        property.category === 'furnished_houses' ||
+        property.propertyType === 'Furnished Rental'
+
+    // PAYMENTS ROUND 2: only a plain rental unit ever pays to *view* the
+    // tour, and even then only after a free preview — see handleViewTour
+    // and the previewSeconds prop passed to VirtualTourModal below. BnBs
+    // (isBnB above) are always free to view; their only payment moment is
+    // the 20% deposit when actually booking (handleScheduleVisit /
+    // BookingCalendarModal), never for viewing. For-sale and bank-sales
+    // were already always free.
+    const requiresTourPayment = property.category === 'rental_units' && !isBnB
 
     // Fetch property owner details
     useEffect(() => {
@@ -127,26 +143,21 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
     }
 
     const handleViewTour = () => {
-        // BUG FIX: this had degenerated to a blanket "BnB is free, anything
-        // else pays" — which meant for_sale and bank_sales properties (never
-        // meant to be gated at all, per PropertyCard.tsx's own
-        // requiresPayment definition and its "For other property types,
-        // allow direct viewing" comment) were demanding a payment here that
-        // the rest of the app doesn't ask for. The correct, category-aware
-        // check was sitting right above this, commented out — restored it
-        // instead of re-deriving it, and made it respect an existing valid
-        // pass (hasValidPayment) the same way PropertyCard.tsx's click
-        // handler now does, so someone who already paid isn't asked again.
-        const requiresPayment =
-            property.category === 'rental_units' ||
-            property.category === 'furnished_houses' ||
-            property.propertyType === 'Furnished Rental'
+        // PAYMENTS ROUND 2: every category now opens the tour immediately,
+        // free — see requiresTourPayment's comment above. A rental unit
+        // without a valid pass gets a 5-second free preview before the tour
+        // swaps for the pay prompt (previewSeconds on VirtualTourModal
+        // below, handled by handleTourPreviewExpired); everyone else just
+        // views for as long as they like.
+        setIsTourModalOpen(true)
+    }
 
-        if (requiresPayment && !hasValidPayment) {
-            setIsTourPaymentModalOpen(true)
-        } else {
-            setIsTourModalOpen(true)
-        }
+    const handleTourPreviewExpired = () => {
+        // Only ever fires for a rental unit without a valid pass — see
+        // requiresTourPayment, which is the only thing that puts a
+        // previewSeconds limit on VirtualTourModal in the first place.
+        setIsTourModalOpen(false)
+        setIsTourPaymentModalOpen(true)
     }
 
     const handleContactAgent = () => {
@@ -271,7 +282,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                     {isBnB && (
                                         <li className="flex items-center text-accent font-medium">
                                             <i className="fas fa-calendar-check w-6"></i>
-                                            <span>Pay 20% deposit to book</span>
+                                            <span>Free to view · 20% deposit to book (non-refundable)</span>
                                         </li>
                                     )}
                                 </ul>
@@ -544,6 +555,8 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                 onClose={() => setIsTourModalOpen(false)}
                 propertyTitle={property.title}
                 tourUrl={property.tourUrl || undefined}
+                previewSeconds={requiresTourPayment && !hasValidPayment ? 5 : undefined}
+                onPreviewExpired={handleTourPreviewExpired}
             />
 
             {/* Tour Payment Modal */}

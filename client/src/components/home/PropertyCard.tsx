@@ -3,9 +3,6 @@ import { Link } from 'wouter'
 import type { Property, User } from '@shared/schema'
 import SharePropertyModal from '../property/SharePropertyModal'
 import BookingCalendarModal from '../property/BookingCalendarModal'
-import PaymentModal from '../property/PaymentModal'
-import TourPaymentModal from '../property/TourPaymentModal'
-import { usePropertyViews } from '@/hooks/usePropertyViews'
 import { AnimatedCard, FadeIn } from '@/components/ui/animated-components'
 import { Star } from 'lucide-react'
 import VRBadge from '../property/VRBadge'
@@ -18,7 +15,6 @@ export default function PropertyCard({ property }: PropertyCardProps) {
     const [isFavorite, setIsFavorite] = useState(false)
     const [isShareModalOpen, setIsShareModalOpen] = useState(false)
     const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
-    const [isTourPaymentModalOpen, setIsTourPaymentModalOpen] = useState(false)
     const [propertyOwner, setPropertyOwner] = useState<User | null>(null)
 
     // Fetch property owner details
@@ -52,26 +48,20 @@ export default function PropertyCard({ property }: PropertyCardProps) {
         setIsShareModalOpen(true)
     }
 
-    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
-    const { viewedProperties, hasValidPayment, registerPayment } = usePropertyViews()
-
-    const handlePropertyView = (e: React.MouseEvent) => {
-        e.preventDefault()
-        e.stopPropagation()
-
-        // Only rental properties require payment for tour viewing
-        // BnBs can view tours for free, but need to pay 20% to book
-        const requiresPayment =
-            property.category === 'rental_units' ||
-            property.category === 'furnished_houses' ||
-            property.propertyType === 'Furnished Rental'
-
-        if (!hasValidPayment && requiresPayment) {
-            setIsPaymentModalOpen(true)
-            return
-        }
-
-        // For other property types, allow direct viewing
+    // POLICY (payments round 2): the grid card itself never gates viewing
+    // for any category any more — tapping the picture or the card always
+    // goes straight to the property page. The actual payment moments now
+    // live entirely on that page, where they make more sense:
+    //   - Rental units: the tour opens immediately, free, for a 5-second
+    //     preview, then PropertyDetails.tsx swaps it for the 15,000 UGX pay
+    //     prompt (unless the visitor already has a valid pass) — see
+    //     VirtualTourModal's previewSeconds prop. Gating it here, before the
+    //     tour ever opens, would have made that free preview impossible.
+    //   - BnBs: the tour is simply free to view, full stop. The 20% deposit
+    //     is only ever asked for booking — see BookingCalendarModal, wired
+    //     to PropertyDetails.tsx's "Book Now" button, not tour viewing.
+    //   - For-sale / bank sales: were already always free to view.
+    const goToProperty = () => {
         window.location.href = `/property/${property.id}`
     }
 
@@ -81,68 +71,18 @@ export default function PropertyCard({ property }: PropertyCardProps) {
         setIsBookingModalOpen(true)
     }
 
-    const handlePaymentConfirm = async (response: any) => {
-        try {
-            console.log('Payment response:', response)
-            // Payment was successful, now redirect to property page
-            window.location.href = `/property/${property.id}`
-        } catch (error) {
-            console.error('Payment handling error:', error)
-        }
-    }
-
-    const handleTourPaymentSuccess = () => {
-        // BUG FIX: this used to only close the modal and redirect — it never
-        // called registerPayment(), so hasValidPayment stayed false even
-        // after a real, successful IoTec payment. Combined with
-        // handleCardClick below never checking hasValidPayment either, the
-        // result was that EVERY click on ANY rental/BnB property demanded a
-        // fresh payment, even seconds after a successful one — completely
-        // defeating the "pay once, view up to 5 properties for 24h" promise
-        // TourPaymentModal's own sibling PaymentModal advertises. Now a
-        // successful payment actually sticks.
-        registerPayment()
-        setIsTourPaymentModalOpen(false)
-        window.location.href = `/property/${property.id}`
-    }
-
-    // Shared by the whole-card click and the explicit "View Tour" button on
-    // the picture (added on request — a visible affordance in addition to
-    // the whole card already being clickable, not a replacement for it).
-    const openTourOrPay = () => {
-        // Only rental properties require payment for tour viewing
-        // BnBs can view tours for free, but need to pay 20% to book
-        const requiresPayment =
-            property.category === 'rental_units' ||
-            property.category === 'furnished_houses' ||
-            property.propertyType === 'Furnished Rental'
-
-        // BUG FIX: this never checked hasValidPayment before — see
-        // handleTourPaymentSuccess's comment above for the full picture.
-        // Someone who already has a valid pass now skips straight to the
-        // tour, same as the (previously unused) handlePropertyView above
-        // always intended.
-        if (requiresPayment && !hasValidPayment) {
-            setIsTourPaymentModalOpen(true)
-        } else {
-            // Free categories, or a rental/BnB already covered by a valid
-            // pass — go straight to the property page.
-            window.location.href = `/property/${property.id}`
-        }
-    }
-
     const handleCardClick = (e: React.MouseEvent) => {
         // Don't trigger if clicking on buttons or interactive elements
         if ((e.target as HTMLElement).closest('button')) {
             return
         }
-        openTourOrPay()
+        goToProperty()
     }
 
     const handleViewTourClick = (e: React.MouseEvent) => {
         e.preventDefault()
         e.stopPropagation()
-        openTourOrPay()
+        goToProperty()
     }
 
     return (
@@ -212,13 +152,14 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                     {/* Explicit "View Tour" affordance on the picture itself
                         — the whole card is already clickable (handleCardClick
                         above), but a visible button removes any doubt about
-                        what tapping the photo does: opens the tour directly,
-                        or the IoTec pay-to-view prompt first for
-                        rental/BnB categories that require it. Always visible
-                        (not a hover-reveal) — this platform's audience is
-                        mostly on phones, which have no hover state, so
-                        anything shown only on :hover is effectively invisible
-                        to most visitors here. */}
+                        what tapping the photo does: opens the property page,
+                        where the tour itself opens immediately and free (see
+                        goToProperty's comment above for how each category's
+                        payment moment, if any, works from there). Always
+                        visible (not a hover-reveal) — this platform's
+                        audience is mostly on phones, which have no hover
+                        state, so anything shown only on :hover is
+                        effectively invisible to most visitors here. */}
                     <button
                         type="button"
                         onClick={handleViewTourClick}
@@ -312,10 +253,6 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                             )}
                         </div>
                     </div>
-                    {/* No separate "View Tour" button — Airbnb-style cards carry no
-                        button at all; the whole card is already clickable via
-                        handleCardClick above, with the exact same payment-gating
-                        logic this button used to duplicate. */}
                 </div>
             </AnimatedCard>
 
@@ -335,23 +272,6 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                 propertyCategory={property.category}
                 propertyPrice={property.price}
                 propertyCurrency={property.currency || 'UGX'}
-            />
-
-            <PaymentModal
-                isOpen={isPaymentModalOpen}
-                onClose={() => setIsPaymentModalOpen(false)}
-                propertyId={property.id}
-                propertyTitle={property.title}
-                paymentType="ViewingFee"
-                amount={10000} // 10,000 UGX for viewing rental properties
-                successCallback={handlePaymentConfirm}
-            />
-
-            <TourPaymentModal
-                isOpen={isTourPaymentModalOpen}
-                onClose={() => setIsTourPaymentModalOpen(false)}
-                property={property}
-                onPaymentSuccess={handleTourPaymentSuccess}
             />
         </>
     )

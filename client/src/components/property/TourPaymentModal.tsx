@@ -146,10 +146,10 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
 
                 <div className="space-y-4">
                     <div className="p-4 bg-blue-50 rounded-lg">
-                        <h4 className="font-semibold text-blue-900 mb-2">Tour Access Required</h4>
+                        <h4 className="font-semibold text-blue-900 mb-2">Free preview ended</h4>
                         <p className="text-sm text-blue-800">
-                            To view the virtual tour for this property, a one-time payment of{' '}
-                            <strong>UGX 15,0000</strong> is required.
+                            Pay a one-time fee of <strong>UGX 15,000</strong> to keep viewing this tour and unlock
+                            viewing for other rental properties too, for the next 24 hours.
                         </p>
                     </div>
 
