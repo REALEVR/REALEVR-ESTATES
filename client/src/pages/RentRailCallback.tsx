@@ -16,6 +16,7 @@ interface RentRailPayment {
     netPayout: number
     status: 'pending_collection' | 'collected' | 'payout_pending_manual' | 'paid_out' | 'collection_failed'
     collectionError?: string
+    receiptSent: boolean
 }
 
 const PROCESSING_STATUSES = new Set(['pending_collection', 'collected'])
@@ -147,11 +148,15 @@ export default function RentRailCallback() {
                     <div className="flex items-start gap-3 bg-accent/10 rounded-lg p-4">
                         <Receipt className="h-5 w-5 flex-shrink-0 mt-0.5 text-accent" />
                         <div className="text-sm">
-                            <p className="font-medium mb-1">Ask your landlord for your EFRIS receipt</p>
+                            <p className="font-medium mb-1">
+                                {isPaidOut ? "We've sent you a WhatsApp payment confirmation" : "Ask your landlord for your EFRIS receipt"}
+                            </p>
                             <p className="text-muted-foreground">
-                                Only your landlord can issue a valid EFRIS tax receipt for this payment — by law
-                                they're required to. This page is your own record that you paid on time in the
-                                meantime.
+                                {isPaidOut
+                                    ? payment.receiptSent
+                                        ? "That WhatsApp message — and this page — are your own record of what you paid. Neither is a substitute for the official EFRIS tax receipt: only your landlord can issue that, using their own tax registration. Ugandan law requires them to give you one — ask directly."
+                                        : "We couldn't deliver that WhatsApp confirmation, but this page is still your record of what you paid — worth a screenshot. Separately, only your landlord can issue the official EFRIS tax receipt; Ugandan law requires them to give you one — ask directly."
+                                    : "Only your landlord can issue a valid EFRIS tax receipt for this payment — by law they're required to. This page is your own record that you paid on time in the meantime."}
                             </p>
                         </div>
                     </div>
