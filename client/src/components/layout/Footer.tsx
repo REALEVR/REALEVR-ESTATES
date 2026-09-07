@@ -34,6 +34,7 @@ export default function Footer() {
               <li><Link href="/#featured" className="hover:text-accent transition-colors">Virtual Tours</Link></li>
               <li><Link href="/featured-properties" className="hover:text-accent transition-colors">Featured Properties</Link></li>
               <li><Link href="/properties" className="hover:text-accent transition-colors">Building Types</Link></li>
+              <li><Link href="/rentrail" className="hover:text-accent transition-colors">Pay Rent (RentRail)</Link></li>
             </ul>
             <h3 className="font-display text-base mb-4 mt-6 text-foreground">Hosting</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">

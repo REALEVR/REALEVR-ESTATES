@@ -71,6 +71,7 @@ import { registerGoogleAuthRoutes } from './gene/google-auth'
 import { registerUserAnalyticsRoutes } from './gene/user-analytics'
 import { registerBroadcastRoutes } from './gene/broadcast'
 import { registerWebPushRoutes } from './gene/web-push'
+import { registerRentRailRoutes } from './gene/rentrail'
 import { requireStrictAdmin } from './gene/admin-guard'
 
 // Middleware to check if user is an admin or property manager
@@ -2482,6 +2483,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerUserAnalyticsRoutes(app, requireStrictAdmin)
     registerWebPushRoutes(app, requireStrictAdmin)
     registerBroadcastRoutes(app, requireStrictAdmin)
+    registerRentRailRoutes(app, requireStrictAdmin)
 
     // Africa real estate media pulse — see docs/GENE_PLATFORM.md v1.15.
     // Public (no auth): backs the homepage hero's live news panel.

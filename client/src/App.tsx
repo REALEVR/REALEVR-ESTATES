@@ -20,6 +20,8 @@ import TermsOfService from '@/pages/TermsOfService'
 import CookiePolicy from '@/pages/CookiePolicy'
 import RefundPolicy from '@/pages/RefundPolicy'
 import ComingSoonPage from '@/pages/ComingSoonPage'
+import RentRail from '@/pages/RentRail'
+import RentRailCallback from '@/pages/RentRailCallback'
 import HostResponsibly from '@/pages/HostResponsibly'
 import PropertyManager from '@/pages/PropertyManager'
 import AdminUserManager from '@/pages/AdminUserManager'
@@ -77,6 +79,11 @@ function Router() {
             <Route path="/featured-properties" component={FeaturedPropertiesPage} />
             <Route path="/properties" component={AllPropertiesPage} />
             <Route path="/new-listings" component={NewListingsPage} />
+
+            {/* RentRail — pay any landlord's mobile money number directly,
+                not tied to a RealEVR listing. See server/gene/rentrail.ts. */}
+            <Route path="/rentrail" component={RentRail} />
+            <Route path="/rentrail/callback" component={RentRailCallback} />
 
             {/* Legal and Information Pages */}
             <Route path="/privacy" component={PrivacyPolicy} />
