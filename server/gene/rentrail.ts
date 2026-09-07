@@ -15,9 +15,15 @@
  * leg (splitting UGX 1,000 off and sending the rest to the landlord's own
  * number) is a NEW capability this app didn't have before — a real call to
  * Flutterwave's Transfers API — and it is asynchronous by nature: a
- * transfer can sit "pending" at Flutterwave for a few minutes before their
- * webhook confirms it landed. A payment is only ever marked `paid_out`
- * once Flutterwave itself confirms the transfer completed; if the payout
+ * transfer can sit "pending" at Flutterwave for a few minutes before it
+ * lands. Confirmation can arrive two ways: Flutterwave's transfer.completed
+ * webhook (fast, requires FLUTTERWAVE_WEBHOOK_SECRET_HASH + a registered
+ * webhook URL — see .env.example), or a direct GET /v3/transfers/:id
+ * lookup that the status endpoint (payments/by-ref/:txRef) makes on its
+ * own while a payment is pending (see refreshTransferStatus below) — so
+ * the system is correct even if the webhook is never configured, just
+ * slower to notice. A payment is only ever marked `paid_out` once one of
+ * those two confirms it; if the payout
  * fails, the record says `payout_failed` with a real error message rather
  * than silently claiming success — this is the one place actual money
  * could be collected from a tenant but stuck on the way to a landlord, so
@@ -181,6 +187,46 @@ async function attemptPayout(payment: RentRailPayment, secretKey: string): Promi
 }
 
 /**
+ * The webhook (transfer.completed/transfer.failed) is the fast path for
+ * moving a payment out of 'payout_pending', but it depends on
+ * FLUTTERWAVE_WEBHOOK_SECRET_HASH actually being configured with a
+ * reachable URL in the Flutterwave dashboard — easy to forget, and this
+ * module shouldn't silently stall forever if it is. So the status endpoint
+ * the frontend polls (GET /payments/by-ref/:txRef) also double-checks
+ * directly with Flutterwave on every call while a payment is stuck
+ * 'payout_pending', via GET /v3/transfers/:id — the same source of truth
+ * the webhook would have relayed, just pulled instead of pushed. Mutates
+ * and persists `payment` in place if the transfer has actually resolved;
+ * a lookup failure is swallowed (leaves the payment as-is) so a transient
+ * Flutterwave/network hiccup doesn't turn a real pending payout into a
+ * false failure.
+ */
+async function refreshTransferStatus(payment: RentRailPayment, secretKey: string): Promise<boolean> {
+    if (payment.status !== 'payout_pending' || !payment.flutterwaveTransferId) return false
+
+    try {
+        const response = await fetch(`https://api.flutterwave.com/v3/transfers/${payment.flutterwaveTransferId}`, {
+            headers: { Authorization: `Bearer ${secretKey}` },
+        })
+        const data = (await response.json()) as { status: string; data?: { status: string } }
+        if (data.status !== 'success' || !data.data) return false
+
+        if (data.data.status === 'SUCCESSFUL') {
+            payment.status = 'paid_out'
+            return true
+        }
+        if (data.data.status === 'FAILED') {
+            payment.status = 'payout_failed'
+            payment.payoutError = `Flutterwave transfer status: ${data.data.status}`
+            return true
+        }
+        return false // still genuinely pending at Flutterwave's end
+    } catch {
+        return false
+    }
+}
+
+/**
  * The one place that turns "tenant paid" into "landlord got paid, minus
  * UGX 1,000" — called from both the redirect callback (immediate UX) and the
  * webhook (source of truth if the tenant closes the tab before redirecting
@@ -319,9 +365,19 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
      */
     app.get('/api/gene/rentrail/payments/by-ref/:txRef', async (req: Request, res: Response) => {
         const rows = loadPayments()
-        const payment = rows.find((r) => r.txRef === req.params.txRef)
-        if (!payment) return res.status(404).json({ message: 'Payment not found.' })
-        res.json(payment)
+        const idx = rows.findIndex((r) => r.txRef === req.params.txRef)
+        if (idx === -1) return res.status(404).json({ message: 'Payment not found.' })
+
+        const secretKey = process.env.FLUTTERWAVE_SECRET_KEY
+        if (secretKey) {
+            const changed = await refreshTransferStatus(rows[idx], secretKey)
+            if (changed) {
+                rows[idx].updatedAt = nowIso()
+                savePayments(rows)
+            }
+        }
+
+        res.json(rows[idx])
     })
 
     /**
