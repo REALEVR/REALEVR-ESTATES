@@ -134,7 +134,7 @@ export default function AIAssistant() {
                     placeholder="Ask about a property..."
                     className="flex-1 rounded-full border border-gray-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5A5F]/30"
                 />
-                <Button size="icon" className="rounded-full" onClick={handleSend} disabled={isLoading}>
+                <Button size="icon" className="rounded-full" onClick={handleSend} disabled={isLoading} aria-label="Send message">
                     <Send size={16} />
                 </Button>
             </div>

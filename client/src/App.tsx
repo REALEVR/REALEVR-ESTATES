@@ -17,6 +17,8 @@ import BankSalesPage from '@/pages/BankSalesPage'
 import NotFound from '@/pages/not-found'
 import PrivacyPolicy from '@/pages/PrivacyPolicy'
 import TermsOfService from '@/pages/TermsOfService'
+import CookiePolicy from '@/pages/CookiePolicy'
+import RefundPolicy from '@/pages/RefundPolicy'
 import HostResponsibly from '@/pages/HostResponsibly'
 import PropertyManager from '@/pages/PropertyManager'
 import AdminUserManager from '@/pages/AdminUserManager'
@@ -49,6 +51,7 @@ import { paymentEmitter } from './lib/iotec-paymentpatch'
 import IotechMetricCounterPaymentHandle from './components/payment/sio-iotech'
 import AgentLauncher from './components/agent/AgentLauncher'
 import ErrorBoundary from '@/components/layout/ErrorBoundary'
+import CookieConsentBanner from '@/components/layout/CookieConsentBanner'
 import ListYourPropertyPage from '@/pages/ListYourPropertyPage'
 import AdminPayoutApprovals from '@/pages/AdminPayoutApprovals'
 import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
@@ -77,6 +80,8 @@ function Router() {
             {/* Legal and Information Pages */}
             <Route path="/privacy" component={PrivacyPolicy} />
             <Route path="/terms" component={TermsOfService} />
+            <Route path="/cookies" component={CookiePolicy} />
+            <Route path="/refund-policy" component={RefundPolicy} />
             <Route path="/host-responsibly" component={HostResponsibly} />
 
             {/* Footer Pages */}
@@ -230,6 +235,7 @@ function AppShell() {
             <ScrollToTop />
             <WhatsAppNumberPrompt />
             <SignupNudgeGate />
+            <CookieConsentBanner />
         </>
     )
 }

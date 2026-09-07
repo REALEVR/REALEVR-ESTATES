@@ -65,7 +65,7 @@ export default function VirtualTourModal({
                 Free preview: {secondsLeft}s
               </span>
             )}
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close virtual tour">
               <X className="h-5 w-5" />
             </Button>
           </div>

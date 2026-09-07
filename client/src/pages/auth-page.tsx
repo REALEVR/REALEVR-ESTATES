@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Link } from 'wouter'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -27,6 +29,12 @@ const RegisterSchema = z
         email: z.string().email('Invalid email address'),
         fullName: z.string().min(1, 'Full name is required'),
         membershipPlan: z.string().default('basic'),
+        // "Form consent" — creating an account was previously possible with
+        // no acknowledgement of the Terms of Service or Privacy Policy at
+        // all, despite both existing and being linked from the footer.
+        agreeToTerms: z.boolean().refine((val) => val === true, {
+            message: 'You must agree to the Terms of Service and Privacy Policy to create an account',
+        }),
     })
     .refine((data) => data.password === data.confirmPassword, {
         message: "Passwords don't match",
@@ -82,6 +90,7 @@ export default function AuthPage() {
             confirmPassword: '',
             fullName: '',
             membershipPlan: 'basic',
+            agreeToTerms: false,
         },
     })
 
@@ -91,11 +100,28 @@ export default function AuthPage() {
     }
 
     const onRegisterSubmit = async (data: RegisterFormValues) => {
-        const { confirmPassword, ...userData } = data
+        const { confirmPassword, agreeToTerms, ...userData } = data
         // Add default values for role and isVerified
         const insertUserData = {
             ...userData,
-            role: 'admin' | 'agent' | 'normal',
+            // BUG FIX: this was `'admin' | 'agent' | 'normal'` — not a type
+            // union (this is expression position, not a type position) but
+            // the bitwise-OR *operator* applied to three string literals.
+            // JS coerces each side to a number first (ToNumber('admin') is
+            // NaN, and NaN | anything is 0 via ToInt32), so this evaluated
+            // to the number 0 on every single self-registration — silently
+            // breaking every role check for that account forever (every
+            // `role === 'admin'`/`role !== 'agent'` check site-wide is a
+            // strict string comparison, so a numeric 0 never matches any of
+            // them). TypeScript already flagged this (error TS2345 in the
+            // build) but nothing ever acted on it. Self-registration should
+            // always start as a plain 'normal' account — becoming an agent
+            // or admin happens through a separate, deliberate flow
+            // (agent registration/approval, or an admin promoting someone
+            // from the Users tab), never at signup.
+            role: 'normal' as const,
+            authProvider: 'local' as const,
+            subscriptionStatus: 'inactive' as const,
             isVerified: false,
             membershipStartDate: null,
             membershipEndDate: null,
@@ -484,6 +510,34 @@ export default function AuthPage() {
                                                             Select a membership plan. You can change this later.
                                                         </FormDescription>
                                                         <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            <FormField
+                                                control={registerForm.control}
+                                                name="agreeToTerms"
+                                                render={({ field }) => (
+                                                    <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+                                                        <FormControl>
+                                                            <Checkbox
+                                                                checked={field.value}
+                                                                onCheckedChange={field.onChange}
+                                                            />
+                                                        </FormControl>
+                                                        <div className="leading-tight">
+                                                            <FormLabel className="font-normal text-sm">
+                                                                I agree to RealEVR Estates'{' '}
+                                                                <Link href="/terms" className="text-accent hover:underline" target="_blank">
+                                                                    Terms of Service
+                                                                </Link>{' '}
+                                                                and{' '}
+                                                                <Link href="/privacy" className="text-accent hover:underline" target="_blank">
+                                                                    Privacy Policy
+                                                                </Link>
+                                                            </FormLabel>
+                                                            <FormMessage />
+                                                        </div>
                                                     </FormItem>
                                                 )}
                                             />
