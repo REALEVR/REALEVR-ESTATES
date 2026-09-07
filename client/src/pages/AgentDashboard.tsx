@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/hooks/use-auth'
 import { Redirect } from 'wouter'
 import { Property } from '@shared/schema'
@@ -504,6 +505,7 @@ export function AgentDashboard() {
                                                             'No tour yet'
                                                         )}
                                                     </p>
+                                                    <PropertyCapturedPhotos propertyId={property.id} />
                                                 </div>
                                                 <Button
                                                     size="sm"
@@ -557,6 +559,61 @@ export function AgentDashboard() {
                     />
                 </DialogContent>
             </Dialog>
+        </div>
+    )
+}
+
+interface RoomCaptureAsset {
+    relPath: string
+    url: string
+}
+interface RoomCaptureManifestRoom {
+    name: string
+    status: 'qualified' | 'needs_retake'
+    assets: RoomCaptureAsset[]
+}
+interface RoomCaptureManifest {
+    rooms: RoomCaptureManifestRoom[]
+}
+
+/** "Let the uploaded images be reflected in the agent's profile" — a
+ * thumbnail strip of whatever's actually been captured for this property so
+ * far via the phone-capture flow (server/room-capture.ts), reflected here
+ * the moment a room is submitted, not only once a tour is fully published.
+ * Renders nothing (not even a placeholder) until there's something real to
+ * show, and nothing at all for a property that only ever got a 3D Vista ZIP
+ * upload — that flow doesn't go through the room-capture manifest. */
+function PropertyCapturedPhotos({ propertyId }: { propertyId: number }) {
+    const { data: manifest } = useQuery<RoomCaptureManifest>({
+        queryKey: [`/api/upload/room-capture/${propertyId}/manifest`],
+    })
+
+    const thumbnails = (manifest?.rooms ?? []).flatMap((room) =>
+        room.assets.map((asset) => ({ url: asset.url, room: room.name, qualified: room.status === 'qualified' }))
+    )
+    if (thumbnails.length === 0) return null
+
+    const shown = thumbnails.slice(0, 8)
+    const remaining = thumbnails.length - shown.length
+
+    return (
+        <div className="flex gap-1.5 mt-2 overflow-x-auto">
+            {shown.map((t, i) => (
+                <img
+                    key={i}
+                    src={t.url}
+                    alt={`${t.room} — captured photo`}
+                    title={`${t.room}${t.qualified ? '' : ' (needs retake)'}`}
+                    className={`h-12 w-12 shrink-0 rounded object-cover border ${
+                        t.qualified ? 'border-border' : 'border-destructive/50 opacity-70'
+                    }`}
+                />
+            ))}
+            {remaining > 0 && (
+                <span className="h-12 w-12 shrink-0 rounded border flex items-center justify-center text-xs text-muted-foreground">
+                    +{remaining}
+                </span>
+            )}
         </div>
     )
 }

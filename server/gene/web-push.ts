@@ -47,19 +47,21 @@ function configureWebPush(): void {
 }
 
 /**
- * Sends one payload to every stored subscription. Best-effort per
- * subscription: a 404/410 (browser says the subscription is gone) prunes
- * that row so future sends don't keep retrying a dead endpoint; any other
- * failure is just counted, not treated as fatal to the batch. Exported for
- * ./broadcast.ts.
+ * Sends one payload to a specific set of stored subscription rows.
+ * Best-effort per subscription: a 404/410 (browser says the subscription is
+ * gone) prunes that row from the FULL collection (not just the rows this
+ * call was scoped to — a dead endpoint is dead regardless of which send
+ * discovered it) so future sends don't keep retrying it; any other failure
+ * is just counted, not treated as fatal to the batch. Shared by
+ * sendPushToAllSubscribers and sendPushToAdmins below.
  */
-export async function sendPushToAllSubscribers(title: string, body: string, url?: string): Promise<{ sent: number; failed: number; pruned: number; reason?: string }> {
-    if (!isPushConfigured()) {
-        return { sent: 0, failed: 0, pruned: 0, reason: 'Push notifications are not configured (VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY unset).' }
-    }
+async function sendPushToRows(
+    rows: PushSubscriptionRecord[],
+    title: string,
+    body: string,
+    url?: string
+): Promise<{ sent: number; failed: number; pruned: number }> {
     configureWebPush()
-
-    const rows = readCollection<PushSubscriptionRecord>(COLLECTION)
     const payload = JSON.stringify({ title, body, url: url || '/' })
 
     let sent = 0
@@ -80,11 +82,46 @@ export async function sendPushToAllSubscribers(title: string, body: string, url?
     }
 
     if (deadIds.size > 0) {
-        const remaining = rows.filter((r) => !deadIds.has(r.id))
-        writeCollection(COLLECTION, remaining)
+        const allRows = readCollection<PushSubscriptionRecord>(COLLECTION)
+        writeCollection(COLLECTION, allRows.filter((r) => !deadIds.has(r.id)))
     }
 
     return { sent, failed, pruned: deadIds.size }
+}
+
+/**
+ * Sends one payload to every stored subscription. Exported for
+ * ./broadcast.ts.
+ */
+export async function sendPushToAllSubscribers(title: string, body: string, url?: string): Promise<{ sent: number; failed: number; pruned: number; reason?: string }> {
+    if (!isPushConfigured()) {
+        return { sent: 0, failed: 0, pruned: 0, reason: 'Push notifications are not configured (VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY unset).' }
+    }
+    const rows = readCollection<PushSubscriptionRecord>(COLLECTION)
+    return sendPushToRows(rows, title, body, url)
+}
+
+/**
+ * Same as sendPushToAllSubscribers but scoped to admin-role users only —
+ * for internal ops signals (e.g. "an agent just uploaded room photos",
+ * see server/room-capture.ts) that shouldn't blast every subscriber, agents
+ * and normal users included, the way the broadcast tool's own deliberate
+ * "message everyone" flow does.
+ */
+export async function sendPushToAdmins(title: string, body: string, url?: string): Promise<{ sent: number; failed: number; pruned: number; reason?: string }> {
+    if (!isPushConfigured()) {
+        return { sent: 0, failed: 0, pruned: 0, reason: 'Push notifications are not configured (VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY unset).' }
+    }
+    const rows = readCollection<PushSubscriptionRecord>(COLLECTION)
+    if (rows.length === 0) return { sent: 0, failed: 0, pruned: 0 }
+
+    const { storage } = await import('../storage')
+    const users = await storage.getAllUsers()
+    const adminIds = new Set(users.filter((u) => u.role === 'admin').map((u) => u.id))
+    const adminRows = rows.filter((r) => adminIds.has(r.userId))
+    if (adminRows.length === 0) return { sent: 0, failed: 0, pruned: 0 }
+
+    return sendPushToRows(adminRows, title, body, url)
 }
 
 export function registerWebPushRoutes(app: Express, requireStrictAdmin: RequestHandler): void {

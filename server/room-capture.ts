@@ -214,6 +214,24 @@ async function processVideo(
   return { kind: videoKind, assets: accepted, warnings, rejectionReasons };
 }
 
+async function notifyAdminsOfRoomUpload(
+  propertyId: string,
+  uploader: { id: number; fullName?: string; username?: string },
+  room: RoomEntry
+): Promise<void> {
+  const { storage } = await import('./storage');
+  const { sendPushToAdmins } = await import('./gene/web-push');
+  const property = await storage.getProperty(parseInt(propertyId));
+  const agentName = uploader.fullName || uploader.username || `Agent #${uploader.id}`;
+  const propertyTitle = property?.title || `Property ${propertyId}`;
+  const statusText = room.status === 'qualified' ? 'qualified' : 'needs a retake';
+  await sendPushToAdmins(
+    'New room photos uploaded',
+    `${agentName} uploaded "${room.name}" for ${propertyTitle} — ${statusText}.`,
+    `/admin/virtual-tour-manager?propertyId=${propertyId}`
+  );
+}
+
 export const uploadRoomCapture = (req: Request, res: Response, next: NextFunction) => {
   roomCaptureUpload(req, res, async (err: any) => {
     if (err) return next(err);
@@ -261,6 +279,16 @@ export const uploadRoomCapture = (req: Request, res: Response, next: NextFunctio
       manifest.rooms.push(entry);
       saveManifest(propertyId, manifest);
 
+      // Live admin notification ("let the admin get live notifications
+      // provided any agent is uploading photos") — fire-and-forget, never
+      // lets a push failure (or push simply not being configured) affect
+      // the upload response itself. Skipped when an admin does the
+      // uploading themselves — nothing to notify them of.
+      const uploader = req.user as { id: number; role: string; fullName?: string; username?: string } | undefined;
+      if (uploader?.role === 'agent') {
+        void notifyAdminsOfRoomUpload(propertyId, uploader, entry).catch(() => {});
+      }
+
       return res.json({
         status: entry.status === 'qualified' ? 'success' : 'needs_retake',
         room: entry,
@@ -276,7 +304,21 @@ export const uploadRoomCapture = (req: Request, res: Response, next: NextFunctio
 export const getRoomCaptureManifest = (req: Request, res: Response) => {
   const propertyId = req.params.propertyId;
   const manifest = loadManifest(propertyId);
-  res.json(manifest);
+  // Enrich each asset with a URL the client can render directly in an <img>.
+  // draftDirFor's on-disk path already lives under the /uploads/tours
+  // static mount (see setupStaticFileRoutes in server/upload.ts) — this is
+  // just a relative-path rewrite, not a new file-serving route. Lets
+  // uploaded photos show up immediately in the agent's dashboard (see
+  // AgentDashboard.tsx), before the tour is even finalized.
+  const draftDirName = path.basename(draftDirFor(propertyId));
+  const withUrls = {
+    ...manifest,
+    rooms: manifest.rooms.map((r) => ({
+      ...r,
+      assets: r.assets.map((a) => ({ ...a, url: `/uploads/tours/${draftDirName}/${a.relPath}` })),
+    })),
+  };
+  res.json(withUrls);
 };
 
 export const deleteRoomCapture = (req: Request, res: Response) => {
