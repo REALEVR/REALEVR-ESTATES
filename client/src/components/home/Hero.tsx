@@ -4,8 +4,8 @@ import { motion } from 'framer-motion';
 import "../Hero.css"
 
 import houseImg from '../../assets/images/hero-house.jpg';
+import mansionBg from '../../assets/images/hero-mansion.jpg';
 import FilterBar from './FilterBar';
-import MotionBackground from '@/components/motion/MotionBackground';
 import CountUp from '@/components/motion/CountUp';
 import VRBadge from '@/components/property/VRBadge';
 import ExploreFiltersDialog from './ExploreFiltersDialog';
@@ -258,8 +258,21 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
   };
 
   return (
-    <section className='relative bg-background -mx-4 sm:-mx-6 lg:-mx-8 vr-grid-bg'>
-      <MotionBackground tone="accent" />
+    <section className='relative bg-background -mx-4 sm:-mx-6 lg:-mx-8 overflow-hidden'>
+      {/* Real photo instead of the old flat "VR grid" blueprint pattern —
+          a modern villa render, aspirational rather than a specific real
+          property (this section isn't tied to any one listing). A dark
+          scrim sits between the photo and the content below so the
+          headline/stats stay readable over a busy image instead of the
+          flat cream backdrop they were tuned for; every text color in this
+          section was flipped to a white/light variant to match. */}
+      <img
+        src={mansionBg}
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/50 to-black/60" />
  <section className="relative z-10 w-full mdx_hero p-8 md:p-12 mt-6 flex flex-col gap-8 hero-video-wrapper  newHero">
 
       {/* Main hero content */}
@@ -274,14 +287,8 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           <div className="mb-4">
             <VRBadge size="md" />
           </div>
-          <h1 className="text-5xl md:text-7xl font-light leading-tight text-foreground">
-            {/* Design-review fix (round 1): this was `text-accent` — the flat
-                shiny-silver token (#7D828A-ish) at italic/medium weight over
-                the alabaster background reads as near-illegible watermark
-                text rather than an intentional two-tone headline. Softened
-                charcoal (`text-foreground/70`) keeps the same "understated
-                second line" effect while staying clearly readable. */}
-            <span className="font-display italic font-medium text-foreground/70 text-6xl md:text-8xl hero-find-text vr-glow-text">Step Inside</span> <br />
+          <h1 className="text-5xl md:text-7xl font-light leading-tight text-white">
+            <span className="font-display italic font-medium text-white/80 text-6xl md:text-8xl hero-find-text">Step Inside</span> <br />
             <span className="font-display hero-text-two">Before You Arrive</span>
           </h1>
         </motion.div>
@@ -292,31 +299,39 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
         >
-          <p className="text-lg md:text-xl text-muted-foreground mb-4">
+          <p className="text-lg md:text-xl text-white/80 mb-4">
             Every listing comes with an immersive 360° virtual tour — walk through real homes on your phone, tablet, or a VR headset, before you ever set foot on the property.
           </p>
           <div className="flex gap-12">
             <div>
-              <div className="text-3xl md:text-4xl font-display font-medium text-foreground">
+              <div className="text-3xl md:text-4xl font-display font-medium text-white">
                 <CountUp value={liveListingCount} suffix="+" />
               </div>
-              <div className="text-muted-foreground text-base">Live Listings Today</div>
+              <div className="text-white/70 text-base">Live Listings Today</div>
             </div>
             {tourCoveragePercent !== null && (
               <>
-                <div className="border-l border-border h-12 mx-4"></div>
+                <div className="border-l border-white/30 h-12 mx-4"></div>
                 <div>
-                  <div className="text-3xl md:text-4xl font-display font-medium text-foreground">
+                  <div className="text-3xl md:text-4xl font-display font-medium text-white">
                     <CountUp value={tourCoveragePercent} suffix="%" />
                   </div>
-                  <div className="text-muted-foreground text-base">Listings With a Virtual Tour</div>
+                  <div className="text-white/70 text-base">Listings With a Virtual Tour</div>
                 </div>
               </>
             )}
           </div>
         </motion.div>
       </div>
-       <FilterBar />
+      {/* FilterBar is shared with Home.tsx, where it sits on the normal
+          light page background — its own text/border colors are tuned for
+          that, not the dark photo now behind Hero. Rather than recolor a
+          shared component for one caller, give it an opaque light backing
+          here so it renders exactly as designed regardless of what's behind
+          it. */}
+      <div className="bg-card rounded-2xl shadow-md overflow-hidden">
+        <FilterBar />
+      </div>
 
       {/* House image/video and search bar — plus, sharing this same
           container, the "news" slide (HeroNewsSlide, real Africa
