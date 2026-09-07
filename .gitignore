@@ -31,6 +31,12 @@ attached_assets/
 !client/public/icon-maskable-192.png
 !client/public/icon-maskable-512.png
 
+# Hero section background (checked-in static asset, not user-uploaded media)
+# — see client/src/components/home/Hero.tsx. Without this, the blanket
+# *.jpg rule above would silently drop it from git, and the next fresh
+# clone/deploy would fail to resolve Hero.tsx's import of it.
+!client/src/assets/images/hero-mansion.jpg
+
 # Tour configurations (persist across deployments)
 tour-configs.json
 
