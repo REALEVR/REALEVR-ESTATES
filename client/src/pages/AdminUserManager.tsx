@@ -341,7 +341,19 @@ export default function AdminUserManager() {
                                                 <div>
                                                     <p className="font-medium">{user.fullName}</p>
                                                     <p className="text-sm text-muted-foreground">{user.email}</p>
-                                                    <p className="text-xs text-muted-foreground">@{user.username}</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        @{user.username}
+                                                        {/* Same field AdminAnalytics.tsx's by-country breakdown
+                                                            already aggregates (see server/gene/user-analytics.ts) -
+                                                            surfaced here per-user too instead of only as an
+                                                            aggregate elsewhere. Real signup-time data (phone
+                                                            country code), not a fabricated location. */}
+                                                        {(user as any).countryCode && (
+                                                            <span className="ml-2 text-muted-foreground/80">
+                                                                · {(user as any).countryCode}
+                                                            </span>
+                                                        )}
+                                                    </p>
                                                 </div>
                                             </button>
                                             <div className="flex items-center space-x-3">
@@ -438,7 +450,7 @@ export default function AdminUserManager() {
                                                 <div className="bg-gray-50 rounded-lg p-3">
                                                     <p className="text-sm text-muted-foreground">Total Views</p>
                                                     <p className="text-xl font-bold">
-                                                        {agent.totalViews.toLocaleString()}
+                                                        {(agent.totalViews ?? 0).toLocaleString()}
                                                     </p>
                                                 </div>
                                                 <div className="bg-gray-50 rounded-lg p-3">
@@ -669,7 +681,16 @@ export default function AdminUserManager() {
                                             <TableCell>{p.location}</TableCell>
                                             <TableCell className="capitalize">{p.category}</TableCell>
                                             <TableCell>
-                                                {p.currency} {p.price.toLocaleString()}
+                                                {/* BUG FIX (the actual white-screen/error-page cause on
+                                                    /admin/users): `.price.toLocaleString()` on undefined threw
+                                                    here for any real property with no price on file — and every
+                                                    Tabs panel in this file actually mounts and renders
+                                                    immediately (Radix's TabsContent always forceMounts once its
+                                                    Presence child is a render-prop function, regardless of which
+                                                    tab is selected — CSS just hides the inactive ones), so this
+                                                    ran on page load, not only when the Properties tab was
+                                                    clicked. */}
+                                                {p.currency} {p.price != null ? p.price.toLocaleString() : 'N/A'}
                                             </TableCell>
                                             <TableCell>{p.viewCount ?? 0}</TableCell>
                                             <TableCell>
@@ -827,7 +848,7 @@ export default function AdminUserManager() {
                                     </div>
                                     <div className="text-center">
                                         <p className="text-2xl font-bold text-green-600">
-                                            {selectedAgent.totalViews.toLocaleString()}
+                                            {(selectedAgent.totalViews ?? 0).toLocaleString()}
                                         </p>
                                         <p className="text-sm text-muted-foreground">Total Views</p>
                                     </div>

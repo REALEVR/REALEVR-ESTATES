@@ -51,6 +51,34 @@ export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
     }
 }
 
+/**
+ * Sends a plain notification email to every admin-role user on file, so the
+ * admin doesn't have to be watching the in-app notification bell/inbox to
+ * hear about a new signup, a new agent upload, or a new support message.
+ * Admin emails are looked up dynamically via storage.getAllUsers() rather
+ * than hardcoded, so this keeps working if the admin roster changes.
+ * Best-effort: a missing EMAIL_USER/EMAIL_PASSWORD config or an empty admin
+ * roster just means nothing gets sent (sendEmail already no-throws on a
+ * misconfigured transporter) — never blocks the caller's own flow.
+ */
+export const sendEmailToAdmins = async (subject: string, html: string, text?: string): Promise<{ sent: number; attempted: number }> => {
+    try {
+        const { storage } = await import('./storage')
+        const users = await storage.getAllUsers()
+        const admins = users.filter((u) => u.role === 'admin' && u.email)
+
+        let sent = 0
+        for (const admin of admins) {
+            const ok = await sendEmail({ to: admin.email, subject, html, text })
+            if (ok) sent += 1
+        }
+        return { sent, attempted: admins.length }
+    } catch (error) {
+        console.error('Error notifying admins by email:', error)
+        return { sent: 0, attempted: 0 }
+    }
+}
+
 export const generateVerificationEmailHTML = (verificationUrl: string, userName: string, token: string): string => {
     return `
     <!DOCTYPE html>

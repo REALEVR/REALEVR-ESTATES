@@ -221,15 +221,16 @@ async function notifyAdminsOfRoomUpload(
 ): Promise<void> {
   const { storage } = await import('./storage');
   const { sendPushToAdmins } = await import('./gene/web-push');
+  const { sendEmailToAdmins } = await import('./email-service');
   const property = await storage.getProperty(parseInt(propertyId));
   const agentName = uploader.fullName || uploader.username || `Agent #${uploader.id}`;
   const propertyTitle = property?.title || `Property ${propertyId}`;
   const statusText = room.status === 'qualified' ? 'qualified' : 'needs a retake';
-  await sendPushToAdmins(
-    'New room photos uploaded',
-    `${agentName} uploaded "${room.name}" for ${propertyTitle} — ${statusText}.`,
-    `/admin/virtual-tour-manager?propertyId=${propertyId}`
-  );
+  const summary = `${agentName} uploaded "${room.name}" for ${propertyTitle} — ${statusText}.`;
+  await Promise.all([
+    sendPushToAdmins('New room photos uploaded', summary, `/admin/virtual-tour-manager?propertyId=${propertyId}`),
+    sendEmailToAdmins('New room photos uploaded', `<p>${summary}</p>`, summary).catch(() => ({ sent: 0, attempted: 0 })),
+  ]);
 }
 
 export const uploadRoomCapture = (req: Request, res: Response, next: NextFunction) => {

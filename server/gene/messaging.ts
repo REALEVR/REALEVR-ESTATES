@@ -31,6 +31,7 @@
 import type { Express, Request, Response, RequestHandler } from 'express'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
+import { sendEmailToAdmins } from '../email-service'
 
 const CONVERSATIONS_COLLECTION = 'gene_conversations'
 const MESSAGES_COLLECTION = 'gene_messages'
@@ -103,6 +104,22 @@ function appendMessage(conversation: Conversation, senderId: number, senderName:
         writeCollection(CONVERSATIONS_COLLECTION, conversations)
     }
     return message
+}
+
+/**
+ * Fire-and-forget: an agent's message into their shared admin-support
+ * thread is a "system message shared" the admin should hear about even if
+ * they're not watching the inbox — see the email-notifications ask this
+ * mirrors alongside new-signup emails (server/auth.ts) and the room-capture
+ * upload notice (server/room-capture.ts). Never awaited by callers.
+ */
+function notifyAdminsOfSupportMessage(senderName: string, text: string): void {
+    void sendEmailToAdmins(
+        `New message from ${senderName}`,
+        `<p><strong>${senderName}</strong> sent a message in their admin support thread:</p>
+         <blockquote style="border-left:3px solid #ccc;margin:0;padding-left:12px;">${text}</blockquote>`,
+        `${senderName}: ${text}`
+    ).catch(() => {})
 }
 
 export function registerMessagingRoutes(app: Express, requireStrictAdmin: RequestHandler): void {
@@ -207,6 +224,7 @@ export function registerMessagingRoutes(app: Express, requireStrictAdmin: Reques
             }
 
             const sent = appendMessage(conversation, me.id, displayName(me), text)
+            if (me.role !== 'admin') notifyAdminsOfSupportMessage(displayName(me), text)
             res.json({ conversation, message: sent })
         } catch (err: any) {
             console.error('[gene/messaging] agent-admin start failed:', err)
@@ -262,6 +280,9 @@ export function registerMessagingRoutes(app: Express, requireStrictAdmin: Reques
             if (!canAccess(conversation, me.id, me.role)) return res.status(403).json({ message: 'Not your conversation.' })
 
             const sent = appendMessage(conversation, me.id, displayName(me), text)
+            if (conversation.kind === 'agent_admin' && me.role !== 'admin') {
+                notifyAdminsOfSupportMessage(displayName(me), text)
+            }
             res.json({ message: sent })
         } catch (err: any) {
             console.error('[gene/messaging] send failed:', err)

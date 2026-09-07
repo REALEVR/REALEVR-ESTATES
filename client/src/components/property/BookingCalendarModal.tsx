@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useLocation } from 'wouter'
 import { Calendar } from '@/components/ui/calendar'
 import {
     Dialog,
@@ -16,6 +17,9 @@ import { format } from 'date-fns'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import PaymentModal from '@/components/payment/PaymentModal'
 import { recordTourPayment } from '@/lib/iotect-verify-pay'
+import { useStartConversation } from '@/hooks/useMessaging'
+import type { User } from '@shared/schema'
+import { Phone, User as UserIcon } from 'lucide-react'
 
 interface BookingCalendarModalProps {
     isOpen: boolean
@@ -25,6 +29,11 @@ interface BookingCalendarModalProps {
     propertyCategory?: string // Add category to determine payment flow
     propertyPrice?: number // Daily rate for furnished properties
     propertyCurrency?: string // Currency for the property
+    /** The listing's owner/host — passed in from PropertyDetails so that,
+     * once a BnB deposit clears, we can put their contact details in front
+     * of the payer immediately (on-screen dialog below) and again as a
+     * message in the payer's inbox, instead of making them dig for it. */
+    owner?: User | null
 }
 
 export default function BookingCalendarModal({
@@ -35,8 +44,10 @@ export default function BookingCalendarModal({
     propertyCategory = 'rental',
     propertyPrice = 0,
     propertyCurrency = 'UGX',
+    owner = null,
 }: BookingCalendarModalProps) {
     const { toast } = useToast()
+    const [, setLocation] = useLocation()
     const [date, setDate] = useState<Date | undefined>(new Date())
     const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null)
     const [numGuests, setNumGuests] = useState(1)
@@ -44,6 +55,8 @@ export default function BookingCalendarModal({
     const [notes, setNotes] = useState('')
     const [tab, setTab] = useState('calendar')
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+    const [isHostDetailsOpen, setIsHostDetailsOpen] = useState(false)
+    const startConversation = useStartConversation()
 
     // For BnBs, calculate 20% deposit
     const isBnB = propertyCategory === 'BnB' || propertyCategory === 'furnished_houses'
@@ -149,9 +162,46 @@ export default function BookingCalendarModal({
             console.error('Error saving payment info', error)
         }
 
-        // Redirect with success parameter for BnBs
         if (isBnB) {
-            window.location.href = `${window.location.pathname}?booking=confirmed`
+            // Soft-navigate (wouter) instead of a full page reload — a hard
+            // window.location.href reload would blow away the on-screen host
+            // details dialog opened right below before the payer ever sees it.
+            setLocation(`${window.location.pathname}?booking=confirmed`)
+
+            // Put the host's contact details in the payer's inbox: start (or
+            // reuse) a conversation with the host and write their contact
+            // info directly into the message body, so it's there in writing
+            // the next time the payer opens their inbox — not just implied
+            // by who the conversation is with.
+            if (owner?.id) {
+                const contactLines = [
+                    `Host: ${owner.fullName || owner.username}`,
+                    owner.phoneNumber ? `Phone: ${owner.phoneNumber}` : null,
+                    owner.companyName ? `Company: ${owner.companyName}` : null,
+                ].filter(Boolean)
+                startConversation.mutate(
+                    {
+                        toUserId: owner.id,
+                        propertyId,
+                        message: `I've paid the ${depositAmount.toLocaleString()} ${propertyCurrency} deposit for ${propertyTitle} (${numNights} night${
+                            numNights === 1 ? '' : 's'
+                        }, ${numGuests} guest${numGuests === 1 ? '' : 's'}). Looking forward to hearing from you.\n\n${contactLines.join(
+                            '\n'
+                        )}${notes ? `\n\nNotes: ${notes}` : ''}`,
+                    },
+                    {
+                        // Not being signed in (or the request failing) should
+                        // never block the booking flow itself — the on-screen
+                        // dialog below already shows the same host details.
+                        onError: () => {},
+                    }
+                )
+            }
+
+            // On-screen prompt: show the host's details immediately, more
+            // prominent than the toast below or scrolling down to the
+            // OwnerContactDetails section.
+            setIsHostDetailsOpen(true)
         }
 
         toast({
@@ -335,6 +385,66 @@ export default function BookingCalendarModal({
                 currency={propertyCurrency}
                 successCallback={handlePaymentSuccess}
             />
+
+            {/* On-screen host-details prompt — shown the moment a BnB deposit
+                clears, so the payer doesn't have to scroll down to the
+                OwnerContactDetails section or dig through their inbox to
+                find out who to coordinate with. The same details are also
+                sent as a message above (startConversation), so they're not
+                lost once this dialog is dismissed. */}
+            {isBnB && (
+                <Dialog open={isHostDetailsOpen} onOpenChange={setIsHostDetailsOpen}>
+                    <DialogContent className="sm:max-w-[420px]">
+                        <DialogHeader>
+                            <DialogTitle className="text-xl">Booking confirmed — here's your host</DialogTitle>
+                            <DialogDescription>
+                                Your deposit for {propertyTitle} went through. Reach out to the host directly to
+                                arrange check-in.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        {owner ? (
+                            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+                                        <UserIcon className="h-5 w-5 text-accent" />
+                                    </div>
+                                    <div>
+                                        <p className="font-medium">{owner.fullName || owner.username}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {owner.role === 'agent' ? 'Property Agent' : 'Property Host'}
+                                        </p>
+                                    </div>
+                                </div>
+                                {owner.phoneNumber && (
+                                    <a
+                                        href={`tel:${owner.phoneNumber}`}
+                                        className="flex items-center gap-2 text-sm font-medium text-accent hover:underline"
+                                    >
+                                        <Phone className="h-4 w-4" />
+                                        {owner.phoneNumber}
+                                    </a>
+                                )}
+                                {owner.companyName && (
+                                    <p className="text-sm text-muted-foreground">{owner.companyName}</p>
+                                )}
+                                <p className="text-xs text-muted-foreground pt-2 border-t">
+                                    We've also sent these details to your inbox on this site.
+                                </p>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">
+                                We couldn't load the host's contact details right now — check your inbox on this
+                                site, they've been sent there too.
+                            </p>
+                        )}
+
+                        <DialogFooter>
+                            <Button onClick={() => setIsHostDetailsOpen(false)}>Got it</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
         </>
     )
 }

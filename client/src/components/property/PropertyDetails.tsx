@@ -547,6 +547,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                 propertyCategory={isBnB ? 'BnB' : property.category || 'rental'}
                 propertyPrice={property.price}
                 propertyCurrency={property.currency || 'UGX'}
+                owner={propertyOwner}
             />
 
             {/* Virtual Tour Modal */}

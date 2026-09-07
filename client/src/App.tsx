@@ -19,6 +19,7 @@ import PrivacyPolicy from '@/pages/PrivacyPolicy'
 import TermsOfService from '@/pages/TermsOfService'
 import CookiePolicy from '@/pages/CookiePolicy'
 import RefundPolicy from '@/pages/RefundPolicy'
+import ComingSoonPage from '@/pages/ComingSoonPage'
 import HostResponsibly from '@/pages/HostResponsibly'
 import PropertyManager from '@/pages/PropertyManager'
 import AdminUserManager from '@/pages/AdminUserManager'
@@ -82,6 +83,32 @@ function Router() {
             <Route path="/terms" component={TermsOfService} />
             <Route path="/cookies" component={CookiePolicy} />
             <Route path="/refund-policy" component={RefundPolicy} />
+            {/* Footer previously linked these three at "#" — no real content
+                exists for them yet (no job listings, investor materials, or
+                news articles to show honestly), so each gets a real,
+                non-fabricated "not live yet, here's how to reach us" page
+                instead of a dead link. */}
+            <Route path="/careers">
+                <ComingSoonPage
+                    title="Careers"
+                    description="We're not running a public careers page yet. If you're interested in working with RealEVR Estates, reach out and we'll follow up directly."
+                    canonicalPath="/careers"
+                />
+            </Route>
+            <Route path="/investors">
+                <ComingSoonPage
+                    title="Investors"
+                    description="Investor materials aren't published here yet. Get in touch and we'll share what's relevant directly."
+                    canonicalPath="/investors"
+                />
+            </Route>
+            <Route path="/news">
+                <ComingSoonPage
+                    title="News"
+                    description="We haven't started publishing news here yet. Check back later, or contact us for anything time-sensitive."
+                    canonicalPath="/news"
+                />
+            </Route>
             <Route path="/host-responsibly" component={HostResponsibly} />
 
             {/* Footer Pages */}
