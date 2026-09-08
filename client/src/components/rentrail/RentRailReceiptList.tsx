@@ -11,7 +11,7 @@ import { Loader2, Phone, Receipt, XCircle } from 'lucide-react'
  * and what they're owed; a landlord sees who paid them and what they'll
  * receive (already net of the service fee).
  */
-export type RentRailStatus = 'pending_collection' | 'collected' | 'payout_pending_manual' | 'paid_out' | 'collection_failed'
+export type RentRailStatus = 'pending_collection' | 'collected' | 'payout_pending_manual' | 'payout_processing' | 'paid_out' | 'collection_failed'
 
 export interface RentRailReceiptRow {
     id: number
@@ -32,6 +32,7 @@ export interface RentRailReceiptRow {
 const STATUS_LABEL: Record<RentRailStatus, string> = {
     pending_collection: 'Awaiting payment',
     collected: 'Collected — finalizing',
+    payout_processing: 'Sending to landlord automatically',
     payout_pending_manual: 'Payment received — sending to landlord',
     paid_out: 'Paid out',
     collection_failed: 'Payment failed',
@@ -40,6 +41,7 @@ const STATUS_LABEL: Record<RentRailStatus, string> = {
 const STATUS_VARIANT: Record<RentRailStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
     pending_collection: 'secondary',
     collected: 'secondary',
+    payout_processing: 'default',
     payout_pending_manual: 'default',
     paid_out: 'outline',
     collection_failed: 'destructive',
