@@ -51,6 +51,12 @@ export interface GeneConversation {
     id: string // === sessionId
     sessionId: string
     messages: GeneChatMessage[]
+    // Set the first time this conversation's visitor shares an email or
+    // phone number in a message (see detectContactDetails below) — a
+    // simple, real lead-capture signal with no separate "share your
+    // details" form to build. Only ever set once per conversation, so a
+    // visitor who mentions their number twice doesn't re-notify admins.
+    capturedLead?: { contact: string; capturedAt: string }
     createdAt: string
     updatedAt: string
 }
@@ -204,6 +210,76 @@ function writeEscalation(sessionId: string, message: string, reason: string): vo
 }
 
 // ---------------------------------------------------------------------------
+// Lead capture — a visitor sharing an email or phone number in the chat is
+// treated as a lead: admins get notified (in-app + email) and the very next
+// reply warmly acknowledges it. See GeneConversation.capturedLead above.
+// ---------------------------------------------------------------------------
+
+const EMAIL_PATTERN = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/
+// East Africa numbers come in several country codes (+256/254/255/250 etc.)
+// and formats, so this is deliberately a loose heuristic (7+ digits, with
+// optional +, spaces, or dashes) rather than a single-country parser like
+// server/gene/rentrail.ts's normalizeUgandaPhone. A false positive just
+// means an extra admin notification for something that turns out not to be
+// a real number; a false negative means a real lead is silently missed —
+// so this errs toward catching more, not fewer.
+const PHONE_PATTERN = /\+?\d[\d\s-]{6,}\d/
+
+function detectContactDetails(message: string): string | null {
+    const email = message.match(EMAIL_PATTERN)?.[0]
+    if (email) return email
+    const phone = message.match(PHONE_PATTERN)?.[0]
+    if (phone) return phone.trim()
+    return null
+}
+
+/**
+ * Notifies every admin the instant a chat visitor shares contact details —
+ * both channels the user asked for: an in-app notification (bell icon,
+ * server/models/Notification.ts) and an email via sendEmailToAdmins
+ * (server/email-service.ts, which is already configured to send through
+ * Gmail). Both best-effort and independent of each other — one failing
+ * (e.g. email not configured) never blocks the other or the chat reply.
+ */
+async function notifyAdminsOfNewLead(sessionId: string, message: string, contact: string): Promise<void> {
+    try {
+        const { storage } = await import('../storage')
+        const admins = (await storage.getAllUsers()).filter((u) => u.role === 'admin')
+        const { createNotification } = await import('../models/Notification')
+        await Promise.all(
+            admins.map((admin) =>
+                createNotification({
+                    userId: String(admin.id),
+                    title: 'New lead from AI chat',
+                    message: `A visitor shared their contact details (${contact}) while chatting with the site assistant.`,
+                    type: 'system',
+                    link: `/admin`,
+                    data: { sessionId, contact, chatMessage: message },
+                }).catch((err) => console.error('[gene/chat] failed to notify an admin in-app:', err))
+            )
+        )
+    } catch (err) {
+        console.error('[gene/chat] failed to create in-app lead notifications:', err)
+    }
+
+    try {
+        const { sendEmailToAdmins } = await import('../email-service')
+        await sendEmailToAdmins(
+            'New lead from the AI chat assistant',
+            `<p>A visitor just shared their contact details while chatting with the site's AI assistant.</p>
+             <ul>
+               <li><strong>Contact:</strong> ${contact}</li>
+               <li><strong>Their message:</strong> ${message}</li>
+               <li><strong>Session:</strong> ${sessionId}</li>
+             </ul>`,
+            `New chat lead — contact: ${contact} — message: "${message}" — session: ${sessionId}`
+        )
+    } catch (err) {
+        console.error('[gene/chat] failed to email admins about a new lead:', err)
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
 
@@ -225,9 +301,32 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             const intent = classifyIntent(message)
             conversation.messages.push({ role: 'user', text: message, intent, createdAt: nowIso() })
 
+            // Lead capture — only the first time per conversation, so
+            // mentioning a number twice doesn't double-notify admins.
+            let justCapturedLead = false
+            if (!conversation.capturedLead) {
+                const contact = detectContactDetails(message)
+                if (contact) {
+                    conversation.capturedLead = { contact, capturedAt: nowIso() }
+                    justCapturedLead = true
+                    // Fire-and-forget, same posture as writeEscalation's Slack
+                    // notify above — never let this slow down or fail the reply.
+                    notifyAdminsOfNewLead(sessionId, message, contact).catch((err) =>
+                        console.error('[gene/chat] lead notification failed:', err)
+                    )
+                }
+            }
+
             const aiReply = await getReply(conversation.messages.slice(0, -1), message)
             const usedAi = aiReply !== null
-            const reply = aiReply ?? CANNED_REPLIES[intent]
+            let reply = aiReply ?? CANNED_REPLIES[intent]
+            // Deterministic, not dependent on the AI provider cooperating —
+            // guarantees every visitor who shares their details gets
+            // acknowledged, matching this module's "never depend solely on
+            // AI" posture elsewhere (see CANNED_REPLIES).
+            if (justCapturedLead) {
+                reply = `Thanks for sharing your contact details — a member of our team may follow up if you need anything specific. ${reply}`
+            }
 
             const escalated = isLowConfidence(intent, usedAi, reply)
             if (escalated) {
@@ -238,7 +337,7 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             conversation.messages.push({ role: 'assistant', text: reply, intent, createdAt: nowIso() })
             saveConversation(conversation)
 
-            res.json({ sessionId, reply, intent, escalated })
+            res.json({ sessionId, reply, intent, escalated, leadCaptured: justCapturedLead })
         } catch (err) {
             console.error('[gene/chat] POST /api/gene/chat failed:', err)
             res.status(500).json({ message: 'Failed to process chat message.' })

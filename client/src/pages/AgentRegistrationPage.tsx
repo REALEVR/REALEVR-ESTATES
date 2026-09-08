@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { UserPlus, Loader2, Building, CheckIcon, Star, Crown, Zap, Users, Eye, Calendar, Shield } from 'lucide-react'
+import { UserPlus, Loader2, Building, CheckIcon, Star, Crown, Zap, Users, Eye, Calendar, Shield, Gift } from 'lucide-react'
 import { useFlutterwave, FlutterWaveTypes } from 'flutterwave-react-v3'
 import { intiateGateWay, makePaymentString, paymentEmitter, PaymentSources, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
 
@@ -25,7 +25,7 @@ const AgentRegistrationSchema = z
         phoneNumber: z.string().min(10, 'Phone number must be at least 10 characters'),
         companyName: z.string().optional(),
         licenseNumber: z.string().optional(),
-        subscriptionPlan: z.enum(['basic', 'professional', 'enterprise']),
+        subscriptionPlan: z.enum(['free_trial', 'basic', 'professional', 'enterprise']),
     })
     .refine((data) => data.password === data.confirmPassword, {
         message: "Passwords don't match",
@@ -34,11 +34,17 @@ const AgentRegistrationSchema = z
 
 type AgentRegistrationFormValues = z.infer<typeof AgentRegistrationSchema>
 
+// Free trial: no payment, capped at a small number of listings — server-side
+// enforced too (see POST /api/properties/create's free_trial check in
+// server/routes.ts), this is just what's shown/offered here.
+const TRIAL_DAYS = 14
+const TRIAL_MAX_PROPERTIES = 2
+
 export default function AgentRegistrationPage() {
     const [, setLocation] = useLocation()
     const { registerMutation } = useAuth()
     const { toast } = useToast()
-    const [selectedPlan, setSelectedPlan] = useState<'basic' | 'professional' | 'enterprise'>('basic')
+    const [selectedPlan, setSelectedPlan] = useState<'free_trial' | 'basic' | 'professional' | 'enterprise'>('free_trial')
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
     const [registrationData, setRegistrationData] = useState<AgentRegistrationFormValues | null>(null)
 
@@ -53,7 +59,7 @@ export default function AgentRegistrationPage() {
             phoneNumber: '',
             companyName: '',
             licenseNumber: '',
-            subscriptionPlan: 'basic',
+            subscriptionPlan: 'free_trial',
         },
     })
 
@@ -64,6 +70,21 @@ export default function AgentRegistrationPage() {
     }
 
     const planDetails = {
+        free_trial: {
+            name: 'Free Trial',
+            price: 0,
+            currency: 'UGX',
+            period: `${TRIAL_DAYS}-day trial`,
+            features: [
+                `List up to ${TRIAL_MAX_PROPERTIES} properties`,
+                'Basic virtual tours',
+                'Email support',
+                'No payment required',
+                `Upgrade any time within ${TRIAL_DAYS} days`,
+            ],
+            color: 'border-green-300',
+            badgeColor: 'bg-green-100 text-green-800',
+        },
         basic: {
             name: 'Basic Agent',
             price: 50000,
@@ -145,6 +166,13 @@ export default function AgentRegistrationPage() {
 
     const onSubmit = async (data: AgentRegistrationFormValues) => {
         setRegistrationData(data)
+        // Free trial: no payment gateway involved at all — the whole point
+        // is "easily register." Everything else still goes through the
+        // existing payment-modal -> IoTec flow unchanged.
+        if (selectedPlan === 'free_trial') {
+            await createAgentAccount(undefined, Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000, data)
+            return
+        }
         setIsPaymentModalOpen(true)
     }
 
@@ -168,11 +196,20 @@ export default function AgentRegistrationPage() {
         }
     }
 
-    const createAgentAccount = async (paymentId?: string, expiresAt?: number) => {
+    const createAgentAccount = async (paymentId?: string, expiresAt?: number, formDataOverride?: AgentRegistrationFormValues) => {
         try {
+            // formDataOverride is passed directly by the free-trial path in
+            // onSubmit, rather than reading the registrationData state right
+            // after setting it in the same tick — that state update hasn't
+            // flushed yet, so reading it here would risk stale/null data.
+            // The paid-plan path (via handlePaymentSuccess) always runs on a
+            // later event after the state has settled, so it can keep using
+            // registrationData as before.
+            const sourceData = formDataOverride ?? registrationData!
+
             // Create the agent account with subscription details
             const agentData = {
-                ...registrationData!,
+                ...sourceData,
                 role: 'agent' as const,
                 isVerified: false,
                 membershipPlan: selectedPlan,
@@ -180,7 +217,7 @@ export default function AgentRegistrationPage() {
                 membershipEndDate: expiresAt
                     ? new Date(expiresAt).toISOString()
                     : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                subscriptionPaymentId: paymentId || `test-${Date.now()}`,
+                subscriptionPaymentId: paymentId || (selectedPlan === 'free_trial' ? 'free-trial-no-payment' : `test-${Date.now()}`),
                 subscriptionStatus: 'active',
             }
 
@@ -398,6 +435,11 @@ export default function AgentRegistrationPage() {
                                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                                     Creating Account...
                                                 </>
+                                            ) : selectedPlan === 'free_trial' ? (
+                                                <>
+                                                    <Gift className="mr-2 h-4 w-4" />
+                                                    Start Free Trial — No Payment
+                                                </>
                                             ) : (
                                                 <>
                                                     <UserPlus className="mr-2 h-4 w-4" />
@@ -424,11 +466,39 @@ export default function AgentRegistrationPage() {
                                 </CardHeader>
                                 <CardContent>
                                     <Tabs value={selectedPlan} onValueChange={(value) => setSelectedPlan(value as any)}>
-                                        <TabsList className="grid w-full grid-cols-3">
+                                        <TabsList className="grid w-full grid-cols-4">
+                                            <TabsTrigger value="free_trial">Free Trial</TabsTrigger>
                                             <TabsTrigger value="basic">Basic</TabsTrigger>
                                             <TabsTrigger value="professional">Professional</TabsTrigger>
                                             <TabsTrigger value="enterprise">Enterprise</TabsTrigger>
                                         </TabsList>
+
+                                        <TabsContent value="free_trial" className="pt-4">
+                                            <div className={`rounded-lg border-2 ${planDetails.free_trial.color} p-6 space-y-4`}>
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <h3 className="text-xl font-bold">{planDetails.free_trial.name}</h3>
+                                                        <Badge className={planDetails.free_trial.badgeColor}>
+                                                            <Gift className="h-3 w-3 mr-1" />
+                                                            No payment required
+                                                        </Badge>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="text-3xl font-bold">FREE</div>
+                                                        <div className="text-sm text-gray-500">for {TRIAL_DAYS} days</div>
+                                                    </div>
+                                                </div>
+
+                                                <ul className="space-y-3">
+                                                    {planDetails.free_trial.features.map((feature, index) => (
+                                                        <li key={index} className="flex items-center gap-2">
+                                                            <CheckIcon className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                                            <span className="text-sm">{feature}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        </TabsContent>
 
                                         <TabsContent value="basic" className="pt-4">
                                             <div
