@@ -88,6 +88,11 @@ const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
     next()
 }
 
+// Free trial agents (AgentRegistrationPage.tsx's Free Trial plan) can list
+// up to this many properties before being asked to upgrade — enforced in
+// POST /api/properties/create below.
+const FREE_TRIAL_MAX_PROPERTIES = 2
+
 // Middleware to check if user has active subscription (for agents)
 const subscriptionMiddleware = (req: Request, res: Response, next: NextFunction) => {
     console.log('Current Request', req)
@@ -1291,6 +1296,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (!propertyData.ownerId && req.user) {
                 propertyData.ownerId = req.user.id
                 console.log('[DEBUG] Setting ownerId to current user:', req.user.id)
+            }
+
+            // Free trial agents (see AgentRegistrationPage.tsx's Free Trial
+            // plan — no payment, membershipPlan: 'free_trial') are capped at
+            // FREE_TRIAL_MAX_PROPERTIES listings. Checked here rather than
+            // relying on the client's own count, since this is the one
+            // place a property actually gets created.
+            if (req.user && req.user.role === 'agent' && req.user.membershipPlan === 'free_trial') {
+                const existing = await storage.getPropertiesByOwner(req.user.id)
+                if (existing.length >= FREE_TRIAL_MAX_PROPERTIES) {
+                    return res.status(403).json({
+                        message: `Free trial agents can list up to ${FREE_TRIAL_MAX_PROPERTIES} properties. Upgrade your plan from your dashboard to list more.`,
+                    })
+                }
             }
 
             // Validate required fields

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/hooks/use-auth'
-import { Redirect } from 'wouter'
+import { Redirect, Link } from 'wouter'
 import { Property } from '@shared/schema'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -26,6 +26,7 @@ import {
     Loader2,
     Download,
     Receipt,
+    Gift,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import PropertyFormNew from '@/components/admin/PropertyFormNew'
@@ -211,6 +212,8 @@ export function AgentDashboard() {
                     </div>
                     <InstallAppButton />
                 </div>
+
+                {user.membershipPlan === 'free_trial' && <FreeTrialBanner propertyCount={properties.length} />}
 
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -787,6 +790,32 @@ function InboxTab() {
                     ))}
                 </CardContent>
             </Card>
+        </div>
+    )
+}
+
+// Mirrors FREE_TRIAL_MAX_PROPERTIES in server/routes.ts — that's the value
+// actually enforced (POST /api/properties/create); this is just what's shown.
+const FREE_TRIAL_MAX_PROPERTIES = 2
+
+/** Shown at the top of a free-trial agent's dashboard (see
+ * AgentRegistrationPage.tsx's Free Trial plan) — makes the 2-property cap
+ * visible in context instead of only surfacing as an error when they try
+ * to add a 3rd, and gives them a direct way to upgrade. */
+function FreeTrialBanner({ propertyCount }: { propertyCount: number }) {
+    const remaining = Math.max(0, FREE_TRIAL_MAX_PROPERTIES - propertyCount)
+    return (
+        <div className="mb-8 flex items-center justify-between gap-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 flex-wrap">
+            <div className="flex items-center gap-2 text-sm text-green-900">
+                <Gift className="h-4 w-4 shrink-0" />
+                <span>
+                    <strong>Free trial</strong> — {propertyCount} of {FREE_TRIAL_MAX_PROPERTIES} properties used
+                    {remaining > 0 ? ` (${remaining} left)` : ' (limit reached)'}.
+                </span>
+            </div>
+            <Button asChild size="sm" variant="outline" className="border-green-300 bg-white">
+                <Link href="/membership">Upgrade plan</Link>
+            </Button>
         </div>
     )
 }

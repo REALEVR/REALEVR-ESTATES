@@ -15,6 +15,7 @@ import { Loader2, LogOut, User, Glasses, Building, Rocket, BarChart3, Receipt } 
 import { toast } from "@/hooks/use-toast";
 import NotificationCenter from "@/components/NotificationCenter";
 import AuthModal from "@/components/auth/AuthModal";
+import LanguageSwitcher from "@/components/layout/LanguageSwitcher";
 
 export default function Header() {
   const [location, setLocation] = useLocation();
@@ -109,9 +110,7 @@ export default function Header() {
             </Button>
           </Link>
 
-          <Button variant="ghost" size="icon" className="hidden md:flex rounded-full p-2 hover:bg-secondary">
-            <i className="fas fa-globe text-foreground"></i>
-          </Button>
+          <LanguageSwitcher />
 
           <NotificationCenter />
 
