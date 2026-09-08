@@ -25,6 +25,7 @@ import {
     Star,
     Loader2,
     Download,
+    Receipt,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import PropertyFormNew from '@/components/admin/PropertyFormNew'
@@ -34,6 +35,8 @@ import { useStartAgentAdminConversation } from '@/hooks/useMessaging'
 import MessagesInbox from '@/components/messaging/MessagesInbox'
 import { useInstallPrompt } from '@/hooks/useInstallPrompt'
 import BoostPurchaseCard from '@/components/boost/BoostPurchaseCard'
+import AddPhoneNumberPrompt from '@/components/rentrail/AddPhoneNumberPrompt'
+import RentRailReceiptList, { type RentRailReceiptRow } from '@/components/rentrail/RentRailReceiptList'
 
 interface PropertyWithViews extends Property {
     viewCount: number
@@ -257,14 +260,24 @@ export function AgentDashboard() {
                 </div>
 
                 {/* Main Content */}
-                <Tabs defaultValue="properties" className="space-y-6">
-                    <TabsList>
+                {/* defaultValue reads ?tab=rentpay so the in-app notification
+                    fired the instant a RentRail payout is confirmed (see
+                    server/gene/rentrail.ts's deliverReceipt) lands straight
+                    on the Rent Pay tab, not buried behind My Properties. */}
+                <Tabs
+                    defaultValue={new URLSearchParams(window.location.search).get('tab') === 'rentpay' ? 'rentpay' : 'properties'}
+                    className="space-y-6"
+                >
+                    <TabsList className="flex-wrap h-auto">
                         <TabsTrigger value="properties">My Properties</TabsTrigger>
                         <TabsTrigger value="analytics">Analytics</TabsTrigger>
                         <TabsTrigger value="tours">Virtual Tours</TabsTrigger>
                         <TabsTrigger value="inbox">Inbox</TabsTrigger>
                         <TabsTrigger value="messages">Messages</TabsTrigger>
                         <TabsTrigger value="reviews">Reviews</TabsTrigger>
+                        <TabsTrigger value="rentpay">
+                            <Receipt className="mr-1.5 h-3.5 w-3.5" /> Rent Pay
+                        </TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="properties" className="space-y-6">
@@ -537,6 +550,10 @@ export function AgentDashboard() {
                     <TabsContent value="reviews" className="space-y-6">
                         <ReviewsTab />
                     </TabsContent>
+
+                    <TabsContent value="rentpay" className="space-y-6">
+                        <RentPayTab />
+                    </TabsContent>
                 </Tabs>
             </div>
 
@@ -772,6 +789,39 @@ function InboxTab() {
             </Card>
         </div>
     )
+}
+
+/**
+ * RentRail rent payments sent to this landlord — matched live by their own
+ * account phone number against each payment's landlordPhone (see
+ * server/gene/rentrail.ts's GET /landlord-payments and
+ * findLandlordUserIdByPhone doc comment). If they haven't added a phone
+ * number yet, nothing can match — this shows the actual reason (and a way
+ * to fix it right here) instead of just an empty list.
+ */
+function RentPayTab() {
+    const rentPayQuery = useQuery<{ phoneNumberRequired: boolean; payments: RentRailReceiptRow[] }>({
+        queryKey: ['/api/gene/rentrail/landlord-payments'],
+    })
+
+    if (rentPayQuery.isLoading) {
+        return (
+            <div className="flex justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
+
+    if (rentPayQuery.data?.phoneNumberRequired) {
+        return (
+            <AddPhoneNumberPrompt
+                description="RentRail matches rent payments to your dashboard by phone number — add yours to see any payments sent to you."
+                invalidateQueryKey="/api/gene/rentrail/landlord-payments"
+            />
+        )
+    }
+
+    return <RentRailReceiptList perspective="landlord" rows={rentPayQuery.data?.payments ?? []} isLoading={false} />
 }
 
 /** Reviews left on this landlord's properties (server/gene/landlord-hub.ts). */
