@@ -28,6 +28,7 @@ import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
 import { notifyNewEscalation } from './slack-bridge'
 import { getAiReply } from './ai-provider'
+import { languageInstruction } from './locale'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -149,13 +150,14 @@ async function buildPropertyContext(): Promise<string> {
     }
 }
 
-async function getReply(history: GeneChatMessage[], message: string): Promise<string | null> {
+async function getReply(history: GeneChatMessage[], message: string, acceptLanguage?: string): Promise<string | null> {
     const propertyContext = await buildPropertyContext()
     const systemPrompt = [
         'You are GENE, a helpful, concise real-estate assistant for a property platform operating across East Africa',
         '(Uganda, Kenya, Tanzania, Rwanda). You help prospective tenants/buyers with pricing, availability, and',
         'booking viewings. Be friendly, brief (2-4 sentences), and honest — if you do not know a specific fact',
         '(exact price, exact availability), say so and offer to connect them with a human agent rather than guessing.',
+        languageInstruction(acceptLanguage),
         propertyContext,
     ]
         .filter(Boolean)
@@ -317,7 +319,7 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                 }
             }
 
-            const aiReply = await getReply(conversation.messages.slice(0, -1), message)
+            const aiReply = await getReply(conversation.messages.slice(0, -1), message, req.headers['accept-language'])
             const usedAi = aiReply !== null
             let reply = aiReply ?? CANNED_REPLIES[intent]
             // Deterministic, not dependent on the AI provider cooperating —
