@@ -36,8 +36,9 @@ import { Loader2, Receipt, ShieldCheck, ArrowRight } from 'lucide-react'
  * and the global <IoTecGatewayLight> modal AppShell renders) — sendPaymentRequest
  * gets an access token, intiateGateWay opens that shared modal, and the
  * `paymentEmitter` event below fires once IoTec confirms the charge. The
- * payout to the landlord is NOT automatic today (see server/gene/rentrail.ts's
- * doc comment for why) — an admin sends it by hand shortly after.
+ * payout to the landlord runs through IoTec's disbursements API
+ * automatically, falling back to an admin sending it by hand only if that
+ * doesn't go through (see server/gene/rentrail.ts's doc comment).
  */
 const SERVICE_FEE_UGX = 1000
 

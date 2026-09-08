@@ -16,22 +16,42 @@
  * push, and the client tells this module once IoTec confirms success.
  *
  * HONESTY NOTE (same posture as ./payments-core.ts and
- * ./referral-rewards.ts): the collection leg above is real and verified —
- * it's the same IoTec Collections API this app already charges tour-view
- * and BnB-deposit payments through. The PAYOUT leg (sending the landlord
- * their share) is NOT automated here. IoTec does offer a disbursements/
- * withdrawal product, but its API shape isn't documented anywhere in this
- * codebase (nothing here has ever called it — every existing payout flow
- * in this app, e.g. ./referral-rewards.ts's agent payout requests, is
- * manual-admin-confirmed for the same reason), and iotec.io / pay.iotec.io
- * are both unreachable from this environment to verify it firsthand. Rather
- * than guess at an endpoint and request body for a call that moves real
- * money, this module marks a collected payment `payout_pending_manual` and
- * gives an admin a one-click "mark as paid out" once they've sent the
- * landlord their share by hand — exactly ./referral-rewards.ts's pattern.
- * Wiring up real IoTec disbursements later is a contained change: replace
- * the manual-confirm step in registerRentRailRoutes' admin route with an
- * automated call, once the real API details are available.
+ * ./referral-rewards.ts): both legs are now real and verified against
+ * IoTec's own OpenAPI spec (ioTec Pay v1) — collection via
+ * POST /api/collections/collect (as before) and payout via
+ * POST /api/disbursements/disburse, both confirmed the same way: never
+ * trust the initiating call's own response as proof money moved, always
+ * independently check GET .../status/{id} against IoTec's own truth
+ * (getIotecCollectionStatus / getIotecDisbursementStatus below) before
+ * this module ever says so to a tenant or landlord.
+ *
+ * attemptAutoDisbursement fires the instant a collection is confirmed
+ * (see POST /payments/:id/collected). IoTec's RequestStatus enum has nine
+ * values, not just Success/Failed — a disbursement can land in
+ * AwaitingApproval (the wallet has a checker/maker approval workflow
+ * enabled in the IoTec portal), Pending, SentToVendor, or Scheduled before
+ * ever reaching a terminal state, so a payment that isn't done yet moves to
+ * `payout_processing`, not straight to `paid_out`. There's no cron/worker
+ * in this app's lightweight JSON-file-store architecture, so resolving
+ * `payout_processing` is done lazily instead: checkAndUpdateDisbursementStatus
+ * re-polls IoTec every time a payout_processing payment is read (the
+ * result page's poll, either dashboard, or the admin ledger) and finalizes
+ * it the moment IoTec reports a terminal status. (IoTec also supports
+ * webhook callbacks for this instead of polling — see the "Callback
+ * Notifications" section of its docs — but that requires configuring a
+ * callback URL by hand in the IoTec portal, which isn't something this
+ * module can do for you; the polling approach needs zero extra setup and
+ * mirrors the collection side's already-proven pattern exactly.)
+ *
+ * If the disburse call itself fails outright (network error, bad request,
+ * IoTec reports Failed/Rejected/Cancelled/RolledBack, or
+ * IOTEC_CLIENT_ID/SECRET/WALLET_ID aren't configured), the payment falls
+ * back to exactly the pre-existing manual flow: `payout_pending_manual`,
+ * with an admin completing it by hand via the "mark as paid out" button
+ * (still here, unchanged, as the safety net) — see disbursementError on
+ * the row for why. An admin can also force a stuck `payout_processing`
+ * payment back to manual (POST .../retry-manual) if IoTec's own approval
+ * queue never clears it.
  *
  * DASHBOARDS + NOTIFICATIONS: a payment is attributed to a landlord's
  * dashboard (client/src/pages/AgentDashboard.tsx's Rent Pay tab) live, by
@@ -60,8 +80,9 @@ const SERVICE_FEE_UGX = 1000
 export type RentRailStatus =
     | 'pending_collection' // record created, tenant hasn't paid yet
     | 'collected' // IoTec confirms the tenant's mobile money charge succeeded
-    | 'payout_pending_manual' // collected; an admin needs to send the landlord their share by hand and confirm
-    | 'paid_out' // an admin has confirmed the landlord was paid (net of the UGX 1,000 fee)
+    | 'payout_pending_manual' // an admin needs to send the landlord their share by hand and confirm — either automatic disbursement wasn't attempted/configured, or it failed outright
+    | 'payout_processing' // automatic IoTec disbursement was initiated and hasn't reached a terminal status yet (Pending/SentToVendor/AwaitingApproval/Scheduled) — resolved lazily, see checkAndUpdateDisbursementStatus
+    | 'paid_out' // IoTec confirmed the disbursement succeeded (automatic), or an admin confirmed it by hand (manual)
     | 'collection_failed'
 
 export interface RentRailPayment {
@@ -82,6 +103,15 @@ export interface RentRailPayment {
     collectionError?: string
     payoutConfirmedBy?: string
     payoutConfirmedAt?: string
+    // Automatic disbursement (POST /api/disbursements/disburse) — see this
+    // file's top doc comment. iotecDisbursementId is the id IoTec assigns
+    // to the payout transaction (used to poll its status); disbursementStatus
+    // is the raw IoTec RequestStatus string as of the last check, for admin
+    // visibility; disbursementError is set only when the automatic attempt
+    // itself failed outright and this fell back to the manual flow.
+    iotecDisbursementId?: string
+    disbursementStatus?: string
+    disbursementError?: string
     // Legal/dispute protection: the tenant must affirmatively declare, at the
     // moment of payment, that the amount is the full rent due (RentRail has
     // no lease record to check it against — this is the honest ceiling on
@@ -188,6 +218,136 @@ async function getIotecCollectionStatus(accessToken: string, transactionId: stri
     const data = (await response.json()) as { status?: string }
     if (!data.status) throw new Error('IoTec did not return a transaction status.')
     return data.status
+}
+
+/** The disbursement-side twin of getIotecCollectionStatus above — same
+ * shape, same trust model, different path (GET /api/disbursements/status/{id},
+ * per IoTec's ioTec Pay v1 OpenAPI spec). */
+async function getIotecDisbursementStatus(accessToken: string, transactionId: string): Promise<string> {
+    const response = await fetch(`https://pay.iotec.io/api/disbursements/status/${transactionId}`, {
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    })
+    const data = (await response.json()) as { status?: string }
+    if (!data.status) throw new Error('IoTec did not return a disbursement status.')
+    return data.status
+}
+
+// Terminal RequestStatus values (per IoTec's spec) that mean "this will
+// never become Success on its own" — a disbursement stuck at one of these
+// falls back to the manual queue rather than being left in limbo forever.
+const DISBURSEMENT_FAILURE_STATUSES = new Set(['Failed', 'Rejected', 'Cancelled', 'RolledBack'])
+
+/**
+ * Fires the instant a collection is confirmed (see POST /payments/:id/collected)
+ * — attempts to send the landlord their share automatically via IoTec's
+ * disbursements API. Mutates `payment` in place and always leaves it in a
+ * valid, well-defined status; never throws (a failure here falls back to
+ * the pre-existing manual flow, it never blocks the collection from being
+ * recorded). See this file's top doc comment for the full reasoning.
+ */
+async function attemptAutoDisbursement(payment: RentRailPayment): Promise<void> {
+    const walletId = process.env.IOTEC_WALLET_ID
+    if (!walletId) {
+        // Not configured — this is expected until the env var is set, not
+        // an error. Falls back to the manual queue exactly as before.
+        payment.status = 'payout_pending_manual'
+        payment.disbursementError = 'IOTEC_WALLET_ID not configured; automatic disbursement skipped.'
+        return
+    }
+
+    try {
+        const accessToken = await getIotecAccessToken()
+        const response = await fetch('https://pay.iotec.io/api/disbursements/disburse', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                category: 'MobileMoney',
+                currency: 'UGX', // this app's own currency (see RentRailPayment.currency), not IoTec's docs-example test currency "ITX"
+                walletId,
+                externalId: `rentrail-payout-${payment.id}`,
+                payeeName: payment.landlordName || undefined,
+                payee: toLocalFormat(payment.landlordPhone), // MSISDN — same local "0XXXXXXXXX" form IoTec's own example uses
+                amount: payment.netPayout,
+                payerNote: `RentRail rent payout — ${payment.txRef}`,
+                payeeNote: `Rent payment from ${payment.tenantName}`,
+            }),
+        })
+        const data = (await response.json().catch(() => ({}))) as { id?: string; status?: string; message?: string }
+
+        if (!response.ok || !data.id) {
+            payment.status = 'payout_pending_manual'
+            payment.disbursementError = data.message || `IoTec returned ${response.status} initiating the disbursement.`
+            return
+        }
+
+        payment.iotecDisbursementId = data.id
+        payment.disbursementStatus = data.status
+        finalizeDisbursementStatus(payment, data.status || 'Pending')
+    } catch (err: any) {
+        payment.status = 'payout_pending_manual'
+        payment.disbursementError = err?.message || 'Unexpected error initiating the disbursement.'
+    }
+}
+
+/** Shared by attemptAutoDisbursement (initial status) and
+ * checkAndUpdateDisbursementStatus (re-polled status) — maps an IoTec
+ * RequestStatus onto this payment's own status, never leaving it anywhere
+ * but paid_out / payout_pending_manual / payout_processing. */
+function finalizeDisbursementStatus(payment: RentRailPayment, iotecStatus: string): void {
+    payment.disbursementStatus = iotecStatus
+    if (iotecStatus === 'Success') {
+        payment.status = 'paid_out'
+        payment.payoutConfirmedBy = 'RentRail (automatic via IoTec)'
+        payment.payoutConfirmedAt = nowIso()
+    } else if (DISBURSEMENT_FAILURE_STATUSES.has(iotecStatus)) {
+        payment.status = 'payout_pending_manual'
+        payment.disbursementError = `IoTec disbursement ${iotecStatus.toLowerCase()} — send the landlord their share by hand instead.`
+    } else {
+        payment.status = 'payout_processing'
+    }
+}
+
+/**
+ * Re-checks a `payout_processing` payment against IoTec's own status
+ * endpoint and finalizes it if it has reached a terminal state — called
+ * lazily every time such a payment is read (see the GET routes below),
+ * since this app has no cron/background worker. Returns true if the
+ * payment's status changed (caller is responsible for persisting it).
+ * Never throws: a transient failure here just leaves the payment
+ * unchanged for the next read to try again.
+ */
+async function checkAndUpdateDisbursementStatus(payment: RentRailPayment): Promise<boolean> {
+    if (payment.status !== 'payout_processing' || !payment.iotecDisbursementId) return false
+    try {
+        const accessToken = await getIotecAccessToken()
+        const iotecStatus = await getIotecDisbursementStatus(accessToken, payment.iotecDisbursementId)
+        if (iotecStatus === payment.disbursementStatus) return false // unchanged, still in-flight
+        finalizeDisbursementStatus(payment, iotecStatus)
+        // TS still narrows payment.status to 'payout_processing' (the early
+        // return above) across the mutating call — (as RentRailStatus)
+        // widens it back since finalizeDisbursementStatus really can change it.
+        if ((payment.status as RentRailStatus) === 'paid_out') {
+            await deliverReceipt(payment)
+        }
+        return true
+    } catch (err) {
+        console.error('[gene/rentrail] checkAndUpdateDisbursementStatus failed:', err)
+        return false
+    }
+}
+
+/** Runs checkAndUpdateDisbursementStatus over every row that might need
+ * it and persists the collection once if anything changed — the shared
+ * "refresh on read" step behind every GET route below. */
+async function refreshProcessingPayouts(rows: RentRailPayment[]): Promise<void> {
+    let changed = false
+    for (const row of rows) {
+        if (await checkAndUpdateDisbursementStatus(row)) {
+            row.updatedAt = nowIso()
+            changed = true
+        }
+    }
+    if (changed) savePayments(rows)
 }
 
 export function registerRentRailRoutes(app: Express, requireStrictAdmin: RequestHandler): void {
@@ -304,7 +464,13 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
 
             if (status === 'Success') {
                 payment.iotecTransactionId = transactionId
-                payment.status = 'payout_pending_manual'
+                payment.status = 'payout_pending_manual' // attemptAutoDisbursement below may move this straight to paid_out or payout_processing
+                await attemptAutoDisbursement(payment)
+                // (as RentRailStatus): see checkAndUpdateDisbursementStatus's
+                // comment on the same pattern — TS narrows across the call.
+                if ((payment.status as RentRailStatus) === 'paid_out') {
+                    await deliverReceipt(payment)
+                }
             } else {
                 payment.status = 'collection_failed'
                 payment.collectionError = `IoTec reported status "${status}" for this transaction.`
@@ -321,20 +487,34 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
     })
 
     /** [PUBLIC] Polled by the result page — by id, since there's no external
-     * redirect party involved anymore (collection happens in-app). */
-    app.get('/api/gene/rentrail/payments/:id', (req: Request, res: Response) => {
+     * redirect party involved anymore (collection happens in-app). Refreshes
+     * a payout_processing payment against IoTec on every read (see
+     * checkAndUpdateDisbursementStatus) so the tenant sees it flip to
+     * "paid out" live without any separate background job. */
+    app.get('/api/gene/rentrail/payments/:id', async (req: Request, res: Response) => {
         const id = Number(req.params.id)
         if (!Number.isFinite(id)) return res.status(400).json({ message: 'Invalid payment id.' })
-        const payment = loadPayments().find((r) => r.id === id)
+        const rows = loadPayments()
+        const payment = rows.find((r) => r.id === id)
         if (!payment) return res.status(404).json({ message: 'Payment not found.' })
+        if (await checkAndUpdateDisbursementStatus(payment)) {
+            payment.updatedAt = nowIso()
+            savePayments(rows)
+        }
         res.json(payment)
     })
 
     /** [PUBLIC] A tenant's own payment history — needs to be signed in. */
-    app.get('/api/gene/rentrail/my-payments', (req: Request, res: Response) => {
+    app.get('/api/gene/rentrail/my-payments', async (req: Request, res: Response) => {
         if (!req.isAuthenticated?.() || !req.user) return res.status(401).json({ message: 'Sign in first.' })
         const userId = (req.user as any).id
-        const rows = loadPayments()
+        // refreshProcessingPayouts must run (and save) against the FULL
+        // collection, never a filtered subset — savePayments/writeCollection
+        // overwrites the whole file, so saving only this tenant's rows would
+        // silently delete every other payment in the system.
+        const allRows = loadPayments()
+        await refreshProcessingPayouts(allRows)
+        const rows = allRows
             .filter((r) => r.tenantUserId === userId)
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         res.json(rows)
@@ -359,7 +539,9 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
         if (!normalizedPhone) {
             return res.json({ phoneNumberRequired: true, payments: [] })
         }
-        const rows = loadPayments()
+        const allRows = loadPayments()
+        await refreshProcessingPayouts(allRows) // full collection — see the my-payments route's comment on why
+        const rows = allRows
             .filter((r) => r.landlordPhone === normalizedPhone)
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         res.json({ phoneNumberRequired: false, payments: rows })
@@ -369,8 +551,10 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
      * working the payout_pending_manual queue — see the build brief's "does
      * the flat service fee actually cover the rail" question too; this is
      * where that gets checked against real numbers, not illustrative ones. */
-    app.get('/api/gene/rentrail/admin/payments', requireStrictAdmin, (_req: Request, res: Response) => {
-        const rows = loadPayments()
+    app.get('/api/gene/rentrail/admin/payments', requireStrictAdmin, async (_req: Request, res: Response) => {
+        const allRows = loadPayments()
+        await refreshProcessingPayouts(allRows)
+        const rows = allRows
             .map((r) => ({ ...r, landlordPhoneLocal: toLocalFormat(r.landlordPhone) }))
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         res.json(rows)
@@ -420,6 +604,44 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
         } catch (error: any) {
             console.error('[gene/rentrail] mark-paid-out error', error)
             res.status(500).json({ message: 'Failed to confirm payout', error: error?.message })
+        }
+    })
+
+    /**
+     * [STRICT ADMIN] Escape hatch for a `payout_processing` payment that
+     * never reaches a terminal IoTec status — e.g. the wallet's
+     * checker/maker approval workflow is stuck in AwaitingApproval inside
+     * the IoTec portal itself, somewhere this app has no visibility into or
+     * control over. Falls it back to the ordinary manual queue so an admin
+     * can still get the landlord paid by hand instead of it being wedged
+     * indefinitely; the automatic-disbursement audit trail (iotecDisbursementId
+     * etc.) is kept on the row, not erased.
+     */
+    app.post('/api/gene/rentrail/admin/payments/:id/retry-manual', requireStrictAdmin, (req: Request, res: Response) => {
+        try {
+            const id = Number(req.params.id)
+            if (!Number.isFinite(id)) return res.status(400).json({ message: 'Invalid payment id.' })
+
+            const rows = loadPayments()
+            const idx = rows.findIndex((r) => r.id === id)
+            if (idx === -1) return res.status(404).json({ message: 'Payment not found.' })
+            if (rows[idx].status !== 'payout_processing') {
+                return res.status(400).json({
+                    message: `Cannot switch a payment in status "${rows[idx].status}" to manual; only payout_processing may be switched.`,
+                })
+            }
+
+            rows[idx] = {
+                ...rows[idx],
+                status: 'payout_pending_manual',
+                disbursementError: 'Switched to manual by an admin — automatic disbursement did not complete in time.',
+                updatedAt: nowIso(),
+            }
+            savePayments(rows)
+            res.json(rows[idx])
+        } catch (error: any) {
+            console.error('[gene/rentrail] retry-manual error', error)
+            res.status(500).json({ message: 'Failed to switch to manual', error: error?.message })
         }
     })
 }

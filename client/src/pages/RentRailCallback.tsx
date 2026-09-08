@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, CheckCircle2, AlertTriangle, Receipt, Clock } from 'lucide-react'
 
+type RentRailStatus = 'pending_collection' | 'collected' | 'payout_pending_manual' | 'payout_processing' | 'paid_out' | 'collection_failed'
+
 interface RentRailPayment {
     id: number
     tenantName: string
@@ -14,21 +16,29 @@ interface RentRailPayment {
     currency: string
     serviceFee: number
     netPayout: number
-    status: 'pending_collection' | 'collected' | 'payout_pending_manual' | 'paid_out' | 'collection_failed'
+    status: RentRailStatus
     collectionError?: string
     receiptSent: boolean
 }
 
-const PROCESSING_STATUSES = new Set(['pending_collection', 'collected'])
+// While the tenant's own charge is still being confirmed — shows the
+// generic "Confirming your payment..." page below.
+const COLLECTING_STATUSES = new Set(['pending_collection', 'collected'])
+// Keeps polling (every 2.5s) so this page updates live without a refresh —
+// includes payout_processing since the automatic IoTec disbursement
+// (server/gene/rentrail.ts's attemptAutoDisbursement) can take a moment to
+// reach a terminal status; see checkAndUpdateDisbursementStatus, which this
+// same GET re-checks on every poll.
+const POLLING_STATUSES = new Set(['pending_collection', 'collected', 'payout_processing'])
 
 /**
  * Result page for RentRail.tsx's in-app IoTec payment flow — reached via a
  * local navigation (setLocation) once the shared payment gateway modal
  * reports success, not a provider redirect, so this just reads ?paymentId=
- * and polls its status. Payout to the landlord is admin-confirmed, not
- * automatic (see server/gene/rentrail.ts's doc comment), so `paid_out`
- * isn't the only "done" state worth a calm explanation — payout_pending_manual
- * is too, and isn't something to keep spinning on.
+ * and polls its status. Payout to the landlord is automatic by default now
+ * (see server/gene/rentrail.ts's doc comment) but still falls back to
+ * admin-confirmed if IoTec's side doesn't cooperate, so `paid_out` isn't
+ * the only "done" state worth a calm explanation.
  */
 export default function RentRailCallback() {
     const search = useSearch()
@@ -43,7 +53,7 @@ export default function RentRailCallback() {
             return res.json()
         },
         enabled: !!paymentId,
-        refetchInterval: (query) => (query.state.data && PROCESSING_STATUSES.has(query.state.data.status) ? 2500 : false),
+        refetchInterval: (query) => (query.state.data && POLLING_STATUSES.has(query.state.data.status) ? 2500 : false),
     })
 
     if (!paymentId || (isLoading && !payment)) {
@@ -86,7 +96,7 @@ export default function RentRailCallback() {
         )
     }
 
-    if (PROCESSING_STATUSES.has(payment.status)) {
+    if (COLLECTING_STATUSES.has(payment.status)) {
         return (
             <StatusPage
                 icon={<Loader2 className="h-12 w-12 text-accent animate-spin" />}
@@ -96,8 +106,9 @@ export default function RentRailCallback() {
         )
     }
 
-    // payout_pending_manual or paid_out — either way the tenant's charge succeeded.
+    // payout_processing, payout_pending_manual, or paid_out — either way the tenant's charge succeeded.
     const isPaidOut = payment.status === 'paid_out'
+    const isAutoProcessing = payment.status === 'payout_processing'
 
     return (
         <div className="container mx-auto px-4 py-16 max-w-lg">
@@ -133,13 +144,17 @@ export default function RentRailCallback() {
 
                     {!isPaidOut && (
                         <div className="flex items-start gap-3 bg-muted/40 rounded-lg p-4">
-                            <Clock className="h-5 w-5 flex-shrink-0 mt-0.5 text-accent" />
+                            {isAutoProcessing ? (
+                                <Loader2 className="h-5 w-5 flex-shrink-0 mt-0.5 text-accent animate-spin" />
+                            ) : (
+                                <Clock className="h-5 w-5 flex-shrink-0 mt-0.5 text-accent" />
+                            )}
                             <div className="text-sm">
                                 <p className="font-medium mb-1">Your payment is confirmed</p>
                                 <p className="text-muted-foreground">
-                                    Our team sends this to your landlord shortly. You don't need to do anything else —
-                                    this page (and your account, if you're signed in) will show it as sent once it's
-                                    done.
+                                    {isAutoProcessing
+                                        ? "We're sending this to your landlord's mobile money automatically right now — this page updates the moment it's done, no need to refresh."
+                                        : "Our team sends this to your landlord shortly. You don't need to do anything else — this page (and your account, if you're signed in) will show it as sent once it's done."}
                                 </p>
                             </div>
                         </div>
