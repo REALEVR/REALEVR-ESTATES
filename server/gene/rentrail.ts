@@ -33,11 +33,26 @@
  * the manual-confirm step in registerRentRailRoutes' admin route with an
  * automated call, once the real API details are available.
  *
+ * DASHBOARDS + NOTIFICATIONS: a payment is attributed to a landlord's
+ * dashboard (client/src/pages/AgentDashboard.tsx's Rent Pay tab) live, by
+ * matching that landlord's own account phone number against the payment's
+ * landlordPhone (see findLandlordUserIdByPhone below) — there's no separate
+ * "link your account" step. This is why every account's phone number is
+ * now compulsory at signup (server/auth.ts's POST /api/register): without
+ * it, a landlord who pays through RealEVR has no way for a rent payment
+ * sent to their number to ever surface in their own dashboard. The tenant
+ * side needs no matching at all — every payment already carries
+ * tenantUserId when the payer was signed in (GET /my-payments below).
+ * deliverReceipt below fires the in-app notification (bell icon,
+ * server/models/Notification.ts) to both sides the instant a payout is
+ * confirmed, alongside the existing WhatsApp message.
+ *
  * Persistence: shared JSON-file collection store (./store.ts).
  */
 import type { Express, Request, Response, RequestHandler } from 'express'
 import crypto from 'crypto'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
+import { storage } from '../storage'
 
 const COLLECTION = 'rentrail_payments'
 const SERVICE_FEE_UGX = 1000
@@ -109,6 +124,33 @@ export function normalizeUgandaPhone(input: string): string | null {
  * sending a mobile money payout to read/dial than the 256-prefixed one. */
 function toLocalFormat(canonical256: string): string {
     return `0${canonical256.slice(3)}`
+}
+
+/**
+ * Finds the registered agent (landlord) account whose own profile phone
+ * number matches a RentRail payment's landlordPhone — this is how a
+ * payment gets attributed to that landlord's dashboard/notifications with
+ * no separate "link your account" step, and why the phone number is now
+ * compulsory at signup (see server/auth.ts's POST /api/register): the
+ * match is done live, by phone, every time, so a landlord who adds their
+ * number *after* a payment already exists still picks it up automatically.
+ * Scoped to role === 'agent' since that's this app's landlord dashboard
+ * (AgentDashboard.tsx) — a tenant's phone happening to match doesn't
+ * misroute a receipt into a stranger's account. Returns undefined (not an
+ * error) when nobody matches, which is the common case for a landlord who
+ * isn't a RealEVR user at all.
+ */
+async function findLandlordUserIdByPhone(landlordPhone256: string): Promise<number | undefined> {
+    try {
+        const users = await storage.getAllUsers()
+        const match = users.find(
+            (u) => u.role === 'agent' && u.phoneNumber && normalizeUgandaPhone(u.phoneNumber) === landlordPhone256
+        )
+        return match?.id
+    } catch (err) {
+        console.error('[gene/rentrail] findLandlordUserIdByPhone failed:', err)
+        return undefined
+    }
 }
 
 /**
@@ -298,6 +340,31 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
         res.json(rows)
     })
 
+    /**
+     * [AUTH, agent role] A landlord's own received-rent history — matched
+     * live by their account's own phone number against payments'
+     * landlordPhone (see findLandlordUserIdByPhone above), not by any
+     * stored link. If they haven't added a phone number yet, this can't
+     * match anything — returns phoneNumberRequired: true instead of an
+     * empty list so the dashboard can show the actual reason, not just
+     * "no payments yet."
+     */
+    app.get('/api/gene/rentrail/landlord-payments', async (req: Request, res: Response) => {
+        if (!req.isAuthenticated?.() || !req.user) return res.status(401).json({ message: 'Sign in first.' })
+        const user = req.user as any
+        if (user.role !== 'agent') {
+            return res.status(403).json({ message: 'Only landlord/agent accounts receive RentRail payments.' })
+        }
+        const normalizedPhone = user.phoneNumber ? normalizeUgandaPhone(String(user.phoneNumber)) : null
+        if (!normalizedPhone) {
+            return res.json({ phoneNumberRequired: true, payments: [] })
+        }
+        const rows = loadPayments()
+            .filter((r) => r.landlordPhone === normalizedPhone)
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        res.json({ phoneNumberRequired: false, payments: rows })
+    })
+
     /** [STRICT ADMIN] Full ledger, for reconciliation and for actually
      * working the payout_pending_manual queue — see the build brief's "does
      * the flat service fee actually cover the rail" question too; this is
@@ -358,13 +425,24 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
 }
 
 /**
- * Sends the tenant their payment-confirmation via WhatsApp (the same
- * channel this app already uses for every other outbound message — see
- * ./whatsapp.ts's sendWhatsAppMessage) the moment a payout is confirmed.
- * Deliberately NOT called an EFRIS receipt anywhere in its text — see
- * this file's top doc comment and RefundPolicy.tsx section 4 for why that
- * distinction actually matters here. Mutates `payment`'s receipt fields in
- * place; never throws.
+ * Fires the instant the payout is confirmed — three independent channels,
+ * each in its own try/catch so one failing (e.g. WhatsApp not configured)
+ * never blocks the others or the payout confirmation itself:
+ *
+ *  1. WhatsApp message to the tenant (the original channel this shipped
+ *     with) — same as before, deliberately NOT called an EFRIS receipt
+ *     anywhere in its text; see this file's top doc comment and
+ *     RefundPolicy.tsx section 4 for why that distinction matters here.
+ *  2. An in-app notification to the tenant (if they were signed in when
+ *     they paid — see tenantUserId), so it shows up in the bell icon and
+ *     their dashboard's Rent Pay tab even if the WhatsApp send fails.
+ *  3. An in-app notification to the landlord, IF their own account's phone
+ *     number matches this payment's landlordPhone (findLandlordUserIdByPhone
+ *     above) — most landlords paid through RentRail aren't RealEVR users at
+ *     all, so this is best-effort, not assumed.
+ *
+ * Mutates `payment`'s receipt fields in place (WhatsApp delivery only —
+ * that's the field the admin queue and result page show); never throws.
  */
 async function deliverReceipt(payment: RentRailPayment): Promise<void> {
     try {
@@ -387,5 +465,38 @@ async function deliverReceipt(payment: RentRailPayment): Promise<void> {
     } catch (err: any) {
         payment.receiptSent = false
         payment.receiptDeliveryError = err?.message || 'Unexpected error sending the receipt.'
+    }
+
+    if (payment.tenantUserId) {
+        try {
+            const { createNotification } = await import('../models/Notification')
+            await createNotification({
+                userId: String(payment.tenantUserId),
+                title: 'Rent payment sent',
+                message: `Your ${payment.amount.toLocaleString()} ${payment.currency} rent payment has been sent to ${payment.landlordName || 'your landlord'}. Your receipt is ready.`,
+                type: 'payment',
+                link: `/rentrail/callback?paymentId=${payment.id}`,
+                data: { paymentId: payment.id, txRef: payment.txRef },
+            })
+        } catch (err) {
+            console.error('[gene/rentrail] failed to notify tenant in-app:', err)
+        }
+    }
+
+    try {
+        const landlordUserId = await findLandlordUserIdByPhone(payment.landlordPhone)
+        if (landlordUserId) {
+            const { createNotification } = await import('../models/Notification')
+            await createNotification({
+                userId: String(landlordUserId),
+                title: 'Rent payment received',
+                message: `You received ${payment.netPayout.toLocaleString()} ${payment.currency} via RentRail from ${payment.tenantName} (service fee already deducted).`,
+                type: 'payment',
+                link: `/agent/dashboard?tab=rentpay`,
+                data: { paymentId: payment.id, txRef: payment.txRef },
+            })
+        }
+    } catch (err) {
+        console.error('[gene/rentrail] failed to notify landlord in-app:', err)
     }
 }

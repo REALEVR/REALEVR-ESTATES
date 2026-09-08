@@ -58,6 +58,13 @@ export default function AuthModal({ open, onOpenChange }: { open: boolean; onOpe
       toast({ title: "Passwords don't match", variant: "destructive" });
       return;
     }
+    // Compulsory: a rent payment/receipt can only ever reach this account's
+    // dashboard or notifications by matching this phone number — see
+    // server/gene/rentrail.ts's findLandlordUserIdByPhone doc comment.
+    if (phoneNumber.replace(/\D/g, "").length < 7) {
+      toast({ title: "Phone number required", description: "Enter a valid phone number to create your account.", variant: "destructive" });
+      return;
+    }
     registerMutation.mutate({
       fullName,
       username,
@@ -204,9 +211,10 @@ export default function AuthModal({ open, onOpenChange }: { open: boolean; onOpe
                     placeholder="700 000 000"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ""))}
+                    required
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">Optional, but helps us reach you about your listings/bookings.</p>
+                <p className="text-xs text-muted-foreground">Required — we use this to send you payment receipts and booking updates.</p>
               </div>
 
               <div className="space-y-1">

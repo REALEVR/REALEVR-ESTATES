@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/hooks/use-auth'
 import { Redirect } from 'wouter'
 import { Property } from '@shared/schema'
@@ -18,9 +19,11 @@ import {
     Settings,
     Bookmark,
     ShoppingCart,
+    Receipt,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import MessagesInbox from '@/components/messaging/MessagesInbox'
+import RentRailReceiptList, { type RentRailReceiptRow } from '@/components/rentrail/RentRailReceiptList'
 
 interface ViewedTour {
     tourId: string
@@ -169,11 +172,21 @@ export function UserDashboard() {
                 </div>
 
                 {/* Main Content */}
-                <Tabs defaultValue="tours" className="space-y-6">
-                    <TabsList>
+                {/* defaultValue reads ?tab=rentpay so the in-app notification
+                    fired the instant a RentRail payout is confirmed (see
+                    server/gene/rentrail.ts's deliverReceipt) lands straight
+                    on the Rent Pay tab. */}
+                <Tabs
+                    defaultValue={new URLSearchParams(window.location.search).get('tab') === 'rentpay' ? 'rentpay' : 'tours'}
+                    className="space-y-6"
+                >
+                    <TabsList className="flex-wrap h-auto">
                         <TabsTrigger value="tours">Viewed Tours</TabsTrigger>
                         <TabsTrigger value="messages">Messages</TabsTrigger>
                         <TabsTrigger value="whitelist">Whitelist</TabsTrigger>
+                        <TabsTrigger value="rentpay">
+                            <Receipt className="mr-1.5 h-3.5 w-3.5" /> Rent Pay
+                        </TabsTrigger>
                         <TabsTrigger value="profile">Profile</TabsTrigger>
                     </TabsList>
 
@@ -292,6 +305,11 @@ export function UserDashboard() {
                         </div>
                     </TabsContent>
 
+                    <TabsContent value="rentpay" className="space-y-6">
+                        <h2 className="text-xl font-semibold mb-4">Rent Pay Receipts</h2>
+                        <RentPayTab />
+                    </TabsContent>
+
                     <TabsContent value="profile" className="space-y-6">
                         <Card>
                             <CardHeader>
@@ -338,5 +356,18 @@ export function UserDashboard() {
                 </Tabs>
             </div>
         </div>
+    )
+}
+
+/** This tenant's own RentRail payment history (server/gene/rentrail.ts's
+ * GET /my-payments) — already keyed by their signed-in userId, so unlike
+ * the landlord side there's no phone-number matching/gating needed here. */
+function RentPayTab() {
+    const myPaymentsQuery = useQuery<RentRailReceiptRow[]>({
+        queryKey: ['/api/gene/rentrail/my-payments'],
+    })
+
+    return (
+        <RentRailReceiptList perspective="tenant" rows={myPaymentsQuery.data ?? []} isLoading={myPaymentsQuery.isLoading} />
     )
 }

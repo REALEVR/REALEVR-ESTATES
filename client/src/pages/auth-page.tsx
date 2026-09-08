@@ -28,6 +28,15 @@ const RegisterSchema = z
         confirmPassword: z.string(),
         email: z.string().email('Invalid email address'),
         fullName: z.string().min(1, 'Full name is required'),
+        // Compulsory — see server/gene/rentrail.ts's findLandlordUserIdByPhone
+        // doc comment: a rent payment/receipt can only reach this account's
+        // dashboard or notifications by matching this phone number. Loose
+        // validation on purpose (this form isn't Uganda-only): just require
+        // enough digits for a real number, not a specific country's format.
+        phoneNumber: z
+            .string()
+            .min(1, 'Phone number is required')
+            .refine((val) => val.replace(/\D/g, '').length >= 7, 'Enter a valid phone number'),
         membershipPlan: z.string().default('basic'),
         // "Form consent" — creating an account was previously possible with
         // no acknowledgement of the Terms of Service or Privacy Policy at
@@ -89,6 +98,7 @@ export default function AuthPage() {
             password: '',
             confirmPassword: '',
             fullName: '',
+            phoneNumber: '',
             membershipPlan: 'basic',
             agreeToTerms: false,
         },
@@ -416,6 +426,27 @@ export default function AuthPage() {
                                                                 {...field}
                                                             />
                                                         </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            <FormField
+                                                control={registerForm.control}
+                                                name="phoneNumber"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Phone Number</FormLabel>
+                                                        <FormControl>
+                                                            <Input
+                                                                type="tel"
+                                                                placeholder="Enter your phone number"
+                                                                {...field}
+                                                            />
+                                                        </FormControl>
+                                                        <FormDescription>
+                                                            We use this to send you payment receipts and booking updates.
+                                                        </FormDescription>
                                                         <FormMessage />
                                                     </FormItem>
                                                 )}
