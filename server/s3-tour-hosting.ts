@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand, PutBucketCorsCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand, PutBucketCorsCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
 import fs from 'fs';
@@ -420,6 +420,79 @@ export async function uploadTourToS3(
     console.error('S3 upload error:', error);
     throw new Error(`Failed to upload tour to S3: ${error.message}`);
   }
+}
+
+// --- Direct-to-S3 upload support (staging ZIPs) ---
+//
+// The functions below back the presign-zip / process-from-s3 upload path
+// (see server/upload.ts's presignTourZipUpload and processTourFromS3).
+// They reuse the SAME s3Client configured above - the connection/socket
+// timeouts and retry count that make the existing per-file upload loop
+// resilient to a silent hang apply just as much to a single large staging
+// PUT or a streamed download of one.
+
+/**
+ * Presigns a single PUT for a browser to upload a tour ZIP directly to a
+ * STAGING key in this bucket, bypassing our own Node server for the
+ * transfer itself - see presignTourZipUpload's own doc comment for why.
+ *
+ * Deliberately does NOT touch the bucket's public-read policy (see
+ * setupS3TourBucket above): that policy makes the FINAL, extracted tour
+ * files public, which is correct for a hosted tour but not for an
+ * in-progress/raw ZIP sitting in staging-tours/ - a presigned PUT grants
+ * only the ability to write this one object at this one key, and nothing
+ * about writing an object makes it publicly *readable* on top of that.
+ */
+export async function getPresignedStagingUploadUrl(
+  s3Key: string,
+  contentType: string,
+  expiresInSeconds: number
+): Promise<string> {
+  const command = new PutObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: s3Key,
+    ContentType: contentType,
+  });
+  return getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+}
+
+/**
+ * Streams an S3 object straight to a local file instead of buffering it in
+ * memory - the staging ZIPs landing here are the same multi-hundred-MB-to-
+ * multi-GB tour exports uploadFileToS3 above already has to be careful
+ * about, just moving in the opposite direction (S3 -> disk instead of
+ * disk -> S3).
+ */
+export async function downloadFromS3ToFile(s3Key: string, localPath: string): Promise<void> {
+  const response = await s3Client.send(new GetObjectCommand({ Bucket: BUCKET_NAME, Key: s3Key }));
+  const body = response.Body;
+  if (!body) {
+    throw new Error(`S3 object ${s3Key} returned no body`);
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const writeStream = fs.createWriteStream(localPath);
+    // Under Node (the NodeHttpHandler configured above), response.Body is
+    // always a Node Readable stream - the Blob/web-ReadableStream members
+    // of its TS type only apply to browser/fetch-based runtimes we don't
+    // use here.
+    const readStream = body as unknown as NodeJS.ReadableStream;
+    readStream.on('error', reject);
+    writeStream.on('error', reject);
+    writeStream.on('finish', resolve);
+    readStream.pipe(writeStream);
+  });
+}
+
+/**
+ * Best-effort delete of a staging ZIP once its contents have been
+ * extracted and re-uploaded as the real hosted tour. Callers treat a
+ * failure here as non-fatal (log and move on) - the tour itself has
+ * already succeeded by the point this is called, and an orphaned object
+ * under staging-tours/ is a minor cleanup issue, not a broken upload.
+ */
+export async function deleteFromS3(s3Key: string): Promise<void> {
+  await s3Client.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: s3Key }));
 }
 
 // Check if tour exists in S3

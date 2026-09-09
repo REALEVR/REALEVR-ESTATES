@@ -4,7 +4,6 @@ import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
 import { nanoid } from 'nanoid';
-import AdmZip from 'adm-zip';
 import { uploadFileToS3, getS3FileUrl } from './s3-util';
 import { uploadTourToCloudinary } from './cloudinary-util';
 // @ts-ignore
@@ -120,58 +119,22 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
 
       (async () => {
         try {
-          const zip = new AdmZip((req.file as Express.Multer.File).path);
           const extractDir = path.join(tourDir, `property_${propertyId}_tour`);
-          if (fs.existsSync(extractDir)) {
-            fs.rmSync(extractDir, { recursive: true, force: true });
-          }
-          fs.mkdirSync(extractDir, { recursive: true });
-
-          const zipEntries = zip.getEntries();
-          const totalEntries = zipEntries.length;
-          let extracted = 0;
-
-          for (const entry of zipEntries) {
-            const entryPath = path.join(extractDir, entry.entryName);
-            // Zip-slip guard: reject any entry whose resolved path escapes extractDir
-            // (e.g. "../../etc/cron.d/x" or an absolute path inside the zip).
-            const resolvedEntryPath = path.resolve(entryPath);
-            const resolvedExtractDir = path.resolve(extractDir) + path.sep;
-            if (!resolvedEntryPath.startsWith(resolvedExtractDir)) {
-              throw new Error(`Rejected unsafe ZIP entry path: ${entry.entryName}`);
+          // Shared with the direct-to-S3 path (processTourFromS3 below) so
+          // the zip-slip guard has exactly one implementation - see
+          // tour-zip-extract.ts's own doc comment.
+          const { extractTourZip } = await import('./tour-zip-extract');
+          extractTourZip(
+            (req.file as Express.Multer.File).path,
+            extractDir,
+            ({ extracted, total }) => {
+              const extractionProgress = Math.round((extracted / total) * 30); // Extraction is 0-30%
+              sendProgress(jobId, {
+                progress: extractionProgress,
+                message: `Extracting ZIP (${extracted}/${total})...`,
+              });
             }
-            if (entry.isDirectory) {
-              fs.mkdirSync(entryPath, { recursive: true });
-            } else {
-              fs.mkdirSync(path.dirname(entryPath), { recursive: true });
-              fs.writeFileSync(entryPath, entry.getData());
-            }
-
-            extracted++;
-            const extractionProgress = Math.round((extracted / totalEntries) * 30); // Extraction is 0-30%
-            sendProgress(jobId, {
-              progress: extractionProgress,
-              message: `Extracting ZIP (${extracted}/${totalEntries})...`,
-            });
-          }
-
-          sendProgress(jobId, { progress: 35, message: 'Scanning for index file...' });
-
-          const findIndexFile = (dir: string): string | null => {
-            const entries = fs.readdirSync(dir, { withFileTypes: true });
-            for (const entry of entries) {
-              const fullPath = path.join(dir, entry.name);
-              if (entry.isFile() && (entry.name.toLowerCase() === 'index.html' || entry.name.toLowerCase() === 'index.htm')) {
-                return path.relative(extractDir, fullPath).replace(/\\/g, '/');
-              } else if (entry.isDirectory()) {
-                const found = findIndexFile(fullPath);
-                if (found) return path.join(entry.name, found).replace(/\\/g, '/');
-              }
-            }
-            return null;
-          };
-
-          const indexFile = findIndexFile(extractDir) || 'index.html';
+          );
 
           sendProgress(jobId, { progress: 40, message: `Uploading files to AWS S3...` });
 
@@ -228,6 +191,163 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
 };
 
 
+// Matches the 5GB ceiling already enforced client-side today (see
+// PropertyFormNew.tsx / VirtualTourManager.tsx / PropertyForm.tsx's own
+// `5 * 1024 * 1024 * 1024` checks). The presigned-PUT path below bypasses
+// our own multer middleware entirely - there's no server-side multer
+// `limits.fileSize` to fall back on for it - so this is the ONLY
+// server-side enforcement of that limit for a direct-to-S3 upload.
+const MAX_TOUR_ZIP_BYTES = 5 * 1024 * 1024 * 1024; // 5GB
+
+// --- Direct-to-S3 Virtual Tour Upload: Step 1, presign a staging PUT ---
+//
+// The existing uploadVirtualTour above relays the whole ZIP through this
+// Node server first (disk-backed multer, then re-uploaded to S3 file by
+// file) - reliable for small tours, but for a multi-GB export on a slow or
+// flaky connection it's an extra hop that can stall or drop the upload
+// partway through with nothing to resume from. This presigns a single PUT
+// straight from the browser to a STAGING key in the same tours bucket,
+// cutting our server out of the (slow, large) transfer itself entirely;
+// processTourFromS3 below picks the ZIP up from there once it lands.
+export const presignTourZipUpload = async (req: Request, res: Response) => {
+  try {
+    const propertyId = req.params.propertyId;
+    const { fileSizeBytes, contentType } = req.body || {};
+
+    if (typeof fileSizeBytes !== 'number' || !Number.isFinite(fileSizeBytes) || fileSizeBytes <= 0) {
+      return res.status(400).json({ error: 'fileSizeBytes is required' });
+    }
+    if (fileSizeBytes > MAX_TOUR_ZIP_BYTES) {
+      return res.status(400).json({ error: 'File exceeds the 5GB tour upload limit' });
+    }
+
+    // A random, unguessable key under staging-tours/ - this object is NOT
+    // covered by the bucket's public-read policy (that policy only makes
+    // the FINAL, extracted tour files public; see s3-tour-hosting.ts), so
+    // there's no meaningful downside to it being guessable either, but
+    // nanoid keeps two concurrent uploads for the same property from ever
+    // colliding on the same key.
+    const s3Key = `staging-tours/property_${propertyId}/${nanoid()}.zip`;
+    const expiresInSeconds = 60 * 60; // 1 hour - comfortably long enough for a large, slow upload to start and finish
+
+    const { getPresignedStagingUploadUrl } = await import('./s3-tour-hosting');
+    const uploadUrl = await getPresignedStagingUploadUrl(
+      s3Key,
+      typeof contentType === 'string' && contentType ? contentType : 'application/zip',
+      expiresInSeconds
+    );
+
+    res.status(200).json({ uploadUrl, s3Key, expiresInSeconds });
+  } catch (e: any) {
+    console.error('[upload] presignTourZipUpload failed:', e);
+    res.status(500).json({ error: e.message });
+  }
+};
+
+// --- Direct-to-S3 Virtual Tour Upload: Step 2, process the staged ZIP ---
+//
+// Called once the browser's presigned PUT (above) has finished landing the
+// ZIP in staging-tours/. From here the flow rejoins the existing pattern
+// exactly: respond immediately with a jobId, then do the real work in a
+// fire-and-forget async IIFE that reports progress through the SAME
+// tour-progress-manager job registry uploadVirtualTour uses above, so the
+// existing GET /api/upload/virtual-tour/progress/:jobId SSE endpoint works
+// for this path unchanged - the client just needs the jobId this returns.
+export const processTourFromS3 = (req: Request, res: Response) => {
+  const propertyId = req.params.propertyId;
+  const { s3Key } = req.body || {};
+
+  if (!s3Key || typeof s3Key !== 'string') {
+    return res.status(400).json({ error: 's3Key is required' });
+  }
+
+  const jobId = createJob();
+  res.status(200).json({ jobId }); // Respond immediately with jobId, same as uploadVirtualTour
+
+  (async () => {
+    // Downloaded ZIP lands alongside the other tour temp files in tourDir,
+    // same as the disk-backed multer path above uses for its own upload.
+    const localZipPath = path.join(tourDir, `staging_${nanoid(8)}.zip`);
+    try {
+      sendProgress(jobId, { progress: 2, message: 'Downloading ZIP from S3...' });
+
+      const { downloadFromS3ToFile, deleteFromS3, uploadTourToS3 } = await import('./s3-tour-hosting');
+      await downloadFromS3ToFile(s3Key, localZipPath);
+
+      sendProgress(jobId, { progress: 5, message: 'Download complete, extracting ZIP...' });
+
+      const extractDir = path.join(tourDir, `property_${propertyId}_tour`);
+      // Same shared extraction (and zip-slip guard) uploadVirtualTour uses -
+      // see tour-zip-extract.ts's own doc comment for why this must not be
+      // a second, separately-maintained copy of that check.
+      const { extractTourZip } = await import('./tour-zip-extract');
+      extractTourZip(localZipPath, extractDir, ({ extracted, total }) => {
+        // Extraction is roughly 5-30% here (the 0-5% below it already went
+        // to the S3 download, which uploadVirtualTour's relay path doesn't
+        // have to do at all).
+        const extractionProgress = Math.round(5 + (extracted / total) * 25);
+        sendProgress(jobId, {
+          progress: extractionProgress,
+          message: `Extracting ZIP (${extracted}/${total})...`,
+        });
+      });
+
+      sendProgress(jobId, { progress: 40, message: 'Uploading files to AWS S3...' });
+
+      const tourUrl = await uploadTourToS3(extractDir, propertyId, (uploadProgress) => {
+        // Map upload progress (0-1) to 40-95%, same mapping as uploadVirtualTour.
+        sendProgress(jobId, {
+          progress: Math.floor(40 + (uploadProgress * 55)),
+          message: 'Uploading virtual tour files...'
+        });
+      });
+
+      sendProgress(jobId, { progress: 97, message: 'Finalizing upload...' });
+
+      // Best-effort: the staging ZIP has already done its job (extracted
+      // and re-uploaded as the real hosted tour above) - a failure to
+      // delete it just leaves one orphaned object under staging-tours/,
+      // never a broken tour, so this must never fail the overall upload.
+      try {
+        await deleteFromS3(s3Key);
+      } catch (cleanupErr) {
+        console.error('[upload] failed to delete staging ZIP from S3 (non-fatal):', cleanupErr);
+      }
+
+      const { storage } = await import('./storage');
+      await storage.updateProperty(parseInt(propertyId), { hasTour: true, tourUrl });
+
+      // Best-effort: let the AI look at a few of the tour's own photos and
+      // add what it sees to the listing description - see the identical
+      // block (and its full explanation) in uploadVirtualTour above; kept
+      // word-for-word so both upload paths behave the same way here.
+      try {
+        sendProgress(jobId, { progress: 98, message: 'Reading tour photos for a richer description...' });
+        const { enrichPropertyDescriptionFromTour } = await import('./gene/tour-vision');
+        await enrichPropertyDescriptionFromTour(parseInt(propertyId), extractDir);
+      } catch (visionErr) {
+        console.error('[upload] tour-vision enrichment failed (non-fatal, upload still succeeded):', visionErr);
+      }
+
+      try {
+        fs.unlinkSync(localZipPath);
+      } catch (unlinkErr) {
+        console.error('[upload] failed to remove local staging ZIP copy (non-fatal):', unlinkErr);
+      }
+
+      sendProgress(jobId, { progress: 100, message: 'Upload complete!', done: true, tourUrl });
+    } catch (e: any) {
+      sendProgress(jobId, { error: e.message, done: true });
+      try {
+        if (fs.existsSync(localZipPath)) fs.unlinkSync(localZipPath);
+      } catch {
+        // Best-effort cleanup only - the upload has already failed for a
+        // real reason above; a leftover temp file isn't worth reporting.
+      }
+    }
+  })();
+};
+
 // --- SSE Progress Endpoint ---
 export const sseTourProgress = (req: Request, res: Response) => {
   res.set({
@@ -276,6 +396,8 @@ export const sseTourProgress = (req: Request, res: Response) => {
 // Register routes (add to your Express app)
 export function registerTourUploadRoutes(app: express.Application) {
   app.post('/api/upload/virtual-tour/:propertyId', uploadVirtualTour);
+  app.post('/api/upload/virtual-tour/:propertyId/presign-zip', presignTourZipUpload);
+  app.post('/api/upload/virtual-tour/:propertyId/process-from-s3', processTourFromS3);
   app.get('/api/upload/virtual-tour/progress/:jobId', sseTourProgress);
 }
 
