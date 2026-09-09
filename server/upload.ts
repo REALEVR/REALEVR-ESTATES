@@ -243,8 +243,33 @@ export const sseTourProgress = (req: Request, res: Response) => {
     res.end();
     return;
   }
+
+  // Keep-alive ping every 15s. Without this, a large tour with a slow file
+  // (S3's own request can now take up to ~60s per attempt before timing
+  // out and retrying - see s3-tour-hosting.ts) leaves this connection
+  // completely silent for that whole stretch, since sendProgress() is
+  // only called between files. Most reverse proxies and hosting platforms
+  // kill an idle HTTP connection well before that (30-60s is typical).
+  // When that happens, the browser's EventSource silently reconnects -
+  // addListener() above replays only the *last known* progress, so the
+  // UI shows the same percentage forever even though the upload is still
+  // working underneath. A ": " comment line is invisible to EventSource's
+  // onmessage handler (SSE ignores comment lines) but keeps bytes
+  // flowing so the connection - and the illusion of a live progress bar -
+  // survives however long the current file actually takes.
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(': keep-alive\n\n');
+    } catch {
+      clearInterval(heartbeat);
+    }
+  }, 15_000);
+
   req.on('close', () => {
-    // Optionally clean up listeners
+    clearInterval(heartbeat);
+  });
+  res.on('finish', () => {
+    clearInterval(heartbeat);
   });
 };
 

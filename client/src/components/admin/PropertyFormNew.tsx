@@ -481,14 +481,43 @@ const onSubmit = async (data: PropertyFormValues) => {
         xhr.open('POST', `/api/upload/virtual-tour/${property.id}`);
         xhr.withCredentials = true;
 
+        // Stall watchdog: a large ZIP can legitimately take a long time,
+        // but if xhr.upload.onprogress goes quiet for a stretch - a
+        // dropped wifi/mobile connection, a dead proxy in between - the
+        // browser doesn't reliably fire onerror on its own; the request
+        // just sits there and the "Uploading: X%" badge freezes forever
+        // with no feedback (the exact "ends at 68%" report). Track the
+        // last time bytes actually moved and abort with a clear, retryable
+        // error if nothing has moved in 2 minutes, instead of leaving the
+        // agent staring at a dead progress bar indefinitely.
+        let lastProgressAt = Date.now();
+        const stallCheckMs = 15_000;
+        const stallLimitMs = 2 * 60_000;
+        const stallWatchdog = setInterval(() => {
+          if (Date.now() - lastProgressAt > stallLimitMs) {
+            clearInterval(stallWatchdog);
+            xhr.abort();
+          }
+        }, stallCheckMs);
+        const clearWatchdog = () => clearInterval(stallWatchdog);
+
         xhr.upload.onprogress = (event) => {
+          lastProgressAt = Date.now();
           if (event.lengthComputable) {
             const percent = Math.round((event.loaded * 100) / event.total);
             setTourUploadProgress(percent);
           }
         };
 
+        xhr.onabort = () => {
+          clearWatchdog();
+          setTourUploadError('Upload stalled — no data was sent for 2 minutes. Check your connection and try again.');
+          setTourExtracting(false);
+          reject(new Error('Upload stalled'));
+        };
+
         xhr.onload = () => {
+          clearWatchdog();
           setTourUploadProgress(100);
           try {
             const result = JSON.parse(xhr.responseText);
@@ -563,6 +592,7 @@ const onSubmit = async (data: PropertyFormValues) => {
           }
         };
         xhr.onerror = () => {
+          clearWatchdog();
           setTourUploadError("Upload failed");
           setTourExtracting(false);
           reject(new Error("Upload failed"));

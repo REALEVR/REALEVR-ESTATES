@@ -1,17 +1,35 @@
 import { S3Client, PutObjectCommand, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand, PutBucketCorsCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
 import fs from 'fs';
 import path from 'path';
 import mime from 'mime-types';
 import { getOptimizedConfig, shouldSkipFile, shouldSkipDirectory } from './upload-config';
 
 // Initialize S3 client
+//
+// The default AWS SDK v3 Node request handler has NO socket/connection
+// timeout - a PUT that never gets a response (a dropped connection, a
+// stalled proxy, S3 briefly not answering) just hangs forever with no
+// error and no retry. That's exactly what a stuck-at-some-percentage tour
+// upload looks like from the client: the sequential loop below is waiting
+// on one file's promise that will never resolve or reject, so no further
+// progress events ever fire and the SSE stream goes quiet without an
+// error - the browser has no way to tell "still working" from "wedged."
+// Explicit timeouts turn a silent hang into a real, retryable failure
+// (maxAttempts below) that either recovers or surfaces as a genuine error
+// message instead of an infinite spinner.
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'us-east-1',
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
-  }
+  },
+  maxAttempts: 4,
+  requestHandler: new NodeHttpHandler({
+    connectionTimeout: 10_000,
+    socketTimeout: 60_000,
+  }),
 });
 
 const BUCKET_NAME = process.env.S3_TOURS_BUCKET || 'realevr-tours';
@@ -23,7 +41,18 @@ interface UploadState {
   onProgress: (progress: number) => void;
 }
 
+// setupS3TourBucket() used to run on EVERY tour upload - a HeadBucket plus
+// two more S3 admin calls (PutBucketCors, PutBucketPolicy) before a single
+// file's worth of actual work happened. Besides being wasted round trips,
+// each one is another chance to hit the exact hang this file's request
+// timeouts are guarding against, delaying the "Uploading files..." stage
+// for no reason once the bucket is already configured. Cache success for
+// the life of the process; a failure clears the cache so the next upload
+// still retries setup instead of being stuck permanently unconfigured.
+let bucketReady = false;
+
 export async function setupS3TourBucket(): Promise<void> {
+  if (bucketReady) return;
   try {
     // 1️⃣ Check if bucket exists
     try {
@@ -94,6 +123,7 @@ export async function setupS3TourBucket(): Promise<void> {
 
     console.log("Bucket policy set for public read access");
     console.log("S3 bucket configured successfully ✅");
+    bucketReady = true;
 
   } catch (error) {
     console.error("S3 bucket setup failed:", error);
@@ -150,14 +180,23 @@ function getMimeType(filePath: string): string {
 async function uploadFileToS3(
   localPath: string,
   s3Key: string,
-  contentType: string
+  contentType: string,
+  fileSize: number
 ): Promise<void> {
-  const fileContent = fs.readFileSync(localPath);
-  
+  // Stream the body instead of reading the whole file into memory with
+  // readFileSync: 3D Vista exports routinely include multi-hundred-MB
+  // panorama images and preview videos, and loading each one fully into
+  // memory before the PUT even starts is unnecessary memory pressure on
+  // top of whatever else the server process is holding for other
+  // concurrent uploads - a real path to the process getting OOM-killed
+  // mid-upload, which would silently drop the SSE connection and freeze
+  // the client's progress bar with no error, indistinguishable from a
+  // network hang.
   const uploadParams = {
     Bucket: BUCKET_NAME,
     Key: s3Key,
-    Body: fileContent,
+    Body: fs.createReadStream(localPath),
+    ContentLength: fileSize,
     ContentType: contentType,
     // Set cache control for performance
     CacheControl: contentType.startsWith('text/html') ? 'no-cache' : 'public, max-age=31536000',
@@ -174,6 +213,35 @@ async function uploadFileToS3(
   } catch (error: any) {
     console.error(`Failed to upload ${s3Key}:`, error);
     throw error;
+  }
+}
+
+// The S3 client above already retries transient failures per-request
+// (maxAttempts: 4), but that only covers a single PutObjectCommand call.
+// A file that fails after those internal retries are exhausted (e.g. a
+// slow connection that keeps timing out just past the socket timeout)
+// used to take the ENTIRE tour down with it - one bad file out of
+// hundreds aborting everything already uploaded before it. Wrap each
+// file in one more outer retry with a short backoff before giving up on
+// it for real, so a single flaky file doesn't sink an otherwise-healthy
+// upload.
+async function uploadFileWithRetry(
+  localPath: string,
+  s3Key: string,
+  contentType: string,
+  fileSize: number,
+  attempts = 3
+): Promise<void> {
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      await uploadFileToS3(localPath, s3Key, contentType, fileSize);
+      return;
+    } catch (error) {
+      if (attempt === attempts) throw error;
+      const backoffMs = 1000 * attempt;
+      console.warn(`Retrying ${s3Key} after failure (attempt ${attempt}/${attempts}), waiting ${backoffMs}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    }
   }
 }
 
@@ -287,8 +355,8 @@ export async function uploadTourToS3(
     for (const file of files) {
       try {
         const contentType = getMimeType(file.localPath);
-        await uploadFileToS3(file.localPath, file.s3Key, contentType);
-        
+        await uploadFileWithRetry(file.localPath, file.s3Key, contentType, file.size);
+
         uploadedFiles++;
         onProgress(uploadedFiles / totalFiles);
         
