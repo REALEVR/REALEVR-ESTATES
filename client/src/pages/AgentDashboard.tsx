@@ -27,6 +27,7 @@ import {
     Download,
     Receipt,
     Gift,
+    Rocket,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import PropertyFormNew from '@/components/admin/PropertyFormNew'
@@ -38,6 +39,10 @@ import { useInstallPrompt } from '@/hooks/useInstallPrompt'
 import BoostPurchaseCard from '@/components/boost/BoostPurchaseCard'
 import AddPhoneNumberPrompt from '@/components/rentrail/AddPhoneNumberPrompt'
 import RentRailReceiptList, { type RentRailReceiptRow } from '@/components/rentrail/RentRailReceiptList'
+// Reused as-is inside its own tab here instead of a separate dropdown-menu
+// page (see the "Boost" TabsContent below) - it's already a self-contained
+// component with its own fetch/state, no routing assumptions to work around.
+import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
 
 interface PropertyWithViews extends Property {
     viewCount: number
@@ -280,6 +285,9 @@ export function AgentDashboard() {
                         <TabsTrigger value="reviews">Reviews</TabsTrigger>
                         <TabsTrigger value="rentpay">
                             <Receipt className="mr-1.5 h-3.5 w-3.5" /> Rent Pay
+                        </TabsTrigger>
+                        <TabsTrigger value="boost">
+                            <Rocket className="mr-1.5 h-3.5 w-3.5" /> Boost
                         </TabsTrigger>
                     </TabsList>
 
@@ -556,6 +564,10 @@ export function AgentDashboard() {
 
                     <TabsContent value="rentpay" className="space-y-6">
                         <RentPayTab />
+                    </TabsContent>
+
+                    <TabsContent value="boost" className="space-y-6">
+                        <AdminBoostConfirmations />
                     </TabsContent>
                 </Tabs>
             </div>

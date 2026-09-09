@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Loader2, LogOut, User, Glasses, Building, Rocket, BarChart3, Receipt } from "lucide-react";
+import { Loader2, LogOut, User, Building, BarChart3, Receipt } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import NotificationCenter from "@/components/NotificationCenter";
 import AuthModal from "@/components/auth/AuthModal";
@@ -162,27 +162,19 @@ export default function Header() {
                       <span>Profile</span>
                     </Link>
                   </DropdownMenuItem>
+                  {/* Virtual Tour Manager and Boost Confirmations used to be
+                      separate links here — both are now reachable as tabs
+                      inside Agent Dashboard itself ("Virtual Tours" links out
+                      per-property to the same manager page; "Boost" embeds
+                      AdminBoostConfirmations directly), so this dropdown
+                      doesn't need to duplicate them. */}
                   {user.role === "agent" && (
-                    <>
-                  <DropdownMenuItem asChild>
-                        <Link href="/agent/dashboard">
-                          <Building className="mr-2 h-4 w-4" />
-                          <span>Agent Dashboard</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/virtual-tours">
-                          <Glasses className="mr-2 h-4 w-4" />
-                          <span>Virtual Tour Manager</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/boost-confirmations">
-                          <Rocket className="mr-2 h-4 w-4" />
-                          <span>Boost Confirmations</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
+                    <DropdownMenuItem asChild>
+                      <Link href="/agent/dashboard">
+                        <Building className="mr-2 h-4 w-4" />
+                        <span>Agent Dashboard</span>
+                      </Link>
+                    </DropdownMenuItem>
                   )}
 
                   {/* Trimmed to just Analytics (per user request) — every other

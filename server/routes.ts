@@ -93,6 +93,22 @@ const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
 // POST /api/properties/create below.
 const FREE_TRIAL_MAX_PROPERTIES = 2
 
+// Accounts that upload properties fully free, on the platform owner's own
+// behalf, regardless of whatever role/subscription state happens to be
+// stored for them — the admin-clickable "Grant free access" toggle
+// (PATCH /api/users/:id/complimentary-access) sets that state correctly
+// too, but this is the guarantee that holds even if that click never
+// happened, or the account started out role: 'normal' (which the checks
+// below block outright, before subscriptionStatus is even considered).
+// Comma-separated, overridable via FREE_AGENT_EMAILS without a code change.
+const DEFAULT_FREE_AGENT_EMAILS = ['tukeibog@gmail.com']
+function getFreeAgentEmails(): string[] {
+    const raw = process.env.FREE_AGENT_EMAILS
+    if (!raw) return DEFAULT_FREE_AGENT_EMAILS
+    const parsed = raw.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
+    return parsed.length ? parsed : DEFAULT_FREE_AGENT_EMAILS
+}
+
 // Middleware to check if user has active subscription (for agents)
 const subscriptionMiddleware = (req: Request, res: Response, next: NextFunction) => {
     console.log('Current Request', req)
@@ -104,6 +120,10 @@ const subscriptionMiddleware = (req: Request, res: Response, next: NextFunction)
 
     // Allow admins to access everything
     if (user.role === 'admin') {
+        return next()
+    }
+
+    if (user.email && getFreeAgentEmails().includes(user.email.toLowerCase())) {
         return next()
     }
 

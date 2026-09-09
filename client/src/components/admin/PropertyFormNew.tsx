@@ -163,6 +163,10 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
   // "fill in title/location" nudge - used by the auto-generate effect below,
   // which only ever calls this once those two are already filled in.
   const handleGenerateDescription = async (silent = false) => {
+    // Guards against the auto-generate effect below and a manual button
+    // click racing each other into two overlapping requests.
+    if (isGeneratingDescription) return;
+
     const title = form.getValues('title');
     const location = form.getValues('location');
     const propertyType = form.getValues('propertyType');
@@ -186,13 +190,16 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
         form.setValue('description', data.description, { shouldValidate: true, shouldDirty: true });
       }
     } catch (error: any) {
-      if (!silent) {
-        toast({
-          title: 'AI generation failed',
-          description: error.message || 'Please try again or write the description manually.',
-          variant: 'destructive',
-        });
-      }
+      // Shown even when called silently (the auto-generate effect) - a real
+      // failure (rate limit, misconfiguration) is worth surfacing so the
+      // agent isn't left wondering why the description stayed blank; only
+      // the "fill in title/location first" nudge above is skipped silently,
+      // since the auto-effect never calls this until both are already set.
+      toast({
+        title: 'AI generation failed',
+        description: error.message?.replace(/^\d+:\s*/, '') || 'Please try again or write the description manually.',
+        variant: 'destructive',
+      });
     } finally {
       setIsGeneratingDescription(false);
     }
