@@ -221,15 +221,24 @@ async function notifyAdminsOfRoomUpload(
 ): Promise<void> {
   const { storage } = await import('./storage');
   const { sendPushToAdmins } = await import('./gene/web-push');
-  const { sendEmailToAdmins } = await import('./email-service');
+  const { notifyAdminsEverywhere } = await import('./gene/admin-notify');
   const property = await storage.getProperty(parseInt(propertyId));
   const agentName = uploader.fullName || uploader.username || `Agent #${uploader.id}`;
   const propertyTitle = property?.title || `Property ${propertyId}`;
   const statusText = room.status === 'qualified' ? 'qualified' : 'needs a retake';
   const summary = `${agentName} uploaded "${room.name}" for ${propertyTitle} — ${statusText}.`;
+  const link = `/admin/virtual-tour-manager?propertyId=${propertyId}`;
+  // sendPushToAdmins is a browser web-push notification (separate from the
+  // in-app bell) — kept alongside notifyAdminsEverywhere below, which adds
+  // in-app + email + WhatsApp (this used to be push + email only).
   await Promise.all([
-    sendPushToAdmins('New room photos uploaded', summary, `/admin/virtual-tour-manager?propertyId=${propertyId}`),
-    sendEmailToAdmins('New room photos uploaded', `<p>${summary}</p>`, summary).catch(() => ({ sent: 0, attempted: 0 })),
+    sendPushToAdmins('New room photos uploaded', summary, link),
+    notifyAdminsEverywhere({
+      title: 'New room photos uploaded',
+      message: summary,
+      whatsappMessage: `📸 New room photos uploaded\n${summary}`,
+      link,
+    }).catch(() => {}),
   ]);
 }
 

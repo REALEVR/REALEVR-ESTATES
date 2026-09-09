@@ -4,7 +4,6 @@ import { postToFacebook } from './facebook'
 import { postToInstagram } from './instagram'
 import { postToTwitter } from './twitter'
 import { postToLinkedIn } from './linkedin'
-import { createNotification } from '../models/Notification'
 import type { PostResult } from './types'
 import type { Property } from '@shared/schema'
 
@@ -53,7 +52,6 @@ export async function postDailyUpdate(): Promise<PostResult[]> {
 
 async function notifyAdmins(property: Property, results: PostResult[]): Promise<void> {
     try {
-        const admins = (await storage.getAllUsers()).filter((u) => u.role === 'admin')
         const posted = results.filter((r) => r.status === 'posted').map((r) => r.platform)
         const failed = results.filter((r) => r.status === 'failed')
 
@@ -62,17 +60,16 @@ async function notifyAdmins(property: Property, results: PostResult[]): Promise<
             failed.length > 0 ? ` Failed: ${failed.map((f) => `${f.platform} (${f.detail})`).join('; ')}` : ''
         }`
 
-        await Promise.all(
-            admins.map((admin) =>
-                createNotification({
-                    userId: String(admin.id),
-                    title,
-                    message,
-                    type: 'system',
-                    link: '/admin/users',
-                })
-            )
-        )
+        // Routed through gene/admin-notify.ts's notifyAdminsEverywhere — this
+        // used to be an in-app notification only; now also reaches email and
+        // both of the owner's WhatsApp numbers.
+        const { notifyAdminsEverywhere } = await import('../gene/admin-notify')
+        await notifyAdminsEverywhere({
+            title,
+            message,
+            whatsappMessage: `${failed.length > 0 ? '⚠️' : '📣'} ${title}\n${message}`,
+            link: '/admin/users',
+        })
     } catch (error) {
         console.error('[Social] Failed to notify admins of post results:', error)
     }

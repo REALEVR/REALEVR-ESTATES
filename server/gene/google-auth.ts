@@ -123,7 +123,7 @@ async function findOrCreateGoogleUser({ googleId, email, fullName }: GoogleIdent
     const randomPassword = randomBytes(24).toString('hex')
     const hashedPassword = await hashPassword(randomPassword)
 
-    return storage.createUser({
+    const newUser = await storage.createUser({
         username,
         password: hashedPassword,
         email: email || `${username}@no-email.realevrestates.com`,
@@ -133,6 +133,16 @@ async function findOrCreateGoogleUser({ googleId, email, fullName }: GoogleIdent
         googleId,
         authProvider: 'google',
     } as any)
+
+    // Fire-and-forget: this is a genuinely new account (not a repeat sign-in
+    // or a link onto an existing one, both handled above), so admins should
+    // hear about it the same way they do for every other sign-up path — see
+    // gene/admin-notify.ts. Was previously the one signup path with no admin
+    // notification at all.
+    const { notifyAdminsOfNewSignup } = await import('./admin-notify')
+    void notifyAdminsOfNewSignup(newUser as any)
+
+    return newUser
 }
 
 function popupResponseHtml(

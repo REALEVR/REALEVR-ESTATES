@@ -237,47 +237,28 @@ function detectContactDetails(message: string): string | null {
 
 /**
  * Notifies every admin the instant a chat visitor shares contact details —
- * both channels the user asked for: an in-app notification (bell icon,
- * server/models/Notification.ts) and an email via sendEmailToAdmins
- * (server/email-service.ts, which is already configured to send through
- * Gmail). Both best-effort and independent of each other — one failing
- * (e.g. email not configured) never blocks the other or the chat reply.
+ * routed through gene/admin-notify.ts's notifyAdminsEverywhere so this
+ * reaches all three channels (in-app, email, and both of the owner's
+ * WhatsApp numbers), not just the in-app + email this used to send.
  */
 async function notifyAdminsOfNewLead(sessionId: string, message: string, contact: string): Promise<void> {
     try {
-        const { storage } = await import('../storage')
-        const admins = (await storage.getAllUsers()).filter((u) => u.role === 'admin')
-        const { createNotification } = await import('../models/Notification')
-        await Promise.all(
-            admins.map((admin) =>
-                createNotification({
-                    userId: String(admin.id),
-                    title: 'New lead from AI chat',
-                    message: `A visitor shared their contact details (${contact}) while chatting with the site assistant.`,
-                    type: 'system',
-                    link: `/admin`,
-                    data: { sessionId, contact, chatMessage: message },
-                }).catch((err) => console.error('[gene/chat] failed to notify an admin in-app:', err))
-            )
-        )
-    } catch (err) {
-        console.error('[gene/chat] failed to create in-app lead notifications:', err)
-    }
-
-    try {
-        const { sendEmailToAdmins } = await import('../email-service')
-        await sendEmailToAdmins(
-            'New lead from the AI chat assistant',
-            `<p>A visitor just shared their contact details while chatting with the site's AI assistant.</p>
+        const { notifyAdminsEverywhere } = await import('./admin-notify')
+        await notifyAdminsEverywhere({
+            title: 'New lead from AI chat',
+            message: `A visitor shared their contact details (${contact}) while chatting with the site assistant. Their message: "${message}" (session ${sessionId}).`,
+            html: `<p>A visitor just shared their contact details while chatting with the site's AI assistant.</p>
              <ul>
                <li><strong>Contact:</strong> ${contact}</li>
                <li><strong>Their message:</strong> ${message}</li>
                <li><strong>Session:</strong> ${sessionId}</li>
              </ul>`,
-            `New chat lead — contact: ${contact} — message: "${message}" — session: ${sessionId}`
-        )
+            whatsappMessage: `💬 New lead from AI chat\nContact: ${contact}\nMessage: "${message}"`,
+            link: `/admin`,
+            data: { sessionId, contact, chatMessage: message },
+        })
     } catch (err) {
-        console.error('[gene/chat] failed to email admins about a new lead:', err)
+        console.error('[gene/chat] failed to notify admins about a new lead:', err)
     }
 }
 

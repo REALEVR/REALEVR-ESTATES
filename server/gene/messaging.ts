@@ -31,7 +31,7 @@
 import type { Express, Request, Response, RequestHandler } from 'express'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
-import { sendEmailToAdmins } from '../email-service'
+import { notifyAdminsEverywhere } from './admin-notify'
 
 const CONVERSATIONS_COLLECTION = 'gene_conversations'
 const MESSAGES_COLLECTION = 'gene_messages'
@@ -109,17 +109,20 @@ function appendMessage(conversation: Conversation, senderId: number, senderName:
 /**
  * Fire-and-forget: an agent's message into their shared admin-support
  * thread is a "system message shared" the admin should hear about even if
- * they're not watching the inbox — see the email-notifications ask this
- * mirrors alongside new-signup emails (server/auth.ts) and the room-capture
- * upload notice (server/room-capture.ts). Never awaited by callers.
+ * they're not watching the inbox. Routed through gene/admin-notify.ts's
+ * notifyAdminsEverywhere so this reaches in-app, email, AND both of the
+ * owner's WhatsApp numbers — this used to be email-only. Never awaited by
+ * callers.
  */
 function notifyAdminsOfSupportMessage(senderName: string, text: string): void {
-    void sendEmailToAdmins(
-        `New message from ${senderName}`,
-        `<p><strong>${senderName}</strong> sent a message in their admin support thread:</p>
+    void notifyAdminsEverywhere({
+        title: `New message from ${senderName}`,
+        message: `${senderName}: ${text}`,
+        html: `<p><strong>${senderName}</strong> sent a message in their admin support thread:</p>
          <blockquote style="border-left:3px solid #ccc;margin:0;padding-left:12px;">${text}</blockquote>`,
-        `${senderName}: ${text}`
-    ).catch(() => {})
+        whatsappMessage: `💬 New support message from ${senderName}:\n${text}`,
+        link: '/admin/messages',
+    }).catch(() => {})
 }
 
 export function registerMessagingRoutes(app: Express, requireStrictAdmin: RequestHandler): void {

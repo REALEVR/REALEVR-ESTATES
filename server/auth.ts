@@ -6,7 +6,8 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
-import { sendEmail, generateVerificationEmailHTML, generateVerificationEmailText, sendEmailToAdmins } from "./email-service";
+import { sendEmail, generateVerificationEmailHTML, generateVerificationEmailText } from "./email-service";
+import { notifyAdminsOfNewSignup } from "./gene/admin-notify";
 
 
 declare global {
@@ -223,20 +224,11 @@ export function setupAuth(app: Express) {
 
       console.log("REGISTER ENDPOINT: User created with verification token:", user.id);
 
-      // Fire-and-forget: let admins know a new account was created, without
+      // Fire-and-forget: let admins know a new account was created (in-app,
+      // email, and both WhatsApp numbers — see gene/admin-notify.ts) without
       // making the registration response wait on (or fail because of) an
-      // unconfigured/slow email transport.
-      void sendEmailToAdmins(
-        `New signup: ${user.fullName || user.username}`,
-        `<p>A new account was just created on RealEVR Estates.</p>
-         <ul>
-           <li><strong>Name:</strong> ${user.fullName || '—'}</li>
-           <li><strong>Username:</strong> ${user.username}</li>
-           <li><strong>Email:</strong> ${user.email}</li>
-           <li><strong>Role:</strong> ${user.role}</li>
-         </ul>`,
-        `New account: ${user.fullName || user.username} (${user.username}, ${user.email}), role: ${user.role}`
-      ).catch(() => {});
+      // unconfigured/slow email or WhatsApp transport.
+      void notifyAdminsOfNewSignup(user);
 
       // Return success message without user data (don't auto-login)
       res.status(201).json({
