@@ -12,6 +12,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { COUNTRY_CODES, DEFAULT_COUNTRY_CODE } from "@/lib/country-codes";
 import type { User } from "@shared/schema";
 import GoogleSignInButton from "./GoogleSignInButton";
+import { attemptWelcomeAmbient } from "@/lib/ambientSound";
 
 /**
  * The sign-in/sign-up card - a single, plain form modeled directly on
@@ -87,6 +88,10 @@ export default function AuthGate({ onDismiss }: { onDismiss?: () => void } = {})
             const data = await res.json();
             // Adopt the freshly-created, now-logged-in user immediately - no reload needed.
             queryClient.setQueryData(["/api/user"], data.user);
+            // No page reload on this path, so the click that submitted this
+            // form is still a fresh-enough user gesture for the browser to
+            // allow audio to start right now (see ambientSound.ts).
+            attemptWelcomeAmbient();
         } catch (error: any) {
             setSignupError(error.message || "Failed to create your account. Please try again.");
         } finally {
@@ -96,6 +101,8 @@ export default function AuthGate({ onDismiss }: { onDismiss?: () => void } = {})
 
     const handleGoogleSignedIn = (user: Omit<User, "password">) => {
         toast({ title: "Signed in with Google", description: `Welcome, ${user.fullName || user.username}!` });
+        // No page reload on this path either — same reasoning as handleSignup above.
+        attemptWelcomeAmbient();
     };
 
     const handleGoogleError = (message: string) => {

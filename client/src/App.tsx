@@ -68,6 +68,7 @@ import AdminMessages from '@/pages/AdminMessages'
 import WhatsAppFab from '@/components/whatsapp/WhatsAppFab'
 import BrokerOnlinePresence from '@/components/broker/BrokerOnlinePresence'
 import MobileTabBar from '@/components/layout/MobileTabBar'
+import AmbientSoundToggle from '@/components/AmbientSoundToggle'
 
 function Router() {
     return (
@@ -287,6 +288,7 @@ function AppShell() {
             <SignupNudgeGate />
             <CookieConsentBanner />
             <MobileTabBar />
+            <AmbientSoundToggle />
         </>
     )
 }
