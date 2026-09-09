@@ -24,9 +24,10 @@
  *      auto-created (or reused) 'agent'-role account for the AGENT's phone
  *      number, and a 1,000 UGX payout request is created in
  *      `gene_listing_payout_requests`, status `pending_admin_review`.
- *   5. The two admin WhatsApp numbers (see ADMIN_WHATSAPP_NUMBERS below)
- *      are notified immediately so approval doesn't require polling a
- *      dashboard — see server/gene/admin-guard.ts for why approval itself
+ *   5. The platform owner is notified immediately across every channel
+ *      (in-app, email, both WhatsApp numbers — see gene/admin-notify.ts)
+ *      so approval doesn't require polling a dashboard — see
+ *      server/gene/admin-guard.ts for why approval itself
  *      is a strict admin-only action, not the looser admin-or-agent check
  *      most GENE routes use.
  *   6. The agent gets a WhatsApp message with a magic-login link into their
@@ -68,6 +69,7 @@ import { sendWhatsAppMessage } from './whatsapp'
 import { normalizePhone, findLinkByPhone, linkPhoneToUser } from './whatsapp-concierge'
 import { issueMagicLoginLink } from './magic-login'
 import { requireStrictAdmin } from './admin-guard'
+import { notifyAdminsEverywhere } from './admin-notify'
 import { randomBytes } from 'crypto'
 
 const COLLECTION = 'gene_selfserve_submissions'
@@ -98,20 +100,10 @@ const MAX_PAYOUTS_PER_AGENT_PHONE_PER_30D = Number(process.env.SELF_SERVE_MAX_PA
 const MAX_PAYOUTS_PER_LANDLORD_PHONE_PER_30D = Number(process.env.SELF_SERVE_MAX_PAYOUTS_PER_LANDLORD_30D) || 5
 const FRAUD_WINDOW_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 
-/**
- * Who gets WhatsApp-notified for approval, and who's allowed to approve
- * (that's enforced separately, by role==='admin', in requireStrictAdmin —
- * this list is only about *notification*, not authorization). Overridable
- * via ADMIN_WHATSAPP_NUMBERS (comma-separated) without a code change if the
- * platform owner's numbers ever change.
- */
-const DEFAULT_ADMIN_WHATSAPP_NUMBERS = ['256771891323', '256702742333']
-function getAdminWhatsappNumbers(): string[] {
-    const raw = process.env.ADMIN_WHATSAPP_NUMBERS
-    if (!raw) return DEFAULT_ADMIN_WHATSAPP_NUMBERS
-    const parsed = raw.split(',').map((n) => normalizePhone(n.trim())).filter(Boolean)
-    return parsed.length ? parsed : DEFAULT_ADMIN_WHATSAPP_NUMBERS
-}
+// Who gets notified for approval (that's separate from who's *allowed* to
+// approve — enforced by role==='admin' in requireStrictAdmin) now lives in
+// gene/admin-notify.ts's getAdminWhatsappNumbers, shared with every other
+// admin-facing notification in the app instead of duplicated here.
 
 type SubmissionStatus = 'draft' | 'otp_sent' | 'live' | 'expired'
 
@@ -781,26 +773,41 @@ async function sendOtp(submission: SelfServeSubmission): Promise<void> {
     )
 }
 
-/** WhatsApp-notifies the platform owner's numbers that a payout needs review.
- * Best-effort — never throws into the request path that created the payout.
- * NOTE: this is a business-initiated message. If neither admin number has
- * messaged the WhatsApp Business number within the last 24 hours, Meta may
- * reject a freeform text like this outside that session window — see
- * server/gene/whatsapp-growth.ts's docstring for the template-message
- * workaround if that becomes a problem in practice. */
+/** Notifies the platform owner across all three channels (in-app, email,
+ * both WhatsApp numbers — via gene/admin-notify.ts) that a payout needs
+ * review. Best-effort — never throws into the request path that created
+ * the payout. Used to be WhatsApp-only; brought to parity with every other
+ * admin notification in the app.
+ * NOTE on the WhatsApp leg specifically: this is a business-initiated
+ * message. If neither admin number has messaged the WhatsApp Business
+ * number within the last 24 hours, Meta may reject a freeform text like
+ * this outside that session window — see server/gene/whatsapp-growth.ts's
+ * docstring for the template-message workaround if that becomes a problem
+ * in practice. */
 async function notifyAdminsOfPendingPayout(payout: ListingPayoutRequest): Promise<void> {
+    const summaryLine = payout.fraudFlagReason
+        ? `🚩 Flagged listing payout needs review: ${payout.amountUgx} UGX for "${payout.propertyTitle}".`
+        : `💰 New listing payout pending review: ${payout.amountUgx} UGX for "${payout.propertyTitle}".`
     const message = [
-        payout.fraudFlagReason
-            ? `🚩 Flagged listing payout needs review: ${payout.amountUgx} UGX for "${payout.propertyTitle}".`
-            : `💰 New listing payout pending review: ${payout.amountUgx} UGX for "${payout.propertyTitle}".`,
+        summaryLine,
         `Agent: ${payout.agentName} (${payout.agentPhone})`,
         `Vouched for by: ${payout.landlordName} (${payout.landlordPhone})`,
         ...(payout.fraudFlagReason ? [`Flag reason: ${payout.fraudFlagReason}`] : []),
         `Review it in the admin dashboard: Payout Approvals → request #${payout.id}.`,
     ].join('\n')
-    for (const number of getAdminWhatsappNumbers()) {
-        await sendWhatsAppMessage(number, message)
-    }
+    await notifyAdminsEverywhere({
+        title: payout.fraudFlagReason ? 'Flagged listing payout needs review' : 'New listing payout pending review',
+        message,
+        html: `<p>${summaryLine}</p>
+             <ul>
+               <li><strong>Agent:</strong> ${payout.agentName} (${payout.agentPhone})</li>
+               <li><strong>Vouched for by:</strong> ${payout.landlordName} (${payout.landlordPhone})</li>
+               ${payout.fraudFlagReason ? `<li><strong>Flag reason:</strong> ${payout.fraudFlagReason}</li>` : ''}
+             </ul>
+             <p>Review it in the admin dashboard: Payout Approvals → request #${payout.id}.</p>`,
+        whatsappMessage: message,
+        link: '/admin/payout-approvals',
+    })
 }
 
 /** Best-effort WhatsApp notification to the agent when their payout's status changes. */

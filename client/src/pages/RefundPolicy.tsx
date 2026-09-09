@@ -75,10 +75,11 @@ export default function RefundPolicy() {
             directly.
           </p>
           <p>
-            <strong>Payout to your landlord isn't instant.</strong> Your payment is collected immediately; sending
-            your landlord their share currently goes through a manual check on our side before it's sent, which can
-            take some time. You'll get a confirmation the moment it's actually sent — you don't need to follow up or
-            pay again if it isn't sent within seconds.
+            <strong>Payout to your landlord is usually automatic, but not guaranteed to be instant.</strong> Your
+            payment is collected immediately, and your landlord's share is normally sent to them automatically too.
+            Occasionally that automatic step doesn't go through, in which case it falls back to a manual check on our
+            side before it's sent, which can take longer. Either way, you'll get a confirmation the moment it's
+            actually sent — you don't need to follow up or pay again if it isn't sent within seconds.
           </p>
           <p>
             <strong>You're responsible for the number you enter.</strong> If you enter the wrong mobile money number

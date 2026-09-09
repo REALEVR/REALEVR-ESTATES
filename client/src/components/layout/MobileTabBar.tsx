@@ -23,7 +23,9 @@ const TABS = [
 ] as const
 
 const TABS_RIGHT = [
-    { href: '/rentrail', label: 'Pay Rent', icon: Receipt, match: (p: string) => p.startsWith('/rentrail') },
+    // glow: draws the eye to this always-visible, sign-up-free action —
+    // see index.css's .pay-rent-glow and Header.tsx's matching desktop button.
+    { href: '/rentrail', label: 'Pay Rent', icon: Receipt, match: (p: string) => p.startsWith('/rentrail'), glow: true },
 ] as const
 
 export default function MobileTabBar() {
@@ -96,11 +98,13 @@ function TabLink({
     label,
     icon: Icon,
     active,
+    glow,
 }: {
     href: string
     label: string
     icon: typeof Home
     active: boolean
+    glow?: boolean
 }) {
     return (
         <Link
@@ -109,7 +113,7 @@ function TabLink({
                 active ? 'text-accent' : 'text-muted-foreground'
             }`}
         >
-            <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
+            <Icon className={`h-5 w-5 ${glow ? 'pay-rent-glow rounded-full' : ''}`} strokeWidth={active ? 2.5 : 2} />
             <span className={`text-[10px] ${active ? 'font-semibold' : 'font-medium'}`}>{label}</span>
         </Link>
     )

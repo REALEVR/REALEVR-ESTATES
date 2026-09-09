@@ -6,7 +6,8 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
-import { sendEmail, generateVerificationEmailHTML, generateVerificationEmailText, sendEmailToAdmins } from "./email-service";
+import { sendEmail, generateVerificationEmailHTML, generateVerificationEmailText } from "./email-service";
+import { notifyAdminsOfNewSignup } from "./gene/admin-notify";
 
 
 declare global {
@@ -179,6 +180,24 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ error: "Email already exists" });
       }
 
+      // Phone number is compulsory as of the RentRail feature: a rent
+      // payment is attributed to a landlord's dashboard, and a receipt to
+      // a tenant's, purely by matching each side's own account phone
+      // number (see server/gene/rentrail.ts's findLandlordUserIdByPhone
+      // doc comment) — an account with no phone number can never receive
+      // either. Loose validation on purpose (this form isn't Uganda-only —
+      // see COUNTRY_CODES): just require *a* real-looking number, not a
+      // specific country's format. Deliberately only enforced here, not at
+      // the shared insertUserSchema level — Google sign-in
+      // (server/gene/google-auth.ts) and system-created accounts (e.g.
+      // server/gene/self-serve-listing.ts's OTP-verified landlord accounts)
+      // don't go through this route and have their own honest handling for
+      // a phone number that isn't collected yet.
+      const digitsOnly = String(req.body.phoneNumber ?? "").replace(/\D/g, "");
+      if (digitsOnly.length < 7) {
+        return res.status(400).json({ error: "A valid phone number is required." });
+      }
+
       // Generate verification token
       const verificationToken = generateVerificationToken();
       const verificationExpiry = generateVerificationExpiry();
@@ -205,20 +224,11 @@ export function setupAuth(app: Express) {
 
       console.log("REGISTER ENDPOINT: User created with verification token:", user.id);
 
-      // Fire-and-forget: let admins know a new account was created, without
+      // Fire-and-forget: let admins know a new account was created (in-app,
+      // email, and both WhatsApp numbers — see gene/admin-notify.ts) without
       // making the registration response wait on (or fail because of) an
-      // unconfigured/slow email transport.
-      void sendEmailToAdmins(
-        `New signup: ${user.fullName || user.username}`,
-        `<p>A new account was just created on RealEVR Estates.</p>
-         <ul>
-           <li><strong>Name:</strong> ${user.fullName || '—'}</li>
-           <li><strong>Username:</strong> ${user.username}</li>
-           <li><strong>Email:</strong> ${user.email}</li>
-           <li><strong>Role:</strong> ${user.role}</li>
-         </ul>`,
-        `New account: ${user.fullName || user.username} (${user.username}, ${user.email}), role: ${user.role}`
-      ).catch(() => {});
+      // unconfigured/slow email or WhatsApp transport.
+      void notifyAdminsOfNewSignup(user);
 
       // Return success message without user data (don't auto-login)
       res.status(201).json({

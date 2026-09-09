@@ -88,6 +88,11 @@ const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
     next()
 }
 
+// Free trial agents (AgentRegistrationPage.tsx's Free Trial plan) can list
+// up to this many properties before being asked to upgrade — enforced in
+// POST /api/properties/create below.
+const FREE_TRIAL_MAX_PROPERTIES = 2
+
 // Middleware to check if user has active subscription (for agents)
 const subscriptionMiddleware = (req: Request, res: Response, next: NextFunction) => {
     console.log('Current Request', req)
@@ -150,6 +155,23 @@ const noCacheMiddleware = (req: Request, res: Response, next: NextFunction) => {
     next()
 }
 
+// A landlord/agent marking a property "unavailable" (PropertyManager.tsx's
+// toggle, PATCH /api/properties/:id below) should make it disappear from
+// every public-facing display - listings, search, featured/popular/recent,
+// the sitemap - WITHOUT touching the database record itself, so flipping it
+// back to available later needs nothing more than that same toggle. Only an
+// authenticated admin/agent viewing their own management dashboard
+// (PropertyManager.tsx / VirtualTourManager.tsx - both of which hit this
+// very same GET /api/properties endpoint) still sees unavailable
+// properties, since they're the ones who'd need to find one to reactivate.
+function isPubliclyVisibleProperty(property: { isAvailable?: boolean | null }): boolean {
+    return property.isAvailable !== false
+}
+function canViewUnavailableProperties(req: Request): boolean {
+    const role = (req.isAuthenticated() && (req.user as any)?.role) || null
+    return role === 'admin' || role === 'agent'
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
     /**
      * IoTec Payments
@@ -163,7 +185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const base = getCanonicalBaseUrl()
             const staticEntries = getStaticSitemapEntries(base)
             const properties = await storage.getAllProperties()
-            const propertyEntries = properties.map((p) =>
+            const propertyEntries = properties.filter(isPubliclyVisibleProperty).map((p) =>
                 propertyToSitemapEntry(base, {
                     id: p.id,
                     title: p.title || 'Property',
@@ -442,7 +464,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Get all properties
     app.get('/api/properties', async (req, res) => {
         try {
-            const properties = await storage.getAllProperties()
+            const allProperties = await storage.getAllProperties()
+            const properties = canViewUnavailableProperties(req)
+                ? allProperties
+                : allProperties.filter(isPubliclyVisibleProperty)
 
             // Debug logging for property IDs and types
             console.log('[DEBUG] Properties from storage:')
@@ -464,7 +489,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Get featured properties
     app.get('/api/properties/featured', async (req, res) => {
         try {
-            const featuredProperties = await storage.getFeaturedProperties()
+            const featuredProperties = (await storage.getFeaturedProperties()).filter(isPubliclyVisibleProperty)
 
             // Set cache control headers to prevent caching
             res.set({
@@ -481,7 +506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     app.get('/api/properties/popular', async (req, res) => {
         try {
             const limit = req.query.limit ? parseInt(req.query.limit as string) : 4
-            const popularProperties = await storage.getPopularProperties(limit)
+            const popularProperties = (await storage.getPopularProperties(limit)).filter(isPubliclyVisibleProperty)
 
             res.set({
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -497,7 +522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     app.get('/api/properties/recent', async (req, res) => {
         try {
             const limit = req.query.limit ? parseInt(req.query.limit as string) : 4
-            const recentProperties = await storage.getRecentlyAddedProperties(limit)
+            const recentProperties = (await storage.getRecentlyAddedProperties(limit)).filter(isPubliclyVisibleProperty)
 
             res.set({
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -651,7 +676,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     app.get('/api/properties/category/:category', async (req, res) => {
         try {
             const category = req.params.category
-            const properties = await storage.getPropertiesByCategory(category)
+            const properties = (await storage.getPropertiesByCategory(category)).filter(isPubliclyVisibleProperty)
 
             // Set cache control headers to prevent caching
             res.set({
@@ -668,7 +693,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     app.get('/api/properties/search', async (req, res) => {
         try {
             const query = (req.query.q as string) || ''
-            const properties = await storage.searchProperties(query)
+            const properties = (await storage.searchProperties(query)).filter(isPubliclyVisibleProperty)
 
             // Set cache control headers to prevent caching
             res.set({
@@ -783,7 +808,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const filters = parseResult.data
 
             // Apply filters to properties
-            let properties = await storage.getAllProperties()
+            let properties = (await storage.getAllProperties()).filter(isPubliclyVisibleProperty)
 
             if (filters.propertyType) {
                 properties = properties.filter((p) => p.propertyType === filters.propertyType)
@@ -1291,6 +1316,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (!propertyData.ownerId && req.user) {
                 propertyData.ownerId = req.user.id
                 console.log('[DEBUG] Setting ownerId to current user:', req.user.id)
+            }
+
+            // Free trial agents (see AgentRegistrationPage.tsx's Free Trial
+            // plan — no payment, membershipPlan: 'free_trial') are capped at
+            // FREE_TRIAL_MAX_PROPERTIES listings. Checked here rather than
+            // relying on the client's own count, since this is the one
+            // place a property actually gets created.
+            if (req.user && req.user.role === 'agent' && req.user.membershipPlan === 'free_trial') {
+                const existing = await storage.getPropertiesByOwner(req.user.id)
+                if (existing.length >= FREE_TRIAL_MAX_PROPERTIES) {
+                    return res.status(403).json({
+                        message: `Free trial agents can list up to ${FREE_TRIAL_MAX_PROPERTIES} properties. Upgrade your plan from your dashboard to list more.`,
+                    })
+                }
             }
 
             // Validate required fields

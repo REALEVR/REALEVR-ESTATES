@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/hooks/use-auth'
-import { Redirect } from 'wouter'
+import { Redirect, Link } from 'wouter'
 import { Property } from '@shared/schema'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -25,6 +25,8 @@ import {
     Star,
     Loader2,
     Download,
+    Receipt,
+    Gift,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import PropertyFormNew from '@/components/admin/PropertyFormNew'
@@ -35,6 +37,8 @@ import MessagesInbox from '@/components/messaging/MessagesInbox'
 import { useInstallPrompt } from '@/hooks/useInstallPrompt'
 import BoostPurchaseCard from '@/components/boost/BoostPurchaseCard'
 import { Skeleton } from '@/components/ui/skeleton'
+import AddPhoneNumberPrompt from '@/components/rentrail/AddPhoneNumberPrompt'
+import RentRailReceiptList, { type RentRailReceiptRow } from '@/components/rentrail/RentRailReceiptList'
 
 interface PropertyWithViews extends Property {
     viewCount: number
@@ -248,6 +252,8 @@ export function AgentDashboard() {
                     <InstallAppButton />
                 </div>
 
+                {user.membershipPlan === 'free_trial' && <FreeTrialBanner propertyCount={properties.length} />}
+
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <Card>
@@ -296,14 +302,24 @@ export function AgentDashboard() {
                 </div>
 
                 {/* Main Content */}
-                <Tabs defaultValue="properties" className="space-y-6">
-                    <TabsList>
+                {/* defaultValue reads ?tab=rentpay so the in-app notification
+                    fired the instant a RentRail payout is confirmed (see
+                    server/gene/rentrail.ts's deliverReceipt) lands straight
+                    on the Rent Pay tab, not buried behind My Properties. */}
+                <Tabs
+                    defaultValue={new URLSearchParams(window.location.search).get('tab') === 'rentpay' ? 'rentpay' : 'properties'}
+                    className="space-y-6"
+                >
+                    <TabsList className="flex-wrap h-auto">
                         <TabsTrigger value="properties">My Properties</TabsTrigger>
                         <TabsTrigger value="analytics">Analytics</TabsTrigger>
                         <TabsTrigger value="tours">Virtual Tours</TabsTrigger>
                         <TabsTrigger value="inbox">Inbox</TabsTrigger>
                         <TabsTrigger value="messages">Messages</TabsTrigger>
                         <TabsTrigger value="reviews">Reviews</TabsTrigger>
+                        <TabsTrigger value="rentpay">
+                            <Receipt className="mr-1.5 h-3.5 w-3.5" /> Rent Pay
+                        </TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="properties" className="space-y-6">
@@ -576,6 +592,10 @@ export function AgentDashboard() {
                     <TabsContent value="reviews" className="space-y-6">
                         <ReviewsTab />
                     </TabsContent>
+
+                    <TabsContent value="rentpay" className="space-y-6">
+                        <RentPayTab />
+                    </TabsContent>
                 </Tabs>
             </div>
 
@@ -811,6 +831,65 @@ function InboxTab() {
             </Card>
         </div>
     )
+}
+
+// Mirrors FREE_TRIAL_MAX_PROPERTIES in server/routes.ts — that's the value
+// actually enforced (POST /api/properties/create); this is just what's shown.
+const FREE_TRIAL_MAX_PROPERTIES = 2
+
+/** Shown at the top of a free-trial agent's dashboard (see
+ * AgentRegistrationPage.tsx's Free Trial plan) — makes the 2-property cap
+ * visible in context instead of only surfacing as an error when they try
+ * to add a 3rd, and gives them a direct way to upgrade. */
+function FreeTrialBanner({ propertyCount }: { propertyCount: number }) {
+    const remaining = Math.max(0, FREE_TRIAL_MAX_PROPERTIES - propertyCount)
+    return (
+        <div className="mb-8 flex items-center justify-between gap-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 flex-wrap">
+            <div className="flex items-center gap-2 text-sm text-green-900">
+                <Gift className="h-4 w-4 shrink-0" />
+                <span>
+                    <strong>Free trial</strong> — {propertyCount} of {FREE_TRIAL_MAX_PROPERTIES} properties used
+                    {remaining > 0 ? ` (${remaining} left)` : ' (limit reached)'}.
+                </span>
+            </div>
+            <Button asChild size="sm" variant="outline" className="border-green-300 bg-white">
+                <Link href="/membership">Upgrade plan</Link>
+            </Button>
+        </div>
+    )
+}
+
+/**
+ * RentRail rent payments sent to this landlord — matched live by their own
+ * account phone number against each payment's landlordPhone (see
+ * server/gene/rentrail.ts's GET /landlord-payments and
+ * findLandlordUserIdByPhone doc comment). If they haven't added a phone
+ * number yet, nothing can match — this shows the actual reason (and a way
+ * to fix it right here) instead of just an empty list.
+ */
+function RentPayTab() {
+    const rentPayQuery = useQuery<{ phoneNumberRequired: boolean; payments: RentRailReceiptRow[] }>({
+        queryKey: ['/api/gene/rentrail/landlord-payments'],
+    })
+
+    if (rentPayQuery.isLoading) {
+        return (
+            <div className="flex justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
+
+    if (rentPayQuery.data?.phoneNumberRequired) {
+        return (
+            <AddPhoneNumberPrompt
+                description="RentRail matches rent payments to your dashboard by phone number — add yours to see any payments sent to you."
+                invalidateQueryKey="/api/gene/rentrail/landlord-payments"
+            />
+        )
+    }
+
+    return <RentRailReceiptList perspective="landlord" rows={rentPayQuery.data?.payments ?? []} isLoading={false} />
 }
 
 /** Reviews left on this landlord's properties (server/gene/landlord-hub.ts). */

@@ -52,30 +52,63 @@ export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
 }
 
 /**
+ * The platform owner's own email(s) — always emailed for every admin
+ * notification below, regardless of what's on file for admin-role user
+ * accounts in the DB. This is the guard against the DB roster being empty,
+ * stale, or missing an email on the right account: without it, every admin
+ * notification silently depends on realevrug@gmail.com actually being the
+ * verified email on a real admin-role user, which nothing here can confirm
+ * from code. Overridable via ADMIN_NOTIFICATION_EMAILS (comma-separated)
+ * without a code change if the owner's address(es) ever change.
+ */
+const DEFAULT_ADMIN_NOTIFICATION_EMAILS = ['realevrug@gmail.com']
+function getGuaranteedAdminEmails(): string[] {
+    const raw = process.env.ADMIN_NOTIFICATION_EMAILS
+    if (!raw) return DEFAULT_ADMIN_NOTIFICATION_EMAILS
+    const parsed = raw.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
+    return parsed.length ? parsed : DEFAULT_ADMIN_NOTIFICATION_EMAILS
+}
+
+/**
  * Sends a plain notification email to every admin-role user on file, so the
  * admin doesn't have to be watching the in-app notification bell/inbox to
- * hear about a new signup, a new agent upload, or a new support message.
- * Admin emails are looked up dynamically via storage.getAllUsers() rather
- * than hardcoded, so this keeps working if the admin roster changes.
- * Best-effort: a missing EMAIL_USER/EMAIL_PASSWORD config or an empty admin
- * roster just means nothing gets sent (sendEmail already no-throws on a
- * misconfigured transporter) — never blocks the caller's own flow.
+ * hear about a new signup, a new agent upload, or a new support message —
+ * PLUS the guaranteed owner address(es) above, always, deduplicated against
+ * whatever admin-role users already resolve to the same address. Admin
+ * emails are looked up dynamically via storage.getAllUsers() rather than
+ * hardcoded, so this keeps working if the admin roster changes.
+ * Best-effort: a missing EMAIL_USER/EMAIL_PASSWORD config just means
+ * nothing gets sent (sendEmail already no-throws on a misconfigured
+ * transporter) — never blocks the caller's own flow.
  */
 export const sendEmailToAdmins = async (subject: string, html: string, text?: string): Promise<{ sent: number; attempted: number }> => {
     try {
         const { storage } = await import('./storage')
         const users = await storage.getAllUsers()
-        const admins = users.filter((u) => u.role === 'admin' && u.email)
+        const dbAdminEmails = users.filter((u) => u.role === 'admin' && u.email).map((u) => u.email.toLowerCase())
+        const recipients = Array.from(new Set([...dbAdminEmails, ...getGuaranteedAdminEmails()]))
 
         let sent = 0
-        for (const admin of admins) {
-            const ok = await sendEmail({ to: admin.email, subject, html, text })
+        for (const email of recipients) {
+            const ok = await sendEmail({ to: email, subject, html, text })
             if (ok) sent += 1
         }
-        return { sent, attempted: admins.length }
+        return { sent, attempted: recipients.length }
     } catch (error) {
         console.error('Error notifying admins by email:', error)
-        return { sent: 0, attempted: 0 }
+        // Even a failure looking up the DB admin roster shouldn't cost the
+        // owner their email — fall back to just the guaranteed address(es).
+        try {
+            let sent = 0
+            const recipients = getGuaranteedAdminEmails()
+            for (const email of recipients) {
+                const ok = await sendEmail({ to: email, subject, html, text })
+                if (ok) sent += 1
+            }
+            return { sent, attempted: recipients.length }
+        } catch {
+            return { sent: 0, attempted: 0 }
+        }
     }
 }
 

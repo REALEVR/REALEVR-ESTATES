@@ -30,6 +30,7 @@ import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
 import type { Property } from '@shared/schema'
 import { getAiReply } from './ai-provider'
+import { languageInstruction } from './locale'
 
 const PROFILE_COLLECTION = 'gene_agent_profiles'
 const SIGNAL_COLLECTION = 'gene_agent_signals'
@@ -657,12 +658,16 @@ export function registerPersonalAgentRoutes(app: Express): void {
                     'across East Africa. Be warm, concise (2-5 sentences), and honest: only reference the facts given below,',
                     'and if you don\'t know something specific, say so and offer to connect them with a human agent rather than guessing.',
                     '',
+                    languageInstruction(req.headers['accept-language']),
+                    '',
                     'Their profile:',
                     profileSummaryForPrompt(profile),
                     '',
                     'Their current top matches:',
                     ...top.map((t) => `- "${t.property.title}" in ${t.property.location} — ${t.property.currency ?? 'UGX'} ${t.property.price}`),
-                ].join('\n')
+                ]
+                    .filter(Boolean)
+                    .join('\n')
 
                 // Previously this only ever sent the latest message with no memory of
                 // earlier turns, even though the conversation was already being

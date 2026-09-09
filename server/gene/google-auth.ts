@@ -1,16 +1,40 @@
 /**
- * GENE Platform — "Continue with Google" sign-in, as a real popup window
- * rather than a full-page redirect (the "make auth feel like a pop up"
- * ask). Entirely additive: does not touch server/auth.ts's local-strategy
- * login/register/session code, and only reuses `storage` (existing
- * getUserByEmail/getAllUsers/createUser/updateUser — no new IStorage
- * methods needed) plus auth.ts's exported `hashPassword`.
+ * GENE Platform — "Continue with Google" sign-in. Two ways in, both ending
+ * at the same findOrCreateGoogleUser account-matching logic below:
+ *
+ * 1. GOOGLE IDENTITY SERVICES (GIS) — the primary path as of the "don't
+ *    make someone leave the page on mobile" ask. client/src/components/
+ *    auth/GoogleSignInButton.tsx renders Google's own Sign In With Google
+ *    button via the `accounts.google.com/gsi/client` script — clicking it
+ *    shows Google's account chooser as a genuine in-viewport overlay (an
+ *    iframe Google's own script manages, not a new browser window), so
+ *    nothing ever navigates away or opens a separate tab, mobile included.
+ *    That flow hands back a signed ID token ("credential") to
+ *    POST /api/auth/google/onetap below, which verifies it server-side
+ *    (google-auth-library's OAuth2Client.verifyIdToken — never trusts an
+ *    unverified token) and logs the user in directly, no popup/redirect at
+ *    all. GET /api/config/google-client-id exists because GIS needs the
+ *    OAuth Client ID in the browser to initialize — that's the public half
+ *    of the credential pair (Google's own docs treat it as embeddable in
+ *    frontend code); the Client Secret never leaves this server.
+ *
+ * 2. REAL POPUP WINDOW (window.open) — the original implementation, kept
+ *    as the automatic fallback GoogleSignInButton uses if the GIS script
+ *    fails to load/init (blocked, offline, etc.). A real OAuth redirect
+ *    through Google, in a popup window rather than navigating the main
+ *    tab. On desktop this behaves like a real popup; on many mobile
+ *    browsers `window.open` is downgraded to a full new tab instead
+ *    (browser behavior this server can't control) — exactly the "has to
+ *    leave the page" problem GIS above solves, which is why GIS is tried
+ *    first and this is the fallback, not the other way around.
  *
  * ENV-GATED, GRACEFUL DEGRADE: without GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET
- * set, `registerGoogleAuthRoutes` still registers /api/auth/google so the
- * frontend's popup never hits a raw 404 — it opens, shows a clear "Google
- * sign-in isn't configured yet" message, and closes itself. No route ever
- * pretends Google sign-in works when it doesn't.
+ * set, both paths still register their routes so the frontend never hits a
+ * raw 404 — GET /api/config/google-client-id returns clientId: null (GIS
+ * never initializes, GoogleSignInButton falls back to the popup path
+ * immediately), and the popup shows a clear "Google sign-in isn't
+ * configured yet" message and closes itself. No route ever pretends
+ * Google sign-in works when it doesn't.
  *
  * SETUP (do this in Google Cloud Console, not from code):
  *   1. console.cloud.google.com → APIs & Services → OAuth consent screen
@@ -18,21 +42,12 @@
  *   2. Credentials → Create Credentials → OAuth client ID → Web application.
  *   3. Authorized redirect URI: <BASE_URL>/api/auth/google/callback
  *      (BASE_URL is the same env var server/sitemap.ts already reads —
- *      e.g. https://estates.realevr.com).
+ *      e.g. https://estates.realevr.com). Authorized JavaScript origin:
+ *      <BASE_URL> itself (no path) — GIS checks this, separately from the
+ *      redirect URI above.
  *   4. Copy the Client ID + Client Secret into GOOGLE_CLIENT_ID /
  *      GOOGLE_CLIENT_SECRET on your host (Railway → Variables). No redeploy
  *      of this code is needed after that — it's read at request time.
- *
- * POPUP FLOW (how the frontend uses this):
- *   1. Open a popup window pointed at GET /api/auth/google.
- *   2. That redirects through Google, back to GET /api/auth/google/callback.
- *   3. The callback logs the user in (real session, same as local login —
- *      req.login + the shared session middleware from auth.ts) and responds
- *      with a tiny HTML page that does
- *      `window.opener.postMessage({source:'realevr-google-auth', ok, user|error}, <origin>)`
- *      then `window.close()`.
- *   4. The main window's message listener picks that up — see
- *      client/src/components/auth/AuthModal.tsx.
  *
  * ACCOUNT MATCHING: by googleId first (repeat sign-in), then by email
  * (links Google to an existing local account rather than creating a
@@ -48,6 +63,7 @@
 import type { Express, Request, Response } from 'express'
 import passport from 'passport'
 import { Strategy as GoogleStrategy, type Profile } from 'passport-google-oauth20'
+import { OAuth2Client } from 'google-auth-library'
 import { randomBytes } from 'crypto'
 import { storage } from '../storage'
 import { hashPassword } from '../auth'
@@ -78,11 +94,17 @@ async function generateUniqueUsername(seed: string): Promise<string> {
     return candidate
 }
 
-async function findOrCreateGoogleUser(profile: Profile) {
-    const googleId = profile.id
-    const email = profile.emails?.[0]?.value
-    const fullName = profile.displayName || email || 'RealEVR User'
+interface GoogleIdentity {
+    googleId: string
+    email?: string
+    fullName: string
+}
 
+/** Shared by both entry points (GIS ID-token verification and the classic
+ * passport redirect strategy) — accepts a small, provider-agnostic shape
+ * rather than passport's own Profile type, since only these three fields
+ * are ever used regardless of which flow got them. */
+async function findOrCreateGoogleUser({ googleId, email, fullName }: GoogleIdentity) {
     const allUsers = await storage.getAllUsers()
 
     const byGoogleId = allUsers.find((u: any) => u.googleId === googleId)
@@ -101,7 +123,7 @@ async function findOrCreateGoogleUser(profile: Profile) {
     const randomPassword = randomBytes(24).toString('hex')
     const hashedPassword = await hashPassword(randomPassword)
 
-    return storage.createUser({
+    const newUser = await storage.createUser({
         username,
         password: hashedPassword,
         email: email || `${username}@no-email.realevrestates.com`,
@@ -111,6 +133,16 @@ async function findOrCreateGoogleUser(profile: Profile) {
         googleId,
         authProvider: 'google',
     } as any)
+
+    // Fire-and-forget: this is a genuinely new account (not a repeat sign-in
+    // or a link onto an existing one, both handled above), so admins should
+    // hear about it the same way they do for every other sign-up path — see
+    // gene/admin-notify.ts. Was previously the one signup path with no admin
+    // notification at all.
+    const { notifyAdminsOfNewSignup } = await import('./admin-notify')
+    void notifyAdminsOfNewSignup(newUser as any)
+
+    return newUser
 }
 
 function popupResponseHtml(
@@ -142,7 +174,11 @@ export function registerGoogleAuthRoutes(app: Express): void {
                 },
                 async (_accessToken, _refreshToken, profile: Profile, done) => {
                     try {
-                        const user = await findOrCreateGoogleUser(profile)
+                        const user = await findOrCreateGoogleUser({
+                            googleId: profile.id,
+                            email: profile.emails?.[0]?.value,
+                            fullName: profile.displayName || profile.emails?.[0]?.value || 'RealEVR User',
+                        })
                         done(null, user as any)
                     } catch (err) {
                         done(err as Error)
@@ -151,6 +187,64 @@ export function registerGoogleAuthRoutes(app: Express): void {
             )
         )
     }
+
+    // [PUBLIC] GET /api/config/google-client-id — the OAuth Client ID is the
+    // public half of the credential pair (Google's own GIS docs have it
+    // embedded directly in frontend script tags), so serving it here is not
+    // a secret leak; the Client Secret never appears in any route response.
+    // Same "config over env var" pattern as GET /api/config/whatsapp-business-number
+    // (server/gene/whatsapp-growth.ts) — lets the frontend adapt without a
+    // rebuild, and returns null cleanly (never an error) when unconfigured
+    // so GoogleSignInButton just falls back to the popup flow immediately.
+    app.get('/api/config/google-client-id', (_req: Request, res: Response) => {
+        res.json({ clientId: process.env.GOOGLE_CLIENT_ID || null })
+    })
+
+    // [PUBLIC] POST /api/auth/google/onetap — the GIS ID-token flow's
+    // landing point (see this file's top doc comment, path 1). Body:
+    // { credential: <signed JWT from Google> }. Never trusts the token's
+    // own claims without verifying its signature and audience first —
+    // same "don't trust what the client hands you" posture as the
+    // popup/redirect flow trusting only what Google's own callback
+    // produces, never anything the browser could have forged.
+    app.post('/api/auth/google/onetap', async (req: Request, res: Response) => {
+        if (!isGoogleConfigured()) {
+            return res.status(503).json({ message: 'Google sign-in is not configured yet.' })
+        }
+        const credential = typeof req.body?.credential === 'string' ? req.body.credential : ''
+        if (!credential) {
+            return res.status(400).json({ message: 'Missing credential.' })
+        }
+
+        try {
+            const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
+            const ticket = await client.verifyIdToken({ idToken: credential, audience: process.env.GOOGLE_CLIENT_ID })
+            const payload = ticket.getPayload()
+            if (!payload?.sub) {
+                return res.status(401).json({ message: 'Could not verify that Google credential.' })
+            }
+
+            const user = await findOrCreateGoogleUser({
+                googleId: payload.sub,
+                email: payload.email,
+                fullName: payload.name || payload.email || 'RealEVR User',
+            })
+
+            req.login(user as any, (loginErr) => {
+                if (loginErr) {
+                    console.error('[gene/google-auth] onetap req.login failed:', loginErr)
+                    return res.status(500).json({ message: 'Could not start your session. Please try again.' })
+                }
+                req.session.save(() => {
+                    const { password, ...userWithoutPassword } = user as any
+                    res.json({ ok: true, user: userWithoutPassword, needsPhone: !(user as any).phoneNumber })
+                })
+            })
+        } catch (err: any) {
+            console.error('[gene/google-auth] onetap verification failed:', err)
+            res.status(401).json({ message: 'Could not verify that Google credential.' })
+        }
+    })
 
     app.get('/api/auth/google', (req: Request, res: Response, next) => {
         if (!isGoogleConfigured()) {
