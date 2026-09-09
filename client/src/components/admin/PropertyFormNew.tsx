@@ -5,6 +5,7 @@ import { Property, insertPropertySchema, PropertyType, Amenity } from '@shared/s
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import LocationPinPicker from '@/components/admin/LocationPinPicker';
+import DirectS3TourUpload from '@/components/admin/DirectS3TourUpload';
 import {
   Form,
   FormControl,
@@ -644,6 +645,35 @@ const onSubmit = async (data: PropertyFormValues) => {
     } finally {
       setTourUploading(false);
     }
+  };
+
+  // Shared with DirectS3TourUpload's onSuccess: the fast (direct-to-S3) and
+  // classic upload paths both end with the tour extracted server-side, so
+  // both need the exact same post-upload bookkeeping - flip the local
+  // preview state, and invalidate/refetch every cached list the newly
+  // uploaded tour could appear in so it shows up across the site without a
+  // manual refresh. Kept as one function so the two paths can't drift.
+  const handleTourUploadSuccess = (tourUrl: string) => {
+    setTourUploadSuccess(true);
+    setTourPreviewUrl(tourUrl);
+    queryClient.invalidateQueries();
+    queryClient.invalidateQueries();
+    queryClient.invalidateQueries({ queryKey: ['/api/properties/featured'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/properties/category'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/properties/popular'] });
+    queryClient.invalidateQueries({ queryKey: [`/api/properties/${property?.id}`] });
+    queryClient.invalidateQueries({ queryKey: ['/api/properties/category/for_sale'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/properties/category/rental_units'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/properties/category/furnished_houses'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/properties/category/bank_sales'] });
+    queryClient.removeQueries({ queryKey: ['/api/properties'] });
+    queryClient.removeQueries({ queryKey: ['/api/properties/featured'] });
+    queryClient.removeQueries({ queryKey: ['/api/properties/category'] });
+    queryClient.removeQueries({ queryKey: ['/api/properties/popular'] });
+    queryClient.removeQueries({ queryKey: [`/api/properties/${property?.id}`] });
+    queryClient.refetchQueries({ queryKey: ['/api/properties'] });
+    queryClient.refetchQueries({ queryKey: ['/api/properties/featured'] });
+    queryClient.refetchQueries({ queryKey: [`/api/properties/${property?.id}`] });
   };
 
   // Helper function to safely use localStorage
@@ -1399,57 +1429,89 @@ const onSubmit = async (data: PropertyFormValues) => {
                       for viewing. Maximum file size: 5GB.
                     </p>
 
-                    <div className="flex items-center space-x-2 mt-2">
-                      <Input
-                        ref={tourFileInputRef}
-                        type="file"
-                        accept=".zip"
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        onClick={handleTourUpload}
-                        disabled={tourUploading || tourExtracting}
-                      >
-                        {tourUploading && !tourExtracting ? (
-                          <>
-                            Uploading: {tourUploadProgress}%
-                          </>
-                        ) : tourExtracting ? (
-                          <>
-                            {tourProgressMessage}
-                            {typeof tourProgressPercent === 'number' && tourProgressPercent > 0 && (
-                              <> ({tourProgressPercent}%)</>
-                            )}
-                          </>
+                    {/* Two upload paths to the SAME extraction job: the fast
+                        path PUTs the ZIP straight to S3 from the browser
+                        (our server only ever sees a small S3 key), which is
+                        why it's presented first/recommended - the classic
+                        path relays the whole multi-GB ZIP through our own
+                        Node server and is the one that's been reported
+                        stalling partway through on slow/flaky connections
+                        ("68%", "77%"). Classic is kept fully working as a
+                        fallback (e.g. if S3 is ever unreachable from a given
+                        network) behind its own tab, unchanged. */}
+                    <Tabs defaultValue="fast" className="w-full">
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="fast">Fast upload (direct to S3, recommended)</TabsTrigger>
+                        <TabsTrigger value="classic">Classic upload</TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="fast" className="mt-4">
+                        {property?.id ? (
+                          <DirectS3TourUpload
+                            propertyId={property.id}
+                            onSuccess={handleTourUploadSuccess}
+                          />
                         ) : (
-                          <>
-                            <Upload className="mr-2 h-4 w-4" />
-                            Upload
-                          </>
+                          <p className="text-sm text-muted-foreground">
+                            Please save the property first before uploading a tour.
+                          </p>
                         )}
-                      </Button>
-                    </div>
+                      </TabsContent>
 
-                    {tourUploadSuccess && (
-                      <Alert className="mt-4 bg-green-50 border-green-300">
-                        <Check className="h-4 w-4 text-green-500" />
-                        <AlertTitle>Success!</AlertTitle>
-                        <AlertDescription>
-                          Virtual tour uploaded and extracted successfully.
-                        </AlertDescription>
-                      </Alert>
-                    )}
+                      <TabsContent value="classic" className="mt-4">
+                        <div className="flex items-center space-x-2 mt-2">
+                          <Input
+                            ref={tourFileInputRef}
+                            type="file"
+                            accept=".zip"
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            onClick={handleTourUpload}
+                            disabled={tourUploading || tourExtracting}
+                          >
+                            {tourUploading && !tourExtracting ? (
+                              <>
+                                Uploading: {tourUploadProgress}%
+                              </>
+                            ) : tourExtracting ? (
+                              <>
+                                {tourProgressMessage}
+                                {typeof tourProgressPercent === 'number' && tourProgressPercent > 0 && (
+                                  <> ({tourProgressPercent}%)</>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="mr-2 h-4 w-4" />
+                                Upload
+                              </>
+                            )}
+                          </Button>
+                        </div>
 
-                    {tourUploadError && (
-                      <Alert className="mt-4" variant="destructive">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>Upload Error</AlertTitle>
-                        <AlertDescription>
-                          {tourUploadError}
-                        </AlertDescription>
-                      </Alert>
-                    )}
+                        {tourUploadSuccess && (
+                          <Alert className="mt-4 bg-green-50 border-green-300">
+                            <Check className="h-4 w-4 text-green-500" />
+                            <AlertTitle>Success!</AlertTitle>
+                            <AlertDescription>
+                              Virtual tour uploaded and extracted successfully.
+                            </AlertDescription>
+                          </Alert>
+                        )}
+
+                        {tourUploadError && (
+                          <Alert className="mt-4" variant="destructive">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle>Upload Error</AlertTitle>
+                            <AlertDescription>
+                              {tourUploadError}
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                      </TabsContent>
+                    </Tabs>
                   </div>
 
                   {/* Tour preview section */}
