@@ -13,7 +13,7 @@ import { request as request7 } from 'undici'
 import fs from 'fs'
 import { createTablesIfNotExist, DynamoDBUtils, TABLES, toNumericId, toStringId } from './dynamodb'
 
-import { uploadPropertyImage, uploadVirtualTour, handleUploadErrors, setupStaticFileRoutes } from './upload'
+import { uploadPropertyImage, uploadVirtualTour, handleUploadErrors, setupStaticFileRoutes, presignTourZipUpload, processTourFromS3 } from './upload'
 import { registerRoomCaptureRoutes } from './room-capture'
 import { registerPaymentGateWayForApp } from './payment/payment-new'
 import {
@@ -2476,6 +2476,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // The new uploadVirtualTour responds immediately with jobId, so nothing else to do here.
         })
     })
+
+    // Direct-to-S3 virtual tour upload (faster/more reliable than the relay
+    // path above for large ZIPs on slow connections - see upload.ts's
+    // presignTourZipUpload/processTourFromS3 for the full explanation).
+    // Gated by the same adminMiddleware as the relay path above.
+    app.post('/api/upload/virtual-tour/:propertyId/presign-zip', adminMiddleware, presignTourZipUpload)
+    app.post('/api/upload/virtual-tour/:propertyId/process-from-s3', adminMiddleware, processTourFromS3)
 
     // SSE endpoint for tour progress
     app.get('/api/upload/virtual-tour/progress/:jobId', sseTourProgress)
