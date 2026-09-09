@@ -308,11 +308,22 @@ export default function VirtualTourManager() {
                                     <SelectValue placeholder="Select a property" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {properties?.map((p) => (
-                                        <SelectItem key={p.id} value={p.id.toString()}>
-                                            {p.title} ({p.location})
-                                        </SelectItem>
-                                    ))}
+                                    {/* Guard against a null/undefined id: unlike the
+                                        Select's own value above (already optional-chained),
+                                        this was calling .toString() on p.id directly - any
+                                        one malformed row in the list (e.g. a property
+                                        missing its id) crashed the ENTIRE page with no
+                                        way to recover short of a reload, taking down tour
+                                        upload access for every property, not just the bad
+                                        one. Skip rows this page can't render into a valid
+                                        option instead of crashing on them. */}
+                                    {properties
+                                        ?.filter((p) => p.id != null)
+                                        .map((p) => (
+                                            <SelectItem key={p.id} value={p.id.toString()}>
+                                                {p.title} ({p.location})
+                                            </SelectItem>
+                                        ))}
                                 </SelectContent>
                             </Select>
                         </div>
