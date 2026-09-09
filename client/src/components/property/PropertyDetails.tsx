@@ -12,6 +12,7 @@ import TourPaymentModal from './TourPaymentModal'
 import SharePropertyModal from './SharePropertyModal'
 import MessageAgentModal from './MessageAgentModal'
 import SimilarProperties from './SimilarProperties'
+import PropertyLocationPin from './PropertyLocationPin'
 import type { Property, User } from '@shared/schema'
 import { getSafeAmenities } from '@/lib/property-utils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -332,6 +333,10 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                             </div>
                         </div>
                     </div>
+
+                    {typeof property.latitude === 'number' && typeof property.longitude === 'number' && (
+                        <PropertyLocationPin latitude={property.latitude} longitude={property.longitude} title={property.title} />
+                    )}
 
                     {/* Property Owner Contact Information */}
                     {propertyOwner && (
