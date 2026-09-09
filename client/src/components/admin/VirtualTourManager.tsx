@@ -218,9 +218,28 @@ export default function VirtualTourManager() {
             // below.
             await new Promise<void>((resolve, reject) => {
                 const source = new EventSource(`/api/upload/virtual-tour/progress/${jobId}`)
+
+                // Same stall watchdog as PropertyFormNew.tsx's tour tab - a
+                // heartbeat comment keeps this connection alive through idle
+                // proxies, but comment lines never reach onmessage, so track
+                // real progress independently and bail out if none arrives
+                // for a while instead of waiting forever on a connection
+                // that's open but not actually progressing.
+                let lastSseEventAt = Date.now()
+                const sseWatchdog = setInterval(() => {
+                    if (Date.now() - lastSseEventAt > 3 * 60_000) {
+                        clearInterval(sseWatchdog)
+                        source.close()
+                        reject(new Error('Upload stalled while processing the tour. Please try again.'))
+                    }
+                }, 15_000)
+                const clearSseWatchdog = () => clearInterval(sseWatchdog)
+
                 source.onmessage = (evt) => {
+                    lastSseEventAt = Date.now()
                     const data = JSON.parse(evt.data)
                     if (data.error) {
+                        clearSseWatchdog()
                         source.close()
                         reject(new Error(data.error))
                         return
@@ -228,6 +247,7 @@ export default function VirtualTourManager() {
                     setUploadProgressMessage(data.message || '')
                     if (typeof data.progress === 'number') setUploadProgressPercent(data.progress)
                     if (data.done) {
+                        clearSseWatchdog()
                         source.close()
                         if (data.tourUrl) {
                             setUploadSuccess(true)
@@ -239,6 +259,7 @@ export default function VirtualTourManager() {
                     }
                 }
                 source.onerror = () => {
+                    clearSseWatchdog()
                     source.close()
                     reject(new Error('Lost connection while processing the tour upload'))
                 }
