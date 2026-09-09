@@ -166,6 +166,24 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
     defaultValues,
   });
 
+  // The category dropdown below only ever writes 'rental_units',
+  // 'furnished_houses', 'for_sale', or 'bank_sales' - but properties
+  // created before those exact values were standardized can carry older
+  // aliases for the same category ('BnB', 'rental', 'bank-sale' - see the
+  // same aliases already handled in PropertyDetails.tsx/PropertyCard.tsx/
+  // FeaturedTour.tsx/Home.tsx for display). Every category-conditional
+  // field further down this form (host/landlord contact, monthly price,
+  // auction fields) used to check the new value ONLY, so editing one of
+  // those older properties silently hid the fields for its own category -
+  // not "no host fields for a BnB", but "no host fields because this BnB's
+  // category is the string 'BnB', not 'furnished_houses'". These recognize
+  // both so every property's own category-appropriate fields are always
+  // editable, regardless of which era it was created in.
+  const categoryValue = form.watch('category');
+  const isBnbCategory = categoryValue === 'furnished_houses' || categoryValue === 'BnB';
+  const isRentalCategory = categoryValue === 'rental_units' || categoryValue === 'rental';
+  const isBankSaleCategory = categoryValue === 'bank_sales' || categoryValue === 'bank-sale';
+
   // AI-assisted listing description, backed by the server-side /api/ai/generate-description
   // proxy so the Gemini API key never reaches the browser. `silent` skips the
   // "fill in title/location" nudge - used by the auto-generate effect below,
@@ -608,7 +626,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                         </FormItem>
                       )}
                     />
-                    {form.watch('category') === 'bank_sales' && (
+                    {isBankSaleCategory && (
                       <div className="flex flex-col md:flex-row gap-4">
                         <FormField
                           control={form.control}
@@ -752,7 +770,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                       </div>
 
                       {/* Monthly price field - only for rental categories */}
-                      {form.watch('category') === 'rental_units' && (
+                      {isRentalCategory && (
                         <FormField
                           control={form.control}
                           name="monthlyPrice"
@@ -877,7 +895,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                       contact is whoever is hosting the stay. Masked to
                       all-but-the-last-4-digits until the viewer pays the
                       booking deposit. */}
-                  {form.watch('category') === 'furnished_houses' && (
+                  {isBnbCategory && (
                     <div className="rounded-lg border bg-card p-4 space-y-4">
                       <div>
                         <h4 className="text-sm font-semibold">Host details</h4>
@@ -919,7 +937,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                       expresses intent to pay rent (not merely by paying to
                       view) - see landlordName/landlordPhone's own comment
                       in shared/schema.ts. */}
-                  {form.watch('category') === 'rental_units' && (
+                  {isRentalCategory && (
                     <div className="rounded-lg border bg-card p-4 space-y-4">
                       <div>
                         <h4 className="text-sm font-semibold">Landlord / Manager details</h4>
