@@ -3,6 +3,7 @@ import { useQuery, useMutation, UseMutationResult } from '@tanstack/react-query'
 import { InsertUser, User } from '@shared/schema'
 import { getQueryFn, apiRequest, queryClient } from '../lib/queryClient'
 import { useToast } from '@/hooks/use-toast'
+import { markJustSignedInForReload } from '@/lib/ambientSound'
 
 type AuthContextType = {
     user: User | null
@@ -52,6 +53,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 title: 'Logged in successfully',
                 description: `Welcome back, ${user.username}!`,
             })
+            // The redirect below is a full page reload, which would kill any
+            // AudioContext started here before it ever really got going —
+            // leave a breadcrumb for the fresh page load to pick up instead
+            // (see client/src/lib/ambientSound.ts's doc comment).
+            markJustSignedInForReload()
             // Redirect to profile page after successful login
             window.location.href = '/'
         },

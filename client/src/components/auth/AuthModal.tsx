@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { COUNTRY_CODES, DEFAULT_COUNTRY_CODE } from "@/lib/country-codes";
 import type { User } from "@shared/schema";
 import GoogleSignInButton from "./GoogleSignInButton";
+import { attemptWelcomeAmbient } from "@/lib/ambientSound";
 
 /**
  * "Make auth feel like a popup" — a modal sign-in/sign-up, triggered from
@@ -78,6 +79,9 @@ export default function AuthModal({ open, onOpenChange }: { open: boolean; onOpe
   const handleGoogleSignedIn = (user: Omit<User, "password">) => {
     toast({ title: "Signed in with Google", description: `Welcome, ${user.fullName || user.username}!` });
     onOpenChange(false);
+    // No page reload on this path — the click that opened Google's sign-in
+    // is still a fresh-enough user gesture for audio to start (see ambientSound.ts).
+    attemptWelcomeAmbient();
   };
 
   const handleGoogleError = (message: string) => {
