@@ -81,6 +81,16 @@ const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
     }
 
     const user = req.user
+    // Same free-agent allowlist subscriptionMiddleware checks below (see
+    // getFreeAgentEmails' own doc comment) - this gate guards the tour ZIP
+    // upload, the agent's own property list, and other /api/agent/* and
+    // /api/admin/* routes, so an account on that list needs to clear THIS
+    // check too, not just the subscription one, or it still gets stuck
+    // (a role still at 'normal' fails the role check below regardless of
+    // any subscription state).
+    if (user.email && getFreeAgentEmails().includes(user.email.toLowerCase())) {
+        return next()
+    }
     if (!user.role || (user.role !== 'admin' && user.role !== 'agent')) {
         return res.status(403).json({ message: 'Unauthorized. Admin or agent role required.' })
     }
@@ -2439,7 +2449,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Guided room-capture upload: agents upload photos/video per room instead of
     // a pre-built tour ZIP. Reuses the same SSE progress endpoint above (jobId is generic).
-    registerRoomCaptureRoutes(app, adminMiddleware)
+    // The admin-only cross-property drafts overview gets the strict guard -
+    // see listRoomCaptureDrafts' own doc comment for why.
+    registerRoomCaptureRoutes(app, adminMiddleware, requireStrictAdmin)
 
     // Get tour preview endpoint
     app.get('/api/tours/preview/:propertyId', async (req, res) => {
