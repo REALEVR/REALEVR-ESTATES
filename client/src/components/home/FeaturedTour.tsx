@@ -266,10 +266,14 @@ export default function FeaturedTour() {
                             <i className="fas fa-bath w-6"></i>
                             <span>{featuredProperty.bathrooms} Bathrooms</span>
                           </li>
-                          <li className="flex items-center">
-                            <i className="fas fa-vector-square w-6"></i>
-                            <span>{featuredProperty.squareMeters} sq m</span>
-                          </li>
+                          {/* No longer collected on the upload form - only shown for
+                              older listings that already have a real value. */}
+                          {featuredProperty.squareMeters ? (
+                            <li className="flex items-center">
+                              <i className="fas fa-vector-square w-6"></i>
+                              <span>{featuredProperty.squareMeters} sq m</span>
+                            </li>
+                          ) : null}
                         </ul>
                       </div>
                       <div>

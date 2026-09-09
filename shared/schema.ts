@@ -26,8 +26,12 @@ export const properties = pgTable("properties", {
   amenities: text("amenities").array(),
   monthlyPrice: integer("monthly_price"), // Now optional for rental properties
   isAvailable: boolean("is_available").default(true), // Property availability status
-  ownerContactInfo: text("owner_contact_info"), // Owner contact information
+  ownerContactInfo: text("owner_contact_info"), // Property contact / manager info
   ownerId: integer("owner_id"), // Agent who owns this property
+  // Human-readable name of the agent/person who actually uploaded this
+  // listing - distinct from ownerId (the account it's filed under), since
+  // one account sometimes uploads on someone else's behalf.
+  uploaderName: text("uploader_name"),
   viewCount: integer("view_count").default(0), // Track property view counts
   // New property details fields
   yearOfConstruction: integer("year_of_construction"),

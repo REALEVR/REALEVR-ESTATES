@@ -193,7 +193,11 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                     </div>
                     <p className="text-muted-foreground text-sm mb-2">{property.location}</p>
                     <p className="text-muted-foreground text-sm mb-3">
-                        {property.bedrooms} bed • {property.bathrooms} bath • {property.squareMeters} sq m
+                        {property.bedrooms} bed • {property.bathrooms} bath
+                        {/* Square meters is no longer collected on the upload form (agents found
+                            it more friction than it was worth) — only shown for older listings
+                            that already have a real value, never a fabricated "0 sq m". */}
+                        {property.squareMeters ? ` • ${property.squareMeters} sq m` : ''}
                     </p>
 
                     {/* Property Owner Contact */}

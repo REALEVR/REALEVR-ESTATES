@@ -268,13 +268,18 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                         <i className="fas fa-bath w-6"></i>
                                         <span>{property.bathrooms} Bathrooms</span>
                                     </li>
-                                    <li className="flex items-center">
-                                        <i className="fas fa-vector-square w-6"></i>
-                                        <span>
-                                            {property.squareMeters} sq m ({Math.round(property.squareMeters / 0.093)} sq
-                                            ft)
-                                        </span>
-                                    </li>
+                                    {/* Square meters is no longer collected on the upload form —
+                                        only shown for older listings that already have a real
+                                        value, never a fabricated "0 sq m". */}
+                                    {property.squareMeters ? (
+                                        <li className="flex items-center">
+                                            <i className="fas fa-vector-square w-6"></i>
+                                            <span>
+                                                {property.squareMeters} sq m ({Math.round(property.squareMeters / 0.093)} sq
+                                                ft)
+                                            </span>
+                                        </li>
+                                    ) : null}
                                     <li className="flex items-center">
                                         <i className="fas fa-building w-6"></i>
                                         <span>{property.propertyType}</span>
