@@ -13,6 +13,7 @@ import SharePropertyModal from './SharePropertyModal'
 import MessageAgentModal from './MessageAgentModal'
 import SimilarProperties from './SimilarProperties'
 import PropertyLocationPin from './PropertyLocationPin'
+import RentPaymentPrompt from './RentPaymentPrompt'
 import type { Property, User } from '@shared/schema'
 import { getSafeAmenities } from '@/lib/property-utils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -83,22 +84,23 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
     const { hasValidPayment, registerPayment } = usePropertyViews()
 
     // Check if this is a BnB property — a property explicitly tagged as a
-    // furnished/serviced rental reads the same "free to view, 20% deposit
-    // to book" policy as a category="furnished_houses"/"BnB" listing (see
-    // requiresTourPayment below), even if its category field happens to be
-    // "rental_units".
+    // furnished/serviced rental reads the same "tour + host contact gated
+    // behind the 20% deposit" policy as a category="furnished_houses"/"BnB"
+    // listing (see handleViewTour and OwnerContactDetails), even if its
+    // category field happens to be "rental_units".
     const isBnB =
         property.category === 'BnB' ||
         property.category === 'furnished_houses' ||
         property.propertyType === 'Furnished Rental'
 
-    // PAYMENTS ROUND 2: only a plain rental unit ever pays to *view* the
-    // tour, and even then only after a free preview — see handleViewTour
-    // and the previewSeconds prop passed to VirtualTourModal below. BnBs
-    // (isBnB above) are always free to view; their only payment moment is
-    // the 20% deposit when actually booking (handleScheduleVisit /
-    // BookingCalendarModal), never for viewing. For-sale and bank-sales
-    // were already always free.
+    // PAYMENTS ROUND 3: a plain rental unit pays to *view* the tour AND the
+    // rest of the listing's details (amenities, description, extra info —
+    // see the gate wrapping the Tabs below), after a free tour preview —
+    // see handleViewTour and the previewSeconds prop passed to
+    // VirtualTourModal below. BnBs (isBnB above) never pay to view; their
+    // gate is booking (the 20% deposit), which now covers both the tour
+    // and host contact details together (see handleViewTour and
+    // OwnerContactDetails). For-sale and bank-sales remain always free.
     const requiresTourPayment = property.category === 'rental_units' && !isBnB
 
     // Fetch property owner details
@@ -144,12 +146,24 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
     }
 
     const handleViewTour = () => {
-        // PAYMENTS ROUND 2: every category now opens the tour immediately,
-        // free — see requiresTourPayment's comment above. A rental unit
-        // without a valid pass gets a 5-second free preview before the tour
-        // swaps for the pay prompt (previewSeconds on VirtualTourModal
-        // below, handled by handleTourPreviewExpired); everyone else just
-        // views for as long as they like.
+        // PAYMENTS ROUND 3: BnBs now gate the tour itself behind the same
+        // 20% booking deposit that already gated host contact details
+        // (OwnerContactDetails) — a reversal of PAYMENTS ROUND 2, which had
+        // deliberately made BnB tours free to view. Everything else about
+        // the flow is unchanged: a rental unit without a valid pass still
+        // gets its 5-second free preview (previewSeconds on
+        // VirtualTourModal below, handled by handleTourPreviewExpired);
+        // for-sale/bank-sale tours are still always free.
+        if (isBnB && !bookingConfirmed) {
+            toast({
+                title: 'Book this property to view the tour',
+                description: 'The virtual tour unlocks once your 20% deposit is confirmed. Click "Book Now" to get started.',
+                variant: 'destructive',
+                duration: 5000,
+            })
+            setIsBookingModalOpen(true)
+            return
+        }
         setIsTourModalOpen(true)
     }
 
@@ -246,6 +260,25 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                 propertyTitle={property.title}
             />
 
+            {/* PAYMENTS ROUND 3: a plain rental unit's details - amenities,
+                description, extra info, everything the Tabs below hold -
+                are now gated behind the same pay-to-view pass that already
+                gated the tour (requiresTourPayment/hasValidPayment). Before
+                this, only the tour itself was gated; the rest of the page
+                was fully visible regardless, which undercut the point of
+                paying to view in the first place. */}
+            {requiresTourPayment && !hasValidPayment ? (
+                <div className="border border-dashed border-border rounded-lg p-8 text-center my-6">
+                    <h4 className="font-semibold mb-1">Full details are locked</h4>
+                    <p className="text-muted-foreground text-sm mb-4">
+                        Amenities, extra property information, and reviews unlock once you pay to view this listing —
+                        the same pass that unlocks the virtual tour.
+                    </p>
+                    <Button variant="default" className="bg-accent hover:bg-accent/90" onClick={handleViewTour}>
+                        Unlock full details
+                    </Button>
+                </div>
+            ) : (
             <Tabs defaultValue="overview" className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -288,7 +321,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                     {isBnB && (
                                         <li className="flex items-center text-accent font-medium">
                                             <i className="fas fa-calendar-check w-6"></i>
-                                            <span>Free to view · 20% deposit to book (non-refundable)</span>
+                                            <span>20% deposit to book (non-refundable) — unlocks the tour and host contact</span>
                                         </li>
                                     )}
                                 </ul>
@@ -338,8 +371,21 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                         <PropertyLocationPin latitude={property.latitude} longitude={property.longitude} title={property.title} />
                     )}
 
-                    {/* Property Owner Contact Information */}
-                    {propertyOwner && (
+                    {/* Property Owner Contact Information. Was showing the
+                        agent's raw phone number to every visitor regardless
+                        of payment status - a real leak against the "only
+                        visible to users who have paid" policy the upload
+                        form itself documents for this same contact info.
+                        Hidden for BnBs (OwnerContactDetails below already
+                        covers that, gated on the booking deposit) and for
+                        rental units before they've paid to view (this whole
+                        block only renders once requiresTourPayment has
+                        already resolved to false or hasValidPayment is true,
+                        via the wrapping gate above), so the only case left
+                        where this shows unconditionally is for-sale/bank-
+                        sale listings, which were never gated in the first
+                        place. */}
+                    {propertyOwner && !isBnB && (
                         <div className="mb-6">
                             <h4 className="font-semibold mb-3">Property Contact</h4>
                             <Card>
@@ -478,6 +524,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                     <ReviewsSection propertyId={property.id} />
                 </TabsContent>
             </Tabs>
+            )}
 
             {/* Display price differently for BnBs (per night) vs other properties (per month) */}
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-3">
@@ -543,6 +590,17 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                 <div className="mt-8 border-t border-border pt-8">
                     <h3 className="text-xl font-display font-medium mb-4 text-foreground">Property Owner</h3>
                     <OwnerContactDetails property={property} bookingConfirmed={bookingConfirmed} owner={propertyOwner} />
+                </div>
+            )}
+
+            {/* Rental unit: once they've paid to view (requiresTourPayment
+                gate has already resolved above), invite them to pay rent
+                via RentRail - a distinct, later intent signal from paying
+                to view, and the only thing that reveals the landlord/
+                manager's own contact (see RentPaymentPrompt's own comment). */}
+            {requiresTourPayment && hasValidPayment && (
+                <div className="mt-8 border-t border-border pt-8">
+                    <RentPaymentPrompt property={property} />
                 </div>
             )}
 

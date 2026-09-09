@@ -800,6 +800,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
     })
 
+    // A viewer on a rental unit's page said "yes, I want to pay rent for
+    // this property via RentRail" - this is NOT the same gate as paying to
+    // view the listing (requiresTourPayment/hasValidPayment client-side):
+    // it's a distinct, later intent signal, and is what actually reveals
+    // the landlord/manager's contact (client only shows it after this call
+    // succeeds). Fans the notification out to everyone with a stake in
+    // this specific rent payment actually happening: the agent who
+    // uploaded the listing (in-app bell), every admin (in-app + email +
+    // WhatsApp, via the same notifyAdminsEverywhere every other
+    // admin-facing event in this app already uses), and the landlord/
+    // manager themselves (WhatsApp to the number captured at upload,
+    // landlordPhone) - they otherwise have no account to notify in-app.
+    app.post('/api/properties/:id/rent-payment-intent', async (req, res) => {
+        try {
+            const id = toNumericId(req.params.id)
+            if (isNaN(id)) {
+                return res.status(400).json({ message: 'Invalid property ID' })
+            }
+
+            const property = await storage.getProperty(id)
+            if (!property) {
+                return res.status(404).json({ message: 'Property not found' })
+            }
+
+            const viewerName = req.isAuthenticated?.() && req.user ? (req.user as any).fullName || (req.user as any).username : 'A site visitor'
+            const title = `Rent payment intent: ${property.title}`
+            const message = `${viewerName} intends to pay rent for "${property.title}" (${property.location}) via RentRail. Landlord/manager contact has been shown to them.`
+
+            // 1. The uploading agent, in-app.
+            if (property.ownerId) {
+                try {
+                    const { createNotification } = await import('./models/Notification')
+                    await createNotification({
+                        userId: String(property.ownerId),
+                        title,
+                        message,
+                        type: 'payment',
+                        link: `/property/${property.id}`,
+                    })
+                } catch (err) {
+                    console.error('[rent-payment-intent] agent notification failed:', err)
+                }
+            }
+
+            // 2. Every admin, everywhere (in-app + email + WhatsApp).
+            try {
+                const { notifyAdminsEverywhere } = await import('./gene/admin-notify')
+                await notifyAdminsEverywhere({
+                    title,
+                    message,
+                    link: `/property/${property.id}`,
+                })
+            } catch (err) {
+                console.error('[rent-payment-intent] admin notification failed:', err)
+            }
+
+            // 3. The landlord/manager themselves, by WhatsApp to the number
+            // captured at upload - best-effort, since RealEVR has no
+            // account for them to notify in-app.
+            if (property.landlordPhone) {
+                try {
+                    const { sendWhatsAppMessage } = await import('./gene/whatsapp')
+                    const { normalizePhone } = await import('./gene/whatsapp-concierge')
+                    const to = normalizePhone(property.landlordPhone) || property.landlordPhone
+                    await sendWhatsAppMessage(
+                        to,
+                        `🏠 ${viewerName} intends to pay rent for "${property.title}" via RentRail on RealEVR. They now have your contact details to arrange payment.`
+                    )
+                } catch (err) {
+                    console.error('[rent-payment-intent] landlord WhatsApp notification failed:', err)
+                }
+            }
+
+            res.status(200).json({
+                success: true,
+                uploaderName: property.uploaderName || null,
+                landlordName: property.landlordName || null,
+                landlordPhone: property.landlordPhone || null,
+            })
+        } catch (error) {
+            console.error('[rent-payment-intent] failed:', error)
+            res.status(500).json({ message: 'Failed to record rent payment intent' })
+        }
+    })
+
     // Get all property types
     app.get('/api/property-types', async (_req, res) => {
         try {

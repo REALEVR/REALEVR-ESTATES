@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand, PutBucketCorsCommand, GetObjectCommand, DeleteObjectCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand, PutBucketCorsCommand, PutBucketAccelerateConfigurationCommand, GetObjectCommand, DeleteObjectCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
 import fs from 'fs';
@@ -39,6 +39,32 @@ const s3Client = new S3Client({
 
 const BUCKET_NAME = process.env.S3_TOURS_BUCKET || 'realevr-tours';
 const REGION = process.env.AWS_REGION || 'us-east-1';
+
+// S3 Transfer Acceleration: routes a part's PUT through the nearest AWS edge
+// location (CloudFront's global network) instead of going directly to the
+// bucket's home region over the public internet - real leverage on top of
+// this file's own parallel-multipart upload, specifically for agents
+// uploading from Uganda/East Africa into a bucket whose region is
+// unlikely to be anywhere nearby. Used ONLY for the presigned part-upload
+// URLs below (the actual browser->S3 data transfer, which is the leg
+// acceleration speeds up) - CreateMultipartUpload/CompleteMultipartUpload
+// move no file bytes themselves, so they stay on the regular client.
+// Disable by setting S3_TRANSFER_ACCELERATION=false if a deploy's AWS
+// account doesn't have it enabled for this bucket (it's an opt-in
+// per-bucket setting - see setupS3TourBucket's own accelerate call below).
+const TRANSFER_ACCELERATION_ENABLED = process.env.S3_TRANSFER_ACCELERATION !== 'false';
+const s3AccelerateClient = TRANSFER_ACCELERATION_ENABLED
+  ? new S3Client({
+      region: process.env.AWS_REGION || 'us-east-1',
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
+      },
+      maxAttempts: 4,
+      useAccelerateEndpoint: true,
+      requestHandler: new NodeHttpHandler({ connectionTimeout: 10_000, socketTimeout: 30_000 }),
+    })
+  : s3Client;
 
 interface UploadState {
   uploadedFiles: number;
@@ -127,6 +153,27 @@ export async function setupS3TourBucket(): Promise<void> {
     );
 
     console.log("Bucket policy set for public read access");
+
+    // 4️⃣ Transfer Acceleration - see s3AccelerateClient's own comment for
+    // why this matters for upload speed. Best-effort: some AWS accounts
+    // don't have acceleration available for a given bucket/region
+    // combination, and that's not worth failing the whole setup over -
+    // the presigned part URLs just fall back to s3Client's plain endpoint
+    // if this doesn't take (see createStagingMultipartUpload).
+    if (TRANSFER_ACCELERATION_ENABLED) {
+      try {
+        await s3Client.send(
+          new PutBucketAccelerateConfigurationCommand({
+            Bucket: BUCKET_NAME,
+            AccelerateConfiguration: { Status: 'Enabled' },
+          })
+        );
+        console.log("S3 Transfer Acceleration enabled");
+      } catch (accelError) {
+        console.warn("Could not enable S3 Transfer Acceleration (non-fatal, uploads still work without it):", accelError);
+      }
+    }
+
     console.log("S3 bucket configured successfully ✅");
     bucketReady = true;
 
@@ -500,7 +547,9 @@ export async function createStagingMultipartUpload(
         UploadId: uploadId,
         PartNumber: partNumber,
       });
-      const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+      // Signed with the accelerate-endpoint client so the URL itself points
+      // at s3-accelerate.amazonaws.com - see that client's own comment.
+      const uploadUrl = await getSignedUrl(s3AccelerateClient, command, { expiresIn: expiresInSeconds });
       return { partNumber, uploadUrl };
     })
   );
