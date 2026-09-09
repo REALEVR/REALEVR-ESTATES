@@ -104,7 +104,7 @@ export default function Header() {
               a RealEVR listing. Always visible: this isn't gated by having
               an account, since paying rent shouldn't require signing up first. */}
           <Link href="/rentrail" className="hidden md:block">
-            <Button variant="outline" className="rounded-full gap-2 border-accent/40 text-accent hover:bg-accent/10 hover:text-accent">
+            <Button variant="outline" className="pay-rent-glow rounded-full gap-2 border-accent/40 text-accent hover:bg-accent/10 hover:text-accent">
               <Receipt className="h-4 w-4" />
               Pay Rent
             </Button>
@@ -125,7 +125,7 @@ export default function Header() {
               {/* Navigation Links (Mobile) */}
               <div className="md:hidden">
                 <DropdownMenuItem asChild>
-                  <Link href="/rentrail">
+                  <Link href="/rentrail" className="pay-rent-glow rounded-sm">
                     <Receipt className="mr-2 h-4 w-4" />
                     <span>Pay Rent</span>
                   </Link>
