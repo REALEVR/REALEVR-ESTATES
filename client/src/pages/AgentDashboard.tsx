@@ -47,7 +47,13 @@ import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
 interface PropertyWithViews extends Property {
     viewCount: number
     recentViews?: number
-    ownerId?: number
+    // Property already declares ownerId (number | null) - this redundant
+    // re-declaration as `number | undefined` was never read anywhere in
+    // this file and only made PropertyWithViews structurally incompatible
+    // with Property itself (TS2430), which in turn blocked passing a
+    // PropertyWithViews wherever a plain Property was expected - as
+    // openTourUpload below now needs to, to hand the selected property to
+    // PropertyFormNew.
 }
 
 export function AgentDashboard() {
@@ -56,6 +62,18 @@ export function AgentDashboard() {
     const [properties, setProperties] = useState<PropertyWithViews[]>([])
     const [loading, setLoading] = useState(true)
     const [isAddPropertyOpen, setIsAddPropertyOpen] = useState(false)
+    // The tour ZIP upload, reached from a property's "Upload Tour"/"Add
+    // Tour"/"Manage Tour" button, used to navigate away to the standalone
+    // Virtual Tour Manager page (/admin/virtual-tour-manager) - a second,
+    // less-exercised upload surface that could throw a full-page crash
+    // (a null property id reaching .toString() in that page's own property
+    // picker) and, unlike this dashboard's own upload path, hadn't gotten
+    // this session's reliability fixes applied to it first. Reusing
+    // PropertyFormNew's own "Virtual Tour" tab here - the exact same
+    // component and code path the admin property editor already uploads
+    // tours through successfully - means every tour upload in the agent
+    // dashboard goes through one proven pathway instead of two.
+    const [editingProperty, setEditingProperty] = useState<Property | null>(null)
     const [stats, setStats] = useState({
         totalProperties: 0,
         totalViews: 0,
@@ -158,6 +176,20 @@ export function AgentDashboard() {
         },
         [toast, fetchAgentData]
     )
+
+    // Opens the property in the same edit dialog/form the admin property
+    // editor uses, landing straight on its "Virtual Tour" tab - see
+    // editingProperty's own comment for why this replaced navigating to
+    // the standalone Virtual Tour Manager page.
+    const openTourUpload = useCallback((property: PropertyWithViews) => {
+        try {
+            window.localStorage.setItem('propertyFormTab', 'tour')
+        } catch {
+            // Best-effort only - PropertyFormNew defaults to its "details"
+            // tab if this didn't stick, which is still a working form.
+        }
+        setEditingProperty(property)
+    }, [])
 
     // Availability toggle — reuses the existing admin/agent-gated
     // /api/properties/:id/toggle-availability route (server/routes.ts), the
@@ -353,15 +385,7 @@ export function AgentDashboard() {
                                                       variant="outline"
                                                       size="sm"
                                                       className="flex-1"
-                                                      onClick={() => {
-                                                          // Straight to the full Virtual Tour Manager (3D Vista ZIP
-                                                          // *and* guided phone capture) rather than the property
-                                                          // form's own narrower "tour" tab (ZIP upload only, no
-                                                          // phone-capture option) — see PropertyFormNew.tsx's own
-                                                          // "Capture with your phone" callout for the other entry
-                                                          // point into the same page.
-                                                          window.location.href = `/admin/virtual-tour-manager?propertyId=${property.id}`
-                                                      }}
+                                                      onClick={() => openTourUpload(property)}
                                                   >
                                                       <Upload className="mr-1 h-3 w-3" />
                                                       Upload Tour
@@ -535,9 +559,7 @@ export function AgentDashboard() {
                                                     size="sm"
                                                     variant="outline"
                                                     className="shrink-0"
-                                                    onClick={() => {
-                                                        window.location.href = `/admin/virtual-tour-manager?propertyId=${property.id}`
-                                                    }}
+                                                    onClick={() => openTourUpload(property)}
                                                 >
                                                     <Upload className="mr-1 h-3 w-3" />
                                                     {property.hasTour ? 'Manage Tour' : 'Add Tour'}
@@ -589,6 +611,45 @@ export function AgentDashboard() {
                             })
                         }}
                     />
+                </DialogContent>
+            </Dialog>
+
+            {/* Tour upload dialog — see openTourUpload's own comment for why
+                this reuses the same PropertyFormNew component (keyed on the
+                property so switching properties gets a fresh form) instead of
+                navigating to the standalone Virtual Tour Manager page. */}
+            <Dialog
+                open={!!editingProperty}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setEditingProperty(null)
+                        try {
+                            window.localStorage.removeItem('propertyFormTab')
+                        } catch {
+                            // Best-effort cleanup only.
+                        }
+                    }
+                }}
+            >
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>{editingProperty?.title || 'Property'}</DialogTitle>
+                    </DialogHeader>
+                    {editingProperty && (
+                        <PropertyFormNew
+                            key={editingProperty.id}
+                            property={editingProperty}
+                            onSuccess={() => {
+                                setEditingProperty(null)
+                                try {
+                                    window.localStorage.removeItem('propertyFormTab')
+                                } catch {
+                                    // Best-effort cleanup only.
+                                }
+                                fetchAgentData()
+                            }}
+                        />
+                    )}
                 </DialogContent>
             </Dialog>
         </div>
