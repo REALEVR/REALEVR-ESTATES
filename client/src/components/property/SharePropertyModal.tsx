@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 import { logPropertyShare } from '@/hooks/useRewards'
-import { Share2, Gift } from 'lucide-react'
+import { Share2, Gift, MessageCircle } from 'lucide-react'
 
 interface SharePropertyModalProps {
     isOpen: boolean
@@ -27,6 +27,8 @@ export default function SharePropertyModal({ isOpen, onClose, propertyId, proper
     const [name, setName] = useState('')
     const [isCopied, setIsCopied] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [whatsappNumber, setWhatsappNumber] = useState('')
+    const [isSharingWhatsapp, setIsSharingWhatsapp] = useState(false)
     const { toast } = useToast()
     const { user } = useAuth()
 
@@ -52,6 +54,43 @@ export default function SharePropertyModal({ isOpen, onClose, propertyId, proper
                 description: `You now have ${result.balance?.totalPoints ?? '?'} points. Keep sharing to redeem for mobile money.`,
             })
         }
+    }
+
+    // "Share to a different number" is the mechanic behind the 100-shares
+    // reward (see referral-rewards.ts): each distinct WhatsApp number only
+    // counts once, ever, so this is the one channel that actually tracks
+    // "100 times to different numbers" rather than a per-property cooldown.
+    const handleWhatsappShare = () => {
+        const digits = whatsappNumber.replace(/[^0-9+]/g, '')
+        if (!digits || digits.replace(/\D/g, '').length < 9) {
+            toast({
+                title: 'Enter a valid number',
+                description: 'Please enter the WhatsApp number you want to share this property with.',
+                variant: 'destructive',
+            })
+            return
+        }
+        setIsSharingWhatsapp(true)
+        const text = encodeURIComponent(`Check out ${propertyTitle} on RealEVR Estates: ${trackableLink}`)
+        window.open(`https://wa.me/${digits.replace(/\D/g, '')}?text=${text}`, '_blank', 'noopener,noreferrer')
+
+        if (user) {
+            logPropertyShare(propertyId, 'whatsapp', digits)
+                .then((result) => {
+                    if (result?.counted) {
+                        toast({
+                            title: '+1 point earned!',
+                            description: `${result.balance?.uniqueWhatsappRecipients ?? '?'} of 100 numbers shared to. Keep going to unlock your payout.`,
+                        })
+                    } else if (result?.message) {
+                        toast({ title: 'Already shared to this number', description: result.message })
+                    }
+                })
+                .finally(() => setIsSharingWhatsapp(false))
+        } else {
+            setIsSharingWhatsapp(false)
+        }
+        setWhatsappNumber('')
     }
 
     const handleNativeShare = async () => {
@@ -132,8 +171,32 @@ export default function SharePropertyModal({ isOpen, onClose, propertyId, proper
                     {user && (
                         <div className="mb-4 flex items-center gap-2 rounded-lg bg-secondary p-3 text-sm text-foreground">
                             <Gift className="h-4 w-4 flex-shrink-0 text-primary" />
-                            Earn points every time you share — 1,000 points = 10,000 UGX, redeemable to mobile
-                            money from your agent's Rewards tab.
+                            Share to 100 different WhatsApp numbers to claim 1,000 UGX — redeemable to mobile
+                            money from your dashboard's Rewards tab.
+                        </div>
+                    )}
+
+                    {user && (
+                        <div className="mb-6">
+                            <Label htmlFor="whatsappNumber" className="block mb-2">
+                                Share via WhatsApp to a number
+                            </Label>
+                            <div className="flex space-x-2">
+                                <Input
+                                    id="whatsappNumber"
+                                    value={whatsappNumber}
+                                    onChange={(e) => setWhatsappNumber(e.target.value)}
+                                    placeholder="e.g. 0772123456"
+                                />
+                                <Button onClick={handleWhatsappShare} disabled={isSharingWhatsapp} variant="outline">
+                                    <MessageCircle className="mr-2 h-4 w-4" />
+                                    Send
+                                </Button>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                                Only counts toward your 100 once per distinct number — sharing to the same number
+                                twice earns nothing further.
+                            </p>
                         </div>
                     )}
 

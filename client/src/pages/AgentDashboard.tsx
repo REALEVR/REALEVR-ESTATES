@@ -43,6 +43,7 @@ import RentRailReceiptList, { type RentRailReceiptRow } from '@/components/rentr
 // page (see the "Boost" TabsContent below) - it's already a self-contained
 // component with its own fetch/state, no routing assumptions to work around.
 import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
+import RewardsPanel from '@/components/rewards/RewardsPanel'
 
 interface PropertyWithViews extends Property {
     viewCount: number
@@ -305,7 +306,11 @@ export function AgentDashboard() {
                     server/gene/rentrail.ts's deliverReceipt) lands straight
                     on the Rent Pay tab, not buried behind My Properties. */}
                 <Tabs
-                    defaultValue={new URLSearchParams(window.location.search).get('tab') === 'rentpay' ? 'rentpay' : 'properties'}
+                    defaultValue={
+                        ['rentpay', 'rewards'].includes(new URLSearchParams(window.location.search).get('tab') || '')
+                            ? (new URLSearchParams(window.location.search).get('tab') as string)
+                            : 'properties'
+                    }
                     className="space-y-6"
                 >
                     <TabsList className="flex-wrap h-auto">
@@ -320,6 +325,9 @@ export function AgentDashboard() {
                         </TabsTrigger>
                         <TabsTrigger value="boost">
                             <Rocket className="mr-1.5 h-3.5 w-3.5" /> Boost
+                        </TabsTrigger>
+                        <TabsTrigger value="rewards">
+                            <Gift className="mr-1.5 h-3.5 w-3.5" /> Rewards
                         </TabsTrigger>
                     </TabsList>
 
@@ -590,6 +598,10 @@ export function AgentDashboard() {
 
                     <TabsContent value="boost" className="space-y-6">
                         <AdminBoostConfirmations />
+                    </TabsContent>
+
+                    <TabsContent value="rewards" className="space-y-6">
+                        <RewardsPanel />
                     </TabsContent>
                 </Tabs>
             </div>

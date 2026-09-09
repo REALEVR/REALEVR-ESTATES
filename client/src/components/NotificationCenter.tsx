@@ -29,8 +29,18 @@ export default function NotificationCenter() {
                 >
                     <Bell className="h-5 w-5 text-gray-700" />
                     {unreadCount > 0 && (
-                        <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground">
-                            {unreadCount > 9 ? '9+' : unreadCount}
+                        <span className="absolute top-1 right-1 flex h-4 w-4">
+                            {/* The blinker: an expanding, fading ring behind the
+                                static count - a plain number badge (what this
+                                was before) is easy to miss, especially for a
+                                one-off event like crossing a rewards threshold
+                                (see server/gene/referral-rewards.ts and
+                                listing-earnings.ts) that a viewer isn't
+                                actively watching for. */}
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75"></span>
+                            <span className="relative inline-flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground">
+                                {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
                         </span>
                     )}
                 </Button>

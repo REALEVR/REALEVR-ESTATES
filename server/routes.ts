@@ -63,6 +63,7 @@ import { registerPersonalAgentRoutes } from './gene/personal-agent'
 import { registerAfricaMediaFeedRoutes } from './gene/africa-media-feed'
 import { registerAiWorkforceRoutes } from './gene/ai-workforce'
 import { registerReferralRewardsRoutes } from './gene/referral-rewards'
+import { registerListingEarningsRoutes, recordListingEarning } from './gene/listing-earnings'
 import { registerWhatsappConciergeRoutes } from './gene/whatsapp-concierge'
 import { registerMessagingRoutes } from './gene/messaging'
 import { registerLandlordHubRoutes } from './gene/landlord-hub'
@@ -1500,6 +1501,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const property = await storage.createProperty(propertyData)
             console.log('[DEBUG] Property created successfully:', property)
             res.status(201).json(property)
+
+            // Credit the uploading account for this listing (see
+            // server/gene/listing-earnings.ts). This is the normal,
+            // authenticated dashboard upload path only — self-serve-listing.ts
+            // submissions never reach this handler, so they can't be
+            // double-credited alongside their own separate 1,000 UGX referral
+            // payout. Fire-and-forget after the response so a rewards-write
+            // hiccup can never fail property creation itself.
+            if (req.user?.id) {
+                recordListingEarning(req.user.id, property.id, property.title).catch((err) =>
+                    console.error('[ERROR] recordListingEarning failed:', err)
+                )
+            }
         } catch (error: any) {
             console.error('[ERROR] Failed to create property:', error)
             res.status(400).json({ message: error.message })
@@ -2702,6 +2716,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerSimilarPropertiesPassRoutes(app)
     registerPersonalAgentRoutes(app)
     registerReferralRewardsRoutes(app, adminMiddleware)
+    registerListingEarningsRoutes(app, adminMiddleware)
     registerWhatsappConciergeRoutes(app)
     registerMessagingRoutes(app, requireStrictAdmin)
     registerLandlordHubRoutes(app)

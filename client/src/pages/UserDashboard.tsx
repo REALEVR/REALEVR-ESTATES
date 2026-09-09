@@ -20,10 +20,12 @@ import {
     Bookmark,
     ShoppingCart,
     Receipt,
+    Gift,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import MessagesInbox from '@/components/messaging/MessagesInbox'
 import RentRailReceiptList, { type RentRailReceiptRow } from '@/components/rentrail/RentRailReceiptList'
+import RewardsPanel from '@/components/rewards/RewardsPanel'
 
 interface ViewedTour {
     tourId: string
@@ -177,7 +179,11 @@ export function UserDashboard() {
                     server/gene/rentrail.ts's deliverReceipt) lands straight
                     on the Rent Pay tab. */}
                 <Tabs
-                    defaultValue={new URLSearchParams(window.location.search).get('tab') === 'rentpay' ? 'rentpay' : 'tours'}
+                    defaultValue={
+                        ['rentpay', 'rewards'].includes(new URLSearchParams(window.location.search).get('tab') || '')
+                            ? (new URLSearchParams(window.location.search).get('tab') as string)
+                            : 'tours'
+                    }
                     className="space-y-6"
                 >
                     <TabsList className="flex-wrap h-auto">
@@ -186,6 +192,9 @@ export function UserDashboard() {
                         <TabsTrigger value="whitelist">Whitelist</TabsTrigger>
                         <TabsTrigger value="rentpay">
                             <Receipt className="mr-1.5 h-3.5 w-3.5" /> Rent Pay
+                        </TabsTrigger>
+                        <TabsTrigger value="rewards">
+                            <Gift className="mr-1.5 h-3.5 w-3.5" /> Rewards
                         </TabsTrigger>
                         <TabsTrigger value="profile">Profile</TabsTrigger>
                     </TabsList>
@@ -308,6 +317,11 @@ export function UserDashboard() {
                     <TabsContent value="rentpay" className="space-y-6">
                         <h2 className="text-xl font-semibold mb-4">Rent Pay Receipts</h2>
                         <RentPayTab />
+                    </TabsContent>
+
+                    <TabsContent value="rewards" className="space-y-6">
+                        <h2 className="text-xl font-semibold mb-4">Rewards</h2>
+                        <RewardsPanel />
                     </TabsContent>
 
                     <TabsContent value="profile" className="space-y-6">
