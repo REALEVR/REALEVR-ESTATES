@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand, PutBucketCorsCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand, PutBucketCorsCommand, GetObjectCommand, DeleteObjectCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
 import fs from 'fs';
@@ -256,10 +256,13 @@ async function uploadFileWithRetry(
 // a tour that should take seconds was taking minutes, and why a single
 // slow file stalled the WHOLE progress bar instead of just its own share
 // of it (everything behind it in the one-at-a-time queue simply waited).
-// 8 concurrent PUTs is comfortably inside S3's per-prefix request-rate
-// headroom and a typical server's outbound bandwidth, while cutting wall
-// clock time for a many-small-files tour by roughly the same factor.
-const UPLOAD_CONCURRENCY = 8;
+// 16 concurrent PUTs is comfortably inside S3's per-prefix request-rate
+// headroom (S3 scales well past this for a single prefix) and cuts wall
+// clock time for a many-small-files tour by roughly the same factor. Was
+// 8; with the raw ZIP transfer itself now also parallelized (see the
+// multipart-upload support below), this stage no longer needs to leave
+// as much bandwidth headroom for a single competing large transfer.
+const UPLOAD_CONCURRENCY = 16;
 
 // Uploads `files` with up to `concurrency` requests in flight at once,
 // calling onProgress(completed / total) as each one finishes (not in file
@@ -431,29 +434,116 @@ export async function uploadTourToS3(
 // resilient to a silent hang apply just as much to a single large staging
 // PUT or a streamed download of one.
 
+// A single presigned PUT for the whole ZIP was the first version of this
+// path, and it was still slow: one file over one TCP connection is capped
+// by that one connection's own throughput (and, on a higher-latency
+// mobile link, by TCP's own slow-start/window-size behavior long before
+// the client's real uplink bandwidth is saturated) - and a failure
+// anywhere in a multi-GB PUT meant starting the whole thing over. S3
+// multipart upload splits the file into independent parts, each with its
+// own presigned URL, uploaded over SEPARATE parallel connections: several
+// times faster on a decent connection (multiple TCP streams sharing the
+// available bandwidth instead of one), and a failed 16MB part retries in
+// seconds instead of restarting a multi-GB transfer. S3's minimum part
+// size (5MB) only applies to parts that AREN'T the last one, so this same
+// code path works unchanged for small ZIPs too - they just end up as a
+// single "part".
+const MULTIPART_PART_SIZE_BYTES = 16 * 1024 * 1024; // 16MB
+
+export interface MultipartUploadPart {
+  partNumber: number;
+  uploadUrl: string;
+}
+
 /**
- * Presigns a single PUT for a browser to upload a tour ZIP directly to a
- * STAGING key in this bucket, bypassing our own Node server for the
- * transfer itself - see presignTourZipUpload's own doc comment for why.
+ * Starts a multipart upload for a browser to PUT a tour ZIP directly to a
+ * STAGING key in this bucket, split into `MULTIPART_PART_SIZE_BYTES`
+ * chunks - bypassing our own Node server for the transfer itself, see
+ * presignTourZipUpload's own doc comment for why. Returns one presigned
+ * PUT URL per part; the caller uploads each part's byte range to its own
+ * URL (in parallel) and then calls completeMultipartUpload with the
+ * resulting ETags.
  *
  * Deliberately does NOT touch the bucket's public-read policy (see
  * setupS3TourBucket above): that policy makes the FINAL, extracted tour
  * files public, which is correct for a hosted tour but not for an
  * in-progress/raw ZIP sitting in staging-tours/ - a presigned PUT grants
- * only the ability to write this one object at this one key, and nothing
- * about writing an object makes it publicly *readable* on top of that.
+ * only the ability to write this one object (or, here, one part of it) at
+ * this one key, and nothing about writing an object makes it publicly
+ * *readable* on top of that.
  */
-export async function getPresignedStagingUploadUrl(
+export async function createStagingMultipartUpload(
   s3Key: string,
   contentType: string,
+  fileSizeBytes: number,
   expiresInSeconds: number
-): Promise<string> {
-  const command = new PutObjectCommand({
-    Bucket: BUCKET_NAME,
-    Key: s3Key,
-    ContentType: contentType,
-  });
-  return getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+): Promise<{ uploadId: string; partSize: number; parts: MultipartUploadPart[] }> {
+  const created = await s3Client.send(
+    new CreateMultipartUploadCommand({ Bucket: BUCKET_NAME, Key: s3Key, ContentType: contentType })
+  );
+  const uploadId = created.UploadId;
+  if (!uploadId) {
+    throw new Error('S3 did not return an UploadId for the multipart upload');
+  }
+
+  const partCount = Math.max(1, Math.ceil(fileSizeBytes / MULTIPART_PART_SIZE_BYTES));
+
+  // Signing each part is a local computation (no network call to AWS), so
+  // doing this for a few hundred parts in parallel is negligible - even a
+  // 5GB tour at 16MB/part is only ~320 parts.
+  const parts = await Promise.all(
+    Array.from({ length: partCount }, async (_, i) => {
+      const partNumber = i + 1;
+      const command = new UploadPartCommand({
+        Bucket: BUCKET_NAME,
+        Key: s3Key,
+        UploadId: uploadId,
+        PartNumber: partNumber,
+      });
+      const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+      return { partNumber, uploadUrl };
+    })
+  );
+
+  return { uploadId, partSize: MULTIPART_PART_SIZE_BYTES, parts };
+}
+
+/**
+ * Finalizes a multipart upload once every part has been PUT successfully.
+ * S3 requires the part list sorted by part number with the ETag each
+ * part's PUT response returned (via the ETag response header - the
+ * bucket's CORS config above already exposes that header for a browser to
+ * read cross-origin).
+ */
+export async function completeStagingMultipartUpload(
+  s3Key: string,
+  uploadId: string,
+  parts: Array<{ partNumber: number; etag: string }>
+): Promise<void> {
+  await s3Client.send(
+    new CompleteMultipartUploadCommand({
+      Bucket: BUCKET_NAME,
+      Key: s3Key,
+      UploadId: uploadId,
+      MultipartUpload: {
+        Parts: [...parts]
+          .sort((a, b) => a.partNumber - b.partNumber)
+          .map((p) => ({ PartNumber: p.partNumber, ETag: p.etag })),
+      },
+    })
+  );
+}
+
+/**
+ * Best-effort cleanup for a multipart upload that was started but never
+ * completed (the client gave up, hit an error, or closed the tab
+ * mid-upload). Uncompleted parts otherwise sit in the bucket incurring
+ * storage cost indefinitely - S3 doesn't garbage-collect them on its own
+ * without a lifecycle rule. Never let a failure here surface as an error
+ * to the user; it's tidying up, not part of the upload itself.
+ */
+export async function abortStagingMultipartUpload(s3Key: string, uploadId: string): Promise<void> {
+  await s3Client.send(new AbortMultipartUploadCommand({ Bucket: BUCKET_NAME, Key: s3Key, UploadId: uploadId }));
 }
 
 /**

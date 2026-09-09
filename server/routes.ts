@@ -5,7 +5,6 @@ import { setupAuth } from './auth'
 import { z } from 'zod'
 import fetch from 'node-fetch'
 import path from 'path'
-import { sseTourProgress } from './upload'
 import { getTourConfig } from './tour-config'
 import * as dropboxStorage from './dropbox-storage'
 import { request as request7 } from 'undici'
@@ -13,7 +12,15 @@ import { request as request7 } from 'undici'
 import fs from 'fs'
 import { createTablesIfNotExist, DynamoDBUtils, TABLES, toNumericId, toStringId } from './dynamodb'
 
-import { uploadPropertyImage, uploadVirtualTour, handleUploadErrors, setupStaticFileRoutes, presignTourZipUpload, processTourFromS3 } from './upload'
+import {
+    uploadPropertyImage,
+    handleUploadErrors,
+    setupStaticFileRoutes,
+    presignTourZipUpload,
+    completeTourZipMultipartUpload,
+    processTourFromS3,
+    sseTourProgress,
+} from './upload'
 import { registerRoomCaptureRoutes } from './room-capture'
 import { registerPaymentGateWayForApp } from './payment/payment-new'
 import {
@@ -2448,40 +2455,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
     })
 
-    // Upload virtual tour zip (admin/agent only -- was previously unauthenticated)
-    app.post('/api/upload/virtual-tour/:propertyId', adminMiddleware, (req, res) => {
-        // console.log("=== VIRTUAL TOUR UPLOAD ENDPOINT ===");
-        console.log('Property ID:', req.params.propertyId)
-
-        const propertyId = req.params.propertyId // Use string ID
-        if (!propertyId) {
-            return res.status(400).json({
-                status: 'error',
-                message: 'Invalid property ID',
-            })
-        }
-
-        // Pass the property ID to the upload function via request object
-        ;(req as any).propertyId = propertyId
-
-        console.log(`Received virtual tour upload request for property ${propertyId}`)
-        uploadVirtualTour(req, res, (err: any) => {
-            if (err) {
-                console.error(`Upload error: ${err.message}`)
-                return res.status(400).json({
-                    status: 'error',
-                    message: err.message,
-                })
-            }
-            // The new uploadVirtualTour responds immediately with jobId, so nothing else to do here.
-        })
-    })
-
-    // Direct-to-S3 virtual tour upload (faster/more reliable than the relay
-    // path above for large ZIPs on slow connections - see upload.ts's
-    // presignTourZipUpload/processTourFromS3 for the full explanation).
-    // Gated by the same adminMiddleware as the relay path above.
+    // Virtual tour ZIP upload, direct to S3 (admin/agent only). The browser
+    // PUTs the ZIP straight to S3 in parallel parts using presigned URLs
+    // (see upload.ts's presignTourZipUpload for why multipart beats a
+    // single request-through-our-server relay on both speed and
+    // resilience) - our server is only involved before (presigning) and
+    // after (pulling the finished upload back from S3 to extract and
+    // republish it, in processTourFromS3).
     app.post('/api/upload/virtual-tour/:propertyId/presign-zip', adminMiddleware, presignTourZipUpload)
+    app.post('/api/upload/virtual-tour/:propertyId/complete-multipart', adminMiddleware, completeTourZipMultipartUpload)
     app.post('/api/upload/virtual-tour/:propertyId/process-from-s3', adminMiddleware, processTourFromS3)
 
     // SSE endpoint for tour progress
