@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/hooks/use-auth'
-import { Redirect } from 'wouter'
+import { Redirect, Link } from 'wouter'
 import { Property } from '@shared/schema'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import MessagesInbox from '@/components/messaging/MessagesInbox'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface ViewedTour {
     tourId: string
@@ -103,10 +104,48 @@ export function UserDashboard() {
     }
 
     if (loading) {
+        // Was a bare spinner in an otherwise-blank page — the header, all 4
+        // stat cards, and the whole tab layout would then pop into
+        // existence at once the moment data arrived, a real layout jump on
+        // every dashboard visit. A skeleton shaped like the loaded page
+        // (same grid, same card count) means the page's structure is
+        // stable from first paint — only the numbers fill in.
         return (
             <div className="container mx-auto py-8 px-6">
-                <div className="flex justify-center items-center min-h-[400px]">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                <div className="max-w-7xl mx-auto">
+                    <div className="mb-8">
+                        <Skeleton className="h-9 w-64 mb-2" />
+                        <Skeleton className="h-5 w-48" />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <Card key={i}>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <Skeleton className="h-4 w-24" />
+                                    <Skeleton className="h-4 w-4 rounded-full" />
+                                </CardHeader>
+                                <CardContent>
+                                    <Skeleton className="h-7 w-20 mb-2" />
+                                    <Skeleton className="h-3 w-28" />
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                    <Skeleton className="h-10 w-72 mb-6" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                            <Card key={i}>
+                                <CardHeader>
+                                    <Skeleton className="h-5 w-3/4 mb-2" />
+                                    <Skeleton className="h-4 w-1/2" />
+                                </CardHeader>
+                                <CardContent>
+                                    <Skeleton className="h-4 w-full mb-2" />
+                                    <Skeleton className="h-4 w-2/3" />
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
                 </div>
             </div>
         )
@@ -180,9 +219,14 @@ export function UserDashboard() {
                     <TabsContent value="tours" className="space-y-6">
                         <div className="flex justify-between items-center">
                             <h2 className="text-xl font-semibold">My Viewed Tours</h2>
-                            <Button variant="outline">
-                                <Eye className="mr-2 h-4 w-4" />
-                                View All Properties
+                            {/* Was a dead-end button — no onClick, no navigation. Every
+                                click here just did nothing, on the exact tab whose whole
+                                point is getting back to browsing. */}
+                            <Button variant="outline" asChild>
+                                <Link href="/properties">
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    View All Properties
+                                </Link>
                             </Button>
                         </div>
 
@@ -248,9 +292,11 @@ export function UserDashboard() {
                                     <p className="text-muted-foreground mb-4">
                                         Start exploring properties and taking virtual tours
                                     </p>
-                                    <Button>
-                                        <Eye className="mr-2 h-4 w-4" />
-                                        Browse Properties
+                                    <Button asChild>
+                                        <Link href="/properties">
+                                            <Eye className="mr-2 h-4 w-4" />
+                                            Browse Properties
+                                        </Link>
                                     </Button>
                                 </CardContent>
                             </Card>
@@ -282,9 +328,11 @@ export function UserDashboard() {
                                         <p className="text-muted-foreground mb-4">
                                             Start adding properties to your whitelist for quick access
                                         </p>
-                                        <Button>
-                                            <Heart className="mr-2 h-4 w-4" />
-                                            Browse Properties
+                                        <Button asChild>
+                                            <Link href="/properties">
+                                                <Heart className="mr-2 h-4 w-4" />
+                                                Browse Properties
+                                            </Link>
                                         </Button>
                                     </CardContent>
                                 </Card>

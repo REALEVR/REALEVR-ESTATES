@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 
 interface VirtualTourModalProps {
   isOpen: boolean;
@@ -27,6 +28,23 @@ export default function VirtualTourModal({
   onPreviewExpired,
 }: VirtualTourModalProps) {
   const [secondsLeft, setSecondsLeft] = useState(previewSeconds ?? 0);
+  // This is the core product — the 360 tour itself — loading into a plain
+  // black rectangle with zero feedback while the third-party embed (often
+  // several seconds on the data-constrained mobile connections this
+  // platform's Uganda audience is most likely on, per PropertyCard.tsx's
+  // own lazy-loading comment) fetches.
+  const [tourLoaded, setTourLoaded] = useState(false);
+
+  // Radix unmounts <DialogContent> (and the iframe inside it) when the
+  // dialog closes, so the iframe itself does reload fresh on every open —
+  // but this component instance stays mounted the whole time (callers hold
+  // it open with an isOpen prop, not by conditionally rendering
+  // <VirtualTourModal>), so tourLoaded is *not* naturally reset by that.
+  // Without this, reopening the same tour after closing it once would
+  // leave the loading overlay permanently skipped from the second open on.
+  useEffect(() => {
+    if (isOpen) setTourLoaded(false);
+  }, [isOpen]);
 
   // Restart the countdown fresh every time the modal opens with a preview
   // limit — without resetting on `isOpen`, closing and reopening the same
@@ -71,12 +89,26 @@ export default function VirtualTourModal({
           </div>
         </div>
 
-        <div className="w-full h-[calc(90vh-48px)] bg-black rounded-b-lg">
+        <div className="relative w-full h-[calc(90vh-48px)] bg-black rounded-b-lg">
+          <AnimatePresence>
+            {!tourLoaded && (
+              <motion.div
+                className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black"
+                initial={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <Loader2 className="h-8 w-8 text-white/70 animate-spin" />
+                <p className="text-sm text-white/70">Loading virtual tour…</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
           <iframe
             src={tourUrl}
             title={`Virtual tour of ${propertyTitle}`}
             className="w-full h-full rounded-b-lg"
             allowFullScreen
+            onLoad={() => setTourLoaded(true)}
           />
         </div>
       </DialogContent>

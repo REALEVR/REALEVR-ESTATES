@@ -47,6 +47,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import PropertyForm from '@/components/admin/PropertyFormNew';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function PropertyManager() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -264,17 +265,55 @@ export default function PropertyManager() {
 
   const renderPropertyTable = () => {
     if (isLoading) {
+      // Was a spinner replacing the whole table area (header included), so
+      // the column headers popped in only once data arrived. Keeping the
+      // real header static and skeleton-filling just the rows means the
+      // table's shape is stable from first paint, and roughly previews
+      // "this is a table of properties" instead of a blank wait.
       return (
-        <div className="flex items-center justify-center h-40">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12" />
+              <TableHead>Title</TableHead>
+              <TableHead>Location</TableHead>
+              <TableHead>Price (UGX)</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Virtual Tour</TableHead>
+              <TableHead>Featured</TableHead>
+              <TableHead>Availability</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <TableRow key={i}>
+                <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+                <TableCell><Skeleton className="h-8 w-28" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                <TableCell className="text-right"><Skeleton className="h-8 w-16 ml-auto" /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       );
     }
 
     if (!filteredProperties || filteredProperties.length === 0) {
       return (
         <div className="text-center py-8">
-          <p className="text-gray-500">No properties found. Add a new property to get started.</p>
+          <p className="text-gray-500 mb-4">No properties found. Add a new property to get started.</p>
+          {/* Was text with no way to act on it — "get started" pointed nowhere.
+              Wired to the same dialog the page's own "Add Property" button opens. */}
+          <Button onClick={() => setIsAddPropertyOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Property
+          </Button>
         </div>
       );
     }

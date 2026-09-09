@@ -34,6 +34,7 @@ import { useStartAgentAdminConversation } from '@/hooks/useMessaging'
 import MessagesInbox from '@/components/messaging/MessagesInbox'
 import { useInstallPrompt } from '@/hooks/useInstallPrompt'
 import BoostPurchaseCard from '@/components/boost/BoostPurchaseCard'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface PropertyWithViews extends Property {
     viewCount: number
@@ -188,10 +189,48 @@ export function AgentDashboard() {
     }, [fetchAgentData])
 
     if (loading) {
+        // Same fix as UserDashboard's loading state: a shell-shaped skeleton
+        // (matching this page's own header + 4-stat-card grid below)
+        // instead of a spinner in an otherwise-blank page, so the agent's
+        // primary workspace doesn't jump-lay-out the moment data arrives.
         return (
             <div className="container mx-auto py-8 px-6">
-                <div className="flex justify-center items-center min-h-[400px]">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                <div className="max-w-7xl mx-auto">
+                    <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <Skeleton className="h-9 w-56 mb-2" />
+                            <Skeleton className="h-5 w-72" />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <Card key={i}>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <Skeleton className="h-4 w-24" />
+                                    <Skeleton className="h-4 w-4 rounded-full" />
+                                </CardHeader>
+                                <CardContent>
+                                    <Skeleton className="h-7 w-16 mb-2" />
+                                    <Skeleton className="h-3 w-24" />
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                    <Skeleton className="h-10 w-96 mb-6" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                            <Card key={i}>
+                                <CardHeader>
+                                    <Skeleton className="h-5 w-3/4 mb-2" />
+                                    <Skeleton className="h-4 w-1/2" />
+                                </CardHeader>
+                                <CardContent>
+                                    <Skeleton className="h-4 w-full mb-2" />
+                                    <Skeleton className="h-4 w-2/3" />
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
                 </div>
             </div>
         )

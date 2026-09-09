@@ -1,12 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Reveal from "@/components/motion/Reveal";
 
+// Same scroll-reveal treatment as AboutUsPage — see that file's comment.
 export default function HowItWorksPage() {
   return (
     <div className="container mx-auto px-6 py-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-center mb-8">How RealEVR Estates Works</h1>
-        
+        <Reveal direction="fade">
+          <h1 className="text-3xl font-bold text-center mb-8">How RealEVR Estates Works</h1>
+        </Reveal>
+
         <div className="space-y-8">
+          <Reveal delay={0}>
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl text-accent">For Property Seekers</CardTitle>
@@ -67,7 +72,9 @@ export default function HowItWorksPage() {
               </div>
             </CardContent>
           </Card>
+          </Reveal>
 
+          <Reveal delay={0.08}>
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl text-accent">For Property Owners & Agents</CardTitle>
@@ -128,7 +135,9 @@ export default function HowItWorksPage() {
               </div>
             </CardContent>
           </Card>
+          </Reveal>
 
+          <Reveal delay={0.16}>
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl text-accent">Subscription Plans</CardTitle>
@@ -171,7 +180,9 @@ export default function HowItWorksPage() {
               </div>
             </CardContent>
           </Card>
+          </Reveal>
 
+          <Reveal delay={0.24}>
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl text-accent">Payment & Security</CardTitle>
@@ -181,20 +192,21 @@ export default function HowItWorksPage() {
                 <div>
                   <h3 className="font-semibold text-lg mb-2">Secure Payments</h3>
                   <p className="text-gray-600">
-                    All payments are processed securely through Flutterwave, supporting multiple 
+                    All payments are processed securely through Flutterwave, supporting multiple
                     payment methods including cards, mobile money, and bank transfers.
                   </p>
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg mb-2">Data Protection</h3>
                   <p className="text-gray-600">
-                    Your personal information and payment details are protected with industry-standard 
+                    Your personal information and payment details are protected with industry-standard
                     encryption and security measures.
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
+          </Reveal>
         </div>
       </div>
     </div>

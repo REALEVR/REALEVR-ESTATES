@@ -1,12 +1,20 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Reveal from "@/components/motion/Reveal";
 
+// Same scroll-reveal treatment as AboutUsPage — see that file's comment.
+// whileInView triggers independently per section as it's scrolled into
+// view, so only the first couple of (above-the-fold) cards need an
+// explicit stagger delay; the rest reveal naturally as the visitor scrolls.
 export default function TrustSafetyPage() {
   return (
     <div className="container mx-auto px-6 py-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-center mb-8">Trust & Safety</h1>
-        
+        <Reveal direction="fade">
+          <h1 className="text-3xl font-bold text-center mb-8">Trust & Safety</h1>
+        </Reveal>
+
         <div className="space-y-8">
+          <Reveal delay={0}>
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl text-accent">Our Commitment to Safety</CardTitle>
@@ -24,7 +32,9 @@ export default function TrustSafetyPage() {
               </p>
             </CardContent>
           </Card>
+          </Reveal>
 
+          <Reveal delay={0.08}>
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl text-accent">Agent Verification</CardTitle>
@@ -52,7 +62,9 @@ export default function TrustSafetyPage() {
               </div>
             </CardContent>
           </Card>
+          </Reveal>
 
+          <Reveal>
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl text-accent">Property Verification</CardTitle>
@@ -100,7 +112,9 @@ export default function TrustSafetyPage() {
               </div>
             </CardContent>
           </Card>
+          </Reveal>
 
+          <Reveal>
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl text-accent">Payment Security</CardTitle>
@@ -139,7 +153,9 @@ export default function TrustSafetyPage() {
               </div>
             </CardContent>
           </Card>
+          </Reveal>
 
+          <Reveal>
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl text-accent">User Protection</CardTitle>
@@ -167,7 +183,9 @@ export default function TrustSafetyPage() {
               </div>
             </CardContent>
           </Card>
+          </Reveal>
 
+          <Reveal>
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl text-accent">Reporting & Monitoring</CardTitle>
@@ -203,7 +221,9 @@ export default function TrustSafetyPage() {
               </div>
             </CardContent>
           </Card>
+          </Reveal>
 
+          <Reveal>
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl text-accent">Contact Trust & Safety Team</CardTitle>
@@ -227,6 +247,7 @@ export default function TrustSafetyPage() {
               </div>
             </CardContent>
           </Card>
+          </Reveal>
         </div>
       </div>
     </div>
