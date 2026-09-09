@@ -24,7 +24,7 @@ import {
 import { eventBus } from '@/lib/eventBus'
 import { recordTourPayment } from '@/lib/iotect-verify-pay'
 
-type PaymentType = 'PropertyDeposit' | 'ViewingFee' | 'Subscription' | 'BnBBookingDeposit'
+type PaymentType = 'PropertyDeposit' | 'ViewingFee' | 'Subscription' | 'BnBBookingDeposit' | 'BoostPlacement'
 
 interface PaymentModalProps {
     isOpen: boolean
@@ -127,6 +127,17 @@ export default function PaymentModal({
         }
     }
     useEffect(() => {
+        // FIX: this dialog stays mounted (just visually hidden) whenever a
+        // parent renders it inside a list — BoostPurchaseCard.tsx and
+        // BookingCalendarModal.tsx both do this, one instance per property
+        // card. Every _eventPaymentString here is the SAME global constant
+        // (PaymentSources.paymentModelClient), so without this guard every
+        // mounted-but-closed instance in the list would also react to
+        // whichever OTHER instance's payment just completed — misattributing
+        // one guest's/buyer's payment to every sibling card's pending
+        // purchase. Only the instance the visitor actually has open should
+        // ever act on a completion event.
+        if (!isOpen) return
         const handler = (data: { transactionID: string }) => {
             // FIX: this used to call handlePaymentSuccess('successful') — a
             // bare string. handlePaymentSuccess checks `response.status ===
@@ -163,7 +174,7 @@ export default function PaymentModal({
         return () => {
             paymentEmitter.off(_eventPaymentString, handler)
         }
-    }, [_eventPaymentString, propertyId, amount, successCallback]) // ← add deps
+    }, [_eventPaymentString, propertyId, amount, successCallback, isOpen]) // ← add deps
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -179,6 +190,8 @@ export default function PaymentModal({
                             ? `Pay a 20% deposit (${amount.toLocaleString()} ${currency}) to secure your booking. This deposit is non-refundable.`
                             : paymentType === 'ViewingFee'
                             ? `Pay the standard viewing fee of ${amount.toLocaleString()} ${currency}.`
+                            : paymentType === 'BoostPlacement'
+                            ? `Pay ${amount.toLocaleString()} ${currency} to boost this listing — it activates immediately once payment is confirmed.`
                             : `Complete your payment of ${amount.toLocaleString()} ${currency}.`}
                     </DialogDescription>
                 </DialogHeader>
@@ -201,6 +214,8 @@ export default function PaymentModal({
                                 ? 'Owner contact details are now available. You can contact them directly to arrange your stay.'
                                 : paymentType === 'ViewingFee'
                                 ? 'You can now view up to 10 properties for the next 24 hours.'
+                                : paymentType === 'BoostPlacement'
+                                ? 'Your boost is now live — this listing will show as featured.'
                                 : 'Your payment has been processed successfully.'}
                         </p>
                     </div>
@@ -215,6 +230,8 @@ export default function PaymentModal({
                                     ? '20% Booking Deposit'
                                     : paymentType === 'ViewingFee'
                                     ? 'Property Viewing Fee (24 hours)'
+                                    : paymentType === 'BoostPlacement'
+                                    ? 'Boost Placement Fee'
                                     : 'Total Amount'}
                             </p>
                         </div>

@@ -28,6 +28,10 @@ interface BoostPurchase {
   requestedAt: string;
   confirmedAt?: string;
   expiresAt?: string;
+  // Set once activated — 'iotec' for the automatic mobile-money gateway
+  // path (BoostPurchaseCard.tsx), 'manual' for an admin/agent confirming
+  // by hand here. See server/gene/boost-placement.ts.
+  paymentMethod?: "iotec" | "manual" | null;
 }
 
 const STATUS_LABEL: Record<BoostStatus, string> = {
@@ -153,6 +157,12 @@ export default function AdminBoostConfirmations() {
                         <h3 className="font-semibold text-lg">Property #{r.propertyId}</h3>
                         <Badge variant={STATUS_VARIANT[r.status]}>{STATUS_LABEL[r.status]}</Badge>
                         {r.referredListing && <Badge variant="outline">Agent-referred</Badge>}
+                        {r.paymentMethod === "iotec" && (
+                          <Badge variant="outline" className="border-emerald-500/40 text-emerald-600">
+                            Paid via IoTec
+                          </Badge>
+                        )}
+                        {r.paymentMethod === "manual" && <Badge variant="outline">Confirmed manually</Badge>}
                       </div>
                       <p className="text-sm text-muted-foreground">{TIER_LABEL[r.tier] ?? r.tier}</p>
                       <p className="text-sm text-muted-foreground mt-1">

@@ -71,7 +71,7 @@ import { registerLandlordHubRoutes } from './gene/landlord-hub'
 import { registerMagicLoginRoutes } from './gene/magic-login'
 import { registerSelfServeListingRoutes } from './gene/self-serve-listing'
 import { registerWhatsappGrowthRoutes } from './gene/whatsapp-growth'
-import { registerBoostPlacementRoutes } from './gene/boost-placement'
+import { registerBoostPlacementRoutes, getActiveBoostsSortedByAmount } from './gene/boost-placement'
 import { registerSuccessFeeRoutes } from './gene/success-fee'
 import { registerTourProductionBookingRoutes } from './gene/tour-production-booking'
 import { registerLeadMeteringRoutes } from './gene/lead-metering'
@@ -577,7 +577,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Get featured properties
     app.get('/api/properties/featured', async (req, res) => {
         try {
-            const featuredProperties = (await storage.getFeaturedProperties()).filter(isPubliclyVisibleProperty)
+            // "Featured" here means "boosted" — see server/gene/boost-placement.ts.
+            // Sourced from currently-active boost purchases only, ordered by
+            // the amount actually paid (most-paid-first), never from a plain
+            // isFeatured toggle: a listing only shows here because someone
+            // paid to put it here, and how much they paid decides the order.
+            const activeBoosts = await getActiveBoostsSortedByAmount()
+            const properties = await Promise.all(activeBoosts.map((b) => storage.getProperty(b.propertyId)))
+            const featuredProperties = properties
+                .filter((p): p is NonNullable<typeof p> => !!p)
+                .filter(isPubliclyVisibleProperty)
 
             // Set cache control headers to prevent caching
             res.set({

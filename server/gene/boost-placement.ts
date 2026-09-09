@@ -16,15 +16,22 @@
  * their own collection so pricing/tiers/expiry/take-rate tracking don't
  * depend on that one boolean column.
  *
- * HONESTY NOTE — payment: same manual-confirmation policy as
- * payments-core.ts. There is no live mobile-money charge credential in this
- * environment, so a purchase starts `pending_manual_confirmation`; a human
- * (admin/ops) confirms the mobile money was actually received via
- * POST /api/gene/boost/:id/confirm, which is what actually flips
- * `isFeatured` on. Confirm/cancel use the shared `adminMiddleware`
- * (admin OR agent) — this is money coming IN with no payout conflict of
- * interest, same reasoning as payments-core.ts's own /confirm route; it is
- * NOT a strict-admin route like the referral payout approvals.
+ * PAYMENT: same real IoTec mobile-money gateway used for BnB/viewing-fee
+ * payments (client/src/components/payment/PaymentModal.tsx +
+ * client/src/lib/iotec-paymentpatch.ts) — BoostPurchaseCard.tsx opens it
+ * right after creating a purchase here, and on a real confirmed IoTec
+ * transaction calls POST /api/gene/boost/:id/confirm-payment, which
+ * activates the purchase itself (buyer-only, no admin involved) and is
+ * what actually flips `isFeatured` on. `paymentMethod`/`transactionId`
+ * record which path activated a purchase, for the admin queue's own
+ * visibility into the mix.
+ *
+ * A purchase still starts life as `pending_manual_confirmation` and the
+ * manual path (POST /api/gene/boost/:id/confirm, via the admin/agent
+ * Boost Confirmations queue) still exists as a fallback for when IoTec
+ * itself is unreachable or a buyer pays some other way (bank transfer,
+ * cash) — same shared `adminMiddleware` (admin OR agent) as before, since
+ * this is money coming IN with no payout conflict of interest.
  *
  * TAKE-RATE INSTRUMENTATION: the playbook's Section 4 flags the take-rate of
  * Boost specifically among AGENT-REFERRED listings (via
@@ -86,6 +93,13 @@ export interface BoostPurchase {
     startsAt?: string
     expiresAt?: string
     decidedNote?: string
+    /** How this purchase actually got confirmed — 'iotec' for the real
+     * automatic mobile-money gateway path (POST .../confirm-payment),
+     * 'manual' for an admin/agent clicking "Confirm payment received" in
+     * the Boost Confirmations queue. Unset while still pending. */
+    paymentMethod?: 'iotec' | 'manual'
+    /** IoTec transaction id, only set when paymentMethod === 'iotec'. */
+    transactionId?: string
 }
 
 function readPurchases(): BoostPurchase[] {
@@ -143,7 +157,98 @@ function toPublicView(p: BoostPurchase) {
         confirmedAt: p.confirmedAt ?? null,
         startsAt: p.startsAt ?? null,
         expiresAt: p.expiresAt ?? null,
+        paymentMethod: p.paymentMethod ?? null,
     }
+}
+
+/**
+ * Shared activation logic — the one thing that actually turns a pending
+ * purchase into a live boost (supersede any other active boost on the
+ * same property, flip `isFeatured` on, notify the buyer). Used by both
+ * the admin/agent manual-confirm route and the buyer-facing automatic
+ * IoTec confirm-payment route below, so the two paths can never drift.
+ * Caller must have already checked the purchase exists and is
+ * `pending_manual_confirmation`.
+ */
+async function activatePurchase(
+    id: number,
+    opts: { confirmedBy: string; paymentMethod: 'iotec' | 'manual'; transactionId?: string }
+): Promise<BoostPurchase> {
+    const rows = readPurchases()
+    const idx = rows.findIndex((r) => r.id === id)
+    if (idx === -1) throw new Error('Boost purchase not found.')
+
+    // Supersede any other still-active boost on the same property rather
+    // than stacking two active rows for it.
+    const propertyId = rows[idx].propertyId
+    for (let i = 0; i < rows.length; i++) {
+        if (rows[i].propertyId === propertyId && rows[i].status === 'active' && rows[i].id !== id) {
+            rows[i] = { ...rows[i], status: 'superseded' }
+        }
+    }
+
+    const startsAt = nowIso()
+    const expiresAt = new Date(Date.now() + rows[idx].durationDays * 24 * 60 * 60 * 1000).toISOString()
+    rows[idx] = {
+        ...rows[idx],
+        status: 'active',
+        confirmedAt: nowIso(),
+        confirmedBy: opts.confirmedBy,
+        startsAt,
+        expiresAt,
+        paymentMethod: opts.paymentMethod,
+        transactionId: opts.transactionId,
+    }
+    writePurchases(rows)
+
+    try {
+        await storage.updateProperty(propertyId, { isFeatured: true } as any)
+    } catch (err) {
+        console.error(`[gene/boost-placement] failed to set isFeatured for property ${propertyId}:`, err)
+    }
+
+    try {
+        const buyer = await storage.getUser(rows[idx].buyerUserId)
+        if (buyer?.phoneNumber) {
+            await sendWhatsAppMessage(
+                buyer.phoneNumber,
+                `🚀 Your ${BOOST_TIERS[rows[idx].tier].label} boost is live! Your listing will show as featured until ${new Date(expiresAt).toLocaleDateString()}.`
+            )
+        }
+    } catch (err) {
+        console.error('[gene/boost-placement] buyer notification failed:', err)
+    }
+
+    return rows[idx]
+}
+
+/**
+ * Currently-active boosts, most-paid-first — drives which properties show
+ * in the public "Featured"/favourite carousel and in what order (see
+ * GET /api/properties/featured in server/routes.ts). Ties (same tier/
+ * amount) break by most-recently-activated first. Deduped by property —
+ * activatePurchase()'s supersede logic already keeps at most one 'active'
+ * row per property, but this stays defensive rather than assuming that
+ * invariant always holds.
+ */
+export async function getActiveBoostsSortedByAmount(): Promise<
+    Array<{ propertyId: number; amountUgx: number; tier: BoostTier; tierLabel: string }>
+> {
+    await sweepExpiredBoosts()
+    const byProperty = new Map<number, BoostPurchase>()
+    for (const row of readPurchases()) {
+        if (row.status !== 'active') continue
+        const existing = byProperty.get(row.propertyId)
+        if (!existing || row.amountUgx > existing.amountUgx) {
+            byProperty.set(row.propertyId, row)
+        }
+    }
+    return Array.from(byProperty.values())
+        .sort((a, b) => {
+            if (b.amountUgx !== a.amountUgx) return b.amountUgx - a.amountUgx
+            return new Date(b.confirmedAt ?? b.requestedAt).getTime() - new Date(a.confirmedAt ?? a.requestedAt).getTime()
+        })
+        .map((r) => ({ propertyId: r.propertyId, amountUgx: r.amountUgx, tier: r.tier, tierLabel: BOOST_TIERS[r.tier].label }))
 }
 
 export function registerBoostPlacementRoutes(app: Express, adminMiddleware: RequestHandler): void {
@@ -274,55 +379,77 @@ export function registerBoostPlacementRoutes(app: Express, adminMiddleware: Requ
         }
     })
 
-    // [ADMIN or AGENT] — confirm mobile money was received; this is what
-    // actually activates the boost (flips isFeatured on).
+    // [ADMIN or AGENT] — manual fallback: confirm mobile money was received
+    // some other way (IoTec unreachable, bank transfer, cash). Most
+    // purchases now activate automatically via /confirm-payment below.
     app.post('/api/gene/boost/:id/confirm', adminMiddleware, async (req: Request, res: Response) => {
         try {
             const id = Number(req.params.id)
-            const rows = readPurchases()
-            const idx = rows.findIndex((r) => r.id === id)
-            if (idx === -1) return res.status(404).json({ message: 'Boost purchase not found.' })
-            if (rows[idx].status !== 'pending_manual_confirmation') {
-                return res.status(400).json({ message: `Cannot confirm a purchase in status "${rows[idx].status}".` })
-            }
-
-            // Supersede any other still-active boost on the same property
-            // rather than stacking two active rows for it.
-            const propertyId = rows[idx].propertyId
-            for (let i = 0; i < rows.length; i++) {
-                if (rows[i].propertyId === propertyId && rows[i].status === 'active' && rows[i].id !== id) {
-                    rows[i] = { ...rows[i], status: 'superseded' }
-                }
+            const existing = readPurchases().find((r) => r.id === id)
+            if (!existing) return res.status(404).json({ message: 'Boost purchase not found.' })
+            if (existing.status !== 'pending_manual_confirmation') {
+                return res.status(400).json({ message: `Cannot confirm a purchase in status "${existing.status}".` })
             }
 
             const confirmedBy = (req.user as any)?.username ?? (req.user as any)?.email ?? 'unknown-admin'
-            const startsAt = nowIso()
-            const expiresAt = new Date(Date.now() + rows[idx].durationDays * 24 * 60 * 60 * 1000).toISOString()
-            rows[idx] = { ...rows[idx], status: 'active', confirmedAt: nowIso(), confirmedBy, startsAt, expiresAt }
-            writePurchases(rows)
-
-            try {
-                await storage.updateProperty(propertyId, { isFeatured: true } as any)
-            } catch (err) {
-                console.error(`[gene/boost-placement] failed to set isFeatured for property ${propertyId}:`, err)
-            }
-
-            try {
-                const buyer = await storage.getUser(rows[idx].buyerUserId)
-                if (buyer?.phoneNumber) {
-                    await sendWhatsAppMessage(
-                        buyer.phoneNumber,
-                        `🚀 Your ${BOOST_TIERS[rows[idx].tier].label} boost is live! Your listing will show as featured until ${new Date(expiresAt).toLocaleDateString()}.`
-                    )
-                }
-            } catch (err) {
-                console.error('[gene/boost-placement] buyer notification failed:', err)
-            }
-
-            res.json(toPublicView(rows[idx]))
+            const activated = await activatePurchase(id, { confirmedBy, paymentMethod: 'manual' })
+            res.json(toPublicView(activated))
         } catch (err) {
             console.error('[gene/boost-placement] confirm failed:', err)
             res.status(500).json({ message: 'Failed to confirm boost purchase.' })
+        }
+    })
+
+    // [AUTH, buyer-only] — the real payment path: called by
+    // BoostPurchaseCard.tsx right after the IoTec mobile-money gateway
+    // reports a successful transaction (same gateway/flow used for BnB
+    // booking deposits and viewing fees). Activates the purchase
+    // immediately — no admin involved — and records the payment in the
+    // main payments table too, same as similar-properties-pass.ts does,
+    // so Boost revenue shows up in the admin dashboard's real revenue
+    // numbers alongside every other payment type.
+    app.post('/api/gene/boost/:id/confirm-payment', async (req: Request, res: Response) => {
+        try {
+            if (!req.isAuthenticated?.() || !req.user) {
+                return res.status(401).json({ message: 'Sign in first.' })
+            }
+            const id = Number(req.params.id)
+            const transactionId = typeof req.body?.transactionId === 'string' ? req.body.transactionId : ''
+            if (!Number.isFinite(id) || !transactionId) {
+                return res.status(400).json({ message: 'id and transactionId are required.' })
+            }
+
+            const existing = readPurchases().find((r) => r.id === id)
+            if (!existing) return res.status(404).json({ message: 'Boost purchase not found.' })
+
+            const user = req.user as any
+            if (existing.buyerUserId !== user.id) {
+                return res.status(403).json({ message: 'This boost purchase belongs to a different account.' })
+            }
+            if (existing.status !== 'pending_manual_confirmation') {
+                return res.status(400).json({ message: `Cannot confirm a purchase in status "${existing.status}".` })
+            }
+
+            const confirmedBy = user.username ?? user.email ?? `user-${user.id}`
+            const activated = await activatePurchase(id, { confirmedBy, paymentMethod: 'iotec', transactionId })
+
+            try {
+                await storage.recordTourPayment({
+                    transactionId,
+                    propertyId: activated.propertyId,
+                    userId: user.id,
+                    amount: activated.amountUgx,
+                    currency: 'UGX',
+                    timestamp: new Date().toISOString(),
+                })
+            } catch (err) {
+                console.error('[gene/boost-placement] failed to record payment for revenue reporting:', err)
+            }
+
+            res.json(toPublicView(activated))
+        } catch (err) {
+            console.error('[gene/boost-placement] confirm-payment failed:', err)
+            res.status(500).json({ message: 'Failed to confirm your boost payment.' })
         }
     })
 
