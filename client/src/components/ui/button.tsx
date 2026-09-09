@@ -5,7 +5,21 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  // active:scale + transition-transform give every button in the app (this
+  // is the shared primitive behind nearly every CTA — search, book, pay,
+  // submit) a subtle press-down on tap, the native affordance this
+  // primitive had none of before. Kept deliberately understated (0.98,
+  // 100ms) since buttons are a high-frequency element — see AUDIT.md
+  // categories 2-3 in improve-animations: press feedback should read as
+  // "responsive", not be noticed as "an animation".
+  // Tailwind's `transition-colors` and `transition-transform` utilities
+  // both set `transition-property` — stacking them as two classes is a
+  // specificity coin-flip on which one actually wins. This arbitrary value
+  // lists exactly the properties this component animates (color/background/
+  // border for hover, transform for press) instead — deliberately not
+  // `transition-all`, which would also animate layout-triggering
+  // properties off-GPU (AUDIT.md category 5).
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-[color,background-color,border-color,transform] duration-100 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {

@@ -87,8 +87,15 @@ export default function PropertyCard({ property }: PropertyCardProps) {
 
     return (
         <>
+            {/* Hover-lift lives only in <AnimatedCard>'s whileHover below —
+                the hover:shadow-xl/-translate-y-0.5/transition-all classes
+                this div used to also carry never rendered (AnimatedCard's
+                inline style always wins over a CSS class), they just meant
+                three animation systems were nominally fighting over the
+                same effect on the platform's single most-browsed
+                component. improve-animations audit. */}
             <AnimatedCard
-                className="property-card bg-card rounded-2xl overflow-hidden shadow-sm border-[1.5px] border-border cursor-pointer hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
+                className="bg-card rounded-2xl overflow-hidden shadow-sm border-[1.5px] border-border cursor-pointer"
                 onClick={handleCardClick}
             >
                 <div className="relative">

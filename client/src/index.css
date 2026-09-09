@@ -214,14 +214,16 @@
   padding: 0.3rem 0.65rem;
 }
 
-.property-card {
-  transition: all 0.2s ease;
-}
-
-.property-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-}
+/* Property card hover-lift is owned entirely by <AnimatedCard>'s Framer
+ * Motion whileHover in animated-components.tsx now (see PropertyCard.tsx).
+ * This used to be a THIRD system doing the same "lift on hover" job
+ * alongside that motion.div and a set of Tailwind hover: utilities on the
+ * card's own className — three animations racing to move the single most-
+ * browsed component in the app, with `transition: all` here animating
+ * every property on top of it. Framer Motion's inline style always won
+ * (inline > class, regardless of :hover), so this rule was dead weight,
+ * not a second visible effect — removed rather than fixed for that reason.
+ * improve-animations audit, category 5 & 7. */
 
 .tour-container iframe {
   width: 100%;

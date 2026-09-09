@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 import {
     Dialog,
     DialogContent,
@@ -170,8 +171,29 @@ export default function PaymentModal({
                         </p>
                     </div>
                 ) : isSuccess ? (
-                    <div className="flex flex-col items-center justify-center py-8">
-                        <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
+                    // The single highest-value, highest-emotion moment in the app — a
+                    // completed payment — used to just teleport in as a static icon.
+                    // A brief scale+fade entrance (repo's own Reveal.tsx ease, reused
+                    // here for cohesion rather than inventing a new curve; timing sits
+                    // in AUDIT.md's 200-500ms modal-content budget) confirms the
+                    // payment landed, which matters here beyond polish: an ambiguous
+                    // success state is exactly what makes people second-guess whether
+                    // it worked and re-attempt a payment that already went through.
+                    // Governed by the app-wide MotionConfig reducedMotion="user" in
+                    // App.tsx — no separate reduced-motion handling needed.
+                    <motion.div
+                        className="flex flex-col items-center justify-center py-8"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ duration: 0.4, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+                        >
+                            <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
+                        </motion.div>
                         <p className="text-center text-gray-700 font-medium mb-2">Thank you for your payment!</p>
                         <p className="text-center text-gray-500 max-w-sm">
                             {paymentType === 'BnBBookingDeposit'
@@ -180,7 +202,7 @@ export default function PaymentModal({
                                 ? 'You can now view up to 10 properties for the next 24 hours.'
                                 : 'Your payment has been processed successfully.'}
                         </p>
-                    </div>
+                    </motion.div>
                 ) : (
                     <div className="space-y-6 py-4">
                         <div className="bg-gray-50 rounded-lg p-4 text-center">
