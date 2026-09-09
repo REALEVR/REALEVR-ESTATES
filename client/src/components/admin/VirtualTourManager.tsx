@@ -45,6 +45,7 @@ export default function VirtualTourManager() {
     const [property, setProperty] = useState<Property | null>(null)
     const [isUploading, setIsUploading] = useState(false)
     const [uploadProgressMessage, setUploadProgressMessage] = useState('')
+    const [uploadProgressPercent, setUploadProgressPercent] = useState(0)
     const [uploadSuccess, setUploadSuccess] = useState(false)
     const [uploadError, setUploadError] = useState('')
     const [tourPreviewUrl, setTourPreviewUrl] = useState<string | null>(null)
@@ -144,29 +145,79 @@ export default function VirtualTourManager() {
         setUploadSuccess(false)
         setUploadError('')
         setUploadProgressMessage('Uploading ZIP...')
+        setUploadProgressPercent(0)
 
         try {
             // Create FormData
             const formData = new FormData()
             formData.append('tourZip', file)
 
-            // The server responds immediately with a jobId (extraction/S3 upload
-            // happen asynchronously) -- the real success/failure only arrives via
-            // the SSE progress stream below, not on this initial response.
-            const response = await fetch(`/api/upload/virtual-tour/${property.id}`, {
-                method: 'POST',
-                body: formData,
-                credentials: 'include',
+            // XMLHttpRequest instead of fetch() so the raw browser->server
+            // transfer of a multi-GB ZIP has a real percentage attached to
+            // it (fetch() has no upload-progress event) - this is the exact
+            // "upload process" the agent dashboard was missing: previously
+            // this stage just showed a static "Uploading ZIP..." with no
+            // indication of how far along a potentially multi-hundred-MB
+            // transfer actually was, unlike the admin property editor's own
+            // tour tab (PropertyFormNew.tsx), which has always shown a
+            // percentage here. Also carries the same stall watchdog as that
+            // component: if bytes stop moving for 2 minutes, abort with a
+            // clear, retryable error instead of freezing silently forever.
+            const jobId = await new Promise<string>((resolve, reject) => {
+                const xhr = new XMLHttpRequest()
+                xhr.open('POST', `/api/upload/virtual-tour/${property.id}`)
+                xhr.withCredentials = true
+
+                let lastProgressAt = Date.now()
+                const stallWatchdog = setInterval(() => {
+                    if (Date.now() - lastProgressAt > 2 * 60_000) {
+                        clearInterval(stallWatchdog)
+                        xhr.abort()
+                    }
+                }, 15_000)
+                const clearWatchdog = () => clearInterval(stallWatchdog)
+
+                xhr.upload.onprogress = (event) => {
+                    lastProgressAt = Date.now()
+                    if (event.lengthComputable) {
+                        const percent = Math.round((event.loaded * 100) / event.total)
+                        setUploadProgressPercent(percent)
+                        setUploadProgressMessage(`Uploading ZIP... ${percent}%`)
+                    }
+                }
+                xhr.onabort = () => {
+                    clearWatchdog()
+                    reject(new Error('Upload stalled — no data was sent for 2 minutes. Check your connection and try again.'))
+                }
+                xhr.onerror = () => {
+                    clearWatchdog()
+                    reject(new Error('Upload failed'))
+                }
+                xhr.onload = () => {
+                    clearWatchdog()
+                    setUploadProgressPercent(100)
+                    try {
+                        const result = JSON.parse(xhr.responseText)
+                        if (xhr.status === 200 && result.jobId) {
+                            resolve(result.jobId)
+                        } else {
+                            reject(new Error(result.message || 'Failed to start virtual tour upload'))
+                        }
+                    } catch {
+                        reject(new Error('Failed to parse server response'))
+                    }
+                }
+                xhr.send(formData)
             })
 
-            const result = await response.json()
+            setUploadProgressMessage('Processing tour...')
 
-            if (!response.ok || !result.jobId) {
-                throw new Error(result.message || 'Failed to start virtual tour upload')
-            }
-
+            // The server responded with a jobId once the file was fully
+            // received (extraction/S3 upload happen asynchronously) -- the
+            // real success/failure only arrives via the SSE progress stream
+            // below.
             await new Promise<void>((resolve, reject) => {
-                const source = new EventSource(`/api/upload/virtual-tour/progress/${result.jobId}`)
+                const source = new EventSource(`/api/upload/virtual-tour/progress/${jobId}`)
                 source.onmessage = (evt) => {
                     const data = JSON.parse(evt.data)
                     if (data.error) {
@@ -175,6 +226,7 @@ export default function VirtualTourManager() {
                         return
                     }
                     setUploadProgressMessage(data.message || '')
+                    if (typeof data.progress === 'number') setUploadProgressPercent(data.progress)
                     if (data.done) {
                         source.close()
                         if (data.tourUrl) {
@@ -333,7 +385,7 @@ export default function VirtualTourManager() {
                                                     {isUploading ? (
                                                         <>
                                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                            Uploading...
+                                                            {uploadProgressPercent > 0 ? `${uploadProgressPercent}%` : 'Uploading...'}
                                                         </>
                                                     ) : (
                                                         <>

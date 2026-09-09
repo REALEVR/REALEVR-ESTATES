@@ -95,7 +95,17 @@ export default function Header() {
                   ? `${user.membershipPlan.charAt(0).toUpperCase() + user.membershipPlan.slice(1)} Plan`
                   : user.role === "admin"
                     ? "Admin"
-                    : "Basic Plan"
+                    // An agent account with no active subscription and no
+                    // membershipPlan set yet (a freshly-created agent, or one
+                    // on the FREE_AGENT_EMAILS allowlist) used to fall all
+                    // the way through to "Basic Plan" here - the same label
+                    // a plain signed-up-but-not-an-agent user sees. That's
+                    // misleading for an account that IS an agent; show
+                    // "Agent" instead so the role-appropriate menu badge
+                    // matches what the account can actually do.
+                    : user.role === "agent"
+                      ? "Agent"
+                      : "Basic Plan"
               }
             </span>
           )}
