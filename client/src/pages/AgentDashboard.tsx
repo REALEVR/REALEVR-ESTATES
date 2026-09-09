@@ -392,7 +392,7 @@ export function AgentDashboard() {
                                     <p className="text-muted-foreground mb-4">
                                         Start by adding your first property listing
                                     </p>
-                                    <Button>
+                                    <Button onClick={() => setIsAddPropertyOpen(true)}>
                                         <Plus className="mr-2 h-4 w-4" />
                                         Add Your First Property
                                     </Button>

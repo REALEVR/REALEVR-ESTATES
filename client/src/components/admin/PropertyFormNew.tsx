@@ -268,7 +268,8 @@ const onSubmit = async (data: PropertyFormValues) => {
       setImagePreview(savedProperty.imageUrl);
     }
 
-    if (!property) {
+    const wasCreate = !property;
+    if (wasCreate) {
       // Newly created - clear the form and move straight to the tour
       // upload step, which needs the property's own ID and so can't
       // happen any earlier than this.
@@ -278,12 +279,20 @@ const onSubmit = async (data: PropertyFormValues) => {
     }
 
     toast({
-      title: property ? 'Property Updated' : 'Property Created',
-      description: property ? 'Property has been updated successfully' : 'New property has been created',
+      title: wasCreate ? 'Property Created' : 'Property Updated',
+      description: wasCreate
+        ? "New property has been created — now add a virtual tour, or click \"Skip for now\" to finish without one."
+        : 'Property has been updated successfully',
     });
 
     queryClient.invalidateQueries();
-    if (onSuccess) {
+    // Only an UPDATE closes the parent dialog here (via onSuccess) — a
+    // fresh CREATE deliberately keeps it open on the tour tab above, so
+    // the agent lands on the upload step instead of the dialog vanishing
+    // out from under them the instant the property record exists. The
+    // tour tab's own "Finish"/"Skip for now" buttons call onSuccess once
+    // the agent is actually done (see below).
+    if (!wasCreate && onSuccess) {
       onSuccess();
     }
   } catch (error: any) {
@@ -1484,6 +1493,16 @@ const onSubmit = async (data: PropertyFormValues) => {
               <p className="text-sm text-muted-foreground">
                 Note: Upload only 3D Vista tour exports for optimal compatibility
               </p>
+
+              {!(tourPreviewUrl || property?.tourUrl) && property?.id && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => onSuccess?.()}
+                >
+                  Skip for now — add a tour later
+                </Button>
+              )}
 
               {(tourPreviewUrl || property?.tourUrl) && (
                 <Button
