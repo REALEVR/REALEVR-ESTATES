@@ -56,6 +56,24 @@ export const properties = pgTable("properties", {
   currentBid: integer("current_bid"),
   bidIncrement: integer("bid_increment"),
   auctionStatus: text("auction_status"),
+  // BnB (category 'furnished_houses') host contact, captured on the upload
+  // form - see LocationPinPicker-style fields in PropertyFormNew.tsx. When
+  // set, this is who actually shows up in OwnerContactDetails.tsx instead
+  // of the uploading agent's own number: a BnB's real point of contact is
+  // whoever is hosting the stay, not necessarily the agent who listed it.
+  // Masked to all-but-the-last-4-digits (see client/src/lib/phone-mask.ts)
+  // anywhere it's shown before the viewer pays the booking deposit.
+  hostName: text("host_name"),
+  hostPhone: text("host_phone"),
+  // Rental unit (category 'rental_units') landlord/property-manager
+  // contact - who rent payments actually go to, distinct from both
+  // ownerContactInfo (the agent's own listed contact) and uploaderName
+  // (who uploaded the listing). Revealed only once a viewer expresses
+  // intent to pay rent for this specific property (see the RentRail
+  // "pay rent" prompt on the property page) - not merely by paying to
+  // view the listing, which is a separate gate.
+  landlordName: text("landlord_name"),
+  landlordPhone: text("landlord_phone"),
 });
 
 export const amenities = pgTable("amenities", {

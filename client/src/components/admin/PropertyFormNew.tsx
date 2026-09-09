@@ -155,6 +155,10 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
     propertyCondition: '',
     auctionStart: '',
     auctionEnd: '',
+    hostName: '',
+    hostPhone: '',
+    landlordName: '',
+    landlordPhone: '',
   };
 
   const form = useForm<PropertyFormValues>({
@@ -866,6 +870,91 @@ const onSubmit = async (data: PropertyFormValues) => {
                       </FormItem>
                     )}
                   />
+
+                  {/* BnB host contact - shown to viewers instead of the
+                      agent's own number (see hostName/hostPhone's own
+                      comment in shared/schema.ts): a BnB's real point of
+                      contact is whoever is hosting the stay. Masked to
+                      all-but-the-last-4-digits until the viewer pays the
+                      booking deposit. */}
+                  {form.watch('category') === 'furnished_houses' && (
+                    <div className="rounded-lg border bg-card p-4 space-y-4">
+                      <div>
+                        <h4 className="text-sm font-semibold">Host details</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Shown to guests (phone masked until they pay the booking deposit) instead of your own agent contact above.
+                        </p>
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name="hostName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Host Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Who guests will actually be staying with" {...field} value={field.value || ''} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="hostPhone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Host Phone Number</FormLabel>
+                            <FormControl>
+                              <Input placeholder="+256 700 123456" {...field} value={field.value || ''} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
+
+                  {/* Rental unit landlord/manager contact - who rent
+                      payments actually go to, revealed only once a viewer
+                      expresses intent to pay rent (not merely by paying to
+                      view) - see landlordName/landlordPhone's own comment
+                      in shared/schema.ts. */}
+                  {form.watch('category') === 'rental_units' && (
+                    <div className="rounded-lg border bg-card p-4 space-y-4">
+                      <div>
+                        <h4 className="text-sm font-semibold">Landlord / Manager details</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Who rent payments are meant to go to. Only revealed to a viewer once they say they intend to pay rent for this property - not shown just from viewing or paying to view.
+                        </p>
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name="landlordName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Landlord / Manager Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Who actually receives the rent" {...field} value={field.value || ''} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="landlordPhone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Landlord / Manager Phone Number</FormLabel>
+                            <FormControl>
+                              <Input placeholder="+256 700 123456" {...field} value={field.value || ''} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-6">
