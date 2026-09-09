@@ -5,7 +5,8 @@
  *
  * Conversion (as specified): 1 share = 1 point, 1,000 points = 10,000 UGX
  * → 1 point = 10 UGX. Minimum redeemable balance is 100 points (1,000 UGX)
- * so a payout request is worth the manual review overhead.
+ * so a payout request is worth the manual review overhead — "claim the
+ * 1,000 [UGX] after sharing 100 times."
  *
  * HONESTY NOTE, same policy as payments-core.ts: this module never claims
  * to move real money. Every payout request is created in `pending_review`
@@ -17,15 +18,26 @@
  * "accrue points, user requests payout, admin approves" flow the user
  * explicitly chose over instant automatic payout.
  *
- * Anti-abuse: a share only counts once per (user, property) per
- * SHARE_COOLDOWN_MS — repeatedly tapping "share" on the same property
- * doesn't multiply points. This is a basic guard, not fraud-proofing;
- * flagged as a known limitation in docs/GENE_PLATFORM.md.
+ * Anti-abuse, two independent rules depending on the channel:
+ *   - A WhatsApp share to a specific recipient number (see recordShare's
+ *     recipientPhone param, and SharePropertyModal.tsx's "Share via
+ *     WhatsApp" flow) only counts once per (user, recipient phone) EVER,
+ *     regardless of which property - "100 times to different numbers"
+ *     means literally that: resharing to a number you've already shared
+ *     to, even for a different listing, earns nothing further. This is
+ *     the intended, addressable-recipient anti-abuse rule for this
+ *     channel specifically.
+ *   - Every other channel (copy link, native share, social - no specific
+ *     recipient to dedupe against) keeps the original, looser rule: once
+ *     per (user, property) per SHARE_COOLDOWN_MS. Still a basic guard, not
+ *     fraud-proofing; flagged as a known limitation in docs/GENE_PLATFORM.md.
  *
  * Persistence: shared JSON-file collection store (see ./store.ts).
  */
 import type { Express, Request, Response, NextFunction, RequestHandler } from 'express'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
+import { createNotification } from '../models/Notification'
+import { normalizePhone } from './whatsapp-concierge'
 
 const SHARE_COLLECTION = 'gene_share_events'
 const PAYOUT_COLLECTION = 'gene_payout_requests'
@@ -33,7 +45,7 @@ const PAYOUT_COLLECTION = 'gene_payout_requests'
 export const POINTS_PER_SHARE = 1
 export const UGX_PER_POINT = 10
 export const MIN_PAYOUT_POINTS = 100 // = 1,000 UGX
-const SHARE_COOLDOWN_MS = 10 * 60 * 1000 // 10 minutes per (user, property)
+const SHARE_COOLDOWN_MS = 10 * 60 * 1000 // 10 minutes per (user, property), non-WhatsApp channels only
 
 export interface ShareEvent {
     id: number
@@ -41,6 +53,11 @@ export interface ShareEvent {
     propertyId: number
     channel: string // 'native_share' | 'copy_link' | 'whatsapp' | 'facebook' | 'twitter' | 'email' | ...
     counted: boolean // false if it fell inside the cooldown window (logged, but no points)
+    /** Only set for 'whatsapp' shares to a specific number - see the
+     * dedup-by-recipient rule in this file's own doc comment. Stored
+     * normalized (256XXXXXXXXX) so the same number entered two different
+     * ways can't be shared to "twice". */
+    recipientPhone?: string
     createdAt: string
 }
 
@@ -91,6 +108,12 @@ function computeBalance(userId: number) {
     const totalPoints = totalShares * POINTS_PER_SHARE
     const committed = committedPoints(userId)
     const availablePoints = Math.max(0, totalPoints - committed)
+    // Distinct WhatsApp recipient numbers shared to so far - lets the UI show
+    // literal progress toward "100 times to different numbers" separately
+    // from totalShares (which also includes copy-link/native-share events).
+    const uniqueWhatsappRecipients = new Set(
+        shares.filter((s) => s.counted && s.channel === 'whatsapp' && s.recipientPhone).map((s) => s.recipientPhone)
+    ).size
     return {
         totalShares,
         totalPoints,
@@ -100,6 +123,7 @@ function computeBalance(userId: number) {
         minPayoutPoints: MIN_PAYOUT_POINTS,
         minPayoutUgx: MIN_PAYOUT_POINTS * UGX_PER_POINT,
         canRequestPayout: availablePoints >= MIN_PAYOUT_POINTS,
+        uniqueWhatsappRecipients,
     }
 }
 
@@ -110,31 +134,75 @@ export function registerReferralRewardsRoutes(app: Express, adminMiddleware: Req
             const userId = (req.user as any).id
             const propertyId = Number(req.body?.propertyId)
             const channel = typeof req.body?.channel === 'string' ? req.body.channel : 'unknown'
+            const rawRecipient = typeof req.body?.recipientPhone === 'string' ? req.body.recipientPhone : undefined
             if (!Number.isFinite(propertyId)) {
                 return res.status(400).json({ message: 'propertyId (number) is required.' })
             }
 
             const rows = readCollection<ShareEvent>(SHARE_COLLECTION)
-            const recentSame = rows
-                .filter((s) => s.userId === userId && s.propertyId === propertyId && s.counted)
-                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
-            const withinCooldown = recentSame && Date.now() - new Date(recentSame.createdAt).getTime() < SHARE_COOLDOWN_MS
+            const balanceBefore = computeBalance(userId)
+
+            let counted: boolean
+            let declineMessage: string | undefined
+            let recipientPhone: string | undefined
+
+            if (channel === 'whatsapp' && rawRecipient) {
+                // Dedup-by-recipient, forever, regardless of property - see this
+                // file's doc comment. normalizePhone keeps "0772..." and
+                // "+256772..." from being treated as two different numbers.
+                recipientPhone = normalizePhone(rawRecipient) || rawRecipient.trim()
+                const alreadySharedToThisNumber = rows.some(
+                    (s) => s.userId === userId && s.channel === 'whatsapp' && s.counted && s.recipientPhone === recipientPhone
+                )
+                counted = !alreadySharedToThisNumber
+                declineMessage = counted
+                    ? undefined
+                    : "You've already earned points sharing to this number — share to a different number to keep earning!"
+            } else {
+                // Non-WhatsApp channels: original per-(user, property) cooldown.
+                const recentSame = rows
+                    .filter((s) => s.userId === userId && s.propertyId === propertyId && s.counted)
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+                const withinCooldown = recentSame && Date.now() - new Date(recentSame.createdAt).getTime() < SHARE_COOLDOWN_MS
+                counted = !withinCooldown
+                declineMessage = counted
+                    ? undefined
+                    : "You already earned points sharing this property recently — try again later, or share a different one!"
+            }
 
             const event: ShareEvent = {
                 id: nextId(rows),
                 userId,
                 propertyId,
                 channel,
-                counted: !withinCooldown,
+                counted,
+                recipientPhone,
                 createdAt: nowIso(),
             }
             rows.push(event)
             writeCollection(SHARE_COLLECTION, rows)
 
+            const balance = computeBalance(userId)
+
+            // Fire a one-time notification (pulses the bell - see
+            // NotificationCenter.tsx) the moment this share pushes the user's
+            // available balance from below the payout threshold to at/above
+            // it - "let the notification blinker also come on whenever
+            // someone shares the target number of shares."
+            if (counted && balance.canRequestPayout && !balanceBefore.canRequestPayout) {
+                createNotification({
+                    userId: String(userId),
+                    title: 'You can claim your reward!',
+                    message: `You've earned ${balance.availablePoints} points (${balance.availableUgx} UGX) by sharing properties — request your payout now.`,
+                    type: 'payment',
+                    link: '/dashboard?tab=rewards',
+                }).catch((err) => console.error('[gene/referral-rewards] share-threshold notification failed:', err))
+            }
+
             res.status(201).json({
-                counted: event.counted,
-                message: event.counted ? undefined : "You already earned points sharing this property recently — try again later, or share a different one!",
-                balance: computeBalance(userId),
+                counted,
+                message: declineMessage,
+                balance,
             })
         } catch (err) {
             console.error('[gene/referral-rewards] POST /api/gene/rewards/share failed:', err)
