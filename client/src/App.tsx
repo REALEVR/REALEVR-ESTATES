@@ -59,6 +59,7 @@ import ListYourPropertyPage from '@/pages/ListYourPropertyPage'
 import AdminPayoutApprovals from '@/pages/AdminPayoutApprovals'
 import AdminRentRailPayouts from '@/pages/AdminRentRailPayouts'
 import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
+import AdminRoomCaptures from '@/pages/AdminRoomCaptures'
 import AdminAnalytics from '@/pages/AdminAnalytics'
 import AdminBroadcast from '@/pages/AdminBroadcast'
 import AdminDashboardHome from '@/pages/AdminDashboardHome'
@@ -179,6 +180,13 @@ function Router() {
                 path="/admin/boost-confirmations"
                 component={AdminBoostConfirmations}
                 allowedRoles={['admin', 'agent']}
+            />
+            {/* Strictly admin-only — spans every agent's in-progress room
+                captures, matching the strict guard on its own API route. */}
+            <ProtectedAdminRoute
+                path="/admin/room-captures"
+                component={AdminRoomCaptures}
+                allowedRoles={['admin']}
             />
             {/* Strictly admin-only — platform-wide user PII / mass
                 messaging, same reasoning as payout-approvals above. */}

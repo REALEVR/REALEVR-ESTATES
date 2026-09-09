@@ -193,12 +193,26 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
           // and add what it sees to the listing description - which is also
           // exactly what feeds this property's page title, meta
           // description, and JSON-LD (see shared/seo.ts), so this is what
-          // "reading the tour into the SEO" actually means here. Never
-          // fails the upload itself - see gene/tour-vision.ts's own
-          // try/catch for why.
-          sendProgress(jobId, { progress: 98, message: 'Reading tour photos for a richer description...' });
-          const { enrichPropertyDescriptionFromTour } = await import('./gene/tour-vision');
-          await enrichPropertyDescriptionFromTour(parseInt(propertyId), extractDir);
+          // "reading the tour into the SEO" actually means here.
+          //
+          // Wrapped in its OWN try/catch, separate from gene/tour-vision.ts's
+          // internal one: that module's own try/catch can't protect against
+          // the `import()` line itself throwing (e.g. sharp's native binary
+          // failing to load on this deploy platform/architecture, a known
+          // class of failure for that package) - and since this whole block
+          // sits inside the tour upload's own try/catch, a throw here would
+          // have reported the ENTIRE upload as failed even though the tour
+          // itself was already fully extracted, hosted on S3, and saved to
+          // the property record above. A richer description is a nice-to
+          // -have; it must never be able to take the actual upload down
+          // with it.
+          try {
+            sendProgress(jobId, { progress: 98, message: 'Reading tour photos for a richer description...' });
+            const { enrichPropertyDescriptionFromTour } = await import('./gene/tour-vision');
+            await enrichPropertyDescriptionFromTour(parseInt(propertyId), extractDir);
+          } catch (visionErr) {
+            console.error('[upload] tour-vision enrichment failed (non-fatal, upload still succeeded):', visionErr);
+          }
 
           fs.unlinkSync((req.file as Express.Multer.File).path);
 

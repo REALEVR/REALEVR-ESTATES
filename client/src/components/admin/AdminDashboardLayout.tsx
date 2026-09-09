@@ -15,6 +15,7 @@ import {
     Bell,
     Search,
     Receipt,
+    Camera,
 } from 'lucide-react'
 
 /**
@@ -38,6 +39,7 @@ const NAV_ITEMS: Array<{ href: string; label: string; icon: typeof LayoutDashboa
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin'] },
     { href: '/admin/properties', label: 'Properties', icon: Building2, roles: ['admin', 'agent'] },
     { href: '/admin/virtual-tour-manager', label: 'Virtual Tours', icon: Video, roles: ['admin', 'agent'] },
+    { href: '/admin/room-captures', label: 'Room Captures', icon: Camera, roles: ['admin'] },
     { href: '/admin/users', label: 'Users', icon: Users, roles: ['admin'] },
     { href: '/admin/messages', label: 'Messages', icon: MessageSquare, roles: ['admin'] },
     { href: '/admin/broker-applications', label: 'Broker Applications', icon: UserPlus, roles: ['admin'] },
