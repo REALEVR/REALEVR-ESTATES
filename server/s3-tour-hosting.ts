@@ -28,7 +28,12 @@ const s3Client = new S3Client({
   maxAttempts: 4,
   requestHandler: new NodeHttpHandler({
     connectionTimeout: 10_000,
-    socketTimeout: 60_000,
+    // Uploads now run with real concurrency (see UPLOAD_CONCURRENCY below),
+    // so one slow file no longer blocks every other file behind it in a
+    // single-file queue - a shorter socket timeout here means a genuinely
+    // stuck connection is detected and retried sooner, instead of holding
+    // one of the parallel slots hostage for a full minute.
+    socketTimeout: 30_000,
   }),
 });
 
@@ -230,7 +235,7 @@ async function uploadFileWithRetry(
   s3Key: string,
   contentType: string,
   fileSize: number,
-  attempts = 3
+  attempts = 2
 ): Promise<void> {
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
@@ -243,6 +248,58 @@ async function uploadFileWithRetry(
       await new Promise((resolve) => setTimeout(resolve, backoffMs));
     }
   }
+}
+
+// How many files to upload to S3 at once. This was the real speed problem:
+// a 3D Vista export routinely contains hundreds of small tile images, and
+// uploading them one at a time - each a full network round trip - is why
+// a tour that should take seconds was taking minutes, and why a single
+// slow file stalled the WHOLE progress bar instead of just its own share
+// of it (everything behind it in the one-at-a-time queue simply waited).
+// 8 concurrent PUTs is comfortably inside S3's per-prefix request-rate
+// headroom and a typical server's outbound bandwidth, while cutting wall
+// clock time for a many-small-files tour by roughly the same factor.
+const UPLOAD_CONCURRENCY = 8;
+
+// Uploads `files` with up to `concurrency` requests in flight at once,
+// calling onProgress(completed / total) as each one finishes (not in file
+// order - whichever finishes first reports first). Stops handing out new
+// work once a file fails for real (all its own retries exhausted), but
+// lets whatever's already in flight settle before rejecting with that
+// error, rather than leaving orphaned uploads racing in the background.
+async function uploadFilesInParallel(
+  files: Array<{ localPath: string; s3Key: string; size: number }>,
+  onProgress: (progress: number) => void,
+  concurrency: number = UPLOAD_CONCURRENCY
+): Promise<void> {
+  const total = files.length;
+  let completed = 0;
+  let nextIndex = 0;
+  let firstError: unknown = null;
+
+  async function worker() {
+    while (true) {
+      if (firstError) return;
+      const myIndex = nextIndex++;
+      if (myIndex >= files.length) return;
+      const file = files[myIndex];
+      try {
+        const contentType = getMimeType(file.localPath);
+        await uploadFileWithRetry(file.localPath, file.s3Key, contentType, file.size);
+        completed++;
+        onProgress(completed / total);
+        console.log(`✓ Uploaded: ${path.basename(file.localPath)} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+      } catch (error) {
+        console.error(`✗ Failed to upload ${path.basename(file.localPath)}:`, error);
+        if (!firstError) firstError = error;
+      }
+    }
+  }
+
+  const workerCount = Math.min(concurrency, files.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+  if (firstError) throw firstError;
 }
 
 // Collect all files recursively
@@ -347,27 +404,11 @@ export async function uploadTourToS3(
       throw new Error('No files found to upload');
     }
     
-    console.log(`Uploading ${totalFiles} files to S3...`);
-    
-    let uploadedFiles = 0;
-    
-    // Upload files sequentially to avoid overwhelming S3
-    for (const file of files) {
-      try {
-        const contentType = getMimeType(file.localPath);
-        await uploadFileWithRetry(file.localPath, file.s3Key, contentType, file.size);
+    console.log(`Uploading ${totalFiles} files to S3 (${UPLOAD_CONCURRENCY} at a time)...`);
 
-        uploadedFiles++;
-        onProgress(uploadedFiles / totalFiles);
-        
-        console.log(`✓ Uploaded: ${path.basename(file.localPath)} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
-        
-      } catch (error) {
-        console.error(`✗ Failed to upload ${path.basename(file.localPath)}:`, error);
-        throw error;
-      }
-    }
-    
+    await uploadFilesInParallel(files, onProgress);
+
+
     // Construct the public URL for the tour
     const indexS3Key = `${s3KeyPrefix}/${indexFile}`;
     const tourUrl = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${indexS3Key}`;

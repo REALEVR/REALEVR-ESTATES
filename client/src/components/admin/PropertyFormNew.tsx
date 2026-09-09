@@ -527,12 +527,40 @@ const onSubmit = async (data: PropertyFormValues) => {
               setTourExtracting(true);
               // Start listening to SSE for progress
               const evtSource = new EventSource(`/api/upload/virtual-tour/progress/${result.jobId}`);
+
+              // Stall watchdog for THIS stage too (extraction + S3 upload,
+              // 0-100% via tourProgressPercent) - the earlier XHR watchdog
+              // only covers the raw browser->server file transfer, which
+              // finishes (and stops applying) the moment this SSE stage
+              // begins. The server now sends a heartbeat comment every 15s
+              // to keep the connection itself alive, but a comment line
+              // never reaches onmessage - so track real progress events
+              // here independently and bail out if none arrive for a while,
+              // instead of waiting on a connection that's technically still
+              // open but not actually making progress (the "stalled at 77%"
+              // report: some single file's upload retries can legitimately
+              // run a few minutes, but not indefinitely).
+              let lastSseEventAt = Date.now();
+              const sseStallLimitMs = 3 * 60_000;
+              const sseWatchdog = setInterval(() => {
+                if (Date.now() - lastSseEventAt > sseStallLimitMs) {
+                  clearInterval(sseWatchdog);
+                  evtSource.close();
+                  setTourUploadError('Upload stalled while processing the tour. Please try again.');
+                  setTourExtracting(false);
+                  reject(new Error('Upload stalled while processing the tour'));
+                }
+              }, 15_000);
+              const clearSseWatchdog = () => clearInterval(sseWatchdog);
+
               evtSource.onmessage = (event) => {
+                lastSseEventAt = Date.now();
                 try {
                   const data = JSON.parse(event.data);
                   if (data.progress) setTourProgressPercent(data.progress);
                   if (data.message) setTourProgressMessage(data.message);
                   if (data.done) {
+                    clearSseWatchdog();
                     setTourExtracting(false);
                     setTourUploadSuccess(true);
                     setTourPreviewUrl(data.tourUrl || "");
@@ -562,12 +590,14 @@ const onSubmit = async (data: PropertyFormValues) => {
                     queryClient.refetchQueries({ queryKey: [`/api/properties/${property.id}`] });
                   }
                   if (data.error) {
+                    clearSseWatchdog();
                     setTourUploadError(data.error);
                     setTourExtracting(false);
                     evtSource.close();
                     reject(new Error(data.error));
                   }
                 } catch (err) {
+                  clearSseWatchdog();
                   setTourUploadError("Failed to parse progress event");
                   setTourExtracting(false);
                   evtSource.close();
@@ -575,6 +605,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                 }
               };
               evtSource.onerror = (err) => {
+                clearSseWatchdog();
                 setTourUploadError("Connection lost to progress server");
                 setTourExtracting(false);
                 evtSource.close();
