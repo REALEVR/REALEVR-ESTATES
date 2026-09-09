@@ -470,14 +470,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
 
     app.post('/api/payment/iotect/record', async (req: any, res: any) => {
-        const { transactionId, propertyId, user_id, customer_email, customer_name, currency, amount } = req.body
+        const { transactionId, propertyId, customer_email, customer_name, currency, amount } = req.body
+
+        // The client (client/src/lib/iotect-verify-pay.ts) sends `userId`
+        // (camelCase) — this used to only check `user_id` (snake_case),
+        // which no caller has ever actually sent, so every payment recorded
+        // through this endpoint silently lost its user attribution. Prefer
+        // whichever is present, and fall back to the request's own signed-in
+        // session so a payment made while logged in is never orphaned just
+        // because the client omitted the field.
+        const bodyUserId = req.body?.user_id ?? req.body?.userId
+        const sessionUserId = req.isAuthenticated?.() ? (req.user as any)?.id : undefined
+        const resolvedUserId = Number.isFinite(Number(bodyUserId)) && Number(bodyUserId) > 0 ? Number(bodyUserId) : sessionUserId
 
         console.log('Current-Request-Body', req.body)
         try {
             await storage.recordTourPayment({
                 transactionId: transactionId,
                 propertyId: parseFloat(propertyId),
-                userId: user_id || null,
+                userId: resolvedUserId || null,
                 amount: amount,
                 currency: currency,
                 timestamp: new Date().toISOString(),
@@ -490,10 +501,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // pass for this confirmed IoTec payment (see docs/GENE_PLATFORM.md).
         // Best-effort only — never affects the existing IoTec recording above.
         try {
-            const numericUserId = Number(user_id)
             const numericAmount = Number(amount)
-            if (Number.isFinite(numericUserId) && numericUserId > 0 && Number.isFinite(numericAmount) && numericAmount > 0) {
-                issuePass(numericUserId, 'iotec', numericAmount, currency || 'UGX')
+            if (Number.isFinite(resolvedUserId) && (resolvedUserId as number) > 0 && Number.isFinite(numericAmount) && numericAmount > 0) {
+                issuePass(resolvedUserId as number, 'iotec', numericAmount, currency || 'UGX')
             }
         } catch (error) {
             console.error('[GENE] Failed to issue tour pass for IoTec payment:', error)
@@ -505,20 +515,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // the next prospective booker and for the landlord/manager's
         // maintenance-scheduling visibility. Only fires when the client
         // sent booking dates (BookingCalendarModal.tsx, isBnB path) —
-        // never for the plain viewing-fee/tour-payment flow.
+        // never for the plain viewing-fee/tour-payment flow. Requires a
+        // resolved userId — every booking here is attached to a real
+        // account (BookingCalendarModal.tsx now refuses to let a signed-out
+        // guest reach payment at all, so this should always resolve; if it
+        // somehow doesn't, we skip recording rather than create an orphan
+        // booking with no owner).
         try {
             const { checkIn, checkOut, guests } = req.body
             const propId = parseFloat(propertyId)
-            if (typeof checkIn === 'string' && checkIn && typeof checkOut === 'string' && checkOut && Number.isFinite(propId)) {
-                const numericUserId = Number(user_id)
+            if (
+                typeof checkIn === 'string' &&
+                checkIn &&
+                typeof checkOut === 'string' &&
+                checkOut &&
+                Number.isFinite(propId) &&
+                Number.isFinite(resolvedUserId) &&
+                (resolvedUserId as number) > 0
+            ) {
                 recordBnbBooking({
                     propertyId: propId,
-                    userId: Number.isFinite(numericUserId) && numericUserId > 0 ? numericUserId : null,
+                    userId: resolvedUserId as number,
                     checkIn,
                     checkOut,
                     guests: Number.isFinite(Number(guests)) && Number(guests) > 0 ? Number(guests) : 1,
                     transactionId: transactionId || '',
                 })
+            } else if (typeof checkIn === 'string' && checkIn) {
+                console.error('[GENE] Dropped a BnB booking record — no signed-in user resolved for this payment.')
             }
         } catch (error) {
             console.error('[GENE] Failed to record BnB booking dates:', error)

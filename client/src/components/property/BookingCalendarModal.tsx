@@ -21,6 +21,7 @@ import { useStartConversation } from '@/hooks/useMessaging'
 import type { User } from '@shared/schema'
 import { Phone, User as UserIcon } from 'lucide-react'
 import { useBnbAvailability } from '@/hooks/useBnbAvailability'
+import { useAuth } from '@/hooks/use-auth'
 
 interface BookingCalendarModalProps {
     isOpen: boolean
@@ -48,6 +49,7 @@ export default function BookingCalendarModal({
     owner = null,
 }: BookingCalendarModalProps) {
     const { toast } = useToast()
+    const { user } = useAuth()
     const [, setLocation] = useLocation()
     const [date, setDate] = useState<Date | undefined>(new Date())
     const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null)
@@ -143,6 +145,24 @@ export default function BookingCalendarModal({
     }
 
     const handleBookNow = () => {
+        // Every booking (and, for BnBs, its check-in/check-out dates) gets
+        // attached to the paying guest's own account — see
+        // server/gene/bnb-bookings.ts. Refuse to even open the payment step
+        // for a signed-out visitor instead of silently recording an orphan
+        // payment the guest could never look back on.
+        if (!user) {
+            onClose()
+            toast({
+                title: 'Please sign in first',
+                description: isBnB
+                    ? "You'll need an account so this booking is saved to your dashboard."
+                    : 'Please sign in to continue.',
+                variant: 'destructive',
+            })
+            setLocation('/auth')
+            return
+        }
+
         if (isBnB && numNights < 1) {
             toast({
                 title: 'Please enter at least 1 night',
@@ -175,6 +195,11 @@ export default function BookingCalendarModal({
             currency : "UGX",
             propertyId : `${propertyId}`,
             transactionId : paymentInfo.transactionId,
+            // Attaches this payment (and, for BnBs, the booking itself) to
+            // the paying guest's own account. handleBookNow above already
+            // refuses to reach this point without a signed-in user, so
+            // user?.id should always be set here.
+            userId: user?.id,
             // BnB only: records this stay's occupied date range for the
             // shared booking calendar (see server/gene/bnb-bookings.ts) —
             // checkOut is check-in + numNights, exclusive.

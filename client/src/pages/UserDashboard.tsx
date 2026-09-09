@@ -21,11 +21,13 @@ import {
     ShoppingCart,
     Receipt,
     Gift,
+    CalendarCheck,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import MessagesInbox from '@/components/messaging/MessagesInbox'
 import RentRailReceiptList, { type RentRailReceiptRow } from '@/components/rentrail/RentRailReceiptList'
 import RewardsPanel from '@/components/rewards/RewardsPanel'
+import MyBookingsList from '@/components/property/MyBookingsList'
 
 interface ViewedTour {
     tourId: string
@@ -188,6 +190,9 @@ export function UserDashboard() {
                 >
                     <TabsList className="flex-wrap h-auto">
                         <TabsTrigger value="tours">Viewed Tours</TabsTrigger>
+                        <TabsTrigger value="bookings">
+                            <CalendarCheck className="mr-1.5 h-3.5 w-3.5" /> My Bookings
+                        </TabsTrigger>
                         <TabsTrigger value="messages">Messages</TabsTrigger>
                         <TabsTrigger value="whitelist">Whitelist</TabsTrigger>
                         <TabsTrigger value="rentpay">
@@ -277,6 +282,11 @@ export function UserDashboard() {
                                 </CardContent>
                             </Card>
                         )}
+                    </TabsContent>
+
+                    <TabsContent value="bookings" className="space-y-6">
+                        <h2 className="text-xl font-semibold mb-4">My Bookings</h2>
+                        <MyBookingsList />
                     </TabsContent>
 
                     <TabsContent value="messages" className="space-y-6">
