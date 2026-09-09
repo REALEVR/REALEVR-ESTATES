@@ -128,19 +128,42 @@ export default function PaymentModal({
     }
     useEffect(() => {
         const handler = (data: { transactionID: string }) => {
-            recordTourPayment({
-                propertyId: `${propertyId}`,
-                amount: amount,
-                currency: 'UGX',
-                transactionId: data.transactionID!,
-            })
-            handlePaymentSuccess('successful')
+            // FIX: this used to call handlePaymentSuccess('successful') — a
+            // bare string. handlePaymentSuccess checks `response.status ===
+            // 'successful'`, and a string has no `.status`, so that check
+            // was always false: every real payment through this modal fell
+            // into the "Payment Failed" branch below, successCallback was
+            // never invoked, and (for BnB bookings) no booking was ever
+            // confirmed. Pass a proper response object instead, shaped the
+            // way callers (see BookingCalendarModal.tsx's own
+            // handlePaymentSuccess) already expect: response.status,
+            // response.transaction_id, response.amount.
+            const response = { status: 'successful', transaction_id: data.transactionID, amount }
+
+            // Recording the payment is the caller's job when it supplies a
+            // successCallback (BookingCalendarModal.tsx's own handler
+            // already calls recordTourPayment with the full picture —
+            // amount, transactionId, and for BnB bookings the check-in/
+            // check-out dates and the signed-in guest's userId). Recording
+            // it here too would silently double-write the same payment.
+            // Only fall back to recording it here for a hypothetical caller
+            // that doesn't supply its own successCallback.
+            if (!successCallback) {
+                recordTourPayment({
+                    propertyId: `${propertyId}`,
+                    amount: amount,
+                    currency: 'UGX',
+                    transactionId: data.transactionID!,
+                })
+            }
+
+            handlePaymentSuccess(response)
         }
         paymentEmitter.on(_eventPaymentString, handler)
         return () => {
             paymentEmitter.off(_eventPaymentString, handler)
         }
-    }, [_eventPaymentString, propertyId, amount]) // ← add deps
+    }, [_eventPaymentString, propertyId, amount, successCallback]) // ← add deps
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
