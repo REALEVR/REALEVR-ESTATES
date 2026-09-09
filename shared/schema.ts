@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, doublePrecision } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -6,6 +6,16 @@ export const properties = pgTable("properties", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   location: text("location").notNull(),
+  // Exact map pin for this property, set from the "Location on map" picker
+  // in the upload/edit form (client/src/components/admin/PropertyFormNew.tsx)
+  // - either dropped/dragged on the map itself or parsed out of a pasted
+  // Google Maps link. Optional and independent of the free-text `location`
+  // field above: a property can exist with only a text location (as every
+  // property did before this field existed) and still show up everywhere
+  // `location` is used; this just adds an exact pin on the property detail
+  // page when it's known.
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
   price: integer("price").notNull(),
   currency: text("currency").default("UGX").notNull(), // Added currency field with default UGX
   description: text("description").notNull(),

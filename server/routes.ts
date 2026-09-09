@@ -1270,6 +1270,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     `)
     })
 
+    // Resolves a shortened Google Maps share link (maps.app.goo.gl, goo.gl/maps)
+    // to its final URL, so LocationPinPicker.tsx can pull coordinates out of
+    // it - a browser's own fetch/XHR can't read a cross-origin redirect's
+    // final URL due to CORS, but a server-side request has no such
+    // restriction. Restricted to Google's own link-shortener domains (an
+    // allowlist, not a denylist) so this can't be used as a general-purpose
+    // "fetch any URL from our server" proxy (SSRF) even though it's gated
+    // behind adminMiddleware already.
+    const ALLOWED_MAPS_LINK_HOSTS = new Set(['goo.gl', 'maps.app.goo.gl'])
+    app.post('/api/geo/resolve-maps-link', adminMiddleware, async (req, res) => {
+        try {
+            const { url } = req.body
+            if (!url || typeof url !== 'string') {
+                return res.status(400).json({ message: 'url is required' })
+            }
+            let parsed: URL
+            try {
+                parsed = new URL(url)
+            } catch {
+                return res.status(400).json({ message: 'Not a valid URL' })
+            }
+            if (parsed.protocol !== 'https:' || !ALLOWED_MAPS_LINK_HOSTS.has(parsed.hostname)) {
+                return res.status(400).json({ message: 'Only Google Maps share links can be resolved here' })
+            }
+
+            const response = await fetch(parsed.toString(), { method: 'GET', redirect: 'follow' })
+            res.json({ finalUrl: response.url })
+        } catch (error: any) {
+            console.error('[geo] Failed to resolve maps link:', error)
+            res.status(400).json({ message: 'Failed to resolve that link' })
+        }
+    })
+
     // Create a new property (admin only)
     app.post('/api/properties/create', subscriptionMiddleware, async (req, res) => {
         console.log('[DEBUG] Incoming property data:', req.body)

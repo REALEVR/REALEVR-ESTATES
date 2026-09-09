@@ -4,6 +4,7 @@ import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Property, insertPropertySchema, PropertyType, Amenity } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
+import LocationPinPicker from '@/components/admin/LocationPinPicker';
 import {
   Form,
   FormControl,
@@ -129,6 +130,8 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
   } as Partial<PropertyFormValues> : {
     title: '',
     location: '',
+    latitude: null,
+    longitude: null,
     price: 0,
     currency: 'UGX',
     description: '',
@@ -747,6 +750,15 @@ const onSubmit = async (data: PropertyFormValues) => {
                         <FormMessage />
                       </FormItem>
                     )}
+                  />
+
+                  <LocationPinPicker
+                    latitude={form.watch('latitude')}
+                    longitude={form.watch('longitude')}
+                    onChange={(lat, lng) => {
+                      form.setValue('latitude', lat, { shouldDirty: true });
+                      form.setValue('longitude', lng, { shouldDirty: true });
+                    }}
                   />
 
                   <FormField
