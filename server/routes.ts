@@ -2071,6 +2071,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
     })
 
+    /**
+     * Grant/revoke "complimentary" agent access (admin only) — the "act
+     * fully free, on the admin's behalf" account type: no subscription
+     * payment ever required, no free-trial listing cap, permanently active.
+     * Rather than inventing a new bypass branch in subscriptionMiddleware
+     * above, this reuses that middleware's EXISTING active-subscription
+     * check as-is — it just sets subscriptionStatus: 'active' with a
+     * membershipEndDate 100 years out, so the account is indistinguishable
+     * from a real, current subscriber to every check already in this
+     * codebase (subscriptionMiddleware here, the free_trial property cap in
+     * POST /api/properties/create, and AdminUserManager's own subscriptions
+     * tab). membershipPlan: 'complimentary' is the one honest marker that
+     * this isn't a real paid plan, purely for the admin's own visibility —
+     * same spirit as self-serve-listing.ts's membershipPlan: 'self-serve'
+     * for its own special-cased accounts.
+     *
+     * Promotes role to 'agent' only if the account is currently 'normal' —
+     * an existing agent keeps their role, and an existing admin (who
+     * already bypasses subscriptionMiddleware entirely) is left untouched
+     * rather than demoted.
+     */
+    app.patch('/api/users/:id/complimentary-access', adminMiddleware, async (req, res) => {
+        try {
+            const id = parseInt(req.params.id)
+            if (isNaN(id)) {
+                return res.status(400).json({ message: 'Invalid user ID' })
+            }
+
+            const { enabled } = req.body
+            if (typeof enabled !== 'boolean') {
+                return res.status(400).json({ message: "Field 'enabled' must be a boolean" })
+            }
+
+            const target = await storage.getUser(id)
+            if (!target) {
+                return res.status(404).json({ message: 'User not found' })
+            }
+
+            const update: Partial<typeof target> = enabled
+                ? {
+                      role: target.role === 'normal' ? 'agent' : target.role,
+                      membershipPlan: 'complimentary',
+                      subscriptionStatus: 'active',
+                      membershipStartDate: new Date().toISOString(),
+                      membershipEndDate: new Date(
+                          new Date().setFullYear(new Date().getFullYear() + 100)
+                      ).toISOString(),
+                  }
+                : {
+                      // Revoke: only unwind what granting it set, and only if
+                      // this account actually is the complimentary type -
+                      // never touch a real paid plan by accident.
+                      ...(target.membershipPlan === 'complimentary'
+                          ? { membershipPlan: null, subscriptionStatus: 'inactive', membershipEndDate: null }
+                          : {}),
+                  }
+
+            const updatedUser = await storage.updateUser(id, update as any)
+            const { password, ...userWithoutPassword } = updatedUser
+            res.json(userWithoutPassword)
+        } catch (error: any) {
+            console.error('[complimentary-access] update failed:', error)
+            res.status(500).json({ message: error.message || 'Failed to update complimentary access' })
+        }
+    })
+
     // Flutterwave Property Deposit Payment
     app.post('/api/pay-property-deposit', async (req, res) => {
         try {
