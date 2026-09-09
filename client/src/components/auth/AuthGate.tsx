@@ -11,11 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { COUNTRY_CODES, DEFAULT_COUNTRY_CODE } from "@/lib/country-codes";
 import type { User } from "@shared/schema";
-
-/** sessionStorage flag WhatsAppNumberPrompt (rendered once the gate hands off
- *  to the real site) watches for - set here when a Google sign-in lands on
- *  an account with no phone number yet. */
-const PROMPT_WHATSAPP_FLAG = "realevr_prompt_whatsapp";
+import GoogleSignInButton from "./GoogleSignInButton";
 
 /**
  * The sign-in/sign-up card - a single, plain form modeled directly on
@@ -43,7 +39,6 @@ export default function AuthGate({ onDismiss }: { onDismiss?: () => void } = {})
     const { loginMutation } = useAuth();
     const { toast } = useToast();
     const [tab, setTab] = useState<"login" | "signup">("login");
-    const [googleBusy, setGoogleBusy] = useState(false);
 
     const [loginId, setLoginId] = useState("");
     const [loginPassword, setLoginPassword] = useState("");
@@ -99,56 +94,12 @@ export default function AuthGate({ onDismiss }: { onDismiss?: () => void } = {})
         }
     };
 
-    const handleGoogle = () => {
-        setGoogleBusy(true);
-        const width = 480;
-        const height = 620;
-        const left = window.screenX + (window.outerWidth - width) / 2;
-        const top = window.screenY + (window.outerHeight - height) / 2;
-        const popup = window.open(
-            "/api/auth/google",
-            "realevr-google-auth",
-            `width=${width},height=${height},left=${left},top=${top}`
-        );
+    const handleGoogleSignedIn = (user: Omit<User, "password">) => {
+        toast({ title: "Signed in with Google", description: `Welcome, ${user.fullName || user.username}!` });
+    };
 
-        if (!popup) {
-            setGoogleBusy(false);
-            toast({ title: "Popup blocked", description: "Please allow popups for this site and try again.", variant: "destructive" });
-            return;
-        }
-
-        const handleMessage = (event: MessageEvent) => {
-            if (event.origin !== window.location.origin) return;
-            if (event.data?.source !== "realevr-google-auth") return;
-
-            window.removeEventListener("message", handleMessage);
-            setGoogleBusy(false);
-
-            if (event.data.ok) {
-                const user = event.data.user as Omit<User, "password">;
-                if (event.data.needsPhone) {
-                    try {
-                        sessionStorage.setItem(PROMPT_WHATSAPP_FLAG, "1");
-                    } catch {
-                        // Private-browsing/storage-disabled - the WhatsApp prompt is a
-                        // nice-to-have, never worth failing the actual sign-in over.
-                    }
-                }
-                queryClient.setQueryData(["/api/user"], user);
-                toast({ title: "Signed in with Google", description: `Welcome, ${user.fullName || user.username}!` });
-            } else {
-                toast({ title: "Google sign-in failed", description: event.data.error || "Please try again.", variant: "destructive" });
-            }
-        };
-        window.addEventListener("message", handleMessage);
-
-        const pollClosed = setInterval(() => {
-            if (popup.closed) {
-                clearInterval(pollClosed);
-                window.removeEventListener("message", handleMessage);
-                setGoogleBusy(false);
-            }
-        }, 500);
+    const handleGoogleError = (message: string) => {
+        toast({ title: "Google sign-in failed", description: message, variant: "destructive" });
     };
 
     return (
@@ -171,16 +122,11 @@ export default function AuthGate({ onDismiss }: { onDismiss?: () => void } = {})
                 <h1 className="text-center font-display text-2xl font-semibold text-gray-900">Log in or sign up</h1>
                 <p className="mt-1 text-center text-sm text-gray-500">Welcome to RealEVR Estates</p>
 
-                <Button
-                    type="button"
-                    variant="outline"
-                    className="mt-6 w-full justify-center gap-2 rounded-lg border-gray-300 py-6 text-[15px] font-medium"
-                    onClick={handleGoogle}
-                    disabled={googleBusy}
-                >
-                    {googleBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon className="h-4 w-4" />}
-                    Continue with Google
-                </Button>
+                <GoogleSignInButton
+                    onSignedIn={handleGoogleSignedIn}
+                    onError={handleGoogleError}
+                    className="mt-6 w-full"
+                />
 
                 <div className="relative my-6 text-center text-xs text-gray-400">
                     <span className="relative z-10 bg-white px-3">or</span>
@@ -298,15 +244,3 @@ export default function AuthGate({ onDismiss }: { onDismiss?: () => void } = {})
     );
 }
 
-function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
-    return (
-        <svg viewBox="0 0 24 24" {...props}>
-            <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.42 3.58v3h3.91c2.29-2.11 3.53-5.22 3.53-8.82Z" />
-            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.96-2.91l-3.91-3c-1.08.72-2.45 1.16-4.05 1.16-3.11 0-5.75-2.1-6.69-4.93H1.28v3.09C3.28 21.3 7.31 24 12 24Z" />
-            <path fill="#FBBC05" d="M5.31 14.32c-.24-.72-.38-1.49-.38-2.32s.14-1.6.38-2.32V6.59H1.28A11.98 11.98 0 0 0 0 12c0 1.93.46 3.76 1.28 5.41l4.03-3.09Z" />
-            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.44-3.44C17.94 1.19 15.24 0 12 0 7.31 0 3.28 2.7 1.28 6.59l4.03 3.09C6.25 6.85 8.89 4.75 12 4.75Z" />
-        </svg>
-    );
-}
-
-export { PROMPT_WHATSAPP_FLAG };
