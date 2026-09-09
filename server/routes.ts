@@ -64,6 +64,7 @@ import { registerAfricaMediaFeedRoutes } from './gene/africa-media-feed'
 import { registerAiWorkforceRoutes } from './gene/ai-workforce'
 import { registerReferralRewardsRoutes } from './gene/referral-rewards'
 import { registerListingEarningsRoutes, recordListingEarning } from './gene/listing-earnings'
+import { registerBnbBookingRoutes, recordBnbBooking } from './gene/bnb-bookings'
 import { registerWhatsappConciergeRoutes } from './gene/whatsapp-concierge'
 import { registerMessagingRoutes } from './gene/messaging'
 import { registerLandlordHubRoutes } from './gene/landlord-hub'
@@ -496,6 +497,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
         } catch (error) {
             console.error('[GENE] Failed to issue tour pass for IoTec payment:', error)
+        }
+
+        // GENE Platform: if this payment was a BnB booking deposit,
+        // record the occupied date range so it shows up on the property's
+        // booking calendar (see server/gene/bnb-bookings.ts) — both for
+        // the next prospective booker and for the landlord/manager's
+        // maintenance-scheduling visibility. Only fires when the client
+        // sent booking dates (BookingCalendarModal.tsx, isBnB path) —
+        // never for the plain viewing-fee/tour-payment flow.
+        try {
+            const { checkIn, checkOut, guests } = req.body
+            const propId = parseFloat(propertyId)
+            if (typeof checkIn === 'string' && checkIn && typeof checkOut === 'string' && checkOut && Number.isFinite(propId)) {
+                const numericUserId = Number(user_id)
+                recordBnbBooking({
+                    propertyId: propId,
+                    userId: Number.isFinite(numericUserId) && numericUserId > 0 ? numericUserId : null,
+                    checkIn,
+                    checkOut,
+                    guests: Number.isFinite(Number(guests)) && Number(guests) > 0 ? Number(guests) : 1,
+                    transactionId: transactionId || '',
+                })
+            }
+        } catch (error) {
+            console.error('[GENE] Failed to record BnB booking dates:', error)
         }
     })
 
@@ -2717,6 +2743,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerPersonalAgentRoutes(app)
     registerReferralRewardsRoutes(app, adminMiddleware)
     registerListingEarningsRoutes(app, adminMiddleware)
+    registerBnbBookingRoutes(app)
     registerWhatsappConciergeRoutes(app)
     registerMessagingRoutes(app, requireStrictAdmin)
     registerLandlordHubRoutes(app)

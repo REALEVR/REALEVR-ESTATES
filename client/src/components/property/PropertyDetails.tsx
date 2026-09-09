@@ -14,6 +14,7 @@ import MessageAgentModal from './MessageAgentModal'
 import SimilarProperties from './SimilarProperties'
 import PropertyLocationPin from './PropertyLocationPin'
 import RentPaymentPrompt from './RentPaymentPrompt'
+import BnbAvailabilityCalendar from './BnbAvailabilityCalendar'
 import type { Property, User } from '@shared/schema'
 import { getSafeAmenities } from '@/lib/property-utils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -590,6 +591,19 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                 <div className="mt-8 border-t border-border pt-8">
                     <h3 className="text-xl font-display font-medium mb-4 text-foreground">Property Owner</h3>
                     <OwnerContactDetails property={property} bookingConfirmed={bookingConfirmed} owner={propertyOwner} />
+                </div>
+            )}
+
+            {/* Booking calendar visibility, always shown for BnBs (never
+                behind the booking-deposit gate — it's just occupied date
+                ranges, no contact info) so a prospective booker can check
+                availability before booking, and the host/landlord/manager
+                can open this same page to see occupancy for maintenance
+                planning. See BnbAvailabilityCalendar's own doc comment. */}
+            {isBnB && (
+                <div className="mt-8 border-t border-border pt-8">
+                    <h3 className="text-xl font-display font-medium mb-4 text-foreground">Availability</h3>
+                    <BnbAvailabilityCalendar propertyId={property.id} />
                 </div>
             )}
 
