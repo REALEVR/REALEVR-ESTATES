@@ -3,6 +3,7 @@ import { Type } from '@google/genai'
 import { storage } from '../storage'
 import { hashPassword } from '../auth'
 import { getGeminiClient as getClient } from '../lib/gemini'
+import { notifyAdminsOfNewSignup } from '../gene/admin-notify'
 
 const router = Router()
 
@@ -195,6 +196,12 @@ router.post('/onboarding-register', async (req: any, res: any) => {
             isVerified: true, // created through the guided conversational flow; no separate email-link step
             subscriptionStatus: 'inactive',
         } as any)
+
+        // Fire-and-forget: this is the primary sign-up flow today
+        // (AuthGate.tsx's sign-up tab), so admins need to hear about it the
+        // same way they do for POST /api/register — in-app, email, and both
+        // WhatsApp numbers (see gene/admin-notify.ts).
+        void notifyAdminsOfNewSignup(user)
 
         req.login(user, (err: any) => {
             if (err) {
