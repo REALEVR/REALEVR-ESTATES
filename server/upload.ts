@@ -186,10 +186,19 @@ export const uploadVirtualTour = (req: Request, res: Response, next: NextFunctio
 
           sendProgress(jobId, { progress: 97, message: 'Finalizing upload...' });
 
-
-
           const { storage } = await import('./storage');
           await storage.updateProperty(parseInt(propertyId), { hasTour: true, tourUrl });
+
+          // Best-effort: let the AI look at a few of the tour's own photos
+          // and add what it sees to the listing description - which is also
+          // exactly what feeds this property's page title, meta
+          // description, and JSON-LD (see shared/seo.ts), so this is what
+          // "reading the tour into the SEO" actually means here. Never
+          // fails the upload itself - see gene/tour-vision.ts's own
+          // try/catch for why.
+          sendProgress(jobId, { progress: 98, message: 'Reading tour photos for a richer description...' });
+          const { enrichPropertyDescriptionFromTour } = await import('./gene/tour-vision');
+          await enrichPropertyDescriptionFromTour(parseInt(propertyId), extractDir);
 
           fs.unlinkSync((req.file as Express.Multer.File).path);
 
