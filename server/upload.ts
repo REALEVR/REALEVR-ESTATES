@@ -37,18 +37,6 @@ if (!fs.existsSync(tourDir)) {
 // Use memory storage to keep the file as a buffer
 const imageStorage = multer.memoryStorage();
 
-// Configure storage for virtual tour zip files
-const tourStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, tourDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueId = nanoid(8);
-    const extension = path.extname(file.originalname);
-    cb(null, `${uniqueId}${extension}`);
-  }
-});
-
 // Multer configuration for property images
 const multerUpload = multer({
   storage: imageStorage,
@@ -104,111 +92,35 @@ export const uploadPropertyImage = (req: Request, res: Response, next: NextFunct
   });
 };
 
-// --- Virtual Tour Upload with SSE Progress ---
-export const uploadVirtualTour = (req: Request, res: Response, next: NextFunction) => {
-  const multerDisk = multer({ storage: tourStorage }).single('tourZip');
-  multerDisk(req, res, async (err: any) => {
-    if (err) return next(err);
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-
-    try {
-      // Get property ID from URL parameter instead of body
-      const propertyId = (req as any).propertyId || req.body.propertyId || nanoid(8);
-      const jobId = createJob();
-      res.status(200).json({ jobId }); // Respond immediately with jobId
-
-      (async () => {
-        try {
-          const extractDir = path.join(tourDir, `property_${propertyId}_tour`);
-          // Shared with the direct-to-S3 path (processTourFromS3 below) so
-          // the zip-slip guard has exactly one implementation - see
-          // tour-zip-extract.ts's own doc comment.
-          const { extractTourZip } = await import('./tour-zip-extract');
-          extractTourZip(
-            (req.file as Express.Multer.File).path,
-            extractDir,
-            ({ extracted, total }) => {
-              const extractionProgress = Math.round((extracted / total) * 30); // Extraction is 0-30%
-              sendProgress(jobId, {
-                progress: extractionProgress,
-                message: `Extracting ZIP (${extracted}/${total})...`,
-              });
-            }
-          );
-
-          sendProgress(jobId, { progress: 40, message: `Uploading files to AWS S3...` });
-
-          const { uploadTourToS3 } = await import('./s3-tour-hosting');
-          const tourUrl = await uploadTourToS3(extractDir, propertyId, (uploadProgress) => {
-            // Map upload progress (0–1) to 40–95%
-            sendProgress(jobId, {
-              progress: Math.floor(40 + (uploadProgress * 55)),
-              message: 'Uploading virtual tour files...'
-            });
-          });
-
-          sendProgress(jobId, { progress: 97, message: 'Finalizing upload...' });
-
-          const { storage } = await import('./storage');
-          await storage.updateProperty(parseInt(propertyId), { hasTour: true, tourUrl });
-
-          // Best-effort: let the AI look at a few of the tour's own photos
-          // and add what it sees to the listing description - which is also
-          // exactly what feeds this property's page title, meta
-          // description, and JSON-LD (see shared/seo.ts), so this is what
-          // "reading the tour into the SEO" actually means here.
-          //
-          // Wrapped in its OWN try/catch, separate from gene/tour-vision.ts's
-          // internal one: that module's own try/catch can't protect against
-          // the `import()` line itself throwing (e.g. sharp's native binary
-          // failing to load on this deploy platform/architecture, a known
-          // class of failure for that package) - and since this whole block
-          // sits inside the tour upload's own try/catch, a throw here would
-          // have reported the ENTIRE upload as failed even though the tour
-          // itself was already fully extracted, hosted on S3, and saved to
-          // the property record above. A richer description is a nice-to
-          // -have; it must never be able to take the actual upload down
-          // with it.
-          try {
-            sendProgress(jobId, { progress: 98, message: 'Reading tour photos for a richer description...' });
-            const { enrichPropertyDescriptionFromTour } = await import('./gene/tour-vision');
-            await enrichPropertyDescriptionFromTour(parseInt(propertyId), extractDir);
-          } catch (visionErr) {
-            console.error('[upload] tour-vision enrichment failed (non-fatal, upload still succeeded):', visionErr);
-          }
-
-          fs.unlinkSync((req.file as Express.Multer.File).path);
-
-          sendProgress(jobId, { progress: 100, message: 'Upload complete!', done: true, tourUrl });
-        } catch (e: any) {
-          sendProgress(jobId, { error: e.message, done: true });
-        }
-      })();
-    } catch (e: any) {
-      return res.status(500).json({ error: e.message, stack: e.stack });
-    }
-  });
-};
-
+// --- Virtual Tour Upload ---
+//
+// There used to be two upload paths here: this one relayed the whole ZIP
+// through our own Node server (disk-backed multer) before re-uploading it
+// to S3 file by file, and a second one PUT the ZIP straight to S3 from the
+// browser. The direct-to-S3 path was strictly better on every axis that
+// matters for a multi-GB file over a real-world connection - faster (no
+// extra hop through our server's own upload/download bandwidth), more
+// resilient (per-part retries instead of restarting a failed transfer from
+// zero), and it doesn't tie up this server's disk/CPU/memory for the
+// transfer itself - so the relay path was removed rather than kept as a
+// second thing to maintain. Everything below is that one remaining path.
 
 // Matches the 5GB ceiling already enforced client-side today (see
-// PropertyFormNew.tsx / VirtualTourManager.tsx / PropertyForm.tsx's own
-// `5 * 1024 * 1024 * 1024` checks). The presigned-PUT path below bypasses
-// our own multer middleware entirely - there's no server-side multer
-// `limits.fileSize` to fall back on for it - so this is the ONLY
-// server-side enforcement of that limit for a direct-to-S3 upload.
+// DirectS3TourUpload.tsx's own `5 * 1024 * 1024 * 1024` check). The
+// presigned-multipart path below bypasses our own multer middleware
+// entirely - there's no server-side multer `limits.fileSize` to fall back
+// on for it - so this is the ONLY server-side enforcement of that limit.
 const MAX_TOUR_ZIP_BYTES = 5 * 1024 * 1024 * 1024; // 5GB
 
-// --- Direct-to-S3 Virtual Tour Upload: Step 1, presign a staging PUT ---
+// --- Direct-to-S3 Virtual Tour Upload: Step 1, start a multipart upload ---
 //
-// The existing uploadVirtualTour above relays the whole ZIP through this
-// Node server first (disk-backed multer, then re-uploaded to S3 file by
-// file) - reliable for small tours, but for a multi-GB export on a slow or
-// flaky connection it's an extra hop that can stall or drop the upload
-// partway through with nothing to resume from. This presigns a single PUT
-// straight from the browser to a STAGING key in the same tours bucket,
-// cutting our server out of the (slow, large) transfer itself entirely;
-// processTourFromS3 below picks the ZIP up from there once it lands.
+// Splits the ZIP into parts and presigns each one separately (see
+// createStagingMultipartUpload's own doc comment for why multipart beats a
+// single PUT for both speed and resilience) so the browser can PUT them to
+// S3 directly and in parallel - cutting our server out of the (slow,
+// large) transfer itself entirely. completeTourZipMultipartUpload and
+// processTourFromS3 below pick the ZIP up from there once every part has
+// landed.
 export const presignTourZipUpload = async (req: Request, res: Response) => {
   try {
     const propertyId = req.params.propertyId;
@@ -230,16 +142,50 @@ export const presignTourZipUpload = async (req: Request, res: Response) => {
     const s3Key = `staging-tours/property_${propertyId}/${nanoid()}.zip`;
     const expiresInSeconds = 60 * 60; // 1 hour - comfortably long enough for a large, slow upload to start and finish
 
-    const { getPresignedStagingUploadUrl } = await import('./s3-tour-hosting');
-    const uploadUrl = await getPresignedStagingUploadUrl(
+    const { createStagingMultipartUpload } = await import('./s3-tour-hosting');
+    const { uploadId, partSize, parts } = await createStagingMultipartUpload(
       s3Key,
       typeof contentType === 'string' && contentType ? contentType : 'application/zip',
+      fileSizeBytes,
       expiresInSeconds
     );
 
-    res.status(200).json({ uploadUrl, s3Key, expiresInSeconds });
+    res.status(200).json({ s3Key, uploadId, partSize, parts, expiresInSeconds });
   } catch (e: any) {
     console.error('[upload] presignTourZipUpload failed:', e);
+    res.status(500).json({ error: e.message });
+  }
+};
+
+// --- Direct-to-S3 Virtual Tour Upload: Step 2, complete the multipart upload ---
+//
+// Called once every part from step 1 has PUT successfully. Finalizing a
+// multipart upload requires calling S3 with our own credentials (it's not
+// something a presigned URL alone can do, since the part ETags aren't
+// known until each part's PUT actually completes), so this is a real
+// server call, not another presign.
+export const completeTourZipMultipartUpload = async (req: Request, res: Response) => {
+  const { s3Key, uploadId, parts } = req.body || {};
+
+  if (!s3Key || typeof s3Key !== 'string' || !uploadId || typeof uploadId !== 'string' || !Array.isArray(parts)) {
+    return res.status(400).json({ error: 's3Key, uploadId, and parts are required' });
+  }
+
+  try {
+    const { completeStagingMultipartUpload } = await import('./s3-tour-hosting');
+    await completeStagingMultipartUpload(s3Key, uploadId, parts);
+    res.status(200).json({ success: true });
+  } catch (e: any) {
+    console.error('[upload] completeTourZipMultipartUpload failed:', e);
+    // Best-effort: an upload that can't be completed is dead either way,
+    // so free up the uploaded parts rather than leaving them billed
+    // indefinitely. Never let this secondary failure mask the real error.
+    try {
+      const { abortStagingMultipartUpload } = await import('./s3-tour-hosting');
+      await abortStagingMultipartUpload(s3Key, uploadId);
+    } catch (abortErr) {
+      console.error('[upload] failed to abort multipart upload after completion failure (non-fatal):', abortErr);
+    }
     res.status(500).json({ error: e.message });
   }
 };
@@ -262,11 +208,9 @@ export const processTourFromS3 = (req: Request, res: Response) => {
   }
 
   const jobId = createJob();
-  res.status(200).json({ jobId }); // Respond immediately with jobId, same as uploadVirtualTour
+  res.status(200).json({ jobId }); // Respond immediately with jobId
 
   (async () => {
-    // Downloaded ZIP lands alongside the other tour temp files in tourDir,
-    // same as the disk-backed multer path above uses for its own upload.
     const localZipPath = path.join(tourDir, `staging_${nanoid(8)}.zip`);
     try {
       sendProgress(jobId, { progress: 2, message: 'Downloading ZIP from S3...' });
@@ -277,14 +221,11 @@ export const processTourFromS3 = (req: Request, res: Response) => {
       sendProgress(jobId, { progress: 5, message: 'Download complete, extracting ZIP...' });
 
       const extractDir = path.join(tourDir, `property_${propertyId}_tour`);
-      // Same shared extraction (and zip-slip guard) uploadVirtualTour uses -
-      // see tour-zip-extract.ts's own doc comment for why this must not be
-      // a second, separately-maintained copy of that check.
+      // Uses tour-zip-extract.ts's zip-slip guard - see that file's own
+      // doc comment for why this check has exactly one implementation.
       const { extractTourZip } = await import('./tour-zip-extract');
       extractTourZip(localZipPath, extractDir, ({ extracted, total }) => {
-        // Extraction is roughly 5-30% here (the 0-5% below it already went
-        // to the S3 download, which uploadVirtualTour's relay path doesn't
-        // have to do at all).
+        // Extraction is roughly 5-30% here (0-5% went to the S3 download above).
         const extractionProgress = Math.round(5 + (extracted / total) * 25);
         sendProgress(jobId, {
           progress: extractionProgress,
@@ -295,7 +236,7 @@ export const processTourFromS3 = (req: Request, res: Response) => {
       sendProgress(jobId, { progress: 40, message: 'Uploading files to AWS S3...' });
 
       const tourUrl = await uploadTourToS3(extractDir, propertyId, (uploadProgress) => {
-        // Map upload progress (0-1) to 40-95%, same mapping as uploadVirtualTour.
+        // Map upload progress (0-1) to 40-95%.
         sendProgress(jobId, {
           progress: Math.floor(40 + (uploadProgress * 55)),
           message: 'Uploading virtual tour files...'
@@ -318,9 +259,18 @@ export const processTourFromS3 = (req: Request, res: Response) => {
       await storage.updateProperty(parseInt(propertyId), { hasTour: true, tourUrl });
 
       // Best-effort: let the AI look at a few of the tour's own photos and
-      // add what it sees to the listing description - see the identical
-      // block (and its full explanation) in uploadVirtualTour above; kept
-      // word-for-word so both upload paths behave the same way here.
+      // add what it sees to the listing description - which is also
+      // exactly what feeds this property's page title, meta description,
+      // and JSON-LD (see shared/seo.ts). Wrapped in its own try/catch,
+      // separate from gene/tour-vision.ts's internal one: that module's
+      // own try/catch can't protect against the `import()` line itself
+      // throwing (e.g. sharp's native binary failing to load on this
+      // deploy platform/architecture), and since this sits inside the
+      // upload's own try/catch, a throw here would report the ENTIRE
+      // upload as failed even though the tour itself was already fully
+      // extracted, hosted on S3, and saved to the property record above.
+      // A richer description is a nice-to-have; it must never take the
+      // actual upload down with it.
       try {
         sendProgress(jobId, { progress: 98, message: 'Reading tour photos for a richer description...' });
         const { enrichPropertyDescriptionFromTour } = await import('./gene/tour-vision');
@@ -395,8 +345,8 @@ export const sseTourProgress = (req: Request, res: Response) => {
 
 // Register routes (add to your Express app)
 export function registerTourUploadRoutes(app: express.Application) {
-  app.post('/api/upload/virtual-tour/:propertyId', uploadVirtualTour);
   app.post('/api/upload/virtual-tour/:propertyId/presign-zip', presignTourZipUpload);
+  app.post('/api/upload/virtual-tour/:propertyId/complete-multipart', completeTourZipMultipartUpload);
   app.post('/api/upload/virtual-tour/:propertyId/process-from-s3', processTourFromS3);
   app.get('/api/upload/virtual-tour/progress/:jobId', sseTourProgress);
 }

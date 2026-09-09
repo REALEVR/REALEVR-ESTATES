@@ -410,249 +410,19 @@ const onSubmit = async (data: PropertyFormValues) => {
     }
   };
 
-  const [tourUploading, setTourUploading] = useState(false);
+  // Only tourUploadSuccess/tourPreviewUrl remain here - the rest of this
+  // form's own upload state (progress, extraction stage, debug info) was
+  // handleTourUpload's, which owned the classic upload path. That path is
+  // gone (see DirectS3TourUpload.tsx's own doc comment for why - it was
+  // strictly worse on speed, resilience, and server load once the direct-
+  // to-S3 path existed), and DirectS3TourUpload tracks its own progress
+  // internally now; this form only needs to know the end result.
   const [tourUploadSuccess, setTourUploadSuccess] = useState(false);
-  const [tourUploadError, setTourUploadError] = useState("");
   const [tourPreviewUrl, setTourPreviewUrl] = useState<string | null>(property?.tourUrl || null);
-  const [tourDebugInfo, setTourDebugInfo] = useState<any>(null);
-  const [tourUploadProgress, setTourUploadProgress] = useState(0);
-  const [tourExtracting, setTourExtracting] = useState(false);
-  const [tourProgressMessage, setTourProgressMessage] = useState<string>("");
-  const [tourProgressPercent, setTourProgressPercent] = useState<number>(0);
-  const [tourJobId, setTourJobId] = useState<string | null>(null);
-  const tourFileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleTourUpload = async () => {
-    const fileInput = tourFileInputRef.current;
-
-    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-      toast({
-        title: "Error",
-        description: "Please select a ZIP file to upload",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!property?.id) {
-      toast({
-        title: "Error",
-        description: "Please save the property first before uploading a tour",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const file = fileInput.files[0];
-
-    // Check if file is a zip
-    if (!file.name.endsWith('.zip')) {
-      toast({
-        title: "Error",
-        description: "Please upload a ZIP file (3D Vista tour export)",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check file size (max 5GB)
-    if (file.size > 5 * 1024 * 1024 * 1024) {
-      toast({
-        title: "Error",
-        description: "File is too large. Maximum allowed size is 5GB",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setTourUploading(true);
-    setTourUploadSuccess(false);
-    setTourUploadError("");
-    setTourUploadProgress(0);
-    setTourExtracting(false);
-    setTourProgressMessage("");
-    setTourProgressPercent(0);
-    setTourJobId(null);
-
-    try {
-      // Create FormData
-      const formData = new FormData();
-      formData.append('tourZip', file);
-
-      // Use XMLHttpRequest for progress
-      await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', `/api/upload/virtual-tour/${property.id}`);
-        xhr.withCredentials = true;
-
-        // Stall watchdog: a large ZIP can legitimately take a long time,
-        // but if xhr.upload.onprogress goes quiet for a stretch - a
-        // dropped wifi/mobile connection, a dead proxy in between - the
-        // browser doesn't reliably fire onerror on its own; the request
-        // just sits there and the "Uploading: X%" badge freezes forever
-        // with no feedback (the exact "ends at 68%" report). Track the
-        // last time bytes actually moved and abort with a clear, retryable
-        // error if nothing has moved in 2 minutes, instead of leaving the
-        // agent staring at a dead progress bar indefinitely.
-        let lastProgressAt = Date.now();
-        const stallCheckMs = 15_000;
-        const stallLimitMs = 2 * 60_000;
-        const stallWatchdog = setInterval(() => {
-          if (Date.now() - lastProgressAt > stallLimitMs) {
-            clearInterval(stallWatchdog);
-            xhr.abort();
-          }
-        }, stallCheckMs);
-        const clearWatchdog = () => clearInterval(stallWatchdog);
-
-        xhr.upload.onprogress = (event) => {
-          lastProgressAt = Date.now();
-          if (event.lengthComputable) {
-            const percent = Math.round((event.loaded * 100) / event.total);
-            setTourUploadProgress(percent);
-          }
-        };
-
-        xhr.onabort = () => {
-          clearWatchdog();
-          setTourUploadError('Upload stalled — no data was sent for 2 minutes. Check your connection and try again.');
-          setTourExtracting(false);
-          reject(new Error('Upload stalled'));
-        };
-
-        xhr.onload = () => {
-          clearWatchdog();
-          setTourUploadProgress(100);
-          try {
-            const result = JSON.parse(xhr.responseText);
-            setTourDebugInfo(result);
-            if (xhr.status === 200 && result.jobId) {
-              setTourJobId(result.jobId);
-              setTourExtracting(true);
-              // Start listening to SSE for progress
-              const evtSource = new EventSource(`/api/upload/virtual-tour/progress/${result.jobId}`);
-
-              // Stall watchdog for THIS stage too (extraction + S3 upload,
-              // 0-100% via tourProgressPercent) - the earlier XHR watchdog
-              // only covers the raw browser->server file transfer, which
-              // finishes (and stops applying) the moment this SSE stage
-              // begins. The server now sends a heartbeat comment every 15s
-              // to keep the connection itself alive, but a comment line
-              // never reaches onmessage - so track real progress events
-              // here independently and bail out if none arrive for a while,
-              // instead of waiting on a connection that's technically still
-              // open but not actually making progress (the "stalled at 77%"
-              // report: some single file's upload retries can legitimately
-              // run a few minutes, but not indefinitely).
-              let lastSseEventAt = Date.now();
-              const sseStallLimitMs = 3 * 60_000;
-              const sseWatchdog = setInterval(() => {
-                if (Date.now() - lastSseEventAt > sseStallLimitMs) {
-                  clearInterval(sseWatchdog);
-                  evtSource.close();
-                  setTourUploadError('Upload stalled while processing the tour. Please try again.');
-                  setTourExtracting(false);
-                  reject(new Error('Upload stalled while processing the tour'));
-                }
-              }, 15_000);
-              const clearSseWatchdog = () => clearInterval(sseWatchdog);
-
-              evtSource.onmessage = (event) => {
-                lastSseEventAt = Date.now();
-                try {
-                  const data = JSON.parse(event.data);
-                  if (data.progress) setTourProgressPercent(data.progress);
-                  if (data.message) setTourProgressMessage(data.message);
-                  if (data.done) {
-                    clearSseWatchdog();
-                    setTourExtracting(false);
-                    setTourUploadSuccess(true);
-                    setTourPreviewUrl(data.tourUrl || "");
-                    evtSource.close();
-                    toast({
-                      title: "Success",
-                      description: "Virtual tour uploaded and extracted successfully",
-                    });
-                    // Invalidate queries as before
-                    queryClient.invalidateQueries();
-                    queryClient.invalidateQueries();
-                    queryClient.invalidateQueries({ queryKey: ['/api/properties/featured'] });
-                    queryClient.invalidateQueries({ queryKey: ['/api/properties/category'] });
-                    queryClient.invalidateQueries({ queryKey: ['/api/properties/popular'] });
-                    queryClient.invalidateQueries({ queryKey: [`/api/properties/${property.id}`] });
-                    queryClient.invalidateQueries({ queryKey: ['/api/properties/category/for_sale'] });
-                    queryClient.invalidateQueries({ queryKey: ['/api/properties/category/rental_units'] });
-                    queryClient.invalidateQueries({ queryKey: ['/api/properties/category/furnished_houses'] });
-                    queryClient.invalidateQueries({ queryKey: ['/api/properties/category/bank_sales'] });
-                    queryClient.removeQueries({ queryKey: ['/api/properties'] });
-                    queryClient.removeQueries({ queryKey: ['/api/properties/featured'] });
-                    queryClient.removeQueries({ queryKey: ['/api/properties/category'] });
-                    queryClient.removeQueries({ queryKey: ['/api/properties/popular'] });
-                    queryClient.removeQueries({ queryKey: [`/api/properties/${property.id}`] });
-                    queryClient.refetchQueries({ queryKey: ['/api/properties'] });
-                    queryClient.refetchQueries({ queryKey: ['/api/properties/featured'] });
-                    queryClient.refetchQueries({ queryKey: [`/api/properties/${property.id}`] });
-                  }
-                  if (data.error) {
-                    clearSseWatchdog();
-                    setTourUploadError(data.error);
-                    setTourExtracting(false);
-                    evtSource.close();
-                    reject(new Error(data.error));
-                  }
-                } catch (err) {
-                  clearSseWatchdog();
-                  setTourUploadError("Failed to parse progress event");
-                  setTourExtracting(false);
-                  evtSource.close();
-                  reject(err);
-                }
-              };
-              evtSource.onerror = (err) => {
-                clearSseWatchdog();
-                setTourUploadError("Connection lost to progress server");
-                setTourExtracting(false);
-                evtSource.close();
-                reject(new Error("Connection lost to progress server"));
-              };
-            } else {
-              setTourUploadError(result.message || "Failed to upload virtual tour");
-              setTourExtracting(false);
-              reject(new Error(result.message || "Failed to upload virtual tour"));
-            }
-          } catch (err) {
-            setTourUploadError("Failed to parse server response");
-            setTourExtracting(false);
-            reject(err);
-          }
-        };
-        xhr.onerror = () => {
-          clearWatchdog();
-          setTourUploadError("Upload failed");
-          setTourExtracting(false);
-          reject(new Error("Upload failed"));
-        };
-        xhr.send(formData);
-      });
-    } catch (error: any) {
-      setTourUploadError(error.message || "Failed to upload virtual tour");
-      setTourExtracting(false);
-      toast({
-        title: "Error",
-        description: "Failed to upload virtual tour: " + (error.message || "Unknown error"),
-        variant: "destructive",
-      });
-    } finally {
-      setTourUploading(false);
-    }
-  };
-
-  // Shared with DirectS3TourUpload's onSuccess: the fast (direct-to-S3) and
-  // classic upload paths both end with the tour extracted server-side, so
-  // both need the exact same post-upload bookkeeping - flip the local
-  // preview state, and invalidate/refetch every cached list the newly
-  // uploaded tour could appear in so it shows up across the site without a
-  // manual refresh. Kept as one function so the two paths can't drift.
+  // DirectS3TourUpload's onSuccess callback: flip the local preview state,
+  // and invalidate/refetch every cached list the newly uploaded tour could
+  // appear in so it shows up across the site without a manual refresh.
   const handleTourUploadSuccess = (tourUrl: string) => {
     setTourUploadSuccess(true);
     setTourPreviewUrl(tourUrl);
@@ -1429,89 +1199,21 @@ const onSubmit = async (data: PropertyFormValues) => {
                       for viewing. Maximum file size: 5GB.
                     </p>
 
-                    {/* Two upload paths to the SAME extraction job: the fast
-                        path PUTs the ZIP straight to S3 from the browser
-                        (our server only ever sees a small S3 key), which is
-                        why it's presented first/recommended - the classic
-                        path relays the whole multi-GB ZIP through our own
-                        Node server and is the one that's been reported
-                        stalling partway through on slow/flaky connections
-                        ("68%", "77%"). Classic is kept fully working as a
-                        fallback (e.g. if S3 is ever unreachable from a given
-                        network) behind its own tab, unchanged. */}
-                    <Tabs defaultValue="fast" className="w-full">
-                      <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="fast">Fast upload (direct to S3, recommended)</TabsTrigger>
-                        <TabsTrigger value="classic">Classic upload</TabsTrigger>
-                      </TabsList>
-
-                      <TabsContent value="fast" className="mt-4">
-                        {property?.id ? (
-                          <DirectS3TourUpload
-                            propertyId={property.id}
-                            onSuccess={handleTourUploadSuccess}
-                          />
-                        ) : (
-                          <p className="text-sm text-muted-foreground">
-                            Please save the property first before uploading a tour.
-                          </p>
-                        )}
-                      </TabsContent>
-
-                      <TabsContent value="classic" className="mt-4">
-                        <div className="flex items-center space-x-2 mt-2">
-                          <Input
-                            ref={tourFileInputRef}
-                            type="file"
-                            accept=".zip"
-                            className="flex-1"
-                          />
-                          <Button
-                            type="button"
-                            onClick={handleTourUpload}
-                            disabled={tourUploading || tourExtracting}
-                          >
-                            {tourUploading && !tourExtracting ? (
-                              <>
-                                Uploading: {tourUploadProgress}%
-                              </>
-                            ) : tourExtracting ? (
-                              <>
-                                {tourProgressMessage}
-                                {typeof tourProgressPercent === 'number' && tourProgressPercent > 0 && (
-                                  <> ({tourProgressPercent}%)</>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                <Upload className="mr-2 h-4 w-4" />
-                                Upload
-                              </>
-                            )}
-                          </Button>
-                        </div>
-
-                        {tourUploadSuccess && (
-                          <Alert className="mt-4 bg-green-50 border-green-300">
-                            <Check className="h-4 w-4 text-green-500" />
-                            <AlertTitle>Success!</AlertTitle>
-                            <AlertDescription>
-                              Virtual tour uploaded and extracted successfully.
-                            </AlertDescription>
-                          </Alert>
-                        )}
-
-                        {tourUploadError && (
-                          <Alert className="mt-4" variant="destructive">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertTitle>Upload Error</AlertTitle>
-                            <AlertDescription>
-                              {tourUploadError}
-                            </AlertDescription>
-                          </Alert>
-                        )}
-                      </TabsContent>
-                    </Tabs>
+                    {/* One upload path: straight to S3 from the browser in
+                        parallel parts (our server only ever sees a small S3
+                        key) - see DirectS3TourUpload.tsx's own doc comment
+                        for why the earlier relay-through-our-server path was
+                        retired instead of kept around as a second option. */}
+                    {property?.id ? (
+                      <DirectS3TourUpload
+                        propertyId={property.id}
+                        onSuccess={handleTourUploadSuccess}
+                      />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Please save the property first before uploading a tour.
+                      </p>
+                    )}
                   </div>
 
                   {/* Tour preview section */}
@@ -1575,59 +1277,6 @@ const onSubmit = async (data: PropertyFormValues) => {
                     </div>
                   )}
 
-                  {/* Debug info section - Hidden by default, shown on demand or when there's an error */}
-                  {(tourDebugInfo || tourUploadError) && (
-                    <div className="border rounded-lg p-4 bg-muted/30">
-                      <Collapsible>
-                        <CollapsibleTrigger asChild>
-                          <Button variant="outline" size="sm" className="w-full flex justify-between">
-                            <span>Tour Upload Debug Information</span>
-                            <ChevronDown className="h-4 w-4" />
-                          </Button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="p-2">
-                          {tourDebugInfo && (
-                            <div className="text-xs">
-                              <h4 className="font-semibold mb-1">Server Response:</h4>
-                              <pre className="bg-muted p-2 rounded overflow-auto max-h-[200px]">
-                                {JSON.stringify(tourDebugInfo, null, 2)}
-                              </pre>
-
-                              {tourDebugInfo.directoryContents && (
-                                <div className="mt-2">
-                                  <h4 className="font-semibold mb-1">Extracted Files:</h4>
-                                  <ul className="list-disc list-inside">
-                                    {tourDebugInfo.directoryContents.map((item: string, index: number) => (
-                                      <li key={index} className="truncate">{item}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {tourUploadError && (
-                            <div className="mt-2 text-xs">
-                              <h4 className="font-semibold mb-1 text-destructive">Error:</h4>
-                              <pre className="bg-destructive/10 p-2 rounded text-destructive">
-                                {tourUploadError}
-                              </pre>
-
-                              <div className="mt-2 space-y-1">
-                                <h4 className="font-semibold">Common Solutions:</h4>
-                                <ul className="list-disc list-inside">
-                                  <li>Make sure your ZIP file is a proper 3D Vista export</li>
-                                  <li>Check that the ZIP file contains an index.htm file</li>
-                                  <li>The ZIP file structure should have index.htm at the root or in a single subdirectory</li>
-                                  <li>Try creating a fresh export from 3D Vista</li>
-                                </ul>
-                              </div>
-                            </div>
-                          )}
-                        </CollapsibleContent>
-                      </Collapsible>
-                    </div>
-                  )}
                 </>
               )}
             </CardContent>

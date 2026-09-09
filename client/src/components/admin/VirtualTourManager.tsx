@@ -6,7 +6,6 @@ import { apiRequest, queryClient } from '@/lib/queryClient'
 import { useToast } from '@/hooks/use-toast'
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -14,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import RoomCaptureGuide from './RoomCaptureGuide'
+import DirectS3TourUpload from './DirectS3TourUpload'
 import {
     AlertCircle,
     ArrowLeft,
@@ -22,7 +22,6 @@ import {
     Eye,
     Home,
     Loader2,
-    Upload,
 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
@@ -43,14 +42,9 @@ interface VirtualTourFormValues {
 
 export default function VirtualTourManager() {
     const [property, setProperty] = useState<Property | null>(null)
-    const [isUploading, setIsUploading] = useState(false)
-    const [uploadProgressMessage, setUploadProgressMessage] = useState('')
-    const [uploadProgressPercent, setUploadProgressPercent] = useState(0)
     const [uploadSuccess, setUploadSuccess] = useState(false)
-    const [uploadError, setUploadError] = useState('')
     const [tourPreviewUrl, setTourPreviewUrl] = useState<string | null>(null)
 
-    const fileInputRef = useRef<HTMLInputElement>(null)
     const { toast } = useToast()
     const [location, navigate] = useLocation()
 
@@ -96,185 +90,6 @@ export default function VirtualTourManager() {
             } else {
                 setTourPreviewUrl(null)
             }
-        }
-    }
-
-    const handleTourUpload = async () => {
-        if (!property) {
-            toast({
-                title: 'Error',
-                description: 'Please select a property first',
-                variant: 'destructive',
-            })
-            return
-        }
-
-        const fileInput = fileInputRef.current
-        if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-            toast({
-                title: 'Error',
-                description: 'Please select a 3D Vista tour zip file to upload',
-                variant: 'destructive',
-            })
-            return
-        }
-
-        const file = fileInput.files[0]
-
-        // Check if file is a zip
-        if (!file.name.endsWith('.zip')) {
-            toast({
-                title: 'Error',
-                description: 'Please upload a ZIP file from 3D Vista',
-                variant: 'destructive',
-            })
-            return
-        }
-
-        // Check file size (max 5GB)
-        if (file.size > 5 * 1024 * 1024 * 1024) {
-            toast({
-                title: 'Error',
-                description: 'Tour file is too large. Maximum allowed size is 5GB',
-                variant: 'destructive',
-            })
-            return
-        }
-
-        setIsUploading(true)
-        setUploadSuccess(false)
-        setUploadError('')
-        setUploadProgressMessage('Uploading ZIP...')
-        setUploadProgressPercent(0)
-
-        try {
-            // Create FormData
-            const formData = new FormData()
-            formData.append('tourZip', file)
-
-            // XMLHttpRequest instead of fetch() so the raw browser->server
-            // transfer of a multi-GB ZIP has a real percentage attached to
-            // it (fetch() has no upload-progress event) - this is the exact
-            // "upload process" the agent dashboard was missing: previously
-            // this stage just showed a static "Uploading ZIP..." with no
-            // indication of how far along a potentially multi-hundred-MB
-            // transfer actually was, unlike the admin property editor's own
-            // tour tab (PropertyFormNew.tsx), which has always shown a
-            // percentage here. Also carries the same stall watchdog as that
-            // component: if bytes stop moving for 2 minutes, abort with a
-            // clear, retryable error instead of freezing silently forever.
-            const jobId = await new Promise<string>((resolve, reject) => {
-                const xhr = new XMLHttpRequest()
-                xhr.open('POST', `/api/upload/virtual-tour/${property.id}`)
-                xhr.withCredentials = true
-
-                let lastProgressAt = Date.now()
-                const stallWatchdog = setInterval(() => {
-                    if (Date.now() - lastProgressAt > 2 * 60_000) {
-                        clearInterval(stallWatchdog)
-                        xhr.abort()
-                    }
-                }, 15_000)
-                const clearWatchdog = () => clearInterval(stallWatchdog)
-
-                xhr.upload.onprogress = (event) => {
-                    lastProgressAt = Date.now()
-                    if (event.lengthComputable) {
-                        const percent = Math.round((event.loaded * 100) / event.total)
-                        setUploadProgressPercent(percent)
-                        setUploadProgressMessage(`Uploading ZIP... ${percent}%`)
-                    }
-                }
-                xhr.onabort = () => {
-                    clearWatchdog()
-                    reject(new Error('Upload stalled — no data was sent for 2 minutes. Check your connection and try again.'))
-                }
-                xhr.onerror = () => {
-                    clearWatchdog()
-                    reject(new Error('Upload failed'))
-                }
-                xhr.onload = () => {
-                    clearWatchdog()
-                    setUploadProgressPercent(100)
-                    try {
-                        const result = JSON.parse(xhr.responseText)
-                        if (xhr.status === 200 && result.jobId) {
-                            resolve(result.jobId)
-                        } else {
-                            reject(new Error(result.message || 'Failed to start virtual tour upload'))
-                        }
-                    } catch {
-                        reject(new Error('Failed to parse server response'))
-                    }
-                }
-                xhr.send(formData)
-            })
-
-            setUploadProgressMessage('Processing tour...')
-
-            // The server responded with a jobId once the file was fully
-            // received (extraction/S3 upload happen asynchronously) -- the
-            // real success/failure only arrives via the SSE progress stream
-            // below.
-            await new Promise<void>((resolve, reject) => {
-                const source = new EventSource(`/api/upload/virtual-tour/progress/${jobId}`)
-
-                // Same stall watchdog as PropertyFormNew.tsx's tour tab - a
-                // heartbeat comment keeps this connection alive through idle
-                // proxies, but comment lines never reach onmessage, so track
-                // real progress independently and bail out if none arrives
-                // for a while instead of waiting forever on a connection
-                // that's open but not actually progressing.
-                let lastSseEventAt = Date.now()
-                const sseWatchdog = setInterval(() => {
-                    if (Date.now() - lastSseEventAt > 3 * 60_000) {
-                        clearInterval(sseWatchdog)
-                        source.close()
-                        reject(new Error('Upload stalled while processing the tour. Please try again.'))
-                    }
-                }, 15_000)
-                const clearSseWatchdog = () => clearInterval(sseWatchdog)
-
-                source.onmessage = (evt) => {
-                    lastSseEventAt = Date.now()
-                    const data = JSON.parse(evt.data)
-                    if (data.error) {
-                        clearSseWatchdog()
-                        source.close()
-                        reject(new Error(data.error))
-                        return
-                    }
-                    setUploadProgressMessage(data.message || '')
-                    if (typeof data.progress === 'number') setUploadProgressPercent(data.progress)
-                    if (data.done) {
-                        clearSseWatchdog()
-                        source.close()
-                        if (data.tourUrl) {
-                            setUploadSuccess(true)
-                            setTourPreviewUrl(data.tourUrl)
-                            queryClient.invalidateQueries({ queryKey: ['/api/properties', property.id] })
-                            toast({ title: 'Success', description: 'Virtual tour uploaded and extracted successfully' })
-                        }
-                        resolve()
-                    }
-                }
-                source.onerror = () => {
-                    clearSseWatchdog()
-                    source.close()
-                    reject(new Error('Lost connection while processing the tour upload'))
-                }
-            })
-        } catch (error: any) {
-            setUploadError(error.message || 'Failed to upload virtual tour')
-
-            toast({
-                title: 'Error',
-                description: 'Failed to upload virtual tour: ' + (error.message || 'Unknown error'),
-                variant: 'destructive',
-            })
-        } finally {
-            setIsUploading(false)
-            setUploadProgressMessage('')
         }
     }
 
@@ -411,44 +226,14 @@ export default function VirtualTourManager() {
                                                 software? Upload the ZIP file directly. Maximum file size: 5GB.
                                             </p>
 
-                                            <div className="flex items-center space-x-2 mt-2">
-                                                <Input ref={fileInputRef} type="file" accept=".zip" className="flex-1" />
-                                                <Button type="button" onClick={handleTourUpload} disabled={isUploading}>
-                                                    {isUploading ? (
-                                                        <>
-                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                            {uploadProgressPercent > 0 ? `${uploadProgressPercent}%` : 'Uploading...'}
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Upload className="mr-2 h-4 w-4" />
-                                                            Upload
-                                                        </>
-                                                    )}
-                                                </Button>
-                                            </div>
-
-                                            {isUploading && uploadProgressMessage && (
-                                                <p className="text-sm text-muted-foreground mt-2">{uploadProgressMessage}</p>
-                                            )}
-
-                                            {uploadSuccess && (
-                                                <Alert className="mt-4 bg-green-50 border-green-300">
-                                                    <Check className="h-4 w-4 text-green-500" />
-                                                    <AlertTitle>Success!</AlertTitle>
-                                                    <AlertDescription>
-                                                        Virtual tour uploaded and extracted successfully.
-                                                    </AlertDescription>
-                                                </Alert>
-                                            )}
-
-                                            {uploadError && (
-                                                <Alert className="mt-4" variant="destructive">
-                                                    <AlertCircle className="h-4 w-4" />
-                                                    <AlertTitle>Upload Error</AlertTitle>
-                                                    <AlertDescription>{uploadError}</AlertDescription>
-                                                </Alert>
-                                            )}
+                                            <DirectS3TourUpload
+                                                propertyId={property.id}
+                                                onSuccess={(url) => {
+                                                    setUploadSuccess(true)
+                                                    setTourPreviewUrl(url)
+                                                    queryClient.invalidateQueries({ queryKey: ['/api/properties', property.id] })
+                                                }}
+                                            />
                                         </div>
                                     </TabsContent>
                                 </Tabs>
