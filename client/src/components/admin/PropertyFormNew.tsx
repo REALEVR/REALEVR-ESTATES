@@ -81,6 +81,9 @@ const propertyFormSchema = insertPropertySchema
     monthlyPrice: z.coerce.number().optional(),
     // Property contact/manager - who a prospective tenant/buyer actually reaches.
     ownerContactInfo: z.string().optional(),
+    // A single dedicated phone number for that same contact - see this
+    // field's own comment in shared/schema.ts.
+    ownerContactPhone: z.string().optional(),
     // Who uploaded this listing - defaults to the signed-in agent's own
     // name, editable for the "uploading on someone else's behalf" case.
     uploaderName: z.string().optional(),
@@ -122,6 +125,7 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
     amenities: property.amenities || [],
     monthlyPrice: property.monthlyPrice === null ? undefined : property.monthlyPrice,
     ownerContactInfo: property.ownerContactInfo === null ? '' : property.ownerContactInfo,
+    ownerContactPhone: property.ownerContactPhone === null ? '' : property.ownerContactPhone,
     // Falls back to the signed-in agent's own name if this older listing
     // never had one recorded.
     uploaderName: property.uploaderName || user?.fullName || '',
@@ -149,6 +153,7 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
     amenities: [],
     monthlyPrice: undefined,
     ownerContactInfo: '',
+    ownerContactPhone: '',
     // Pre-filled from whoever's signed in - the common case is uploading
     // your own listing - but editable for the "on someone else's behalf" case.
     uploaderName: user?.fullName || '',
@@ -883,6 +888,31 @@ const onSubmit = async (data: PropertyFormValues) => {
                             placeholder="Name: John Doe, Phone: +256 700 123456, Email: john@example.com"
                             {...field}
                           />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* A clean, single phone number for that same contact -
+                      distinct from the free-text box above, which isn't
+                      reliably parseable as a phone number (click-to-call,
+                      WhatsApp links, masking, etc. all need an actual
+                      number). Lets this listing show a different number
+                      than the agent's own account (office line, colleague,
+                      whoever actually handles it) - see this field's own
+                      comment in shared/schema.ts. */}
+                  <FormField
+                    control={form.control}
+                    name="ownerContactPhone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contact Phone Number (Host / Manager / Agent)</FormLabel>
+                        <FormDescription>
+                          A single number for whoever should be called about this property - kept separate from the box above so it can be used for calling/WhatsApp links directly.
+                        </FormDescription>
+                        <FormControl>
+                          <Input type="tel" placeholder="+256 700 123456" {...field} value={field.value || ''} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
