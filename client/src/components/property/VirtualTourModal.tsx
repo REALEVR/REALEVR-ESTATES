@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { X, Maximize, Minimize } from "lucide-react";
+import { X, Maximize, Minimize, Headset } from "lucide-react";
+import { enterTourVr } from "@/lib/tourVr";
 
 interface VirtualTourModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export default function VirtualTourModal({
   const [secondsLeft, setSecondsLeft] = useState(previewSeconds ?? 0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const tourContainerRef = useRef<HTMLDivElement>(null);
+  const tourIframeRef = useRef<HTMLIFrameElement>(null);
 
   // True "own window" fullscreen (the Fullscreen API, not just a bigger
   // modal) - the tour fills the whole screen with no browser chrome, and
@@ -105,6 +107,18 @@ export default function VirtualTourModal({
                   Free preview: {secondsLeft}s
                 </span>
               )}
+              {/* Enter VR - see client/src/lib/tourVr.ts for exactly what
+                  this does and doesn't guarantee depending on who's
+                  actually hosting this tour. */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => enterTourVr(tourContainerRef.current, tourIframeRef.current)}
+                aria-label="Enter VR"
+                title="View in VR - slot your phone into a headset once fullscreen"
+              >
+                <Headset className="h-5 w-5" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
@@ -122,10 +136,18 @@ export default function VirtualTourModal({
 
           <div className="w-full flex-1 bg-black rounded-b-lg">
             <iframe
+              ref={tourIframeRef}
               src={tourUrl}
               title={`Virtual tour of ${propertyTitle}`}
               className="w-full h-full rounded-b-lg"
               allowFullScreen
+              // Without this, a VR/Cardboard button already built into the
+              // hosted tour itself (3D Vista's own player, Lapentor, or our
+              // own generated-tour.html panoramas) is silently blocked: an
+              // iframe doesn't inherit these permissions from the parent
+              // page by default, so device-orientation-driven VR mode
+              // never activates no matter what the tour's own UI offers.
+              allow="xr-spatial-tracking; gyroscope; accelerometer; fullscreen"
             />
           </div>
         </div>

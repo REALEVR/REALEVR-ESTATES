@@ -176,6 +176,7 @@ export default function PropertyPage() {
               <VirtualTour
                 tourUrl={(property as Property).tourUrl || "https://realevr.com/LA%20ROSE%20ROYAL%20APARTMENTS/"}
                 isFullscreen={isFullscreen}
+                showVrButton
               />
 
               <div className="absolute bottom-4 right-4 bg-card/80 backdrop-blur-sm rounded-lg p-2 shadow-lg">
