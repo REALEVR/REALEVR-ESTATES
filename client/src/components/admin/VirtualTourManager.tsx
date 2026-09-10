@@ -248,6 +248,9 @@ export default function VirtualTourManager() {
                                                     className="w-full h-full"
                                                     title={`Virtual tour of ${property.title}`}
                                                     sandbox="allow-same-origin allow-scripts"
+                                                    // So an agent can actually test the VR button before
+                                                    // publishing - see VirtualTourModal.tsx's identical attribute.
+                                                    allow="xr-spatial-tracking; gyroscope; accelerometer; fullscreen"
                                                 />
                                             </div>
                                             <div className="flex justify-between">
