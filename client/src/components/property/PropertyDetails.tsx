@@ -401,10 +401,19 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                                 {propertyOwner.role === 'agent' ? 'Property Agent' : 'Property Manager'}
                                             </p>
                                         </div>
-                                        {propertyOwner.phoneNumber && (
+                                        {/* Prefer the property's own dedicated contact
+                                            number (set on the upload/edit form - see
+                                            ownerContactPhone's comment in shared/schema.ts)
+                                            over the agent's account phoneNumber, so an
+                                            agent can list a different number for this
+                                            specific listing (office line, a colleague,
+                                            whoever actually handles it). */}
+                                        {(property.ownerContactPhone || propertyOwner.phoneNumber) && (
                                             <div className="flex items-center space-x-2">
                                                 <Phone className="h-4 w-4 text-muted-foreground" />
-                                                <span className="text-sm font-medium">{propertyOwner.phoneNumber}</span>
+                                                <span className="text-sm font-medium">
+                                                    {property.ownerContactPhone || propertyOwner.phoneNumber}
+                                                </span>
                                             </div>
                                         )}
                                     </div>

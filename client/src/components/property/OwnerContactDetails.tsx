@@ -41,10 +41,19 @@ export default function OwnerContactDetails({ property, bookingConfirmed, owner 
   // A BnB's real point of contact is whoever is actually hosting the stay
   // (hostName/hostPhone, captured on the upload form) - prefer that over
   // the uploading agent's own contact, which is who ownerContactInfo/owner
-  // below would otherwise show.
+  // below would otherwise show. ownerContactPhone (a clean, dedicated
+  // number - see its own comment in shared/schema.ts) is preferred over
+  // both the agent's account phoneNumber and the unparseable free-text
+  // ownerContactInfo box, since it's what an agent would set to list a
+  // different number for this specific property.
   const ownerDetails = {
     name: property.hostName || owner?.fullName || owner?.username || "RealEVR Estates Agent",
-    phone: property.hostPhone || owner?.phoneNumber || property.ownerContactInfo || "Contact via platform messaging",
+    phone:
+      property.hostPhone ||
+      property.ownerContactPhone ||
+      owner?.phoneNumber ||
+      property.ownerContactInfo ||
+      "Contact via platform messaging",
     email: owner?.email || "Available after booking",
     address: property.location,
     responseTime: "Usually responds within 1 hour",
@@ -99,7 +108,7 @@ export default function OwnerContactDetails({ property, bookingConfirmed, owner 
             <Button
               className="w-full"
               variant="outline"
-              disabled={!property.hostPhone && !owner?.phoneNumber && !property.ownerContactInfo}
+              disabled={!property.hostPhone && !property.ownerContactPhone && !owner?.phoneNumber && !property.ownerContactInfo}
               onClick={() => window.open(`tel:${ownerDetails.phone}`, "_self")}
             >
               <Phone className="h-4 w-4 mr-2" />
