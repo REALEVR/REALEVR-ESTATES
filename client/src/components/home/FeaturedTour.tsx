@@ -465,6 +465,12 @@ export default function FeaturedTour() {
                   {(featuredProperty.category === 'for_sale' || featuredProperty.category === 'bank_sales') && (
                     <span className="text-muted-foreground"> / sale</span>
                   )}
+                  {(featuredProperty.category === 'furnished_houses' || featuredProperty.category === 'BnB') &&
+                      featuredProperty.monthlyPrice != null && (
+                          <p className="text-muted-foreground text-sm mt-1">
+                              or {featuredProperty.monthlyPrice.toLocaleString()} {featuredProperty.currency || 'UGX'} / month for long stays
+                          </p>
+                      )}
                 </div>
                 <div className="flex flex-col gap-3">
                   <div className="flex flex-wrap gap-3">

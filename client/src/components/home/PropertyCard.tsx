@@ -274,6 +274,16 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                             {(property.category === 'furnished_houses' || property.category === 'BnB') && (
                                 <span className="text-muted-foreground text-sm"> / day</span>
                             )}
+                            {/* A BnB can optionally set a discounted monthlyPrice
+                                for long stays (PropertyFormNew.tsx) - shown as a
+                                second line rather than replacing the nightly
+                                rate above, since most bookings are still nightly. */}
+                            {(property.category === 'furnished_houses' || property.category === 'BnB') &&
+                                property.monthlyPrice != null && (
+                                    <p className="text-muted-foreground text-xs mt-0.5">
+                                        or {property.monthlyPrice.toLocaleString()} {property.currency || 'UGX'} / month
+                                    </p>
+                                )}
                         </div>
                     </div>
                 </div>

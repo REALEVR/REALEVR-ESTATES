@@ -367,6 +367,15 @@ export function AgentDashboard() {
                                                           {property.price ? property.price.toLocaleString() : 'N/A'}
                                                       </span>
                                                   </div>
+                                                  {(property.category === 'furnished_houses' || property.category === 'BnB') &&
+                                                      property.monthlyPrice != null && (
+                                                          <div className="flex justify-between text-sm">
+                                                              <span className="text-muted-foreground">Monthly rate:</span>
+                                                              <span className="font-medium">
+                                                                  {property.currency} {property.monthlyPrice.toLocaleString()}
+                                                              </span>
+                                                          </div>
+                                                      )}
                                                   <div className="flex justify-between text-sm">
                                                       <span className="text-muted-foreground">Views:</span>
                                                       <span className="font-medium">{property.viewCount || 0}</span>

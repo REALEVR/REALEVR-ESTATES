@@ -553,6 +553,15 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                     {(property.category === 'furnished_houses' || property.category === 'BnB') && (
                         <span className="text-muted-foreground"> / day</span>
                     )}
+                    {/* Optional discounted monthly rate for long-staying BnB
+                        guests (PropertyFormNew.tsx) - shown alongside the
+                        nightly rate, not instead of it. */}
+                    {(property.category === 'furnished_houses' || property.category === 'BnB') &&
+                        property.monthlyPrice != null && (
+                            <p className="text-muted-foreground text-sm mt-1">
+                                or {property.monthlyPrice.toLocaleString()} {property.currency || 'UGX'} / month for long stays
+                            </p>
+                        )}
                 </div>
                 <div className="flex space-x-3">
                     {property.ownerId && user?.id !== property.ownerId && (
