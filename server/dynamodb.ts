@@ -196,8 +196,19 @@ export async function executeWithRetry<T>(
 
 // ─── ID / Timestamp Helpers ───────────────────────────────────────────────────
 
+// Monotonically-increasing millisecond-scale counter, seeded from Date.now().
+// A plain `Date.now()` id collides whenever two records are created in the
+// same millisecond (e.g. bulk admin imports, or two API requests landing in
+// the same tick) — DynamoDB then silently overwrites the earlier record with
+// the same id. Bumping the counter by 1 whenever the clock hasn't advanced
+// guarantees every generateId() call returns a unique, strictly-increasing
+// value while staying well within Number.MAX_SAFE_INTEGER.
+let lastGeneratedId = 0
+
 export function generateId(): number {
-    return Date.now()
+    const now = Date.now()
+    lastGeneratedId = now > lastGeneratedId ? now : lastGeneratedId + 1
+    return lastGeneratedId
 }
 
 export function toStringId(id: number): string {
