@@ -737,7 +737,15 @@ const onSubmit = async (data: PropertyFormValues) => {
                             name="price"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Price</FormLabel>
+                                {/* This is the headline price shown everywhere the
+                                    property is listed (PropertyCard.tsx,
+                                    PropertyDetails.tsx, FeaturedTour.tsx),
+                                    suffixed "/ day" for a BnB or "/ month" for a
+                                    rental unit there - labeled per-category here
+                                    too so it's clear which rate this actually is,
+                                    now that BnBs can also set a separate discounted
+                                    monthlyPrice below for long stays. */}
+                                <FormLabel>{isBnbCategory ? 'Price per night' : 'Price'}</FormLabel>
                                 <FormControl>
                                   <Input type="number" placeholder="1000000" {...field} />
                                 </FormControl>
@@ -774,20 +782,28 @@ const onSubmit = async (data: PropertyFormValues) => {
                         </div>
                       </div>
 
-                      {/* Monthly price field - only for rental categories */}
-                      {isRentalCategory && (
+                      {/* Monthly price - for rental units this is the actual
+                          recurring rent; for a BnB it's an OPTIONAL discounted
+                          rate for guests staying a month or longer, shown
+                          alongside the per-night price above rather than
+                          replacing it (see PropertyCard.tsx/PropertyDetails.tsx/
+                          FeaturedTour.tsx, which now display both when both are
+                          set). Leaving it blank on a BnB just means "nightly
+                          rate only" - nothing forces a host to offer a monthly
+                          option. */}
+                      {(isRentalCategory || isBnbCategory) && (
                         <FormField
                           control={form.control}
                           name="monthlyPrice"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Monthly Price</FormLabel>
+                              <FormLabel>{isBnbCategory ? 'Price per month (optional)' : 'Monthly Price'}</FormLabel>
                               <FormControl>
                                 <div className="flex items-center">
                                   <DollarSign className="mr-2 h-4 w-4 text-muted-foreground" />
                                   <Input
                                     type="number"
-                                    placeholder="Monthly rent amount"
+                                    placeholder={isBnbCategory ? 'Discounted rate for month-long stays' : 'Monthly rent amount'}
                                     {...field}
                                     value={field.value === undefined ? '' : field.value}
                                     onChange={(e: { target: { value: string; }; }) => {
@@ -798,7 +814,9 @@ const onSubmit = async (data: PropertyFormValues) => {
                                 </div>
                               </FormControl>
                               <FormDescription>
-                                Monthly rental amount for this property
+                                {isBnbCategory
+                                  ? "Shown alongside the per-night price as a long-stay option - leave blank if you only rent nightly."
+                                  : 'Monthly rental amount for this property'}
                               </FormDescription>
                               <FormMessage />
                             </FormItem>

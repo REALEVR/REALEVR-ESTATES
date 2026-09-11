@@ -312,7 +312,13 @@ export default function PropertyManager() {
               </TableCell>
               <TableCell className="font-medium">{property.title}</TableCell>
               <TableCell>{property.location}</TableCell>
-              <TableCell>{property.price != null ? property.price.toLocaleString() : <span className="text-gray-400">N/A</span>}</TableCell>
+              <TableCell>
+                {property.price != null ? property.price.toLocaleString() : <span className="text-gray-400">N/A</span>}
+                {(property.category === 'furnished_houses' || property.category === 'BnB') &&
+                  property.monthlyPrice != null && (
+                    <div className="text-xs text-gray-400">or {property.monthlyPrice.toLocaleString()}/mo</div>
+                  )}
+              </TableCell>
               <TableCell>{getCategoryBadge(property.category)}</TableCell>
               <TableCell>
                 {property.hasTour && property.tourUrl ? (
