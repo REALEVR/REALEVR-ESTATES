@@ -75,6 +75,10 @@ export interface GeneEscalation {
     reason: string
     createdAt: string
     status: 'open' | 'in_progress' | 'resolved'
+    /** Set when the escalating channel has a real phone number on hand
+     * (WhatsApp, or My Agent for a user with one on file) — whatsapp.ts's
+     * resolve route texts a confirmation back to this number automatically. */
+    customerPhone?: string
 }
 
 const CONVERSATIONS_COLLECTION = 'gene_conversations'
@@ -84,7 +88,7 @@ const ESCALATIONS_COLLECTION = 'gene_escalations'
 // Intent classification — small rule-based classifier, no ML dependency.
 // ---------------------------------------------------------------------------
 
-function classifyIntent(message: string): GeneIntent {
+export function classifyIntent(message: string): GeneIntent {
     const text = message.toLowerCase()
 
     if (
@@ -123,7 +127,7 @@ const CANNED_REPLIES: Record<GeneIntent, string> = {
         "I've flagged your request for a member of our team to reach out to you directly. In the meantime, is there anything else I can help you with?",
 }
 
-function isLowConfidence(intent: GeneIntent, usedAi: boolean, reply: string): boolean {
+export function isLowConfidence(intent: GeneIntent, usedAi: boolean, reply: string): boolean {
     if (intent === 'human_handoff_request') return true
     if (!usedAi && intent === 'general_question') return true
     const hedgeMarkers = ["i'm not sure", "i don't know", "i don't have", 'cannot help', "can't help", 'no information']
@@ -195,7 +199,22 @@ function saveConversation(conversation: GeneConversation): void {
     writeCollection(CONVERSATIONS_COLLECTION, rows)
 }
 
-function writeEscalation(sessionId: string, message: string, reason: string): void {
+/**
+ * The ONE place any GENE surface writes a "needs a human" escalation —
+ * shared by this module's own web-chat widget, server/gene/whatsapp-
+ * concierge.ts's WhatsApp "talk to a human" handling, and server/gene/
+ * personal-agent.ts's "My Agent" chat. Previously each surface only best-
+ * effort-posted to Slack, which the admin may not have configured or be
+ * watching; this now ALSO fans out through admin-notify.ts's
+ * notifyAdminsEverywhere (in-app bell + email + WhatsApp to the owner's own
+ * numbers) — so "a human is needed" reliably reaches the admin regardless
+ * of which agent surface a visitor/user actually reached, and regardless
+ * of Slack being configured. `customerPhone`, when the calling surface has
+ * one on hand (WhatsApp always does; My Agent does whenever the user has a
+ * phone number on file), lets whatsapp.ts's resolve route text a
+ * confirmation back automatically once handled.
+ */
+export function writeEscalation(sessionId: string, message: string, reason: string, customerPhone?: string): void {
     const rows = readCollection<GeneEscalation>(ESCALATIONS_COLLECTION)
     const escalation: GeneEscalation = {
         id: nextId(rows),
@@ -204,11 +223,23 @@ function writeEscalation(sessionId: string, message: string, reason: string): vo
         reason,
         createdAt: nowIso(),
         status: 'open',
+        ...(customerPhone ? { customerPhone } : {}),
     }
     rows.push(escalation)
     writeCollection(ESCALATIONS_COLLECTION, rows)
-    // Best-effort — never let a Slack notification failure affect the chat response.
+    // Both best-effort — never let a notification failure affect the chat response.
     notifyNewEscalation(escalation).catch((err) => console.error('[gene/chat] Slack notify failed:', err))
+    import('./admin-notify')
+        .then(({ notifyAdminsEverywhere }) =>
+            notifyAdminsEverywhere({
+                title: 'Needs a human',
+                message: `"${message}" (reason: ${reason}, session ${sessionId})`,
+                whatsappMessage: `🆘 Needs a human\n\n"${message}"\n\nReason: ${reason}\nSession: ${sessionId}`,
+                link: '/admin',
+                data: { escalationId: escalation.id, sessionId, reason },
+            })
+        )
+        .catch((err) => console.error('[gene/chat] admin notification failed:', err))
 }
 
 // ---------------------------------------------------------------------------
