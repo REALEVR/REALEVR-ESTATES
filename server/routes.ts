@@ -47,6 +47,7 @@ import { registerListingsApiRoutes } from './gene/listings-api'
 import { registerWhatsappRoutes } from './gene/whatsapp'
 import { registerDataQualityRoutes } from './gene/data-quality'
 import { registerPaymentsCoreRoutes } from './gene/payments-core'
+import { notifyAdminsEverywhere } from './gene/admin-notify'
 import { registerBtcPaymentsRoutes } from './gene/btc-payments'
 import { registerInvestorAnalyticsRoutes } from './gene/investor-analytics'
 import { registerListingsLifecycleRoutes } from './gene/listings-lifecycle'
@@ -546,6 +547,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
         } catch (error) {
             console.error('[GENE] Failed to record BnB booking dates:', error)
+        }
+
+        // GENE Platform: platform owner visibility for every confirmed IoTec
+        // payment recorded above (tour/viewing-fee payments and BnB booking
+        // deposits alike) — best-effort, never affects the recording itself.
+        try {
+            const { checkIn, checkOut } = req.body
+            const isBnbBooking = typeof checkIn === 'string' && checkIn && typeof checkOut === 'string' && checkOut
+            const property = await storage.getProperty(parseFloat(propertyId)).catch(() => null)
+            const propertyLabel = property?.title ?? `property #${propertyId}`
+            const amountLabel = `${Number(amount).toLocaleString()} ${currency || 'UGX'}`
+
+            await notifyAdminsEverywhere({
+                title: isBnbBooking ? 'BnB booking deposit received' : 'Tour payment received',
+                message: isBnbBooking
+                    ? `${amountLabel} booking deposit received for "${propertyLabel}" (${checkIn} → ${checkOut}). Txn: ${transactionId}.`
+                    : `${amountLabel} tour/viewing payment received for "${propertyLabel}". Txn: ${transactionId}.`,
+                whatsappMessage: isBnbBooking
+                    ? `🏡 BnB booking deposit received\n\n"${propertyLabel}"\n${amountLabel}\n${checkIn} → ${checkOut}\nTxn: ${transactionId}`
+                    : `💵 Tour payment received\n\n"${propertyLabel}"\n${amountLabel}\nTxn: ${transactionId}`,
+                link: '/admin',
+                data: { propertyId: parseFloat(propertyId), transactionId },
+            })
+        } catch (error) {
+            console.error('[GENE] Failed to notify admins of IoTec payment:', error)
         }
     })
 
