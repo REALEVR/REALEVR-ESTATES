@@ -28,6 +28,7 @@
 import type { Express, RequestHandler } from 'express'
 import { storage } from '../storage'
 import { nextId, nowIso, readCollection, writeCollection } from './store'
+import { notifyAdminsEverywhere } from './admin-notify'
 
 const COLLECTION = 'gene_btc_settlements'
 
@@ -194,6 +195,17 @@ export function registerBtcPaymentsRoutes(app: Express, adminMiddleware: Request
             }
             rows.push(row)
             saveSettlements(rows)
+
+            // Platform owner visibility — a buyer locked a BTC quote and
+            // intends to send funds. Still pre-launch (finance sign-off
+            // required, see file header) so this is informational only,
+            // never treated as confirmed revenue until /btc/settle runs.
+            notifyAdminsEverywhere({
+                title: 'BTC payment quote locked',
+                message: `A ${amountLocal.toLocaleString()} ${currency} BTC quote was locked for property #${propertyId} (${quote.btcAmount.toFixed(8)} BTC, expires ${new Date(quote.expiresAt).toLocaleTimeString()}). Not yet a confirmed payment — reconcile via /api/gene/btc/settle once on-chain funds arrive. Finance sign-off still required before this is a live settlement path.`,
+                link: '/admin',
+                data: { settlementId: id, propertyId },
+            }).catch((err) => console.error('[gene/btc-payments] admin notification failed:', err))
 
             res.status(201).json(row)
         } catch (error: any) {

@@ -41,6 +41,7 @@ import type { Express, Request, Response, RequestHandler } from 'express'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
 import { requireStrictAdmin } from './admin-guard'
+import { notifyAdminsEverywhere } from './admin-notify'
 
 const COLLECTION = 'gene_success_fee_claims'
 
@@ -131,6 +132,17 @@ export function registerSuccessFeeRoutes(app: Express, adminMiddleware: RequestH
             }
             rows.push(claim)
             writeClaims(rows)
+
+            // Needs a STRICT admin's independent verification before any fee
+            // is due — this is the moment that review is actually requested.
+            notifyAdminsEverywhere({
+                title: 'Success fee claim submitted — needs verification',
+                message: `${claim.claimedByName} claimed a success fee for "${claim.propertyTitle}" (sale value ${claim.saleValueUgx.toLocaleString()} UGX, bank ref ${claim.bankReferenceNumber}). Verify the bank reference to confirm the fee.`,
+                whatsappMessage: `📋 Success fee claim submitted\n\n"${claim.propertyTitle}"\nClaimed by: ${claim.claimedByName}\nSale value: ${claim.saleValueUgx.toLocaleString()} UGX\nBank ref: ${claim.bankReferenceNumber}\n\nNeeds your verification.`,
+                link: '/admin',
+                data: { claimId: claim.id, propertyId: claim.propertyId },
+            }).catch((err) => console.error('[gene/success-fee] admin notification failed:', err))
+
             res.status(201).json(claim)
         } catch (err) {
             console.error('[gene/success-fee] create claim failed:', err)

@@ -219,6 +219,23 @@ async function activatePurchase(
         console.error('[gene/boost-placement] buyer notification failed:', err)
     }
 
+    // Platform owner visibility — every confirmed boost purchase, whichever
+    // path activated it (IoTec auto-confirm or an admin/agent's manual
+    // confirm), same as every other GENE payment module.
+    try {
+        const { notifyAdminsEverywhere } = await import('./admin-notify')
+        const property = await storage.getProperty(propertyId)
+        await notifyAdminsEverywhere({
+            title: 'Boost purchase activated',
+            message: `${BOOST_TIERS[rows[idx].tier].label} (${rows[idx].amountUgx.toLocaleString()} UGX) activated for "${property?.title ?? `property #${propertyId}`}" — confirmed via ${opts.paymentMethod === 'iotec' ? 'IoTec mobile money' : 'manual confirmation'}.`,
+            whatsappMessage: `🚀 Boost purchased\n\n"${property?.title ?? `property #${propertyId}`}"\n${BOOST_TIERS[rows[idx].tier].label} — ${rows[idx].amountUgx.toLocaleString()} UGX\nVia: ${opts.paymentMethod === 'iotec' ? 'IoTec mobile money (auto-confirmed)' : 'manual confirmation'}`,
+            link: '/admin',
+            data: { boostPurchaseId: rows[idx].id, propertyId },
+        })
+    } catch (err) {
+        console.error('[gene/boost-placement] admin notification failed:', err)
+    }
+
     return rows[idx]
 }
 

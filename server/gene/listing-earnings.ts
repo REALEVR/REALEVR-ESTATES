@@ -30,6 +30,7 @@
 import type { Express, Request, Response, NextFunction, RequestHandler } from 'express'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { createNotification } from '../models/Notification'
+import { notifyAdminsEverywhere } from './admin-notify'
 
 const EARNING_COLLECTION = 'gene_listing_earnings'
 const PAYOUT_COLLECTION = 'gene_listing_payout_requests'
@@ -190,6 +191,15 @@ export function registerListingEarningsRoutes(app: Express, adminMiddleware: Req
             }
             rows.push(request)
             writeCollection(PAYOUT_COLLECTION, rows)
+
+            // Needs an admin's approval before any money goes out.
+            notifyAdminsEverywhere({
+                title: 'Listing earnings payout requested',
+                message: `A user requested a ${request.ugxAmount.toLocaleString()} UGX listing-earnings payout to ${request.provider} ${request.mobileMoneyNumber}.`,
+                whatsappMessage: `🏠 Listing earnings payout requested\n\nAmount: ${request.ugxAmount.toLocaleString()} UGX\nProvider: ${request.provider}\nNumber: ${request.mobileMoneyNumber}\n\nNeeds your approval.`,
+                link: '/admin',
+                data: { payoutRequestId: request.id, userId },
+            }).catch((err) => console.error('[gene/listing-earnings] admin notification failed:', err))
 
             res.status(201).json({ request, balance: computeBalance(userId) })
         } catch (err) {
