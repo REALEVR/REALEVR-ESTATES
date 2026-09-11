@@ -14,7 +14,9 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2, LogIn, UserPlus } from 'lucide-react'
-import { insertUserSchema } from '@shared/schema'
+import { insertUserSchema, type User } from '@shared/schema'
+import GoogleSignInButton from '@/components/auth/GoogleSignInButton'
+import { attemptWelcomeAmbient } from '@/lib/ambientSound'
 
 const LoginSchema = z.object({
     username: z.string().min(1, 'Username is required'),
@@ -144,6 +146,26 @@ export default function AuthPage() {
         return <Redirect to="/" />
     }
 
+    // Same GoogleSignInButton used by AuthModal.tsx/AuthGate.tsx — Google
+    // never gives us a phone number, so WhatsAppNumberPrompt.tsx (mounted
+    // globally in App.tsx) picks up right after sign-in and compulsorily
+    // asks for one before letting the account go any further. No page
+    // reload needed here: setting the query cache below is enough for the
+    // `if (user)` redirect above to fire on next render.
+    const handleGoogleSignedIn = (signedInUser: Omit<User, 'password'>) => {
+        toast({
+            title: 'Signed in with Google',
+            description: `Welcome, ${signedInUser.fullName || signedInUser.username}!`,
+        })
+        // The click that opened Google's sign-in is still a fresh-enough
+        // user gesture for audio to start (see ambientSound.ts).
+        attemptWelcomeAmbient()
+    }
+
+    const handleGoogleError = (message: string) => {
+        toast({ title: 'Google sign-in failed', description: message, variant: 'destructive' })
+    }
+
     return (
         <div className="container mx-auto flex items-center justify-center py-16 px-6">
             <div className="w-full max-w-5xl grid md:grid-cols-2 gap-6">
@@ -228,6 +250,13 @@ export default function AuthPage() {
 
                 {/* Auth Forms */}
                 <div>
+                    <GoogleSignInButton onSignedIn={handleGoogleSignedIn} onError={handleGoogleError} className="w-full" />
+
+                    <div className="relative my-4 text-center text-xs text-gray-400">
+                        <span className="relative z-10 bg-white px-3">or</span>
+                        <div className="absolute left-0 right-0 top-1/2 h-px bg-gray-200" />
+                    </div>
+
                     <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab} className="w-full">
                         <TabsList className="grid w-full grid-cols-2 mb-6">
                             <TabsTrigger value="login">Login</TabsTrigger>
