@@ -31,6 +31,7 @@ import { storage } from '../storage'
 import type { Property } from '@shared/schema'
 import { getAiReply } from './ai-provider'
 import { languageInstruction } from './locale'
+import { classifyIntent, isLowConfidence, writeEscalation } from './chat'
 
 const PROFILE_COLLECTION = 'gene_agent_profiles'
 const SIGNAL_COLLECTION = 'gene_agent_signals'
@@ -689,6 +690,19 @@ export function registerPersonalAgentRoutes(app: Express): void {
             if (idx >= 0) rows[idx] = conversation
             else rows.push(conversation)
             writeCollection(CONVERSATION_COLLECTION, rows)
+
+            // Merged escalation path — same classifier and same shared
+            // gene_escalations collection + admin notification chat.ts's web
+            // widget and whatsapp-concierge.ts's WhatsApp "talk to a human"
+            // handling already use, so "My Agent" needing a human reaches
+            // the admin identically (in-app + email + WhatsApp + Slack) no
+            // matter which of the three surfaces the user actually reached.
+            const intent = classifyIntent(message)
+            if (isLowConfidence(intent, usedAi, reply)) {
+                const reason = intent === 'human_handoff_request' ? 'my_agent_human_handoff_request' : 'my_agent_low_confidence_reply'
+                const customerPhone = typeof (req.user as any)?.phoneNumber === 'string' ? (req.user as any).phoneNumber : undefined
+                writeEscalation(`agent:${userId}`, message, reason, customerPhone)
+            }
 
             res.json({ reply, usedAi })
         } catch (err) {

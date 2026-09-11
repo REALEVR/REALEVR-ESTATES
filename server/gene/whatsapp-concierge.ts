@@ -47,7 +47,6 @@ import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
 import { sendWhatsAppMessage } from './whatsapp'
 import { issueMagicLoginLink } from './magic-login'
-import { notifyNewEscalation } from './slack-bridge'
 import {
     loadProfile,
     loadSignals,
@@ -62,11 +61,6 @@ import { tryHandleListingUploadText, tryHandleListingUploadImage, tryHandleListi
 const LINK_COLLECTION = 'gene_whatsapp_user_links'
 const MESSAGE_COLLECTION = 'gene_whatsapp_messages'
 const SIGNAL_COLLECTION = 'gene_agent_signals' // shared contract with personal-agent.ts — read-only here
-// Shared contract with server/gene/chat.ts's GeneEscalation — same collection,
-// same shape, so a WhatsApp "talk to a human" request lands in the exact same
-// admin inbox (GET /api/gene/whatsapp/inbox in ./whatsapp.ts) as a web-chat
-// escalation. Only ever appends a compatible row here, never redefines it.
-const ESCALATIONS_COLLECTION = 'gene_escalations'
 
 /** Easy to customize — keep in sync with the display name used by the web
  * popup (client/src/components/broker/BrokerOnlinePresence.tsx) so the
@@ -201,28 +195,23 @@ function isFirstContact(phone: string): boolean {
     return !rows.some((r) => r.phone === phone && r.direction === 'inbound')
 }
 
-/** Writes a compatible row into the SAME `gene_escalations` collection
- * server/gene/chat.ts's web-chat escalation flow uses, and best-effort pings
- * Slack the same way — so "talk to a human broker" from WhatsApp shows up in
- * the existing admin inbox (GET /api/gene/whatsapp/inbox in ./whatsapp.ts)
- * instead of a new, separate queue nobody's watching. Resolving it there
- * already texts `customerPhone` back automatically (see whatsapp.ts's
- * /inbox/:id/resolve route) — no new notification code needed here. */
-function writeHumanHandoffEscalation(phone: string, lastMessage: string): void {
-    type MinimalEscalation = { id: number; sessionId: string; message: string; reason: string; createdAt: string; status: 'open'; customerPhone: string }
-    const rows = readCollection<MinimalEscalation>(ESCALATIONS_COLLECTION)
-    const escalation: MinimalEscalation = {
-        id: nextId(rows),
-        sessionId: `whatsapp:${phone}`,
-        message: lastMessage || '(no message text — requested a human via the WhatsApp menu)',
-        reason: 'whatsapp_menu_human_request',
-        createdAt: nowIso(),
-        status: 'open',
-        customerPhone: phone,
-    }
-    rows.push(escalation)
-    writeCollection(ESCALATIONS_COLLECTION, rows)
-    notifyNewEscalation(escalation).catch((err) => console.error('[gene/whatsapp-concierge] Slack notify failed:', err))
+/** Writes into the SAME `gene_escalations` collection every other GENE agent
+ * surface uses (chat.ts's web-chat widget, personal-agent.ts's "My Agent"
+ * chat) via chat.ts's shared writeEscalation — one merged escalation path,
+ * one merged notification (Slack + in-app + email + WhatsApp to the admin's
+ * own numbers), so "talk to a human broker" from WhatsApp shows up in the
+ * existing admin inbox (GET /api/gene/whatsapp/inbox in ./whatsapp.ts)
+ * exactly the same way an escalation from any other surface does. Resolving
+ * it there already texts `customerPhone` back automatically (see
+ * whatsapp.ts's /inbox/:id/resolve route). */
+async function writeHumanHandoffEscalation(phone: string, lastMessage: string): Promise<void> {
+    const { writeEscalation } = await import('./chat')
+    writeEscalation(
+        `whatsapp:${phone}`,
+        lastMessage || '(no message text — requested a human via the WhatsApp menu)',
+        'whatsapp_menu_human_request',
+        phone
+    )
 }
 
 /** Handles a "1"/"2"/"3" reply to the first-contact menu. Returns true if the
@@ -249,7 +238,7 @@ async function tryHandleMenuSelection(phone: string, text: string, link: Whatsap
     }
 
     if (MENU_HUMAN_RE.test(trimmed)) {
-        writeHumanHandoffEscalation(phone, text)
+        await writeHumanHandoffEscalation(phone, text)
         await replyAndLog(phone, "Got it — connecting you with a human broker. Someone from our team will reply here shortly!", link?.userId)
         return true
     }
