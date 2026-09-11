@@ -9,20 +9,27 @@ export function ensureAmenitiesArray(property: Property): Property {
 
   let amenities: string[] = [];
 
-  if (Array.isArray(property.amenities)) {
-    amenities = property.amenities;
-  } else if (typeof property.amenities === 'string') {
+  // The Property type declares amenities as string[], but this function exists
+  // specifically to defend against malformed runtime data (e.g. legacy records
+  // where amenities was stored as a raw or JSON-encoded string) that doesn't
+  // actually conform to that type. Read through `unknown` so TypeScript's
+  // static narrowing doesn't treat the string-handling branches as unreachable.
+  const rawAmenities = property.amenities as unknown;
+
+  if (Array.isArray(rawAmenities)) {
+    amenities = rawAmenities;
+  } else if (typeof rawAmenities === 'string') {
     try {
-      const parsed = JSON.parse(property.amenities);
+      const parsed = JSON.parse(rawAmenities);
       if (Array.isArray(parsed)) {
         amenities = parsed;
       } else {
         // If it's a string but not a JSON array, treat as comma-separated
-        amenities = property.amenities.split(',').map((s: string) => s.trim());
+        amenities = rawAmenities.split(',').map((s: string) => s.trim());
       }
     } catch (e) {
       // If JSON parsing fails, treat as comma-separated
-      amenities = property.amenities.split(',').map((s: string) => s.trim());
+      amenities = rawAmenities.split(',').map((s: string) => s.trim());
     }
   }
   // If amenities is null, undefined, or any other type, it remains an empty array
