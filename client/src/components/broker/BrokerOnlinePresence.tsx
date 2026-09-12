@@ -126,12 +126,20 @@ export default function BrokerOnlinePresence() {
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
             role="dialog"
             aria-label={`${BROKER_NAME}, ${BROKER_TITLE}, is online`}
-            className="fixed left-1/2 top-1/2 z-[61] w-[90vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card p-6 text-center shadow-2xl"
+            // max-h-[85vh] + overflow-y-auto: a fixed, vertically-centered
+            // card has nowhere to go on a short/landscape mobile screen
+            // (or with a mobile browser's own address-bar chrome eating
+            // into the visible viewport) — without this it can clip off
+            // the top/bottom with no way to scroll and reach the CTA.
+            className="fixed left-1/2 top-1/2 z-[61] w-[90vw] max-w-sm max-h-[85vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border bg-card p-6 text-center shadow-2xl"
           >
             <button
               onClick={dismiss}
               aria-label="Dismiss"
-              className="absolute right-3 top-3 rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              // h-9 w-9 (36px) rather than the bare icon+p-1 this used to be
+              // (~22px) — comfortably closer to the ~44px minimum tap-target
+              // guidance mobile-polished apps (Airbnb included) hold to.
+              className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
               <X className="h-4 w-4" />
             </button>
@@ -165,7 +173,10 @@ export default function BrokerOnlinePresence() {
 
             <button
               onClick={dismiss}
-              className="mt-3 text-xs text-muted-foreground underline-offset-2 hover:underline"
+              // p-2: widens the tap target well past the bare text's own
+              // small hitbox, without needing to fight Tailwind's margin
+              // cascade with a negative-margin offset.
+              className="mt-3 p-2 text-xs text-muted-foreground underline-offset-2 hover:underline"
             >
               Not now
             </button>

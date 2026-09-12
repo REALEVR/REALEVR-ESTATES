@@ -74,6 +74,19 @@
   --sidebar-ring: 235 21% 21%;
 
   --font-display: "Space Grotesk", "Montserrat", ui-sans-serif, sans-serif;
+
+  /* Mobile floating-element stack — single source of truth so
+     MobileTabBar.tsx's own height/safe-area math never drifts out of sync
+     with the floating buttons that must clear it (WhatsAppFab, AgentLauncher,
+     AmbientSoundToggle). --mobile-tabbar-h mirrors MobileTabBar.tsx's own
+     h-16 (4rem) + env(safe-area-inset-bottom) exactly. --fab-row-1/2 are the
+     two floating-button rows sitting above it, spaced so a 56px button in
+     row 1 never touches a row-2 button or the tab bar itself. Unused on
+     desktop (the tab bar is md:hidden there), where each component's own
+     md: bottom offset takes over instead. */
+  --mobile-tabbar-h: calc(4rem + env(safe-area-inset-bottom, 0px));
+  --fab-row-1: calc(var(--mobile-tabbar-h) + 16px);
+  --fab-row-2: calc(var(--fab-row-1) + 72px);
 }
 
 /* v2's dark palette, preserved for a future real dark-mode toggle — not

@@ -6,7 +6,13 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="surface-invert border-t border-border">
+    // pb-[var(--mobile-tabbar-h)] on mobile: MobileTabBar.tsx is `fixed
+    // bottom-0`, so without this the footer's own last row (the social
+    // icons/copyright line right below) has nowhere left to scroll to —
+    // it sits permanently behind the tab bar instead of above it. See
+    // index.css's --mobile-tabbar-h doc comment for why this exact value,
+    // not a guessed one, is what actually clears it on notched phones too.
+    <footer className="surface-invert border-t border-border pb-[var(--mobile-tabbar-h)] md:pb-0">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-10 pb-10">
           <div className="md:col-span-2">
