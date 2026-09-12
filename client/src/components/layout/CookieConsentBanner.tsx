@@ -53,7 +53,14 @@ export default function CookieConsentBanner() {
             aria-label="Cookie notice"
             className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card/95 backdrop-blur-sm shadow-[0_-4px_16px_rgba(0,0,0,0.08)]"
         >
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center gap-4">
+            {/* pb includes env(safe-area-inset-bottom) on top of the normal
+                py-4 — this banner sits flush at bottom-0, so without it the
+                Accept/Decline buttons crowd right up against the home-
+                indicator area on notched phones. */}
+            <div
+              className="container mx-auto px-4 sm:px-6 lg:px-8 pt-4 flex flex-col sm:flex-row items-center gap-4"
+              style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+            >
                 <p className="text-sm text-muted-foreground flex-1">
                     We use a small amount of essential browser storage to keep you signed in and remember things like
                     a paid tour-viewing pass. We don't run any third-party ad or tracking cookies.{' '}

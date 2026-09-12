@@ -42,7 +42,7 @@ export default function AmbientSoundToggle() {
             onClick={toggle}
             aria-label={enabled ? 'Turn off ambient welcome sound' : 'Turn on ambient welcome sound'}
             title={enabled ? (playing ? 'Ambient sound playing — tap to mute' : 'Ambient sound on') : 'Ambient sound off — tap to play'}
-            className={`fixed bottom-24 left-5 z-40 flex h-11 w-11 items-center justify-center rounded-full shadow-lg transition-all hover:scale-105 md:bottom-5 ${
+            className={`fixed bottom-[var(--fab-row-1)] left-5 z-40 flex h-11 w-11 items-center justify-center rounded-full shadow-lg transition-all hover:scale-105 md:bottom-5 ${
                 enabled ? 'bg-accent text-accent-foreground' : 'bg-white text-gray-500 border border-gray-200'
             }`}
         >

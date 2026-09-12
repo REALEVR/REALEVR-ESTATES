@@ -27,7 +27,7 @@ export default function AgentLauncher() {
       <button
         onClick={() => setOpen(true)}
         aria-label="Open your RealEVR agent"
-        className="fixed bottom-44 right-6 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95 md:bottom-6"
+        className="fixed bottom-[var(--fab-row-2)] right-6 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95 md:bottom-6"
       >
         <Sparkles className="h-5 w-5" />
         <span className="hidden text-sm font-medium sm:inline">My Agent</span>
