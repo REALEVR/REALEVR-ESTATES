@@ -225,6 +225,60 @@ export function AgentDashboard() {
         [toast]
     )
 
+    // "Export Analytics" / "View Trends" — previously pure decoration (no
+    // onClick at all). Both now call server/gene/analytics-export.ts, the
+    // same module that emails+WhatsApps the platform owner a weekly
+    // property-analytics digest every Saturday — this is the on-demand,
+    // real-CSV-download half of that same feature, scoped to this agent's
+    // own properties.
+    const [exportingAnalytics, setExportingAnalytics] = useState(false)
+    const handleExportAnalytics = useCallback(async () => {
+        setExportingAnalytics(true)
+        try {
+            const response = await fetch('/api/gene/analytics/export.csv', { credentials: 'include' })
+            if (!response.ok) throw new Error('Failed to export analytics')
+            const blob = await response.blob()
+            const url = URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href = url
+            link.download = `property-analytics-${new Date().toISOString().slice(0, 10)}.csv`
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            URL.revokeObjectURL(url)
+            toast({ title: 'Analytics exported', description: 'Your CSV download should start automatically.' })
+        } catch (error: any) {
+            toast({ title: 'Export failed', description: error.message || 'Please try again.', variant: 'destructive' })
+        } finally {
+            setExportingAnalytics(false)
+        }
+    }, [toast])
+
+    const [loadingTrends, setLoadingTrends] = useState(false)
+    const handleViewTrends = useCallback(async () => {
+        setLoadingTrends(true)
+        try {
+            const response = await fetch('/api/gene/analytics/summary', { credentials: 'include' })
+            if (!response.ok) throw new Error('Failed to load trends')
+            const data = await response.json()
+            if (data.isFirstReport) {
+                toast({
+                    title: 'Trend baseline saved',
+                    description: `${(data.totalViewsAllTime ?? 0).toLocaleString()} views all-time across ${data.totalProperties} propert${data.totalProperties === 1 ? 'y' : 'ies'}. Real week-over-week trends start appearing after this Saturday's weekly export.`,
+                })
+            } else {
+                toast({
+                    title: 'This week vs. all-time',
+                    description: `${(data.totalViewsThisWeek ?? 0).toLocaleString()} views this week (${(data.totalViewsAllTime ?? 0).toLocaleString()} all-time)${data.topProperty ? ` — top: "${data.topProperty.title}"` : ''}.`,
+                })
+            }
+        } catch (error: any) {
+            toast({ title: "Couldn't load trends", description: error.message || 'Please try again.', variant: 'destructive' })
+        } finally {
+            setLoadingTrends(false)
+        }
+    }, [toast])
+
     useEffect(() => {
         fetchAgentData()
     }, [fetchAgentData])
@@ -519,13 +573,13 @@ export function AgentDashboard() {
 
                                     {/* Quick Actions */}
                                     <div className="flex gap-2">
-                                        <Button variant="outline" size="sm">
+                                        <Button variant="outline" size="sm" onClick={handleExportAnalytics} disabled={exportingAnalytics}>
                                             <BarChart3 className="mr-2 h-4 w-4" />
-                                            Export Analytics
+                                            {exportingAnalytics ? 'Exporting…' : 'Export Analytics'}
                                         </Button>
-                                        <Button variant="outline" size="sm">
+                                        <Button variant="outline" size="sm" onClick={handleViewTrends} disabled={loadingTrends}>
                                             <TrendingUp className="mr-2 h-4 w-4" />
-                                            View Trends
+                                            {loadingTrends ? 'Loading…' : 'View Trends'}
                                         </Button>
                                     </div>
                                 </div>
