@@ -27,7 +27,6 @@ import {
     Download,
     Receipt,
     Gift,
-    Rocket,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import PropertyFormNew from '@/components/admin/PropertyFormNew'
@@ -37,24 +36,14 @@ import { useStartAgentAdminConversation } from '@/hooks/useMessaging'
 import MessagesInbox from '@/components/messaging/MessagesInbox'
 import { useInstallPrompt } from '@/hooks/useInstallPrompt'
 import BoostPurchaseCard from '@/components/boost/BoostPurchaseCard'
+import { Skeleton } from '@/components/ui/skeleton'
 import AddPhoneNumberPrompt from '@/components/rentrail/AddPhoneNumberPrompt'
 import RentRailReceiptList, { type RentRailReceiptRow } from '@/components/rentrail/RentRailReceiptList'
-// Reused as-is inside its own tab here instead of a separate dropdown-menu
-// page (see the "Boost" TabsContent below) - it's already a self-contained
-// component with its own fetch/state, no routing assumptions to work around.
-import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
-import RewardsPanel from '@/components/rewards/RewardsPanel'
 
 interface PropertyWithViews extends Property {
     viewCount: number
     recentViews?: number
-    // Property already declares ownerId (number | null) - this redundant
-    // re-declaration as `number | undefined` was never read anywhere in
-    // this file and only made PropertyWithViews structurally incompatible
-    // with Property itself (TS2430), which in turn blocked passing a
-    // PropertyWithViews wherever a plain Property was expected - as
-    // openTourUpload below now needs to, to hand the selected property to
-    // PropertyFormNew.
+    ownerId?: number
 }
 
 export function AgentDashboard() {
@@ -63,18 +52,6 @@ export function AgentDashboard() {
     const [properties, setProperties] = useState<PropertyWithViews[]>([])
     const [loading, setLoading] = useState(true)
     const [isAddPropertyOpen, setIsAddPropertyOpen] = useState(false)
-    // The tour ZIP upload, reached from a property's "Upload Tour"/"Add
-    // Tour"/"Manage Tour" button, used to navigate away to the standalone
-    // Virtual Tour Manager page (/admin/virtual-tour-manager) - a second,
-    // less-exercised upload surface that could throw a full-page crash
-    // (a null property id reaching .toString() in that page's own property
-    // picker) and, unlike this dashboard's own upload path, hadn't gotten
-    // this session's reliability fixes applied to it first. Reusing
-    // PropertyFormNew's own "Virtual Tour" tab here - the exact same
-    // component and code path the admin property editor already uploads
-    // tours through successfully - means every tour upload in the agent
-    // dashboard goes through one proven pathway instead of two.
-    const [editingProperty, setEditingProperty] = useState<Property | null>(null)
     const [stats, setStats] = useState({
         totalProperties: 0,
         totalViews: 0,
@@ -178,20 +155,6 @@ export function AgentDashboard() {
         [toast, fetchAgentData]
     )
 
-    // Opens the property in the same edit dialog/form the admin property
-    // editor uses, landing straight on its "Virtual Tour" tab - see
-    // editingProperty's own comment for why this replaced navigating to
-    // the standalone Virtual Tour Manager page.
-    const openTourUpload = useCallback((property: PropertyWithViews) => {
-        try {
-            window.localStorage.setItem('propertyFormTab', 'tour')
-        } catch {
-            // Best-effort only - PropertyFormNew defaults to its "details"
-            // tab if this didn't stick, which is still a working form.
-        }
-        setEditingProperty(property)
-    }, [])
-
     // Availability toggle — reuses the existing admin/agent-gated
     // /api/properties/:id/toggle-availability route (server/routes.ts), the
     // same one the WhatsApp concierge's owner-checked toggle mirrors for
@@ -230,10 +193,48 @@ export function AgentDashboard() {
     }, [fetchAgentData])
 
     if (loading) {
+        // Same fix as UserDashboard's loading state: a shell-shaped skeleton
+        // (matching this page's own header + 4-stat-card grid below)
+        // instead of a spinner in an otherwise-blank page, so the agent's
+        // primary workspace doesn't jump-lay-out the moment data arrives.
         return (
             <div className="container mx-auto py-8 px-6">
-                <div className="flex justify-center items-center min-h-[400px]">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                <div className="max-w-7xl mx-auto">
+                    <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <Skeleton className="h-9 w-56 mb-2" />
+                            <Skeleton className="h-5 w-72" />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <Card key={i}>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <Skeleton className="h-4 w-24" />
+                                    <Skeleton className="h-4 w-4 rounded-full" />
+                                </CardHeader>
+                                <CardContent>
+                                    <Skeleton className="h-7 w-16 mb-2" />
+                                    <Skeleton className="h-3 w-24" />
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                    <Skeleton className="h-10 w-96 mb-6" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                            <Card key={i}>
+                                <CardHeader>
+                                    <Skeleton className="h-5 w-3/4 mb-2" />
+                                    <Skeleton className="h-4 w-1/2" />
+                                </CardHeader>
+                                <CardContent>
+                                    <Skeleton className="h-4 w-full mb-2" />
+                                    <Skeleton className="h-4 w-2/3" />
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
                 </div>
             </div>
         )
@@ -306,11 +307,7 @@ export function AgentDashboard() {
                     server/gene/rentrail.ts's deliverReceipt) lands straight
                     on the Rent Pay tab, not buried behind My Properties. */}
                 <Tabs
-                    defaultValue={
-                        ['rentpay', 'rewards'].includes(new URLSearchParams(window.location.search).get('tab') || '')
-                            ? (new URLSearchParams(window.location.search).get('tab') as string)
-                            : 'properties'
-                    }
+                    defaultValue={new URLSearchParams(window.location.search).get('tab') === 'rentpay' ? 'rentpay' : 'properties'}
                     className="space-y-6"
                 >
                     <TabsList className="flex-wrap h-auto">
@@ -322,12 +319,6 @@ export function AgentDashboard() {
                         <TabsTrigger value="reviews">Reviews</TabsTrigger>
                         <TabsTrigger value="rentpay">
                             <Receipt className="mr-1.5 h-3.5 w-3.5" /> Rent Pay
-                        </TabsTrigger>
-                        <TabsTrigger value="boost">
-                            <Rocket className="mr-1.5 h-3.5 w-3.5" /> Boost
-                        </TabsTrigger>
-                        <TabsTrigger value="rewards">
-                            <Gift className="mr-1.5 h-3.5 w-3.5" /> Rewards
                         </TabsTrigger>
                     </TabsList>
 
@@ -367,15 +358,6 @@ export function AgentDashboard() {
                                                           {property.price ? property.price.toLocaleString() : 'N/A'}
                                                       </span>
                                                   </div>
-                                                  {(property.category === 'furnished_houses' || property.category === 'BnB') &&
-                                                      property.monthlyPrice != null && (
-                                                          <div className="flex justify-between text-sm">
-                                                              <span className="text-muted-foreground">Monthly rate:</span>
-                                                              <span className="font-medium">
-                                                                  {property.currency} {property.monthlyPrice.toLocaleString()}
-                                                              </span>
-                                                          </div>
-                                                      )}
                                                   <div className="flex justify-between text-sm">
                                                       <span className="text-muted-foreground">Views:</span>
                                                       <span className="font-medium">{property.viewCount || 0}</span>
@@ -402,7 +384,15 @@ export function AgentDashboard() {
                                                       variant="outline"
                                                       size="sm"
                                                       className="flex-1"
-                                                      onClick={() => openTourUpload(property)}
+                                                      onClick={() => {
+                                                          // Straight to the full Virtual Tour Manager (3D Vista ZIP
+                                                          // *and* guided phone capture) rather than the property
+                                                          // form's own narrower "tour" tab (ZIP upload only, no
+                                                          // phone-capture option) — see PropertyFormNew.tsx's own
+                                                          // "Capture with your phone" callout for the other entry
+                                                          // point into the same page.
+                                                          window.location.href = `/admin/virtual-tour-manager?propertyId=${property.id}`
+                                                      }}
                                                   >
                                                       <Upload className="mr-1 h-3 w-3" />
                                                       Upload Tour
@@ -441,7 +431,7 @@ export function AgentDashboard() {
                                     <p className="text-muted-foreground mb-4">
                                         Start by adding your first property listing
                                     </p>
-                                    <Button onClick={() => setIsAddPropertyOpen(true)}>
+                                    <Button>
                                         <Plus className="mr-2 h-4 w-4" />
                                         Add Your First Property
                                     </Button>
@@ -576,7 +566,9 @@ export function AgentDashboard() {
                                                     size="sm"
                                                     variant="outline"
                                                     className="shrink-0"
-                                                    onClick={() => openTourUpload(property)}
+                                                    onClick={() => {
+                                                        window.location.href = `/admin/virtual-tour-manager?propertyId=${property.id}`
+                                                    }}
                                                 >
                                                     <Upload className="mr-1 h-3 w-3" />
                                                     {property.hasTour ? 'Manage Tour' : 'Add Tour'}
@@ -604,14 +596,6 @@ export function AgentDashboard() {
                     <TabsContent value="rentpay" className="space-y-6">
                         <RentPayTab />
                     </TabsContent>
-
-                    <TabsContent value="boost" className="space-y-6">
-                        <AdminBoostConfirmations />
-                    </TabsContent>
-
-                    <TabsContent value="rewards" className="space-y-6">
-                        <RewardsPanel />
-                    </TabsContent>
                 </Tabs>
             </div>
 
@@ -632,45 +616,6 @@ export function AgentDashboard() {
                             })
                         }}
                     />
-                </DialogContent>
-            </Dialog>
-
-            {/* Tour upload dialog — see openTourUpload's own comment for why
-                this reuses the same PropertyFormNew component (keyed on the
-                property so switching properties gets a fresh form) instead of
-                navigating to the standalone Virtual Tour Manager page. */}
-            <Dialog
-                open={!!editingProperty}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        setEditingProperty(null)
-                        try {
-                            window.localStorage.removeItem('propertyFormTab')
-                        } catch {
-                            // Best-effort cleanup only.
-                        }
-                    }
-                }}
-            >
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>{editingProperty?.title || 'Property'}</DialogTitle>
-                    </DialogHeader>
-                    {editingProperty && (
-                        <PropertyFormNew
-                            key={editingProperty.id}
-                            property={editingProperty}
-                            onSuccess={() => {
-                                setEditingProperty(null)
-                                try {
-                                    window.localStorage.removeItem('propertyFormTab')
-                                } catch {
-                                    // Best-effort cleanup only.
-                                }
-                                fetchAgentData()
-                            }}
-                        />
-                    )}
                 </DialogContent>
             </Dialog>
         </div>

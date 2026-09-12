@@ -247,9 +247,7 @@ function AuctionPropertyCard({ property, onPlaceBid }: AuctionPropertyCardProps)
           </div>
           <div className="flex flex-col items-center p-2 bg-gray-50 rounded-md">
             <Maximize className="h-4 w-4 text-gray-500 mb-1" />
-            {/* No longer collected on the upload form - graceful fallback for
-                new listings instead of a fabricated "0 sq m", keeps the grid intact. */}
-            <span className="text-sm">{property.squareMeters ? `${property.squareMeters} sq m` : '—'}</span>
+            <span className="text-sm">{property.squareMeters} sq m</span>
           </div>
         </div>
 

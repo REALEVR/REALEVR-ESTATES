@@ -4,9 +4,8 @@ import type { Property, User } from '@shared/schema'
 import SharePropertyModal from '../property/SharePropertyModal'
 import BookingCalendarModal from '../property/BookingCalendarModal'
 import { AnimatedCard, FadeIn } from '@/components/ui/animated-components'
-import { Star, Rocket } from 'lucide-react'
+import { Star } from 'lucide-react'
 import VRBadge from '../property/VRBadge'
-import { useActiveBoostedPropertyIds } from '@/hooks/useActiveBoosts'
 
 interface PropertyCardProps {
     property: Property
@@ -17,10 +16,6 @@ export default function PropertyCard({ property }: PropertyCardProps) {
     const [isShareModalOpen, setIsShareModalOpen] = useState(false)
     const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
     const [propertyOwner, setPropertyOwner] = useState<User | null>(null)
-    // Same badge, wherever this card renders — not just the featured
-    // carousel — see server/gene/boost-placement.ts and useActiveBoosts.ts.
-    const { data: activeBoosts } = useActiveBoostedPropertyIds()
-    const isBoosted = !!activeBoosts?.propertyIds?.includes(property.id)
 
     // Fetch property owner details
     useEffect(() => {
@@ -92,8 +87,15 @@ export default function PropertyCard({ property }: PropertyCardProps) {
 
     return (
         <>
+            {/* Hover-lift lives only in <AnimatedCard>'s whileHover below —
+                the hover:shadow-xl/-translate-y-0.5/transition-all classes
+                this div used to also carry never rendered (AnimatedCard's
+                inline style always wins over a CSS class), they just meant
+                three animation systems were nominally fighting over the
+                same effect on the platform's single most-browsed
+                component. improve-animations audit. */}
             <AnimatedCard
-                className="property-card bg-card rounded-2xl overflow-hidden shadow-sm border-[1.5px] border-border cursor-pointer hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
+                className="bg-card rounded-2xl overflow-hidden shadow-sm border-[1.5px] border-border cursor-pointer"
                 onClick={handleCardClick}
             >
                 <div className="relative">
@@ -133,34 +135,20 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                             <i className={`${isFavorite ? 'fas text-accent' : 'far'} fa-heart`}></i>
                         </button>
                     </div>
-                    {(property.isAvailable !== undefined || isBoosted) && (
-                        <div className="absolute top-3 left-3 z-10 flex flex-col items-start gap-1.5">
-                            {/* Only shown while a real, currently-active boost
-                                purchase covers this property — see
-                                server/gene/boost-placement.ts. Never shown
-                                just because isFeatured happens to be true by
-                                some other means, so this badge always means
-                                "someone paid for this placement right now". */}
-                            {isBoosted && (
-                                <span className="flex items-center gap-1 text-xs font-medium rounded-full px-2 py-1 bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm">
-                                    <Rocket className="h-3 w-3" />
-                                    Boosted
-                                </span>
-                            )}
-                            {property.isAvailable !== undefined && (
+                    {property.isAvailable !== undefined && (
+                        <div className="absolute top-3 left-3 z-10">
+                            <span
+                                className={`flex items-center text-xs font-medium rounded-full px-2 py-1 ${
+                                    property.isAvailable ? 'bg-emerald-600 text-white' : 'bg-red-500 text-white'
+                                }`}
+                            >
                                 <span
-                                    className={`flex items-center text-xs font-medium rounded-full px-2 py-1 ${
-                                        property.isAvailable ? 'bg-emerald-600 text-white' : 'bg-red-500 text-white'
+                                    className={`w-2 h-2 rounded-full mr-1 ${
+                                        property.isAvailable ? 'bg-white' : 'bg-white'
                                     }`}
-                                >
-                                    <span
-                                        className={`w-2 h-2 rounded-full mr-1 ${
-                                            property.isAvailable ? 'bg-white' : 'bg-white'
-                                        }`}
-                                    ></span>
-                                    {property.isAvailable ? 'Available' : 'Unavailable'}
-                                </span>
-                            )}
+                                ></span>
+                                {property.isAvailable ? 'Available' : 'Unavailable'}
+                            </span>
                         </div>
                     )}
                     {property.hasTour && (
@@ -212,11 +200,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                     </div>
                     <p className="text-muted-foreground text-sm mb-2">{property.location}</p>
                     <p className="text-muted-foreground text-sm mb-3">
-                        {property.bedrooms} bed • {property.bathrooms} bath
-                        {/* Square meters is no longer collected on the upload form (agents found
-                            it more friction than it was worth) — only shown for older listings
-                            that already have a real value, never a fabricated "0 sq m". */}
-                        {property.squareMeters ? ` • ${property.squareMeters} sq m` : ''}
+                        {property.bedrooms} bed • {property.bathrooms} bath • {property.squareMeters} sq m
                     </p>
 
                     {/* Property Owner Contact */}
@@ -274,16 +258,6 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                             {(property.category === 'furnished_houses' || property.category === 'BnB') && (
                                 <span className="text-muted-foreground text-sm"> / day</span>
                             )}
-                            {/* A BnB can optionally set a discounted monthlyPrice
-                                for long stays (PropertyFormNew.tsx) - shown as a
-                                second line rather than replacing the nightly
-                                rate above, since most bookings are still nightly. */}
-                            {(property.category === 'furnished_houses' || property.category === 'BnB') &&
-                                property.monthlyPrice != null && (
-                                    <p className="text-muted-foreground text-xs mt-0.5">
-                                        or {property.monthlyPrice.toLocaleString()} {property.currency || 'UGX'} / month
-                                    </p>
-                                )}
                         </div>
                     </div>
                 </div>

@@ -20,8 +20,6 @@ import { recordTourPayment } from '@/lib/iotect-verify-pay'
 import { useStartConversation } from '@/hooks/useMessaging'
 import type { User } from '@shared/schema'
 import { Phone, User as UserIcon } from 'lucide-react'
-import { useBnbAvailability } from '@/hooks/useBnbAvailability'
-import { useAuth } from '@/hooks/use-auth'
 
 interface BookingCalendarModalProps {
     isOpen: boolean
@@ -49,7 +47,6 @@ export default function BookingCalendarModal({
     owner = null,
 }: BookingCalendarModalProps) {
     const { toast } = useToast()
-    const { user } = useAuth()
     const [, setLocation] = useLocation()
     const [date, setDate] = useState<Date | undefined>(new Date())
     const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null)
@@ -66,17 +63,7 @@ export default function BookingCalendarModal({
     const totalAmount = isBnB ? propertyPrice * numNights : 15000 // 15,000 UGX viewing fee for rentals
     const depositAmount = isBnB ? Math.round(totalAmount * 0.2) : totalAmount
 
-    // Booking calendar visibility (see server/gene/bnb-bookings.ts) — lets
-    // this picker refuse a check-in date someone else already booked,
-    // instead of silently taking a deposit for a date that's unavailable.
-    const { isDateBooked } = useBnbAvailability(propertyId, isBnB && isOpen)
-
-    const toIsoDate = (d: Date) => {
-        const y = d.getFullYear()
-        const m = String(d.getMonth() + 1).padStart(2, '0')
-        const day = String(d.getDate()).padStart(2, '0')
-        return `${y}-${m}-${day}`
-    }
+  
 
     const timeSlots = [
         '9:00 AM',
@@ -115,19 +102,6 @@ export default function BookingCalendarModal({
             return
         }
 
-        // The default pre-selected date (today) isn't run through the
-        // Calendar's own `disabled` check unless the guest actually opens
-        // the picker, so re-check here too before letting a booked date
-        // through to the payment step.
-        if (isBnB && isDateBooked(date)) {
-            toast({
-                title: 'That date is already booked',
-                description: 'Please pick a check-in date that isn\'t already taken — see the calendar above.',
-                variant: 'destructive',
-            })
-            return
-        }
-
         if (!selectedTimeSlot && !isBnB) {
             toast({
                 title: 'Please select a time slot',
@@ -145,24 +119,6 @@ export default function BookingCalendarModal({
     }
 
     const handleBookNow = () => {
-        // Every booking (and, for BnBs, its check-in/check-out dates) gets
-        // attached to the paying guest's own account — see
-        // server/gene/bnb-bookings.ts. Refuse to even open the payment step
-        // for a signed-out visitor instead of silently recording an orphan
-        // payment the guest could never look back on.
-        if (!user) {
-            onClose()
-            toast({
-                title: 'Please sign in first',
-                description: isBnB
-                    ? "You'll need an account so this booking is saved to your dashboard."
-                    : 'Please sign in to continue.',
-                variant: 'destructive',
-            })
-            setLocation('/auth')
-            return
-        }
-
         if (isBnB && numNights < 1) {
             toast({
                 title: 'Please enter at least 1 night',
@@ -194,22 +150,7 @@ export default function BookingCalendarModal({
             amount : paymentInfo.amount,
             currency : "UGX",
             propertyId : `${propertyId}`,
-            transactionId : paymentInfo.transactionId,
-            // Attaches this payment (and, for BnBs, the booking itself) to
-            // the paying guest's own account. handleBookNow above already
-            // refuses to reach this point without a signed-in user, so
-            // user?.id should always be set here.
-            userId: user?.id,
-            // BnB only: records this stay's occupied date range for the
-            // shared booking calendar (see server/gene/bnb-bookings.ts) —
-            // checkOut is check-in + numNights, exclusive.
-            ...(isBnB && date
-                ? {
-                      checkIn: toIsoDate(date),
-                      checkOut: toIsoDate(new Date(date.getFullYear(), date.getMonth(), date.getDate() + numNights)),
-                      guests: numGuests,
-                  }
-                : {}),
+            transactionId : paymentInfo.transactionId
         })
 
         try {
@@ -303,17 +244,10 @@ export default function BookingCalendarModal({
                                     mode="single"
                                     selected={date}
                                     onSelect={setDate}
-                                    disabled={(d) => d < new Date() || (isBnB && isDateBooked(d))}
-                                    modifiers={isBnB ? { booked: isDateBooked } : undefined}
-                                    modifiersClassNames={isBnB ? { booked: 'bg-destructive/15 text-destructive line-through' } : undefined}
+                                    disabled={(date) => date < new Date()}
                                     className="rounded-md border mx-auto"
                                 />
                             </div>
-                            {isBnB && (
-                                <p className="text-xs text-muted-foreground text-center -mt-2 mb-4">
-                                    Dates already booked by other guests are shown crossed out and can't be selected.
-                                </p>
-                            )}
 
                             <DialogFooter>
                                 <Button variant="outline" onClick={onClose}>

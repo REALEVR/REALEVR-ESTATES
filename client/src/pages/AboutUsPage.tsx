@@ -1,25 +1,38 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Reveal from "@/components/motion/Reveal";
 
+// This is a rare, once-per-visitor page (nobody re-reads "About Us" daily),
+// so it gets the delight budget AUDIT.md's purpose/frequency category
+// reserves for occasional/explanatory content — a scroll-triggered reveal
+// per section, same pattern as the homepage already uses (Reveal.tsx),
+// rather than the plain "load with everything already visible" this page
+// had. Staggered 80ms apart so sections settle in reading order, not all
+// at once.
 export default function AboutUsPage() {
   return (
     <div className="container mx-auto px-6 py-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-center mb-8">About RealEVR Estates</h1>
-        
+        <Reveal direction="fade">
+          <h1 className="text-3xl font-bold text-center mb-8">About RealEVR Estates</h1>
+        </Reveal>
+
         <div className="space-y-8">
+          <Reveal delay={0}>
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl text-accent">Our Mission</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-gray-600 leading-relaxed">
-                RealEVR Estates is revolutionizing the real estate industry in Uganda by providing 
-                immersive virtual tours and seamless property discovery experiences. We believe that 
+                RealEVR Estates is revolutionizing the real estate industry in Uganda by providing
+                immersive virtual tours and seamless property discovery experiences. We believe that
                 everyone deserves to explore properties from anywhere, anytime, with just a click.
               </p>
             </CardContent>
           </Card>
+          </Reveal>
 
+          <Reveal delay={0.08}>
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl text-accent">What We Do</CardTitle>
@@ -29,54 +42,58 @@ export default function AboutUsPage() {
                 <div>
                   <h3 className="font-semibold text-lg mb-2">Virtual Tours</h3>
                   <p className="text-gray-600">
-                    Experience properties in 360° immersive tours that let you explore every corner 
+                    Experience properties in 360° immersive tours that let you explore every corner
                     from the comfort of your home.
                   </p>
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg mb-2">Property Discovery</h3>
                   <p className="text-gray-600">
-                    Find your perfect home with our advanced search filters and comprehensive 
+                    Find your perfect home with our advanced search filters and comprehensive
                     property listings across Uganda.
                   </p>
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg mb-2">Agent Services</h3>
                   <p className="text-gray-600">
-                    Connect with verified real estate agents and property owners for personalized 
+                    Connect with verified real estate agents and property owners for personalized
                     assistance and guidance.
                   </p>
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg mb-2">Secure Payments</h3>
                   <p className="text-gray-600">
-                    Safe and secure payment processing for property viewings and bookings with 
+                    Safe and secure payment processing for property viewings and bookings with
                     multiple payment options.
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
+          </Reveal>
 
+          <Reveal delay={0.16}>
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl text-accent">Our Story</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-gray-600 leading-relaxed mb-4">
-                Founded in 2024, RealEVR Estates emerged from a vision to transform how people 
-                discover and experience real estate in Uganda. We recognized the challenges of 
-                traditional property viewing and set out to create a solution that combines 
+                Founded in 2024, RealEVR Estates emerged from a vision to transform how people
+                discover and experience real estate in Uganda. We recognized the challenges of
+                traditional property viewing and set out to create a solution that combines
                 cutting-edge technology with local market expertise.
               </p>
               <p className="text-gray-600 leading-relaxed">
-                Today, we serve thousands of users across Uganda, helping them find their dream 
-                homes, investment properties, and vacation rentals through our innovative platform. 
+                Today, we serve thousands of users across Uganda, helping them find their dream
+                homes, investment properties, and vacation rentals through our innovative platform.
                 Our commitment to quality, transparency, and user experience drives everything we do.
               </p>
             </CardContent>
           </Card>
+          </Reveal>
 
+          <Reveal delay={0.24}>
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl text-accent">Our Values</CardTitle>
@@ -113,8 +130,9 @@ export default function AboutUsPage() {
               </div>
             </CardContent>
           </Card>
+          </Reveal>
         </div>
       </div>
     </div>
   );
-} 
+}

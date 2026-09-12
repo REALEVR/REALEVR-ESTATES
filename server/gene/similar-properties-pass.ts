@@ -25,7 +25,6 @@ import type { Express, Request, Response } from 'express'
 import { nextId, nowIso, readCollection, writeCollection } from './store'
 import { storage } from '../storage'
 import { SIMILAR_PROPERTIES_PASS_PRICE_UGX } from '../../shared/pricing'
-import { notifyAdminsEverywhere } from './admin-notify'
 
 const COLLECTION = 'gene_similar_properties_passes'
 
@@ -132,18 +131,11 @@ export function registerSimilarPropertiesPassRoutes(app: Express): void {
                 timestamp: nowIso(),
             })
 
-            const finalAmount = Number.isFinite(paidAmount) && paidAmount > 0 ? paidAmount : SIMILAR_PROPERTIES_PASS_PRICE_UGX
-            const finalCurrency = typeof currency === 'string' && currency ? currency : 'UGX'
-            const pass = issuePass(userId, finalAmount, finalCurrency)
-
-            // Platform owner visibility — fire-and-forget, never blocks the response.
-            notifyAdminsEverywhere({
-                title: 'Similar Properties pass purchased',
-                message: `A ${finalAmount.toLocaleString()} ${finalCurrency} Similar Properties pass was purchased (property #${propId}, IoTec txn ${transactionId}).`,
-                link: '/admin',
-                data: { passId: pass.id, userId, propertyId: propId, transactionId },
-            }).catch((err) => console.error('[gene/similar-properties-pass] admin notification failed:', err))
-
+            const pass = issuePass(
+                userId,
+                Number.isFinite(paidAmount) && paidAmount > 0 ? paidAmount : SIMILAR_PROPERTIES_PASS_PRICE_UGX,
+                typeof currency === 'string' && currency ? currency : 'UGX'
+            )
             res.status(201).json(pass)
         } catch (err: any) {
             console.error('[gene/similar-properties-pass] confirm failed:', err)

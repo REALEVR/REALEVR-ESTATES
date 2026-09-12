@@ -182,7 +182,6 @@ export default function FeaturedTour() {
                 <VirtualTour
                   tourUrl={featuredProperty.tourUrl || "https://realevr.com/LA%20ROSE%20ROYAL%20APARTMENTS/"}
                   isFullscreen={isFullscreen}
-                  showVrButton
                 />
 
                 <div className="absolute bottom-4 right-4 bg-card/80 backdrop-blur-sm rounded-lg p-2 shadow-lg">
@@ -267,14 +266,10 @@ export default function FeaturedTour() {
                             <i className="fas fa-bath w-6"></i>
                             <span>{featuredProperty.bathrooms} Bathrooms</span>
                           </li>
-                          {/* No longer collected on the upload form - only shown for
-                              older listings that already have a real value. */}
-                          {featuredProperty.squareMeters ? (
-                            <li className="flex items-center">
-                              <i className="fas fa-vector-square w-6"></i>
-                              <span>{featuredProperty.squareMeters} sq m</span>
-                            </li>
-                          ) : null}
+                          <li className="flex items-center">
+                            <i className="fas fa-vector-square w-6"></i>
+                            <span>{featuredProperty.squareMeters} sq m</span>
+                          </li>
                         </ul>
                       </div>
                       <div>
@@ -465,12 +460,6 @@ export default function FeaturedTour() {
                   {(featuredProperty.category === 'for_sale' || featuredProperty.category === 'bank_sales') && (
                     <span className="text-muted-foreground"> / sale</span>
                   )}
-                  {(featuredProperty.category === 'furnished_houses' || featuredProperty.category === 'BnB') &&
-                      featuredProperty.monthlyPrice != null && (
-                          <p className="text-muted-foreground text-sm mt-1">
-                              or {featuredProperty.monthlyPrice.toLocaleString()} {featuredProperty.currency || 'UGX'} / month for long stays
-                          </p>
-                      )}
                 </div>
                 <div className="flex flex-col gap-3">
                   <div className="flex flex-wrap gap-3">

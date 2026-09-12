@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Loader2, Mail, ArrowRight } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { apiRequest, queryClient } from '../lib/queryClient'
+import Reveal from '@/components/motion/Reveal'
 
 export default function VerifyEmailPage() {
     const { user } = useAuth()
@@ -99,6 +100,11 @@ export default function VerifyEmailPage() {
 
     return (
         <div className="container mx-auto flex items-center justify-center min-h-screen py-16 px-6">
+            {/* A rare, once-per-account page — a small entrance is appropriate
+                delight budget here (AUDIT.md purpose/frequency category)
+                rather than the account-verification card just being on
+                screen instantly with everything else on page load. */}
+            <Reveal>
             <Card className="w-full max-w-md">
                 <CardHeader className="text-center">
                     <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
@@ -177,6 +183,7 @@ export default function VerifyEmailPage() {
                     </div>
                 </CardContent>
             </Card>
+            </Reveal>
         </div>
     )
 }

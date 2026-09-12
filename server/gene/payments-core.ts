@@ -17,7 +17,6 @@
  */
 import type { Express, RequestHandler } from 'express'
 import { nextId, nowIso, readCollection, writeCollection } from './store'
-import { notifyAdminsEverywhere } from './admin-notify'
 
 const COLLECTION = 'gene_transactions'
 
@@ -165,19 +164,6 @@ export function registerPaymentsCoreRoutes(app: Express, adminMiddleware: Reques
             }
             rows.push(row)
             saveTransactions(rows)
-
-            // pending_manual_confirmation means a human (you) still needs to
-            // verify the cash/bank/mobile-money transfer actually arrived —
-            // this is the moment that review is requested.
-            if (row.status === 'pending_manual_confirmation') {
-                notifyAdminsEverywhere({
-                    title: 'Payment needs manual confirmation',
-                    message: `A ${row.amountMinor.toLocaleString()} ${row.currency} charge (property #${row.propertyId}, ref ${row.reference}) is awaiting manual confirmation that the transfer/cash was actually received.`,
-                    whatsappMessage: `💳 Payment needs confirmation\n\nAmount: ${row.amountMinor.toLocaleString()} ${row.currency}\nProperty: #${row.propertyId}\nRef: ${row.reference}\n\nConfirm once you verify the transfer/cash was received.`,
-                    link: '/admin',
-                    data: { transactionId: row.id, propertyId: row.propertyId },
-                }).catch((err) => console.error('[gene/payments-core] admin notification failed:', err))
-            }
 
             res.status(201).json(row)
         } catch (error: any) {

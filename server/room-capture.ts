@@ -331,82 +331,6 @@ export const getRoomCaptureManifest = (req: Request, res: Response) => {
   res.json(withUrls);
 };
 
-/**
- * Admin overview: every property with an in-progress (not yet finalized)
- * room-capture draft, across every agent — "appears in the admin
- * dashboard along with the respective rooms, awaiting the creation of the
- * virtual tour." A draft only exists on disk between an agent's first
- * uploaded room and the moment they hit "Finalize" (which deletes the
- * draft dir - see finalizeRoomCapture below), so this list is exactly
- * "what's mid-capture right now." Scoped to admins only (registered with
- * requireStrictAdmin, not the shared admin-or-agent guard the other
- * room-capture routes use) since it spans every agent's properties, not
- * just the caller's own.
- */
-export const listRoomCaptureDrafts = async (_req: Request, res: Response) => {
-  try {
-    if (!fs.existsSync(uploadsRoot)) return res.json([]);
-
-    const { storage } = await import('./storage');
-    const entries = fs
-      .readdirSync(uploadsRoot, { withFileTypes: true })
-      .filter((e) => e.isDirectory() && /^property_.+_draft$/.test(e.name));
-
-    const drafts = await Promise.all(
-      entries.map(async (entry) => {
-        const propertyId = entry.name.replace(/^property_/, '').replace(/_draft$/, '');
-        const manifest = loadManifest(propertyId);
-        if (manifest.rooms.length === 0) return null; // dir exists but nothing captured yet
-
-        let property: Awaited<ReturnType<typeof storage.getProperty>> | undefined;
-        try {
-          property = await storage.getProperty(parseInt(propertyId));
-        } catch {
-          // Property may have been deleted since the draft was started - still
-          // worth surfacing so an admin can clean up the orphaned draft.
-        }
-
-        let ownerName: string | undefined;
-        if (property?.ownerId) {
-          try {
-            const owner = await storage.getUser(property.ownerId);
-            ownerName = owner?.fullName || owner?.username;
-          } catch {
-            // Best-effort only.
-          }
-        }
-
-        const qualifiedCount = manifest.rooms.filter((r) => r.status === 'qualified').length;
-        return {
-          propertyId,
-          propertyTitle: property?.title || `Property ${propertyId}`,
-          agentName: ownerName,
-          createdAt: manifest.createdAt,
-          updatedAt: manifest.updatedAt,
-          roomCount: manifest.rooms.length,
-          qualifiedCount,
-          rooms: manifest.rooms.map((r) => ({
-            name: r.name,
-            kind: r.kind,
-            status: r.status,
-            assetCount: r.assets.length,
-            thumbnailUrl: r.assets[0] ? `/uploads/tours/${entry.name}/${r.assets[0].relPath}` : undefined,
-          })),
-        };
-      })
-    );
-
-    const rows = drafts
-      .filter((d): d is NonNullable<typeof d> => d !== null)
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-
-    res.json(rows);
-  } catch (err: any) {
-    console.error('[room-capture] listRoomCaptureDrafts failed:', err);
-    res.status(500).json({ message: 'Failed to load in-progress room captures.' });
-  }
-};
-
 export const deleteRoomCapture = (req: Request, res: Response) => {
   const { propertyId, roomSlug } = req.params;
   const manifest = loadManifest(propertyId);
@@ -468,15 +392,9 @@ export const finalizeRoomCapture = (req: Request, res: Response) => {
   })();
 };
 
-export function registerRoomCaptureRoutes(
-  app: express.Application,
-  guard: express.RequestHandler,
-  strictAdminGuard: express.RequestHandler
-) {
+export function registerRoomCaptureRoutes(app: express.Application, guard: express.RequestHandler) {
   app.post('/api/upload/room-capture/:propertyId', guard, uploadRoomCapture);
   app.get('/api/upload/room-capture/:propertyId/manifest', guard, getRoomCaptureManifest);
   app.delete('/api/upload/room-capture/:propertyId/:roomSlug', guard, deleteRoomCapture);
   app.post('/api/upload/room-capture/:propertyId/finalize', guard, finalizeRoomCapture);
-  // Admin-only cross-property overview - see listRoomCaptureDrafts' own doc comment.
-  app.get('/api/admin/room-capture-drafts', strictAdminGuard, listRoomCaptureDrafts);
 }

@@ -301,16 +301,26 @@ export function AnimatedImage({
 export function AnimatedCard({
   children,
   className = "",
+  onClick,
 }: {
   children: ReactNode;
   className?: string;
+  // Wasn't declared before, so callers passing onClick (PropertyCard.tsx —
+  // the platform's core listings card) had it silently dropped: TSX allows
+  // an unknown prop to reach a DOM element via JSX spread rules, but this
+  // component never spread it onto the motion.div, so tapping the card
+  // anywhere outside the separate "View Tour" button overlay did nothing.
+  // improve-animations audit — found while consolidating this card's hover
+  // animation, not itself an animation fix.
+  onClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
 }) {
   return (
     <motion.div
       className={`${className}`}
-      whileHover={{ 
-        y: -5, 
-        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)" 
+      onClick={onClick}
+      whileHover={{
+        y: -5,
+        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)"
       }}
       transition={{ duration: 0.2 }}
     >

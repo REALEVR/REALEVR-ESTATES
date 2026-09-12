@@ -721,20 +721,4 @@ async function deliverReceipt(payment: RentRailPayment): Promise<void> {
     } catch (err) {
         console.error('[gene/rentrail] failed to notify landlord in-app:', err)
     }
-
-    // Platform owner visibility — the tenant/landlord above already know;
-    // this is the admin's own copy so every real RentRail payout is visible
-    // to you the moment it happens, same as every other GENE payment module.
-    try {
-        const { notifyAdminsEverywhere } = await import('./admin-notify')
-        await notifyAdminsEverywhere({
-            title: 'RentRail payment completed',
-            message: `${payment.tenantName} paid ${payment.amount.toLocaleString()} ${payment.currency} rent to ${payment.landlordName || payment.landlordPhone}. Service fee: ${payment.serviceFee.toLocaleString()} ${payment.currency}. Ref: ${payment.txRef}.`,
-            whatsappMessage: `💰 RentRail payment completed\n\n${payment.tenantName} → ${payment.landlordName || payment.landlordPhone}\nAmount: ${payment.amount.toLocaleString()} ${payment.currency}\nOur fee: ${payment.serviceFee.toLocaleString()} ${payment.currency}\nRef: ${payment.txRef}`,
-            link: '/admin/rentrail',
-            data: { paymentId: payment.id, txRef: payment.txRef },
-        })
-    } catch (err) {
-        console.error('[gene/rentrail] failed to notify admins:', err)
-    }
 }

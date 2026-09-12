@@ -46,14 +46,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.min.js"></script>
-<!-- Official Stereo/VR plugin: adds a headset-icon navbar button that
-     splits the panorama into a left/right-eye stereo view driven by the
-     device's gyroscope - the standard "slot your phone into a Cardboard-
-     style headset" VR mode for 360 photo tours, and the real
-     implementation behind this viewer's VR entry point (see renderPanorama
-     and the postMessage listener below). Must load after core - it
-     extends the PhotoSphereViewer global core.js defines. -->
-<script src="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/stereo-plugin@5/index.min.js"></script>
 <script>
 (function () {
   var viewerEl = document.getElementById('viewer');
@@ -90,12 +82,6 @@
     };
   }
 
-  // Stereo/VR mode only makes sense for a real 360° panorama - a
-  // photo_sweep_lite "basic tour" room is just flat photos with no
-  // equirectangular data to project into a headset, so this plugin is
-  // only ever attached to the panorama viewer below, never the gallery.
-  var stereoAvailable = typeof PhotoSphereViewer !== 'undefined' && !!PhotoSphereViewer.StereoPlugin;
-
   function renderPanorama(room) {
     showViewer();
     if (psvInstance) {
@@ -105,36 +91,11 @@
     psvInstance = new PhotoSphereViewer.Viewer({
       container: viewerEl,
       panorama: room.panoUrl,
-      // 'stereo' inserts the plugin's own headset-icon button - clicking
-      // it (a real, direct user gesture) enters gyroscope-driven
-      // split-screen VR mode, prompting for device-orientation permission
-      // on iOS Safari where that's required. Degrades to the plain navbar
-      // if the plugin script failed to load (offline CDN, etc.) rather
-      // than crashing the whole tour.
-      navbar: stereoAvailable ? ['zoom', 'stereo', 'fullscreen'] : ['zoom', 'fullscreen'],
+      navbar: ['zoom', 'fullscreen'],
       defaultZoomLvl: 0,
       loadingImg: undefined,
-      plugins: stereoAvailable ? [PhotoSphereViewer.StereoPlugin] : [],
     });
   }
-
-  // Lets an "Enter VR" button in our own wrapping UI (VirtualTourModal.tsx/
-  // VirtualTour.tsx, via client/src/lib/tourVr.ts) trigger the exact same
-  // stereo mode as clicking the plugin's own navbar icon, without needing
-  // to know anything about this page's internals. No-op if the current
-  // room isn't a panorama (nothing to view in VR) or the plugin didn't load.
-  window.addEventListener('message', function (event) {
-    var data = event.data;
-    if (!data || data.source !== 'realevr-tour' || data.action !== 'enter-vr') return;
-    if (!stereoAvailable || !psvInstance || !currentRoom || currentRoom.mode !== 'panorama') return;
-    try {
-      var stereoPlugin = psvInstance.getPlugin(PhotoSphereViewer.StereoPlugin);
-      if (stereoPlugin) stereoPlugin.toggle();
-    } catch (err) {
-      // Best-effort - the visible navbar button still works even if this
-      // remote trigger doesn't for some reason.
-    }
-  });
 
   function selectRoom(room) {
     currentRoom = room;
@@ -169,14 +130,6 @@
           badge.className = 'badge';
           badge.textContent = 'basic';
           chip.appendChild(badge);
-        } else if (room.qualityTier === 'equirect_360' && stereoAvailable) {
-          // Honest labeling: only a real 360° room with the stereo plugin
-          // actually loaded can be viewed in a headset - never implied for
-          // a flat photo_sweep_lite room above.
-          var vrBadge = document.createElement('span');
-          vrBadge.className = 'badge';
-          vrBadge.textContent = 'VR';
-          chip.appendChild(vrBadge);
         }
         chip.onclick = function () { selectRoom(room); };
         roomBar.appendChild(chip);

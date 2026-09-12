@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { Property, User as UserType } from "@shared/schema";
-import { maskPhoneNumber } from "@/lib/phone-mask";
 
 interface OwnerContactDetailsProps {
   property: Property;
@@ -17,43 +16,19 @@ export default function OwnerContactDetails({ property, bookingConfirmed, owner 
       <Alert variant="destructive" className="mb-4">
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Contact details hidden</AlertTitle>
-        <AlertDescription className="space-y-2">
-          <p>
-            The host's contact details are only revealed after you book this property with a 20% deposit. Click
-            "Book Now" to secure your stay.
-          </p>
-          {/* A real number, visibly attached to a real host, without being
-              directly callable pre-payment - proof this listing has an
-              actual person behind it rather than just a "pay first, trust
-              us" wall. */}
-          {property.hostPhone && (
-            <p className="flex items-center gap-1.5 text-foreground">
-              <Phone className="h-3.5 w-3.5" />
-              <span className="font-mono">{maskPhoneNumber(property.hostPhone)}</span>
-              <span className="text-xs text-muted-foreground">(full number after booking)</span>
-            </p>
-          )}
+        <AlertDescription>
+          The owner's contact details are only revealed after you book this property with a 20% deposit.
+          Click "Book Now" to secure your stay.
         </AlertDescription>
       </Alert>
     );
   }
 
-  // A BnB's real point of contact is whoever is actually hosting the stay
-  // (hostName/hostPhone, captured on the upload form) - prefer that over
-  // the uploading agent's own contact, which is who ownerContactInfo/owner
-  // below would otherwise show. ownerContactPhone (a clean, dedicated
-  // number - see its own comment in shared/schema.ts) is preferred over
-  // both the agent's account phoneNumber and the unparseable free-text
-  // ownerContactInfo box, since it's what an agent would set to list a
-  // different number for this specific property.
+  // Prefer the real property owner record; fall back to whatever contact info
+  // was entered directly on the listing, then finally a generic placeholder.
   const ownerDetails = {
-    name: property.hostName || owner?.fullName || owner?.username || "RealEVR Estates Agent",
-    phone:
-      property.hostPhone ||
-      property.ownerContactPhone ||
-      owner?.phoneNumber ||
-      property.ownerContactInfo ||
-      "Contact via platform messaging",
+    name: owner?.fullName || owner?.username || "RealEVR Estates Agent",
+    phone: owner?.phoneNumber || property.ownerContactInfo || "Contact via platform messaging",
     email: owner?.email || "Available after booking",
     address: property.location,
     responseTime: "Usually responds within 1 hour",
@@ -108,7 +83,7 @@ export default function OwnerContactDetails({ property, bookingConfirmed, owner 
             <Button
               className="w-full"
               variant="outline"
-              disabled={!property.hostPhone && !property.ownerContactPhone && !owner?.phoneNumber && !property.ownerContactInfo}
+              disabled={!owner?.phoneNumber && !property.ownerContactInfo}
               onClick={() => window.open(`tel:${ownerDetails.phone}`, "_self")}
             >
               <Phone className="h-4 w-4 mr-2" />

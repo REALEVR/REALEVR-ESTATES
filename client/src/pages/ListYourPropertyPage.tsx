@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -216,9 +217,24 @@ export default function ListYourPropertyPage() {
             ))}
           </div>
 
-          <div className="bg-card border border-border rounded-2xl shadow-sm p-6 md:p-8">
+          {/* This is RealEVR's core supply-acquisition funnel — the whole
+              reason to submit a listing is the 1,000 UGX referral fee, so
+              every bit of friction here (including a jarring step-to-step
+              teleport) has real acquisition cost. AnimatePresence
+              mode="wait" crossfades each step out before the next mounts,
+              rather than the flash of both existing at once a plain swap
+              would risk. Governed by the app-wide MotionConfig
+              reducedMotion="user". improve-animations audit, category 8. */}
+          <div className="bg-card border border-border rounded-2xl shadow-sm p-6 md:p-8 overflow-hidden">
+            <AnimatePresence mode="wait">
             {step === "details" && (
-              <div className="space-y-5">
+              <motion.div
+                key="details"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="space-y-5">
                 <h2 className="font-display text-xl text-foreground">Property details</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
@@ -321,11 +337,17 @@ export default function ListYourPropertyPage() {
                   {start.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Continue to photo
                 </Button>
-              </div>
+              </motion.div>
             )}
 
             {step === "photo" && (
-              <div className="space-y-5 text-center">
+              <motion.div
+                key="photo"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="space-y-5 text-center">
                 <h2 className="font-display text-xl text-foreground">Add a cover photo</h2>
                 <p className="text-sm text-muted-foreground">
                   Just one photo to get this live — a full gallery or guided virtual tour can be added from the
@@ -359,11 +381,18 @@ export default function ListYourPropertyPage() {
                     Change photo
                   </Button>
                 )}
-              </div>
+              </motion.div>
             )}
 
             {step === "verify" && !otpRequested && (
-              <div className="space-y-5 text-center">
+              <motion.div
+                key="verify-request"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="space-y-5 text-center"
+              >
                 <h2 className="font-display text-xl text-foreground">Verify with the landlord</h2>
                 <p className="text-sm text-muted-foreground">
                   We'll text a 6-digit code to <span className="font-medium text-foreground">{draft.landlordName}</span>'s
@@ -373,11 +402,18 @@ export default function ListYourPropertyPage() {
                   {sendVerification.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Send verification code
                 </Button>
-              </div>
+              </motion.div>
             )}
 
             {step === "verify" && otpRequested && (
-              <div className="space-y-5 text-center">
+              <motion.div
+                key="verify-otp"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="space-y-5 text-center"
+              >
                 <h2 className="font-display text-xl text-foreground">Enter the verification code</h2>
                 <p className="text-sm text-muted-foreground">
                   We texted a 6-digit code to the landlord/manager's WhatsApp{landlordPhoneMasked ? ` (ending ${landlordPhoneMasked.slice(-4)})` : ""}. Enter it once they share it with you.
@@ -403,12 +439,29 @@ export default function ListYourPropertyPage() {
                 <Button variant="ghost" size="sm" onClick={handleResend} disabled={resendOtp.isPending}>
                   Resend code
                 </Button>
-              </div>
+              </motion.div>
             )}
 
             {step === "success" && (
-              <div className="space-y-5 text-center py-6">
-                <PartyPopper className="h-12 w-12 text-accent mx-auto" />
+              <motion.div
+                key="success"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="space-y-5 text-center py-6"
+              >
+                {/* The end of the whole funnel — a landlord-confirmed, live
+                    listing and an earned referral fee — gets the same
+                    scale+fade "arrival" treatment as PaymentModal's success
+                    state, for the same reason: this is the one moment in
+                    the flow worth spending the delight budget on. */}
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.4, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <PartyPopper className="h-12 w-12 text-accent mx-auto" />
+                </motion.div>
                 <h2 className="font-display text-2xl text-foreground">You're live!</h2>
                 <p className="text-muted-foreground">
                   The property is published and a dashboard has been set up for you. Your {payoutAmount} UGX referral
@@ -432,8 +485,9 @@ export default function ListYourPropertyPage() {
                   <CheckCircle2 className="h-3.5 w-3.5 text-accent" /> From the dashboard, add a full photo gallery or
                   guided virtual tour any time.
                 </p>
-              </div>
+              </motion.div>
             )}
+            </AnimatePresence>
           </div>
         </div>
       </section>

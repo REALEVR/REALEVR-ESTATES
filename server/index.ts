@@ -100,25 +100,9 @@ app.use((req, res, next) => {
 
     try {
         const port = process.env.PORT || 5001
-        const httpServer = app.listen(Number(port), '0.0.0.0', () => {
+        app.listen(Number(port), '0.0.0.0', () => {
             console.log(`Server running at http://0.0.0.0:${port}`)
         })
-
-        // Virtual tour ZIP exports go up to 5GB (see server/upload.ts's own
-        // limit). Node has shipped a built-in requestTimeout since v18 -
-        // 300000ms (5 minutes) by default - that forcibly destroys the
-        // ENTIRE HTTP request once that clock runs out, even while bytes
-        // are still actively arriving. A 5GB file on anything short of a
-        // very fast connection routinely takes well past 5 minutes to
-        // reach the server, so the request gets killed mid-transfer: the
-        // browser's upload progress (see PropertyFormNew.tsx's "Uploading:
-        // X%" badge) freezes right where the clock ran out, then the
-        // connection drops and xhr.onerror fires with a bare "Upload
-        // failed" - which is exactly what this looked like. Give large
-        // tour uploads realistic headroom instead of Node's short default.
-        httpServer.requestTimeout = 30 * 60 * 1000 // 30 minutes
-        httpServer.headersTimeout = 30 * 60 * 1000
-        httpServer.keepAliveTimeout = 30 * 60 * 1000
     } catch (error) {
         console.error('Failed to start server:', error)
         console.error(JSON.stringify(error, null, 2))

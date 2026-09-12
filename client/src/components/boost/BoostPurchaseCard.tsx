@@ -4,20 +4,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Rocket, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import PaymentModal from "@/components/payment/PaymentModal";
 
 /**
  * Boost purchase UI (server/gene/boost-placement.ts) — lets a listing's
- * owner request a paid featured-placement boost. Picking a tier opens the
- * real IoTec mobile-money gateway (same one used for BnB booking deposits
- * and viewing fees — see client/src/components/payment/PaymentModal.tsx);
- * once that reports a confirmed transaction, this calls
- * POST /api/gene/boost/:id/confirm-payment to activate the boost
- * immediately, no admin involved. If that automatic step somehow fails
- * (or the buyer pays some other way), the purchase still sits as
- * "awaiting confirmation" and an admin/agent can confirm it manually from
- * the Boost Confirmations queue (AdminBoostConfirmations.tsx) — see that
- * fallback note below.
+ * owner request a paid featured-placement boost. Payment is manual
+ * (mobile money, confirmed by an admin) — see the module's honesty note —
+ * so this UI's job is just: pick a tier, show the "awaiting confirmation"
+ * state, and show the active/expires-at state once confirmed.
  */
 
 type Tier = "bronze" | "silver" | "gold";
@@ -43,11 +36,6 @@ export default function BoostPurchaseCard({ propertyId }: { propertyId: number }
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [busyTier, setBusyTier] = useState<Tier | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // Set once a purchase is created (pending_manual_confirmation) — drives
-  // the IoTec payment modal, and is what confirm-payment gets called for.
-  const [pendingPurchase, setPendingPurchase] = useState<{ id: number; amountUgx: number } | null>(null);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   const loadStatus = async () => {
     setLoading(true);
@@ -84,47 +72,12 @@ export default function BoostPurchaseCard({ propertyId }: { propertyId: number }
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.message || "Could not start boost purchase.");
-
-      // Straight into the real payment gateway — a pending purchase on its
-      // own is worthless until it's actually paid for.
-      setPendingPurchase({ id: data.purchase.id, amountUgx: data.purchase.amountUgx });
-      setIsPaymentModalOpen(true);
+      setPendingMessage(data.message || "Boost requested — awaiting payment confirmation.");
+      toast({ title: "Boost requested", description: "We'll confirm once payment is received." });
     } catch (err: any) {
       toast({ title: "Couldn't request boost", description: err?.message, variant: "destructive" });
     } finally {
       setBusyTier(null);
-    }
-  };
-
-  // Called by PaymentModal once the IoTec gateway reports a real confirmed
-  // transaction — this is what actually activates the boost.
-  const handlePaymentSuccess = async (response: any) => {
-    setIsPaymentModalOpen(false);
-    if (!pendingPurchase) return;
-
-    try {
-      const res = await fetch(`/api/gene/boost/${pendingPurchase.id}/confirm-payment`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactionId: response.transaction_id }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.message || "Payment received, but activation failed.");
-
-      toast({ title: "🚀 Boost activated!", description: "This listing is now featured." });
-      setPendingMessage(null);
-      setPendingPurchase(null);
-      await loadStatus();
-    } catch (err: any) {
-      // The payment itself succeeded even if this failed — don't leave the
-      // buyer thinking they lost their money. The purchase still exists as
-      // pending_manual_confirmation and an admin can confirm it from the
-      // Boost Confirmations queue.
-      setPendingMessage(
-        "Payment received — activation is finishing up. If your listing isn't showing as boosted in a few minutes, contact us and we'll confirm it manually."
-      );
-      toast({ title: "Activation delayed", description: err?.message, variant: "destructive" });
     }
   };
 
@@ -172,7 +125,7 @@ export default function BoostPurchaseCard({ propertyId }: { propertyId: number }
                         <p className="text-xs text-muted-foreground">{tiers[tier].priceUgx.toLocaleString()} UGX</p>
                       </div>
                       <Button size="sm" onClick={() => purchase(tier)} disabled={busyTier !== null}>
-                        {busyTier === tier ? <Loader2 className="h-4 w-4 animate-spin" /> : "Pay & Boost"}
+                        {busyTier === tier ? <Loader2 className="h-4 w-4 animate-spin" /> : "Request"}
                       </Button>
                     </div>
                   ))}
@@ -180,25 +133,13 @@ export default function BoostPurchaseCard({ propertyId }: { propertyId: number }
               )}
 
               <p className="text-xs text-muted-foreground">
-                Pay via mobile money and your boost activates immediately. If the automatic confirmation doesn't go
-                through, message us on WhatsApp and we'll confirm it manually.
+                After requesting, pay via mobile money and message us on WhatsApp to speed up confirmation — your boost
+                activates as soon as an admin confirms payment.
               </p>
             </div>
           )}
         </DialogContent>
       </Dialog>
-
-      {pendingPurchase && (
-        <PaymentModal
-          isOpen={isPaymentModalOpen}
-          onClose={() => setIsPaymentModalOpen(false)}
-          propertyId={propertyId}
-          paymentType="BoostPlacement"
-          amount={pendingPurchase.amountUgx}
-          currency="UGX"
-          successCallback={handlePaymentSuccess}
-        />
-      )}
     </>
   );
 }

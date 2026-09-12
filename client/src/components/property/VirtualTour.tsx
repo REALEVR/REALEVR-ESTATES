@@ -1,28 +1,30 @@
-import { useEffect, useRef } from "react";
-import { Headset } from "lucide-react";
-import { enterTourVr } from "@/lib/tourVr";
+import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Loader2 } from "lucide-react";
 
 interface VirtualTourProps {
   tourUrl: string;
   isFullscreen?: boolean;
-  /** Shows a floating "Enter VR" button over the tour - see
-   * client/src/lib/tourVr.ts for what it actually does. Off by default:
-   * this component is also used for small thumbnail-sized previews
-   * (FurnishedRentalsPage.tsx's listing grid) where an overlay button
-   * would just be clutter - opt in from full-size viewing contexts
-   * (PropertyPage.tsx, FeaturedTour.tsx). */
-  showVrButton?: boolean;
 }
 
-export default function VirtualTour({ tourUrl, isFullscreen = false, showVrButton = false }: VirtualTourProps) {
+export default function VirtualTour({ tourUrl, isFullscreen = false }: VirtualTourProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Same fix as VirtualTourModal.tsx: the 360 embed used to load into a
+  // blank rectangle with no feedback. Keyed to tourUrl (not just mount)
+  // so navigating between properties on PropertyPage — same component
+  // instance, new tourUrl — re-shows the loading state for the new tour
+  // instead of leaving the previous tour's "loaded" flag stuck true.
+  const [tourLoaded, setTourLoaded] = useState(false);
+  useEffect(() => {
+    setTourLoaded(false);
+  }, [tourUrl]);
 
   useEffect(() => {
     if (isFullscreen && containerRef.current) {
-      const requestFullscreen = containerRef.current.requestFullscreen
-        || (containerRef.current as any).mozRequestFullScreen
-        || (containerRef.current as any).webkitRequestFullscreen
+      const requestFullscreen = containerRef.current.requestFullscreen 
+        || (containerRef.current as any).mozRequestFullScreen 
+        || (containerRef.current as any).webkitRequestFullscreen 
         || (containerRef.current as any).msRequestFullscreen;
 
       if (requestFullscreen) {
@@ -32,33 +34,31 @@ export default function VirtualTour({ tourUrl, isFullscreen = false, showVrButto
   }, [isFullscreen]);
 
   return (
-    <div
-      ref={containerRef}
+    <div 
+      ref={containerRef} 
       className={`tour-container ${isFullscreen ? 'fixed inset-0 z-50 bg-black' : 'relative h-full'}`}
     >
+      <AnimatePresence>
+        {!tourLoaded && (
+          <motion.div
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <Loader2 className="h-8 w-8 text-white/70 animate-spin" />
+            <p className="text-sm text-white/70">Loading virtual tour…</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <iframe
         ref={iframeRef}
         src={tourUrl}
         title="Virtual Property Tour"
         allowFullScreen
-        // See VirtualTourModal.tsx's identical attribute for why this is
-        // required for any VR/Cardboard mode the tour itself offers to
-        // work at all inside an iframe.
-        allow="xr-spatial-tracking; gyroscope; accelerometer; fullscreen"
         className="w-full h-full border-0"
+        onLoad={() => setTourLoaded(true)}
       />
-      {showVrButton && (
-        <button
-          type="button"
-          onClick={() => enterTourVr(containerRef.current, iframeRef.current)}
-          aria-label="Enter VR"
-          title="View in VR - slot your phone into a headset once fullscreen"
-          className="absolute bottom-4 left-4 z-10 flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur-sm px-3 py-2 text-xs font-medium text-white shadow-lg hover:bg-black/75 transition-colors"
-        >
-          <Headset className="h-4 w-4" />
-          Enter VR
-        </button>
-      )}
     </div>
   );
 }

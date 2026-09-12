@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Mic, MicOff, Send, Settings2, Sparkles, Volume2, VolumeX, MapPin, Gift, Share2, MessageCircle } from "lucide-react";
+import { Loader2, Mic, MicOff, Send, Settings2, Sparkles, Volume2, VolumeX, MapPin, Gift, Share2 } from "lucide-react";
 import {
   useAgentChatHistory,
   useAgentMarketInsight,
@@ -19,9 +19,7 @@ import { useRewardsBalance, useMyPayoutRequests, useRequestPayout } from "@/hook
 import { useVoice } from "@/hooks/useVoice";
 import type { useNearbyPropertyAlerts } from "@/hooks/useNearbyPropertyAlerts";
 import { useToast } from "@/hooks/use-toast";
-import { useWhatsappLinkStatus } from "@/hooks/useWhatsappLink";
 import AgentOnboarding from "./AgentOnboarding";
-import WhatsappLinkCard from "./WhatsappLinkCard";
 
 function formatMoney(amount: number, currency: string) {
   try {
@@ -75,7 +73,7 @@ export default function AgentPanel({ onClose, nearbyAlerts }: AgentPanelProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-1 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-primary" />
           <span className="font-display text-base text-foreground">My RealEVR Agent</span>
@@ -94,10 +92,6 @@ export default function AgentPanel({ onClose, nearbyAlerts }: AgentPanelProps) {
             <Settings2 className="h-4 w-4" />
           </Button>
         </div>
-      </div>
-
-      <div className="mb-3">
-        <WhatsAppContinuity />
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="flex flex-1 flex-col overflow-hidden">
@@ -125,69 +119,6 @@ export default function AgentPanel({ onClose, nearbyAlerts }: AgentPanelProps) {
           <NewsTab active={tab === "news"} />
         </TabsContent>
       </Tabs>
-    </div>
-  );
-}
-
-/**
- * "One icon, but linked to WhatsApp" — this is the merge point between the
- * two agent surfaces. AgentLauncher.tsx's floating button is now the ONLY
- * floating icon a signed-in user sees (WhatsAppFab.tsx hides itself for
- * them); this row inside the panel it opens is how WhatsApp continuity
- * still happens. The conversation itself is already shared server-side
- * once linked (whatsapp-concierge.ts's handleConciergeChat calls
- * appendAgentMessage — the same history useAgentChatHistory reads here) —
- * this is just the UI making that link discoverable and offering it.
- */
-function WhatsAppContinuity() {
-  const linkStatus = useWhatsappLinkStatus(true);
-  const [businessNumber, setBusinessNumber] = useState<string | null>(null);
-  const [showLinkForm, setShowLinkForm] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/config/whatsapp-business-number")
-      .then((r) => r.json())
-      .then((d) => {
-        if (!cancelled) setBusinessNumber(typeof d?.number === "string" && d.number ? d.number : null);
-      })
-      .catch(() => {
-        if (!cancelled) setBusinessNumber(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (!businessNumber || linkStatus.isLoading) return null;
-
-  if (linkStatus.data?.linked) {
-    const href = `https://wa.me/${businessNumber}?text=${encodeURIComponent("Hi, continuing my chat with my RealEVR agent here.")}`;
-    return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
-      >
-        <MessageCircle className="h-3.5 w-3.5" /> Continue on WhatsApp
-      </a>
-    );
-  }
-
-  return (
-    <div>
-      <button
-        onClick={() => setShowLinkForm((s) => !s)}
-        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary"
-      >
-        <MessageCircle className="h-3.5 w-3.5" /> Also chat on WhatsApp
-      </button>
-      {showLinkForm && (
-        <div className="mt-2">
-          <WhatsappLinkCard />
-        </div>
-      )}
     </div>
   );
 }

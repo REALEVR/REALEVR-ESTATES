@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from "@/hooks/use-auth";
 
 /**
  * Site-wide floating "Chat on WhatsApp" button — the click-to-WhatsApp
@@ -10,16 +9,8 @@ import { useAuth } from "@/hooks/use-auth";
  * rather than a build-time env var, so it can be turned on/off without a
  * rebuild. Renders nothing at all if that number isn't configured —
  * graceful degrade, never a dead wa.me link.
- *
- * Signed-in users see nothing here — AgentLauncher.tsx's "My Agent" button
- * is their one floating icon, and its own panel offers "Continue on
- * WhatsApp" (once linked) or a way to link it, so a second, separate
- * WhatsApp bubble would just be a redundant icon stacked on top of it.
- * Signed-out visitors, who never see AgentLauncher, keep this as their only
- * floating contact channel.
  */
 export default function WhatsAppFab() {
-  const { user } = useAuth();
   const [number, setNumber] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,7 +28,7 @@ export default function WhatsAppFab() {
     };
   }, []);
 
-  if (user || !number) return null;
+  if (!number) return null;
 
   const href = `https://wa.me/${number}?text=${encodeURIComponent("Hi! I'm interested in a property on RealEVR Estates.")}`;
 

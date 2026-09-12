@@ -20,7 +20,6 @@
  */
 import type { Express, RequestHandler } from 'express'
 import { nextId, nowIso, readCollection, writeCollection } from './store'
-import { notifyAdminsEverywhere } from './admin-notify'
 
 const COLLECTION = 'gene_tour_passes'
 
@@ -103,19 +102,6 @@ export function issuePass(
     }
     rows.push(row)
     savePasses(rows)
-
-    // Platform owner visibility — fire-and-forget, never blocks issuance.
-    // Skipped for admin's own manual issuance (source === 'manual') since
-    // that's the admin acting themselves, not new revenue to be told about.
-    if (source !== 'manual') {
-        notifyAdminsEverywhere({
-            title: 'Tour access pass purchased',
-            message: `A ${amountPaid.toLocaleString()} ${currency} tour access pass was purchased via ${source === 'iotec' ? 'IoTec mobile money' : 'BTC'} (unlocks up to ${TOUR_PASS_MAX_PROPERTIES} property tours for ${TOUR_PASS_VALIDITY_HOURS}h).`,
-            link: '/admin',
-            data: { passId: id, userId, source },
-        }).catch((err) => console.error('[gene/tour-access-pass] admin notification failed:', err))
-    }
-
     return row
 }
 

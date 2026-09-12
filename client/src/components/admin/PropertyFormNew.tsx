@@ -3,9 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Property, insertPropertySchema, PropertyType, Amenity } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
+import { sqftToSqm } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
-import LocationPinPicker from '@/components/admin/LocationPinPicker';
-import DirectS3TourUpload from '@/components/admin/DirectS3TourUpload';
 import {
   Form,
   FormControl,
@@ -59,14 +58,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-// Square meters, year of construction, and building age used to live here
-// (as a squareFeet proxy field plus two raw inputs) but were dropped from
-// this form — agents found them more friction than they were worth, and
-// nothing downstream (search, SEO) ever depended on them. Existing listings
-// that already have real values keep displaying them; new ones just don't
-// collect any.
+// Create a form schema that replaces squareMeters with squareFeet for the UI
 const propertyFormSchema = insertPropertySchema
-  .omit({ squareMeters: true, yearOfConstruction: true, buildingAge: true })
+  .omit({ squareMeters: true }) // Remove squareMeters from the base schema
   .extend({
     title: z.string().min(3, "Title must be at least 3 characters"),
     location: z.string().min(3, "Location is required"),
@@ -75,18 +69,15 @@ const propertyFormSchema = insertPropertySchema
     description: z.string().min(20, "Description must be at least 20 characters"),
     bedrooms: z.coerce.number().int().min(0, "Bedrooms must be a positive number"),
     bathrooms: z.coerce.number().min(0, "Bathrooms must be a positive number"),
+    squareFeet: z.coerce.number().min(1, "Square feet must be positive"), // Use squareFeet for the form
     amenities: z.array(z.string()).optional(),
     propertyType: z.string().min(1, "Property type is required"),
     category: z.string().min(1, "Category is required"),
     monthlyPrice: z.coerce.number().optional(),
-    // Property contact/manager - who a prospective tenant/buyer actually reaches.
     ownerContactInfo: z.string().optional(),
-    // A single dedicated phone number for that same contact - see this
-    // field's own comment in shared/schema.ts.
-    ownerContactPhone: z.string().optional(),
-    // Who uploaded this listing - defaults to the signed-in agent's own
-    // name, editable for the "uploading on someone else's behalf" case.
-    uploaderName: z.string().optional(),
+    // New property fields
+    yearOfConstruction: z.coerce.number().optional(),
+    buildingAge: z.coerce.number().optional(),
     propertyCondition: z.string().optional(),
     auctionStart: z.string().optional(),
     auctionEnd: z.string().optional(),
@@ -119,29 +110,32 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
     queryKey: ['/api/amenities'],
   });
 
+  // Helper function to convert square meters to square feet for display
+  const sqmToSqft = (squareMeters: number): number => {
+    return Math.round(squareMeters * 10.764); // 1 sq m = 10.764 sq ft
+  };
+
   // Get default values from existing property or use empty defaults
   const defaultValues: Partial<PropertyFormValues> = property ? {
     ...property,
+    squareFeet: property.squareMeters ? sqmToSqft(property.squareMeters) : 0, // Convert squareMeters to squareFeet for the form
     amenities: property.amenities || [],
     monthlyPrice: property.monthlyPrice === null ? undefined : property.monthlyPrice,
     ownerContactInfo: property.ownerContactInfo === null ? '' : property.ownerContactInfo,
-    ownerContactPhone: property.ownerContactPhone === null ? '' : property.ownerContactPhone,
-    // Falls back to the signed-in agent's own name if this older listing
-    // never had one recorded.
-    uploaderName: property.uploaderName || user?.fullName || '',
+    yearOfConstruction: property.yearOfConstruction === null ? undefined : property.yearOfConstruction,
+    buildingAge: property.buildingAge === null ? undefined : property.buildingAge,
     propertyCondition: property.propertyCondition === null ? '' : property.propertyCondition,
     auctionStart: property.auctionStart === null ? '' : property.auctionStart,
     auctionEnd: property.auctionEnd === null ? '' : property.auctionEnd,
   } as Partial<PropertyFormValues> : {
     title: '',
     location: '',
-    latitude: null,
-    longitude: null,
     price: 0,
     currency: 'UGX',
     description: '',
     bedrooms: 0,
     bathrooms: 0,
+    squareFeet: 0,
     imageUrl: '',
     rating: '0',
     reviewCount: 0,
@@ -153,17 +147,12 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
     amenities: [],
     monthlyPrice: undefined,
     ownerContactInfo: '',
-    ownerContactPhone: '',
-    // Pre-filled from whoever's signed in - the common case is uploading
-    // your own listing - but editable for the "on someone else's behalf" case.
-    uploaderName: user?.fullName || '',
+    // New property fields
+    yearOfConstruction: undefined,
+    buildingAge: undefined,
     propertyCondition: '',
     auctionStart: '',
     auctionEnd: '',
-    hostName: '',
-    hostPhone: '',
-    landlordName: '',
-    landlordPhone: '',
   };
 
   const form = useForm<PropertyFormValues>({
@@ -171,45 +160,19 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
     defaultValues,
   });
 
-  // The category dropdown below only ever writes 'rental_units',
-  // 'furnished_houses', 'for_sale', or 'bank_sales' - but properties
-  // created before those exact values were standardized can carry older
-  // aliases for the same category ('BnB', 'rental', 'bank-sale' - see the
-  // same aliases already handled in PropertyDetails.tsx/PropertyCard.tsx/
-  // FeaturedTour.tsx/Home.tsx for display). Every category-conditional
-  // field further down this form (host/landlord contact, monthly price,
-  // auction fields) used to check the new value ONLY, so editing one of
-  // those older properties silently hid the fields for its own category -
-  // not "no host fields for a BnB", but "no host fields because this BnB's
-  // category is the string 'BnB', not 'furnished_houses'". These recognize
-  // both so every property's own category-appropriate fields are always
-  // editable, regardless of which era it was created in.
-  const categoryValue = form.watch('category');
-  const isBnbCategory = categoryValue === 'furnished_houses' || categoryValue === 'BnB';
-  const isRentalCategory = categoryValue === 'rental_units' || categoryValue === 'rental';
-  const isBankSaleCategory = categoryValue === 'bank_sales' || categoryValue === 'bank-sale';
-
   // AI-assisted listing description, backed by the server-side /api/ai/generate-description
-  // proxy so the Gemini API key never reaches the browser. `silent` skips the
-  // "fill in title/location" nudge - used by the auto-generate effect below,
-  // which only ever calls this once those two are already filled in.
-  const handleGenerateDescription = async (silent = false) => {
-    // Guards against the auto-generate effect below and a manual button
-    // click racing each other into two overlapping requests.
-    if (isGeneratingDescription) return;
-
+  // proxy so the Gemini API key never reaches the browser.
+  const handleGenerateDescription = async () => {
     const title = form.getValues('title');
     const location = form.getValues('location');
     const propertyType = form.getValues('propertyType');
 
     if (!title || !location) {
-      if (!silent) {
-        toast({
-          title: 'Title and location required',
-          description: 'Please fill in the title and location before generating a description.',
-          variant: 'destructive',
-        });
-      }
+      toast({
+        title: 'Title and location required',
+        description: 'Please fill in the title and location before generating a description.',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -221,14 +184,9 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
         form.setValue('description', data.description, { shouldValidate: true, shouldDirty: true });
       }
     } catch (error: any) {
-      // Shown even when called silently (the auto-generate effect) - a real
-      // failure (rate limit, misconfiguration) is worth surfacing so the
-      // agent isn't left wondering why the description stayed blank; only
-      // the "fill in title/location first" nudge above is skipped silently,
-      // since the auto-effect never calls this until both are already set.
       toast({
         title: 'AI generation failed',
-        description: error.message?.replace(/^\d+:\s*/, '') || 'Please try again or write the description manually.',
+        description: error.message || 'Please try again or write the description manually.',
         variant: 'destructive',
       });
     } finally {
@@ -236,44 +194,12 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
     }
   };
 
-  // Auto-generate: the moment a NEW listing (never an edit, so an agent's
-  // own writing is never silently overwritten) has a title and location and
-  // its description is still untouched, write a first draft automatically -
-  // "Generate with AI" stays as a button too, for regenerating or nudging it
-  // in a different direction. Debounced so it fires once the agent pauses,
-  // not on every keystroke.
-  const watchedTitle = form.watch('title');
-  const watchedLocation = form.watch('location');
-  const watchedPropertyType = form.watch('propertyType');
-  const autoGeneratedRef = useRef(false);
-  useEffect(() => {
-    if (property) return; // never touch an existing listing's description
-    if (autoGeneratedRef.current) return; // only ever auto-fire once per session
-    if (form.getFieldState('description').isDirty) return; // agent already wrote/edited it
-    if (!watchedTitle || watchedTitle.trim().length < 3) return;
-    if (!watchedLocation || watchedLocation.trim().length < 3) return;
-
-    const timer = setTimeout(() => {
-      if (form.getFieldState('description').isDirty) return; // re-check after the debounce
-      autoGeneratedRef.current = true;
-      handleGenerateDescription(true);
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [watchedTitle, watchedLocation, watchedPropertyType, property]);
-
 
   
-// Was previously two divergent code paths: updates went through a normal
-// fetch (apiRequest PATCH), but creation built a hidden <form>, posted it
-// into a hidden <iframe>, and scraped the response back out of the iframe's
-// DOM - a workaround for some now-forgotten issue, but one that also meant
-// creating a property skipped this form's own zod validation entirely, and
-// silently broke if the browser ever denied same-origin access to the
-// iframe's document. Both paths now go through the same plain JSON
-// request - exactly how every other form in this app already talks to its
-// API - since /api/properties/create has always accepted (and mostly
-// ignored the string-vs-number distinction on) a normal JSON body.
 const onSubmit = async (data: PropertyFormValues) => {
+  console.log('Save Property button submitted', data); // Log from onSubmit
+  
+  // Helper function to safely convert to number, avoiding NaN
   const safeNumber = (value: any, defaultValue: number = 0): number => {
     if (value === null || value === undefined || value === '') {
       return defaultValue;
@@ -282,64 +208,279 @@ const onSubmit = async (data: PropertyFormValues) => {
     return isNaN(num) ? defaultValue : num;
   };
 
-  const propertyData: any = {
-    ...data,
-    price: safeNumber(data.price, 0),
-    bedrooms: safeNumber(data.bedrooms, 0),
-    bathrooms: safeNumber(data.bathrooms, 0),
-    monthlyPrice: data.monthlyPrice !== undefined ? safeNumber(data.monthlyPrice) : undefined,
-    imageUrl: imagePreview || data.imageUrl,
-    rating: data.rating || '0',
-    reviewCount: safeNumber(data.reviewCount, 0),
-    hasTour: data.hasTour || false,
-    isFeatured: data.isFeatured || false,
-  };
+  let propertyData: any;
+  try {
+    console.log('Processing form data...');
+    
+    // Coerce all numeric fields to numbers before sending to API
+    propertyData = {
+      ...data,
+      price: safeNumber(data.price, 0),
+      bedrooms: safeNumber(data.bedrooms, 0),
+      bathrooms: safeNumber(data.bathrooms, 0),
+      squareMeters: safeNumber(sqftToSqm(safeNumber(data.squareFeet, 0)), 0), // Convert square feet to square meters
+      monthlyPrice: data.monthlyPrice !== undefined ? safeNumber(data.monthlyPrice) : undefined,
+      imageUrl: imagePreview || data.imageUrl,
+      // Add required fields that might be missing
+      rating: data.rating || '0',
+      reviewCount: safeNumber(data.reviewCount, 0),
+      hasTour: data.hasTour || false,
+      isFeatured: data.isFeatured || false,
+      // Ensure other numeric fields are safe
+      yearOfConstruction: data.yearOfConstruction ? safeNumber(data.yearOfConstruction) : undefined,
+      buildingAge: data.buildingAge ? safeNumber(data.buildingAge) : undefined,
+    };
+
+    console.log('Prepared property data for API:', propertyData);
+
+  } catch (error: any) {
+    console.error('Error processing form data:', error);
+    alert('Error processing form data: ' + (error.message || JSON.stringify(error)));
+    return;
+  }
 
   try {
-    const response = property
-      ? await apiRequest('PATCH', `/api/properties/${property.id}`, propertyData)
-      : await apiRequest('POST', '/api/properties/create', propertyData);
-    const savedProperty: Property = await response.json();
+    let response: Response | null = null;
+    let newProperty: Property | undefined = property;
+    console.log('Property data:', propertyData);
+    
+    console.log('API request starting...');
 
-    setProperty(savedProperty);
-    if (savedProperty.imageUrl) {
-      setImagePreview(savedProperty.imageUrl);
+    if (property) {
+      console.log('Updating existing property with ID:', property.id);
+      console.log('Property data being sent for update:', JSON.stringify({
+        ...propertyData,
+        imageUrl: propertyData.imageUrl // Log the specific imageUrl being sent
+      }));
+      console.log("WILL-TRY-TO-UPDATE-PROPERTY")
+      response = await apiRequest('PATCH', `/api/properties/${property.id}`, propertyData);
+      console.log("DID-UPDATE-PROPERTY")
+
+    } else {
+      console.log('Creating new property with direct form submission');
+
+      // Create a form and submit it directly (this approach works based on our tests)
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/api/properties/create';
+
+      // Add all the necessary fields
+      const fields = {
+        title: data.title,
+        description: data.description,
+        location: data.location,
+        price: String(data.price),
+        bedrooms: String(data.bedrooms),
+        bathrooms: String(data.bathrooms),
+        squareMeters: String(sqftToSqm(Number(data.squareFeet))), // Convert square feet to square meters
+        imageUrl: imagePreview || data.imageUrl || '/uploads/images/default-property.jpg',
+        rating: data.rating || '0',
+        reviewCount: String(data.reviewCount || 0),
+        propertyType: data.propertyType || 'Apartment',
+        isAvailable: 'true',
+        isFeatured: String(data.isFeatured || false),
+        hasTour: String(data.hasTour || false),
+        category: data.category || 'for_sale',
+        currency: data.currency || 'UGX',
+        amenities: JSON.stringify(data.amenities || []),
+        ownerId: user ? String(user.id) : undefined,
+        // Add construction and age fields
+        yearOfConstruction: data.yearOfConstruction ? String(data.yearOfConstruction) : undefined,
+        buildingAge: data.buildingAge ? String(data.buildingAge) : undefined,
+        propertyCondition: data.propertyCondition || undefined
+      };
+
+      // Create input elements for each field
+      Object.entries(fields).forEach(([name, value]) => {
+        if (value !== undefined && value !== null) {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = name;
+          input.value = value;
+          form.appendChild(input);
+        }
+      });
+
+      // Create a hidden iframe to submit the form to
+      const iframe = document.createElement('iframe');
+      iframe.name = 'property-submit-frame';
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+
+      // Set the form to submit to the iframe
+      form.target = 'property-submit-frame';
+
+      // Add the form to the document and submit it
+      document.body.appendChild(form);
+
+      // Set up a handler for the iframe load event
+      iframe.onload = () => {
+        console.log('Iframe loaded - checking response');
+        try {
+          // Try to get the response from the iframe
+          const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
+          console.log('Got iframe document:', iframeDocument ? 'yes' : 'no');
+
+          if (iframeDocument) {
+            console.log('Iframe document HTML:', iframeDocument.documentElement.outerHTML);
+            const responseText = iframeDocument.body.innerText;
+            console.log('Response text from iframe:', responseText);
+
+            if (responseText) {
+              try {
+                const responseData = JSON.parse(responseText);
+                console.log('Property created successfully:', responseData);
+
+                // Show success message
+                toast({
+                  title: "Property Created",
+                  description: "New property has been created successfully",
+                });
+
+                // Don't reload the page, just update the form with the new property data
+                if (responseData && responseData.id) {
+                  // Update the form with the new property data
+                  form.reset();
+
+                  // Update image preview if available
+                  if (responseData.imageUrl) {
+                    setImagePreview(responseData.imageUrl);
+                  }
+
+                  // Update the property state with the new property data
+                  setProperty(responseData);
+
+                  // Automatically switch to the tour tab after saving
+                  setLocalStorageItem('propertyFormTab', 'tour');
+                  setTabValue('tour');
+
+                  // Invalidate queries to refresh data
+                  queryClient.invalidateQueries();
+                  
+                  // Call onSuccess callback if provided
+                  if (onSuccess) {
+                    onSuccess();
+                  }
+                }
+              } catch (e) {
+                console.error('Failed to parse response:', responseText);
+                alert('Property created but could not parse response: ' + responseText);
+              }
+            } else {
+              console.log('No response text in iframe body');
+              // Try to get the HTML content
+              const htmlContent = iframeDocument.body.innerHTML;
+              console.log('HTML content of iframe body:', htmlContent);
+
+              // If we have HTML content but no text, the property might have been created
+              if (htmlContent) {
+                alert('Property may have been created, but could not get confirmation. Please check the property list.');
+              }
+            }
+          } else {
+            console.log('Could not access iframe document - security restriction');
+            alert('Property may have been created, but could not get confirmation due to security restrictions. Please check the property list.');
+          }
+        } catch (error) {
+          const e = error as Error;
+          console.error('Error getting response from iframe:', e);
+          alert('Property may have been created, but encountered an error: ' + e.message + '. Please check the property list.');
+        }
+
+        // Clean up
+        setTimeout(() => {
+          document.body.removeChild(form);
+          document.body.removeChild(iframe);
+        }, 1000);
+      };
+
+      // Handle iframe errors
+      iframe.onerror = (e) => {
+        console.error('Iframe error:', e);
+        alert('Form submission failed');
+
+        // Clean up
+        document.body.removeChild(form);
+        document.body.removeChild(iframe);
+      };
+
+      // Submit the form
+      form.submit();
+      console.log('Form submitted');
+
+      // Show a loading toast to indicate that the form is being submitted
+      toast({
+        title: "Creating Property",
+        description: "Please wait while the property is being created...",
+      });
     }
+    if (response?.ok) {
+      if (!property) {
+        newProperty = await response.json();
+        if (newProperty) {
+          form.reset();
+          setImagePreview(newProperty.imageUrl || null);
+          setProperty(newProperty);
+          setLocalStorageItem('propertyFormTab', 'tour');
+          setTabValue('tour');
+        }
+      } else {
+        // For property updates, get the updated property data
+        console.log('Property update successful, refreshing data...');
+        const updatedProperty = await response.json();
+        console.log('Updated property received:', updatedProperty);
+        
+        if (updatedProperty) {
+          // Update the property state with the returned data
+          setProperty(updatedProperty);
+          // Also update the image preview to match what was saved
+          if (updatedProperty.imageUrl && updatedProperty.imageUrl !== imagePreview) {
+            console.log('Updating image preview to match saved property:', updatedProperty.imageUrl);
+            setImagePreview(updatedProperty.imageUrl);
+          }
+        }
+      }
+      toast({
+        title: property ? "Property Updated" : "Property Created",
+        description: property ? "Property has been updated successfully" : "New property has been created",
+      });
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries();
+      if (onSuccess) {
+        onSuccess();
+      }
+    } else if (response) {
+      console.error('Response not OK:', response.status, response.statusText);
+      let errorData;
+      try {
+        errorData = await response.json();
+        console.error('Error data:', errorData);
+      } catch (jsonError) {
+        console.error('Failed to parse error response as JSON:', jsonError);
+        const textResponse = await response.text();
+        console.error('Raw error response:', textResponse);
+        errorData = { message: textResponse || response.statusText };
+      }
 
-    const wasCreate = !property;
-    if (wasCreate) {
-      // Newly created - clear the form and move straight to the tour
-      // upload step, which needs the property's own ID and so can't
-      // happen any earlier than this.
-      form.reset();
-      setLocalStorageItem('propertyFormTab', 'tour');
-      setTabValue('tour');
-    }
-
-    toast({
-      title: wasCreate ? 'Property Created' : 'Property Updated',
-      description: wasCreate
-        ? "New property has been created — now add a virtual tour, or click \"Skip for now\" to finish without one."
-        : 'Property has been updated successfully',
-    });
-
-    queryClient.invalidateQueries();
-    // Only an UPDATE closes the parent dialog here (via onSuccess) — a
-    // fresh CREATE deliberately keeps it open on the tour tab above, so
-    // the agent lands on the upload step instead of the dialog vanishing
-    // out from under them the instant the property record exists. The
-    // tour tab's own "Finish"/"Skip for now" buttons call onSuccess once
-    // the agent is actually done (see below).
-    if (!wasCreate && onSuccess) {
-      onSuccess();
+      toast({
+        title: "Error",
+        description: errorData.message || "Failed to save property",
+        variant: "destructive",
+      });
+      // Extra logging for debugging
+      console.error('Property creation failed:', errorData);
+      alert('Property creation failed: ' + (errorData.message || JSON.stringify(errorData)));
     }
   } catch (error: any) {
-    console.error('Error saving property:', error);
+    console.error('Error in property submission:', error);
     toast({
-      title: 'Error',
-      description: error.message || 'Failed to save property',
-      variant: 'destructive',
+      title: "Error",
+      description: error.message || "Failed to save property",
+      variant: "destructive",
     });
+    
+    // Show more detailed error in the alert for debugging
+    alert('Failed to save property: ' + (error.message || JSON.stringify(error)));
   }
 };
 
@@ -437,40 +578,180 @@ const onSubmit = async (data: PropertyFormValues) => {
     }
   };
 
-  // Only tourUploadSuccess/tourPreviewUrl remain here - the rest of this
-  // form's own upload state (progress, extraction stage, debug info) was
-  // handleTourUpload's, which owned the classic upload path. That path is
-  // gone (see DirectS3TourUpload.tsx's own doc comment for why - it was
-  // strictly worse on speed, resilience, and server load once the direct-
-  // to-S3 path existed), and DirectS3TourUpload tracks its own progress
-  // internally now; this form only needs to know the end result.
+  const [tourUploading, setTourUploading] = useState(false);
   const [tourUploadSuccess, setTourUploadSuccess] = useState(false);
+  const [tourUploadError, setTourUploadError] = useState("");
   const [tourPreviewUrl, setTourPreviewUrl] = useState<string | null>(property?.tourUrl || null);
+  const [tourDebugInfo, setTourDebugInfo] = useState<any>(null);
+  const [tourUploadProgress, setTourUploadProgress] = useState(0);
+  const [tourExtracting, setTourExtracting] = useState(false);
+  const [tourProgressMessage, setTourProgressMessage] = useState<string>("");
+  const [tourProgressPercent, setTourProgressPercent] = useState<number>(0);
+  const [tourJobId, setTourJobId] = useState<string | null>(null);
+  const tourFileInputRef = useRef<HTMLInputElement>(null);
 
-  // DirectS3TourUpload's onSuccess callback: flip the local preview state,
-  // and invalidate/refetch every cached list the newly uploaded tour could
-  // appear in so it shows up across the site without a manual refresh.
-  const handleTourUploadSuccess = (tourUrl: string) => {
-    setTourUploadSuccess(true);
-    setTourPreviewUrl(tourUrl);
-    queryClient.invalidateQueries();
-    queryClient.invalidateQueries();
-    queryClient.invalidateQueries({ queryKey: ['/api/properties/featured'] });
-    queryClient.invalidateQueries({ queryKey: ['/api/properties/category'] });
-    queryClient.invalidateQueries({ queryKey: ['/api/properties/popular'] });
-    queryClient.invalidateQueries({ queryKey: [`/api/properties/${property?.id}`] });
-    queryClient.invalidateQueries({ queryKey: ['/api/properties/category/for_sale'] });
-    queryClient.invalidateQueries({ queryKey: ['/api/properties/category/rental_units'] });
-    queryClient.invalidateQueries({ queryKey: ['/api/properties/category/furnished_houses'] });
-    queryClient.invalidateQueries({ queryKey: ['/api/properties/category/bank_sales'] });
-    queryClient.removeQueries({ queryKey: ['/api/properties'] });
-    queryClient.removeQueries({ queryKey: ['/api/properties/featured'] });
-    queryClient.removeQueries({ queryKey: ['/api/properties/category'] });
-    queryClient.removeQueries({ queryKey: ['/api/properties/popular'] });
-    queryClient.removeQueries({ queryKey: [`/api/properties/${property?.id}`] });
-    queryClient.refetchQueries({ queryKey: ['/api/properties'] });
-    queryClient.refetchQueries({ queryKey: ['/api/properties/featured'] });
-    queryClient.refetchQueries({ queryKey: [`/api/properties/${property?.id}`] });
+  const handleTourUpload = async () => {
+    const fileInput = tourFileInputRef.current;
+
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select a ZIP file to upload",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!property?.id) {
+      toast({
+        title: "Error",
+        description: "Please save the property first before uploading a tour",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const file = fileInput.files[0];
+
+    // Check if file is a zip
+    if (!file.name.endsWith('.zip')) {
+      toast({
+        title: "Error",
+        description: "Please upload a ZIP file (3D Vista tour export)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check file size (max 5GB)
+    if (file.size > 5 * 1024 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "File is too large. Maximum allowed size is 5GB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTourUploading(true);
+    setTourUploadSuccess(false);
+    setTourUploadError("");
+    setTourUploadProgress(0);
+    setTourExtracting(false);
+    setTourProgressMessage("");
+    setTourProgressPercent(0);
+    setTourJobId(null);
+
+    try {
+      // Create FormData
+      const formData = new FormData();
+      formData.append('tourZip', file);
+
+      // Use XMLHttpRequest for progress
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `/api/upload/virtual-tour/${property.id}`);
+        xhr.withCredentials = true;
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded * 100) / event.total);
+            setTourUploadProgress(percent);
+          }
+        };
+
+        xhr.onload = () => {
+          setTourUploadProgress(100);
+          try {
+            const result = JSON.parse(xhr.responseText);
+            setTourDebugInfo(result);
+            if (xhr.status === 200 && result.jobId) {
+              setTourJobId(result.jobId);
+              setTourExtracting(true);
+              // Start listening to SSE for progress
+              const evtSource = new EventSource(`/api/upload/virtual-tour/progress/${result.jobId}`);
+              evtSource.onmessage = (event) => {
+                try {
+                  const data = JSON.parse(event.data);
+                  if (data.progress) setTourProgressPercent(data.progress);
+                  if (data.message) setTourProgressMessage(data.message);
+                  if (data.done) {
+                    setTourExtracting(false);
+                    setTourUploadSuccess(true);
+                    setTourPreviewUrl(data.tourUrl || "");
+                    evtSource.close();
+                    toast({
+                      title: "Success",
+                      description: "Virtual tour uploaded and extracted successfully",
+                    });
+                    // Invalidate queries as before
+                    queryClient.invalidateQueries();
+                    queryClient.invalidateQueries();
+                    queryClient.invalidateQueries({ queryKey: ['/api/properties/featured'] });
+                    queryClient.invalidateQueries({ queryKey: ['/api/properties/category'] });
+                    queryClient.invalidateQueries({ queryKey: ['/api/properties/popular'] });
+                    queryClient.invalidateQueries({ queryKey: [`/api/properties/${property.id}`] });
+                    queryClient.invalidateQueries({ queryKey: ['/api/properties/category/for_sale'] });
+                    queryClient.invalidateQueries({ queryKey: ['/api/properties/category/rental_units'] });
+                    queryClient.invalidateQueries({ queryKey: ['/api/properties/category/furnished_houses'] });
+                    queryClient.invalidateQueries({ queryKey: ['/api/properties/category/bank_sales'] });
+                    queryClient.removeQueries({ queryKey: ['/api/properties'] });
+                    queryClient.removeQueries({ queryKey: ['/api/properties/featured'] });
+                    queryClient.removeQueries({ queryKey: ['/api/properties/category'] });
+                    queryClient.removeQueries({ queryKey: ['/api/properties/popular'] });
+                    queryClient.removeQueries({ queryKey: [`/api/properties/${property.id}`] });
+                    queryClient.refetchQueries({ queryKey: ['/api/properties'] });
+                    queryClient.refetchQueries({ queryKey: ['/api/properties/featured'] });
+                    queryClient.refetchQueries({ queryKey: [`/api/properties/${property.id}`] });
+                  }
+                  if (data.error) {
+                    setTourUploadError(data.error);
+                    setTourExtracting(false);
+                    evtSource.close();
+                    reject(new Error(data.error));
+                  }
+                } catch (err) {
+                  setTourUploadError("Failed to parse progress event");
+                  setTourExtracting(false);
+                  evtSource.close();
+                  reject(err);
+                }
+              };
+              evtSource.onerror = (err) => {
+                setTourUploadError("Connection lost to progress server");
+                setTourExtracting(false);
+                evtSource.close();
+                reject(new Error("Connection lost to progress server"));
+              };
+            } else {
+              setTourUploadError(result.message || "Failed to upload virtual tour");
+              setTourExtracting(false);
+              reject(new Error(result.message || "Failed to upload virtual tour"));
+            }
+          } catch (err) {
+            setTourUploadError("Failed to parse server response");
+            setTourExtracting(false);
+            reject(err);
+          }
+        };
+        xhr.onerror = () => {
+          setTourUploadError("Upload failed");
+          setTourExtracting(false);
+          reject(new Error("Upload failed"));
+        };
+        xhr.send(formData);
+      });
+    } catch (error: any) {
+      setTourUploadError(error.message || "Failed to upload virtual tour");
+      setTourExtracting(false);
+      toast({
+        title: "Error",
+        description: "Failed to upload virtual tour: " + (error.message || "Unknown error"),
+        variant: "destructive",
+      });
+    } finally {
+      setTourUploading(false);
+    }
   };
 
   // Helper function to safely use localStorage
@@ -543,11 +824,166 @@ const onSubmit = async (data: PropertyFormValues) => {
 
         <TabsContent value="details" className="mt-6">
           <Form {...form}>
-            {/* Wired to the same validated onSubmit the "Save Property" button
-                below calls directly - this only actually fires on a native
-                submit trigger (e.g. pressing Enter in a text field), but it's
-                the same save either way, not a second, different one. */}
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={(e: { preventDefault: () => void; }) => {
+              e.preventDefault(); // Prevent default form submission
+              console.log('Save Property button submitted (form onSubmit event)', form.getValues());
+
+              // Get the form values directly
+              const formValues = form.getValues();
+
+              // Create a form and submit it directly (this approach works based on our tests)
+              const directForm = document.createElement('form');
+              directForm.method = 'POST';
+              directForm.action = '/api/properties/create';
+
+              // Add all the necessary fields
+              const fields = {
+                title: formValues.title,
+                description: formValues.description,
+                location: formValues.location,
+                price: String(formValues.price),
+                bedrooms: String(formValues.bedrooms),
+                bathrooms: String(formValues.bathrooms),
+                squareMeters: String(sqftToSqm(Number(formValues.squareFeet))), // Convert square feet to square meters (was storing the raw sq-ft number as sqm, unconverted)
+                imageUrl: imagePreview || formValues.imageUrl || '/uploads/images/default-property.jpg',
+                rating: formValues.rating || '0',
+                reviewCount: String(formValues.reviewCount || 0),
+                propertyType: formValues.propertyType || 'Apartment',
+                isAvailable: 'true',
+                isFeatured: String(formValues.isFeatured || false),
+                hasTour: String(formValues.hasTour || false),
+                category: formValues.category || 'for_sale',
+                currency: formValues.currency || 'UGX',
+                amenities: JSON.stringify(formValues.amenities || [])
+              };
+
+              console.log('Submitting property with fields:', fields);
+
+              // Create input elements for each field
+              Object.entries(fields).forEach(([name, value]) => {
+                if (value !== undefined && value !== null) {
+                  const input = document.createElement('input');
+                  input.type = 'hidden';
+                  input.name = name;
+                  input.value = value;
+                  directForm.appendChild(input);
+                }
+              });
+
+              // Create a hidden iframe to submit the form to
+              const iframe = document.createElement('iframe');
+              iframe.name = 'property-submit-frame';
+              iframe.style.display = 'none';
+              document.body.appendChild(iframe);
+
+              // Set the form to submit to the iframe
+              directForm.target = 'property-submit-frame';
+
+              // Add the form to the document and submit it
+              document.body.appendChild(directForm);
+
+              // Set up a handler for the iframe load event
+              iframe.onload = () => {
+                console.log('Iframe loaded - checking response');
+                try {
+                  // Try to get the response from the iframe
+                  const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
+                  console.log('Got iframe document:', iframeDocument ? 'yes' : 'no');
+
+                  if (iframeDocument) {
+                    console.log('Iframe document HTML:', iframeDocument.documentElement.outerHTML);
+                    const responseText = iframeDocument.body.innerText;
+                    console.log('Response text from iframe:', responseText);
+
+                    if (responseText) {
+                      try {
+                        const responseData = JSON.parse(responseText);
+                        console.log('Property created successfully:', responseData);
+
+                        // Show success message
+                        toast({
+                          title: "Property Created",
+                          description: "New property has been created successfully",
+                        });
+
+                        // Don't reload the page, just update the form with the new property data
+                        if (responseData && responseData.id) {
+                          // Update the form with the new property data
+                          form.reset({
+                            ...formValues,
+                            ...responseData,
+                            amenities: responseData.amenities || [],
+                            monthlyPrice: responseData.monthlyPrice === null ? undefined : responseData.monthlyPrice,
+                            ownerContactInfo: responseData.ownerContactInfo === null ? '' : responseData.ownerContactInfo,
+                          });
+
+                          // Update image preview if available
+                          if (responseData.imageUrl) {
+                            setImagePreview(responseData.imageUrl);
+                          }
+
+                          // Update the property state with the new property data
+                          setProperty(responseData);
+
+                          // Automatically switch to the tour tab after saving
+                          setLocalStorageItem('propertyFormTab', 'tour');
+                          setTabValue('tour');
+
+                          // Invalidate queries to refresh data
+                          queryClient.invalidateQueries();
+                        }
+                      } catch (e) {
+                        console.error('Failed to parse response:', responseText);
+                        alert('Property created but could not parse response: ' + responseText);
+                      }
+                    } else {
+                      console.log('No response text in iframe body');
+                      // Try to get the HTML content
+                      const htmlContent = iframeDocument.body.innerHTML;
+                      console.log('HTML content of iframe body:', htmlContent);
+
+                      // If we have HTML content but no text, the property might have been created
+                      if (htmlContent) {
+                        alert('Property may have been created, but could not get confirmation. Please check the property list.');
+                      }
+                    }
+                  } else {
+                    console.log('Could not access iframe document - security restriction');
+                    alert('Property may have been created, but could not get confirmation due to security restrictions. Please check the property list.');
+                  }
+                } catch (error) {
+                  const e = error as Error;
+                  console.error('Error getting response from iframe:', e);
+                  alert('Property may have been created, but encountered an error: ' + e.message + '. Please check the property list.');
+                }
+
+                // Clean up
+                setTimeout(() => {
+                  document.body.removeChild(directForm);
+                  document.body.removeChild(iframe);
+                }, 1000);
+              };
+
+              // Handle iframe errors
+              iframe.onerror = (e) => {
+                console.error('Iframe error:', e);
+                alert('Form submission failed');
+
+                // Clean up
+                document.body.removeChild(directForm);
+                document.body.removeChild(iframe);
+              };
+
+              // Submit the form
+              directForm.submit();
+              console.log('Form submitted');
+
+              // Show a loading toast to indicate that the form is being submitted
+              toast({
+                title: "Creating Property",
+                description: "Please wait while the property is being created...",
+              });
+            }} className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-6">
                   {/* Basic Information */}
@@ -579,34 +1015,34 @@ const onSubmit = async (data: PropertyFormValues) => {
                     )}
                   />
 
-                  <LocationPinPicker
-                    latitude={form.watch('latitude')}
-                    longitude={form.watch('longitude')}
-                    onChange={(lat, lng) => {
-                      form.setValue('latitude', lat, { shouldDirty: true });
-                      form.setValue('longitude', lng, { shouldDirty: true });
-                    }}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="uploaderName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Uploaded By</FormLabel>
-                        <FormDescription>
-                          Pre-filled with your own name - change it if you're listing this on someone else's behalf.
-                        </FormDescription>
-                        <FormControl>
-                          <Input placeholder="Your name" {...field} value={field.value || ''} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
                   {/* --- NEW PROPERTY FIELDS (FLEX) --- */}
                   <div className="flex flex-col gap-4">
+                    <FormField
+                      control={form.control}
+                      name="yearOfConstruction"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Year of Construction</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="2020" min="1900" max={new Date().getFullYear()} {...field} value={field.value || ''} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="buildingAge"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Building Age (years)</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="5" min="0" {...field} value={field.value || ''} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     <FormField
                       control={form.control}
                       name="propertyCondition"
@@ -631,7 +1067,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                         </FormItem>
                       )}
                     />
-                    {isBankSaleCategory && (
+                    {form.watch('category') === 'bank_sales' && (
                       <div className="flex flex-col md:flex-row gap-4">
                         <FormField
                           control={form.control}
@@ -675,7 +1111,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => handleGenerateDescription()}
+                            onClick={handleGenerateDescription}
                             disabled={isGeneratingDescription}
                           >
                             {isGeneratingDescription ? (
@@ -737,15 +1173,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                             name="price"
                             render={({ field }) => (
                               <FormItem>
-                                {/* This is the headline price shown everywhere the
-                                    property is listed (PropertyCard.tsx,
-                                    PropertyDetails.tsx, FeaturedTour.tsx),
-                                    suffixed "/ day" for a BnB or "/ month" for a
-                                    rental unit there - labeled per-category here
-                                    too so it's clear which rate this actually is,
-                                    now that BnBs can also set a separate discounted
-                                    monthlyPrice below for long stays. */}
-                                <FormLabel>{isBnbCategory ? 'Price per night' : 'Price'}</FormLabel>
+                                <FormLabel>Price</FormLabel>
                                 <FormControl>
                                   <Input type="number" placeholder="1000000" {...field} />
                                 </FormControl>
@@ -782,28 +1210,20 @@ const onSubmit = async (data: PropertyFormValues) => {
                         </div>
                       </div>
 
-                      {/* Monthly price - for rental units this is the actual
-                          recurring rent; for a BnB it's an OPTIONAL discounted
-                          rate for guests staying a month or longer, shown
-                          alongside the per-night price above rather than
-                          replacing it (see PropertyCard.tsx/PropertyDetails.tsx/
-                          FeaturedTour.tsx, which now display both when both are
-                          set). Leaving it blank on a BnB just means "nightly
-                          rate only" - nothing forces a host to offer a monthly
-                          option. */}
-                      {(isRentalCategory || isBnbCategory) && (
+                      {/* Monthly price field - only for rental categories */}
+                      {form.watch('category') === 'rental_units' && (
                         <FormField
                           control={form.control}
                           name="monthlyPrice"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>{isBnbCategory ? 'Price per month (optional)' : 'Monthly Price'}</FormLabel>
+                              <FormLabel>Monthly Price</FormLabel>
                               <FormControl>
                                 <div className="flex items-center">
                                   <DollarSign className="mr-2 h-4 w-4 text-muted-foreground" />
                                   <Input
                                     type="number"
-                                    placeholder={isBnbCategory ? 'Discounted rate for month-long stays' : 'Monthly rent amount'}
+                                    placeholder="Monthly rent amount"
                                     {...field}
                                     value={field.value === undefined ? '' : field.value}
                                     onChange={(e: { target: { value: string; }; }) => {
@@ -814,9 +1234,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                                 </div>
                               </FormControl>
                               <FormDescription>
-                                {isBnbCategory
-                                  ? "Shown alongside the per-night price as a long-stay option - leave blank if you only rent nightly."
-                                  : 'Monthly rental amount for this property'}
+                                Monthly rental amount for this property
                               </FormDescription>
                               <FormMessage />
                             </FormItem>
@@ -826,7 +1244,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <FormField
                       control={form.control}
                       name="bedrooms"
@@ -850,6 +1268,23 @@ const onSubmit = async (data: PropertyFormValues) => {
                           <FormControl>
                             <Input type="number" min="0" step="0.5" {...field} />
                           </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="squareFeet"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Sq. Feet (will be converted to sq m)</FormLabel>
+                          <FormControl>
+                            <Input type="number" min="0" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            Enter size in square feet. This will be converted to square meters for display.
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -897,9 +1332,9 @@ const onSubmit = async (data: PropertyFormValues) => {
                     name="ownerContactInfo"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Property Contact / Manager</FormLabel>
+                        <FormLabel>Owner Contact Information</FormLabel>
                         <FormDescription>
-                          Who a prospective tenant or buyer actually reaches about this property - only visible to users who have paid the required fees
+                          This will only be visible to users who have paid the required fees
                         </FormDescription>
                         <FormControl>
                           <Textarea
@@ -911,116 +1346,6 @@ const onSubmit = async (data: PropertyFormValues) => {
                       </FormItem>
                     )}
                   />
-
-                  {/* A clean, single phone number for that same contact -
-                      distinct from the free-text box above, which isn't
-                      reliably parseable as a phone number (click-to-call,
-                      WhatsApp links, masking, etc. all need an actual
-                      number). Lets this listing show a different number
-                      than the agent's own account (office line, colleague,
-                      whoever actually handles it) - see this field's own
-                      comment in shared/schema.ts. */}
-                  <FormField
-                    control={form.control}
-                    name="ownerContactPhone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact Phone Number (Host / Manager / Agent)</FormLabel>
-                        <FormDescription>
-                          A single number for whoever should be called about this property - kept separate from the box above so it can be used for calling/WhatsApp links directly.
-                        </FormDescription>
-                        <FormControl>
-                          <Input type="tel" placeholder="+256 700 123456" {...field} value={field.value || ''} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* BnB host contact - shown to viewers instead of the
-                      agent's own number (see hostName/hostPhone's own
-                      comment in shared/schema.ts): a BnB's real point of
-                      contact is whoever is hosting the stay. Masked to
-                      all-but-the-last-4-digits until the viewer pays the
-                      booking deposit. */}
-                  {isBnbCategory && (
-                    <div className="rounded-lg border bg-card p-4 space-y-4">
-                      <div>
-                        <h4 className="text-sm font-semibold">Host details</h4>
-                        <p className="text-xs text-muted-foreground">
-                          Shown to guests (phone masked until they pay the booking deposit) instead of your own agent contact above.
-                        </p>
-                      </div>
-                      <FormField
-                        control={form.control}
-                        name="hostName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Host Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Who guests will actually be staying with" {...field} value={field.value || ''} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="hostPhone"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Host Phone Number</FormLabel>
-                            <FormControl>
-                              <Input placeholder="+256 700 123456" {...field} value={field.value || ''} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  )}
-
-                  {/* Rental unit landlord/manager contact - who rent
-                      payments actually go to, revealed only once a viewer
-                      expresses intent to pay rent (not merely by paying to
-                      view) - see landlordName/landlordPhone's own comment
-                      in shared/schema.ts. */}
-                  {isRentalCategory && (
-                    <div className="rounded-lg border bg-card p-4 space-y-4">
-                      <div>
-                        <h4 className="text-sm font-semibold">Landlord / Manager details</h4>
-                        <p className="text-xs text-muted-foreground">
-                          Who rent payments are meant to go to. Only revealed to a viewer once they say they intend to pay rent for this property - not shown just from viewing or paying to view.
-                        </p>
-                      </div>
-                      <FormField
-                        control={form.control}
-                        name="landlordName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Landlord / Manager Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Who actually receives the rent" {...field} value={field.value || ''} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="landlordPhone"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Landlord / Manager Phone Number</FormLabel>
-                            <FormControl>
-                              <Input placeholder="+256 700 123456" {...field} value={field.value || ''} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  )}
                 </div>
 
                 <div className="space-y-6">
@@ -1354,20 +1679,56 @@ const onSubmit = async (data: PropertyFormValues) => {
                       for viewing. Maximum file size: 5GB.
                     </p>
 
-                    {/* One upload path: straight to S3 from the browser in
-                        parallel parts (our server only ever sees a small S3
-                        key) - see DirectS3TourUpload.tsx's own doc comment
-                        for why the earlier relay-through-our-server path was
-                        retired instead of kept around as a second option. */}
-                    {property?.id ? (
-                      <DirectS3TourUpload
-                        propertyId={property.id}
-                        onSuccess={handleTourUploadSuccess}
+                    <div className="flex items-center space-x-2 mt-2">
+                      <Input
+                        ref={tourFileInputRef}
+                        type="file"
+                        accept=".zip"
+                        className="flex-1"
                       />
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        Please save the property first before uploading a tour.
-                      </p>
+                      <Button
+                        type="button"
+                        onClick={handleTourUpload}
+                        disabled={tourUploading || tourExtracting}
+                      >
+                        {tourUploading && !tourExtracting ? (
+                          <>
+                            Uploading: {tourUploadProgress}%
+                          </>
+                        ) : tourExtracting ? (
+                          <>
+                            {tourProgressMessage}
+                            {typeof tourProgressPercent === 'number' && tourProgressPercent > 0 && (
+                              <> ({tourProgressPercent}%)</>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Upload
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {tourUploadSuccess && (
+                      <Alert className="mt-4 bg-green-50 border-green-300">
+                        <Check className="h-4 w-4 text-green-500" />
+                        <AlertTitle>Success!</AlertTitle>
+                        <AlertDescription>
+                          Virtual tour uploaded and extracted successfully.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {tourUploadError && (
+                      <Alert className="mt-4" variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Upload Error</AlertTitle>
+                        <AlertDescription>
+                          {tourUploadError}
+                        </AlertDescription>
+                      </Alert>
                     )}
                   </div>
 
@@ -1432,6 +1793,59 @@ const onSubmit = async (data: PropertyFormValues) => {
                     </div>
                   )}
 
+                  {/* Debug info section - Hidden by default, shown on demand or when there's an error */}
+                  {(tourDebugInfo || tourUploadError) && (
+                    <div className="border rounded-lg p-4 bg-muted/30">
+                      <Collapsible>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="outline" size="sm" className="w-full flex justify-between">
+                            <span>Tour Upload Debug Information</span>
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="p-2">
+                          {tourDebugInfo && (
+                            <div className="text-xs">
+                              <h4 className="font-semibold mb-1">Server Response:</h4>
+                              <pre className="bg-muted p-2 rounded overflow-auto max-h-[200px]">
+                                {JSON.stringify(tourDebugInfo, null, 2)}
+                              </pre>
+
+                              {tourDebugInfo.directoryContents && (
+                                <div className="mt-2">
+                                  <h4 className="font-semibold mb-1">Extracted Files:</h4>
+                                  <ul className="list-disc list-inside">
+                                    {tourDebugInfo.directoryContents.map((item: string, index: number) => (
+                                      <li key={index} className="truncate">{item}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {tourUploadError && (
+                            <div className="mt-2 text-xs">
+                              <h4 className="font-semibold mb-1 text-destructive">Error:</h4>
+                              <pre className="bg-destructive/10 p-2 rounded text-destructive">
+                                {tourUploadError}
+                              </pre>
+
+                              <div className="mt-2 space-y-1">
+                                <h4 className="font-semibold">Common Solutions:</h4>
+                                <ul className="list-disc list-inside">
+                                  <li>Make sure your ZIP file is a proper 3D Vista export</li>
+                                  <li>Check that the ZIP file contains an index.htm file</li>
+                                  <li>The ZIP file structure should have index.htm at the root or in a single subdirectory</li>
+                                  <li>Try creating a fresh export from 3D Vista</li>
+                                </ul>
+                              </div>
+                            </div>
+                          )}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </div>
+                  )}
                 </>
               )}
             </CardContent>
@@ -1439,16 +1853,6 @@ const onSubmit = async (data: PropertyFormValues) => {
               <p className="text-sm text-muted-foreground">
                 Note: Upload only 3D Vista tour exports for optimal compatibility
               </p>
-
-              {!(tourPreviewUrl || property?.tourUrl) && property?.id && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => onSuccess?.()}
-                >
-                  Skip for now — add a tour later
-                </Button>
-              )}
 
               {(tourPreviewUrl || property?.tourUrl) && (
                 <Button

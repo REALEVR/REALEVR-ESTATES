@@ -6,7 +6,14 @@ import type {
 } from "@/components/ui/toast"
 
 const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+// Was 1000000ms (~16.7 min) — the well-known shadcn/ui boilerplate default,
+// which effectively means "never auto-dismiss". Across this app's ~49
+// call sites (payment errors, booking confirmations, share/contact
+// feedback) that left every toast sitting on screen until a visitor found
+// and tapped its close button — easy to miss on the small toast used on
+// this platform's mostly-mobile audience. 5s is the standard toast
+// lifetime and gives people time to read a message without it lingering.
+const TOAST_REMOVE_DELAY = 5000
 
 
 

@@ -42,7 +42,14 @@ const TabsContent = React.forwardRef<
   <TabsPrimitive.Content
     ref={ref}
     className={cn(
-      "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+      // Shared primitive — every Tabs usage in the app (auth login/register,
+      // admin dashboards, property manager) teleported content in on switch
+      // with zero transition. A short opacity fade-in (same animate-in/
+      // fade-in-0 convention this repo already uses in toast.tsx, so no new
+      // tooling) confirms the click landed without adding perceived lag —
+      // AUDIT.md's 150-250ms budget for this frequency tier. motion-safe:
+      // gates it for prefers-reduced-motion with no extra code.
+      "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-safe:data-[state=active]:animate-in motion-safe:data-[state=active]:fade-in-0 motion-safe:data-[state=active]:duration-200",
       className
     )}
     {...props}

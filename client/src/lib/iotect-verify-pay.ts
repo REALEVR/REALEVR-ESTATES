@@ -5,13 +5,6 @@ type PaymentRecordData = {
     amount: number
     currency: string
     timestamp?: string // optional, server can also set it
-    // Set only for a BnB booking-deposit payment (BookingCalendarModal.tsx)
-    // so the server can record the occupied date range for the booking
-    // calendar (see server/gene/bnb-bookings.ts). ISO date strings
-    // ("2026-09-20"); checkOut is the first day NOT booked.
-    checkIn?: string
-    checkOut?: string
-    guests?: number
 }
 
 export async function recordTourPayment(data: PaymentRecordData) {

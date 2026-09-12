@@ -25,7 +25,6 @@ import {
     Calendar,
     DollarSign,
     CreditCard,
-    Gift,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import TourPaymentsDashboard from '@/components/admin/TourPaymentsDashboard'
@@ -181,48 +180,6 @@ export default function AdminUserManager() {
                 description: 'Failed to update user role',
                 variant: 'destructive',
             })
-        }
-    }
-
-    // "Complimentary" access - a permanently-active, no-payment agent
-    // account (see PATCH /api/users/:id/complimentary-access on the
-    // server), for a specific account acting fully free on the admin's own
-    // behalf. Toggling this promotes a 'normal' user to 'agent' the same
-    // way handleRoleUpdate does, plus sets up a subscription that never
-    // needs renewing - so the account can list properties and use every
-    // agent feature (including AI-generated descriptions) exactly like a
-    // real subscriber, without ever seeing a paywall.
-    const handleComplimentaryToggle = async (userId: number, enabled: boolean) => {
-        try {
-            const response = await fetch(`/api/users/${userId}/complimentary-access`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ enabled }),
-            })
-
-            if (response.ok) {
-                toast({
-                    title: 'Success',
-                    description: enabled ? 'Free agent access granted' : 'Free agent access revoked',
-                })
-
-                const usersResponse = await fetch('/api/users', { credentials: 'include' })
-                if (usersResponse.ok) {
-                    const usersData = await usersResponse.json()
-                    setUsers(usersData)
-                }
-            } else {
-                const body = await response.json().catch(() => ({}))
-                toast({
-                    title: 'Error',
-                    description: body?.message || 'Failed to update free access',
-                    variant: 'destructive',
-                })
-            }
-        } catch (error) {
-            console.error('Error updating complimentary access:', error)
-            toast({ title: 'Error', description: 'Failed to update free access', variant: 'destructive' })
         }
     }
 
@@ -428,32 +385,6 @@ export default function AdminUserManager() {
                                                         disabled={user.role === 'admin'}
                                                     >
                                                         Admin
-                                                    </Button>
-                                                    {/* Complimentary access - a permanently-active, no-payment
-                                                        agent account acting fully free on the admin's own
-                                                        behalf (see handleComplimentaryToggle above). Meaningless
-                                                        for an already-admin account (admins already bypass every
-                                                        subscription check), so disabled there rather than hidden. */}
-                                                    <Button
-                                                        variant={(user as any).membershipPlan === 'complimentary' ? 'default' : 'outline'}
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            handleComplimentaryToggle(
-                                                                user.id,
-                                                                (user as any).membershipPlan !== 'complimentary'
-                                                            )
-                                                        }
-                                                        disabled={user.role === 'admin'}
-                                                        title={
-                                                            user.role === 'admin'
-                                                                ? 'Admins already have full access'
-                                                                : (user as any).membershipPlan === 'complimentary'
-                                                                  ? 'Click to revoke free access'
-                                                                  : 'Grant free, no-payment agent access — can list properties and use every agent feature'
-                                                        }
-                                                    >
-                                                        <Gift className="h-3.5 w-3.5 mr-1" />
-                                                        {(user as any).membershipPlan === 'complimentary' ? 'Free access ✓' : 'Grant free access'}
                                                     </Button>
                                                 </div>
                                             </div>

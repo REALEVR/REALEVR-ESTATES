@@ -53,22 +53,7 @@ Highlight modern features, security, and convenience. Keep it under 150 words an
         res.json({ description: response.text || '' })
     } catch (error: any) {
         console.error('[AI] Description generation error:', error)
-        // Surface the actual reason where it's safe to (Gemini's own error
-        // text describes API-usage problems - quota, an invalid/expired
-        // key, a bad model name - never a secret) instead of an opaque
-        // "try again" that gives neither the agent nor whoever's debugging
-        // this anything to act on. A rate limit/quota hit is retryable, so
-        // it gets its own status the client can treat differently.
-        const detail: string = error?.message || String(error)
-        const isRateLimited = error?.status === 429 || /RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(detail)
-        if (isRateLimited) {
-            return res.status(429).json({
-                message: "The AI description generator is temporarily rate-limited — wait a moment and try again, or write the description yourself.",
-            })
-        }
-        res.status(500).json({
-            message: `Failed to generate description: ${detail.slice(0, 200)}`,
-        })
+        res.status(500).json({ message: 'Failed to generate description. Please try again.' })
     }
 })
 

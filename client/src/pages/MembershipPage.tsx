@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { insertUserSchema } from "@shared/schema";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
+import Reveal from "@/components/motion/Reveal";
 
 // Remove confirmPassword from the final submitted data
 type FormValues = z.infer<typeof insertUserSchema>;
@@ -86,15 +87,18 @@ export default function MembershipPage() {
 
   return (
     <div className="container mx-auto px-6 py-12">
+      <Reveal direction="fade">
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold mb-4">Join RealEVR Estates</h1>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
           Become a member to list your properties with virtual tours and expand your reach to potential clients.
         </p>
       </div>
+      </Reveal>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
         {/* Basic Plan */}
+        <Reveal delay={0}>
         <Card className="border-2 hover:shadow-lg transition-shadow">
           <CardHeader>
             <CardTitle className="text-2xl">Basic</CardTitle>
@@ -123,8 +127,10 @@ export default function MembershipPage() {
             </Button>
           </CardFooter>
         </Card>
+        </Reveal>
 
         {/* Professional Plan */}
+        <Reveal delay={0.08}>
         <Card className="border-2 border-black relative hover:shadow-lg transition-shadow">
           <div className="absolute top-0 left-0 right-0 bg-black text-white py-1 text-center text-sm">
             Most Popular
@@ -156,8 +162,10 @@ export default function MembershipPage() {
             </Button>
           </CardFooter>
         </Card>
+        </Reveal>
 
         {/* Enterprise Plan */}
+        <Reveal delay={0.16}>
         <Card className="border-2 hover:shadow-lg transition-shadow">
           <CardHeader>
             <CardTitle className="text-2xl">Enterprise</CardTitle>
@@ -186,8 +194,10 @@ export default function MembershipPage() {
             </Button>
           </CardFooter>
         </Card>
+        </Reveal>
       </div>
 
+      <Reveal>
       <div className="mt-16 text-center">
         <h2 className="text-2xl font-bold mb-4">Not ready to commit?</h2>
         <p className="text-gray-600 mb-6">
@@ -200,6 +210,7 @@ export default function MembershipPage() {
           Start Free Trial
         </Button>
       </div>
+      </Reveal>
 
       {/* Registration Dialog */}
       <Dialog open={showRegisterModal} onOpenChange={setShowRegisterModal}>

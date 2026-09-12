@@ -5,6 +5,7 @@ import { setupAuth } from './auth'
 import { z } from 'zod'
 import fetch from 'node-fetch'
 import path from 'path'
+import { sseTourProgress } from './upload'
 import { getTourConfig } from './tour-config'
 import * as dropboxStorage from './dropbox-storage'
 import { request as request7 } from 'undici'
@@ -12,15 +13,7 @@ import { request as request7 } from 'undici'
 import fs from 'fs'
 import { createTablesIfNotExist, DynamoDBUtils, TABLES, toNumericId, toStringId } from './dynamodb'
 
-import {
-    uploadPropertyImage,
-    handleUploadErrors,
-    setupStaticFileRoutes,
-    presignTourZipUpload,
-    completeTourZipMultipartUpload,
-    processTourFromS3,
-    sseTourProgress,
-} from './upload'
+import { uploadPropertyImage, uploadVirtualTour, handleUploadErrors, setupStaticFileRoutes } from './upload'
 import { registerRoomCaptureRoutes } from './room-capture'
 import { registerPaymentGateWayForApp } from './payment/payment-new'
 import {
@@ -47,7 +40,6 @@ import { registerListingsApiRoutes } from './gene/listings-api'
 import { registerWhatsappRoutes } from './gene/whatsapp'
 import { registerDataQualityRoutes } from './gene/data-quality'
 import { registerPaymentsCoreRoutes } from './gene/payments-core'
-import { notifyAdminsEverywhere } from './gene/admin-notify'
 import { registerBtcPaymentsRoutes } from './gene/btc-payments'
 import { registerInvestorAnalyticsRoutes } from './gene/investor-analytics'
 import { registerListingsLifecycleRoutes } from './gene/listings-lifecycle'
@@ -64,15 +56,13 @@ import { registerPersonalAgentRoutes } from './gene/personal-agent'
 import { registerAfricaMediaFeedRoutes } from './gene/africa-media-feed'
 import { registerAiWorkforceRoutes } from './gene/ai-workforce'
 import { registerReferralRewardsRoutes } from './gene/referral-rewards'
-import { registerListingEarningsRoutes, recordListingEarning } from './gene/listing-earnings'
-import { registerBnbBookingRoutes, recordBnbBooking } from './gene/bnb-bookings'
 import { registerWhatsappConciergeRoutes } from './gene/whatsapp-concierge'
 import { registerMessagingRoutes } from './gene/messaging'
 import { registerLandlordHubRoutes } from './gene/landlord-hub'
 import { registerMagicLoginRoutes } from './gene/magic-login'
 import { registerSelfServeListingRoutes } from './gene/self-serve-listing'
 import { registerWhatsappGrowthRoutes } from './gene/whatsapp-growth'
-import { registerBoostPlacementRoutes, getActiveBoostsSortedByAmount } from './gene/boost-placement'
+import { registerBoostPlacementRoutes } from './gene/boost-placement'
 import { registerSuccessFeeRoutes } from './gene/success-fee'
 import { registerTourProductionBookingRoutes } from './gene/tour-production-booking'
 import { registerLeadMeteringRoutes } from './gene/lead-metering'
@@ -91,16 +81,6 @@ const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
     }
 
     const user = req.user
-    // Same free-agent allowlist subscriptionMiddleware checks below (see
-    // getFreeAgentEmails' own doc comment) - this gate guards the tour ZIP
-    // upload, the agent's own property list, and other /api/agent/* and
-    // /api/admin/* routes, so an account on that list needs to clear THIS
-    // check too, not just the subscription one, or it still gets stuck
-    // (a role still at 'normal' fails the role check below regardless of
-    // any subscription state).
-    if (user.email && getFreeAgentEmails().includes(user.email.toLowerCase())) {
-        return next()
-    }
     if (!user.role || (user.role !== 'admin' && user.role !== 'agent')) {
         return res.status(403).json({ message: 'Unauthorized. Admin or agent role required.' })
     }
@@ -113,22 +93,6 @@ const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
 // POST /api/properties/create below.
 const FREE_TRIAL_MAX_PROPERTIES = 2
 
-// Accounts that upload properties fully free, on the platform owner's own
-// behalf, regardless of whatever role/subscription state happens to be
-// stored for them — the admin-clickable "Grant free access" toggle
-// (PATCH /api/users/:id/complimentary-access) sets that state correctly
-// too, but this is the guarantee that holds even if that click never
-// happened, or the account started out role: 'normal' (which the checks
-// below block outright, before subscriptionStatus is even considered).
-// Comma-separated, overridable via FREE_AGENT_EMAILS without a code change.
-const DEFAULT_FREE_AGENT_EMAILS = ['tukeibog@gmail.com']
-function getFreeAgentEmails(): string[] {
-    const raw = process.env.FREE_AGENT_EMAILS
-    if (!raw) return DEFAULT_FREE_AGENT_EMAILS
-    const parsed = raw.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
-    return parsed.length ? parsed : DEFAULT_FREE_AGENT_EMAILS
-}
-
 // Middleware to check if user has active subscription (for agents)
 const subscriptionMiddleware = (req: Request, res: Response, next: NextFunction) => {
     console.log('Current Request', req)
@@ -140,10 +104,6 @@ const subscriptionMiddleware = (req: Request, res: Response, next: NextFunction)
 
     // Allow admins to access everything
     if (user.role === 'admin') {
-        return next()
-    }
-
-    if (user.email && getFreeAgentEmails().includes(user.email.toLowerCase())) {
         return next()
     }
 
@@ -471,25 +431,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
 
     app.post('/api/payment/iotect/record', async (req: any, res: any) => {
-        const { transactionId, propertyId, customer_email, customer_name, currency, amount } = req.body
-
-        // The client (client/src/lib/iotect-verify-pay.ts) sends `userId`
-        // (camelCase) — this used to only check `user_id` (snake_case),
-        // which no caller has ever actually sent, so every payment recorded
-        // through this endpoint silently lost its user attribution. Prefer
-        // whichever is present, and fall back to the request's own signed-in
-        // session so a payment made while logged in is never orphaned just
-        // because the client omitted the field.
-        const bodyUserId = req.body?.user_id ?? req.body?.userId
-        const sessionUserId = req.isAuthenticated?.() ? (req.user as any)?.id : undefined
-        const resolvedUserId = Number.isFinite(Number(bodyUserId)) && Number(bodyUserId) > 0 ? Number(bodyUserId) : sessionUserId
+        const { transactionId, propertyId, user_id, customer_email, customer_name, currency, amount } = req.body
 
         console.log('Current-Request-Body', req.body)
         try {
             await storage.recordTourPayment({
                 transactionId: transactionId,
                 propertyId: parseFloat(propertyId),
-                userId: resolvedUserId || null,
+                userId: user_id || null,
                 amount: amount,
                 currency: currency,
                 timestamp: new Date().toISOString(),
@@ -502,76 +451,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // pass for this confirmed IoTec payment (see docs/GENE_PLATFORM.md).
         // Best-effort only — never affects the existing IoTec recording above.
         try {
+            const numericUserId = Number(user_id)
             const numericAmount = Number(amount)
-            if (Number.isFinite(resolvedUserId) && (resolvedUserId as number) > 0 && Number.isFinite(numericAmount) && numericAmount > 0) {
-                issuePass(resolvedUserId as number, 'iotec', numericAmount, currency || 'UGX')
+            if (Number.isFinite(numericUserId) && numericUserId > 0 && Number.isFinite(numericAmount) && numericAmount > 0) {
+                issuePass(numericUserId, 'iotec', numericAmount, currency || 'UGX')
             }
         } catch (error) {
             console.error('[GENE] Failed to issue tour pass for IoTec payment:', error)
-        }
-
-        // GENE Platform: if this payment was a BnB booking deposit,
-        // record the occupied date range so it shows up on the property's
-        // booking calendar (see server/gene/bnb-bookings.ts) — both for
-        // the next prospective booker and for the landlord/manager's
-        // maintenance-scheduling visibility. Only fires when the client
-        // sent booking dates (BookingCalendarModal.tsx, isBnB path) —
-        // never for the plain viewing-fee/tour-payment flow. Requires a
-        // resolved userId — every booking here is attached to a real
-        // account (BookingCalendarModal.tsx now refuses to let a signed-out
-        // guest reach payment at all, so this should always resolve; if it
-        // somehow doesn't, we skip recording rather than create an orphan
-        // booking with no owner).
-        try {
-            const { checkIn, checkOut, guests } = req.body
-            const propId = parseFloat(propertyId)
-            if (
-                typeof checkIn === 'string' &&
-                checkIn &&
-                typeof checkOut === 'string' &&
-                checkOut &&
-                Number.isFinite(propId) &&
-                Number.isFinite(resolvedUserId) &&
-                (resolvedUserId as number) > 0
-            ) {
-                recordBnbBooking({
-                    propertyId: propId,
-                    userId: resolvedUserId as number,
-                    checkIn,
-                    checkOut,
-                    guests: Number.isFinite(Number(guests)) && Number(guests) > 0 ? Number(guests) : 1,
-                    transactionId: transactionId || '',
-                })
-            } else if (typeof checkIn === 'string' && checkIn) {
-                console.error('[GENE] Dropped a BnB booking record — no signed-in user resolved for this payment.')
-            }
-        } catch (error) {
-            console.error('[GENE] Failed to record BnB booking dates:', error)
-        }
-
-        // GENE Platform: platform owner visibility for every confirmed IoTec
-        // payment recorded above (tour/viewing-fee payments and BnB booking
-        // deposits alike) — best-effort, never affects the recording itself.
-        try {
-            const { checkIn, checkOut } = req.body
-            const isBnbBooking = typeof checkIn === 'string' && checkIn && typeof checkOut === 'string' && checkOut
-            const property = await storage.getProperty(parseFloat(propertyId)).catch(() => null)
-            const propertyLabel = property?.title ?? `property #${propertyId}`
-            const amountLabel = `${Number(amount).toLocaleString()} ${currency || 'UGX'}`
-
-            await notifyAdminsEverywhere({
-                title: isBnbBooking ? 'BnB booking deposit received' : 'Tour payment received',
-                message: isBnbBooking
-                    ? `${amountLabel} booking deposit received for "${propertyLabel}" (${checkIn} → ${checkOut}). Txn: ${transactionId}.`
-                    : `${amountLabel} tour/viewing payment received for "${propertyLabel}". Txn: ${transactionId}.`,
-                whatsappMessage: isBnbBooking
-                    ? `🏡 BnB booking deposit received\n\n"${propertyLabel}"\n${amountLabel}\n${checkIn} → ${checkOut}\nTxn: ${transactionId}`
-                    : `💵 Tour payment received\n\n"${propertyLabel}"\n${amountLabel}\nTxn: ${transactionId}`,
-                link: '/admin',
-                data: { propertyId: parseFloat(propertyId), transactionId },
-            })
-        } catch (error) {
-            console.error('[GENE] Failed to notify admins of IoTec payment:', error)
         }
     })
 
@@ -603,16 +489,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Get featured properties
     app.get('/api/properties/featured', async (req, res) => {
         try {
-            // "Featured" here means "boosted" — see server/gene/boost-placement.ts.
-            // Sourced from currently-active boost purchases only, ordered by
-            // the amount actually paid (most-paid-first), never from a plain
-            // isFeatured toggle: a listing only shows here because someone
-            // paid to put it here, and how much they paid decides the order.
-            const activeBoosts = await getActiveBoostsSortedByAmount()
-            const properties = await Promise.all(activeBoosts.map((b) => storage.getProperty(b.propertyId)))
-            const featuredProperties = properties
-                .filter((p): p is NonNullable<typeof p> => !!p)
-                .filter(isPubliclyVisibleProperty)
+            const featuredProperties = (await storage.getFeaturedProperties()).filter(isPubliclyVisibleProperty)
 
             // Set cache control headers to prevent caching
             res.set({
@@ -883,91 +760,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (error) {
             console.error(`[ERROR] Failed to increment view count:`, error)
             res.status(500).json({ message: 'Failed to increment view count' })
-        }
-    })
-
-    // A viewer on a rental unit's page said "yes, I want to pay rent for
-    // this property via RentRail" - this is NOT the same gate as paying to
-    // view the listing (requiresTourPayment/hasValidPayment client-side):
-    // it's a distinct, later intent signal, and is what actually reveals
-    // the landlord/manager's contact (client only shows it after this call
-    // succeeds). Fans the notification out to everyone with a stake in
-    // this specific rent payment actually happening: the agent who
-    // uploaded the listing (in-app bell), every admin (in-app + email +
-    // WhatsApp, via the same notifyAdminsEverywhere every other
-    // admin-facing event in this app already uses), and the landlord/
-    // manager themselves (WhatsApp to the number captured at upload,
-    // landlordPhone) - they otherwise have no account to notify in-app.
-    app.post('/api/properties/:id/rent-payment-intent', async (req, res) => {
-        try {
-            const id = toNumericId(req.params.id)
-            if (isNaN(id)) {
-                return res.status(400).json({ message: 'Invalid property ID' })
-            }
-
-            const property = await storage.getProperty(id)
-            if (!property) {
-                return res.status(404).json({ message: 'Property not found' })
-            }
-
-            const viewerName = req.isAuthenticated?.() && req.user ? (req.user as any).fullName || (req.user as any).username : 'A site visitor'
-            const title = `Rent payment intent: ${property.title}`
-            const message = `${viewerName} intends to pay rent for "${property.title}" (${property.location}) via RentRail. Landlord/manager contact has been shown to them.`
-
-            // 1. The uploading agent, in-app.
-            if (property.ownerId) {
-                try {
-                    const { createNotification } = await import('./models/Notification')
-                    await createNotification({
-                        userId: String(property.ownerId),
-                        title,
-                        message,
-                        type: 'payment',
-                        link: `/property/${property.id}`,
-                    })
-                } catch (err) {
-                    console.error('[rent-payment-intent] agent notification failed:', err)
-                }
-            }
-
-            // 2. Every admin, everywhere (in-app + email + WhatsApp).
-            try {
-                const { notifyAdminsEverywhere } = await import('./gene/admin-notify')
-                await notifyAdminsEverywhere({
-                    title,
-                    message,
-                    link: `/property/${property.id}`,
-                })
-            } catch (err) {
-                console.error('[rent-payment-intent] admin notification failed:', err)
-            }
-
-            // 3. The landlord/manager themselves, by WhatsApp to the number
-            // captured at upload - best-effort, since RealEVR has no
-            // account for them to notify in-app.
-            if (property.landlordPhone) {
-                try {
-                    const { sendWhatsAppMessage } = await import('./gene/whatsapp')
-                    const { normalizePhone } = await import('./gene/whatsapp-concierge')
-                    const to = normalizePhone(property.landlordPhone) || property.landlordPhone
-                    await sendWhatsAppMessage(
-                        to,
-                        `🏠 ${viewerName} intends to pay rent for "${property.title}" via RentRail on RealEVR. They now have your contact details to arrange payment.`
-                    )
-                } catch (err) {
-                    console.error('[rent-payment-intent] landlord WhatsApp notification failed:', err)
-                }
-            }
-
-            res.status(200).json({
-                success: true,
-                uploaderName: property.uploaderName || null,
-                landlordName: property.landlordName || null,
-                landlordPhone: property.landlordPhone || null,
-            })
-        } catch (error) {
-            console.error('[rent-payment-intent] failed:', error)
-            res.status(500).json({ message: 'Failed to record rent payment intent' })
         }
     })
 
@@ -1448,39 +1240,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     `)
     })
 
-    // Resolves a shortened Google Maps share link (maps.app.goo.gl, goo.gl/maps)
-    // to its final URL, so LocationPinPicker.tsx can pull coordinates out of
-    // it - a browser's own fetch/XHR can't read a cross-origin redirect's
-    // final URL due to CORS, but a server-side request has no such
-    // restriction. Restricted to Google's own link-shortener domains (an
-    // allowlist, not a denylist) so this can't be used as a general-purpose
-    // "fetch any URL from our server" proxy (SSRF) even though it's gated
-    // behind adminMiddleware already.
-    const ALLOWED_MAPS_LINK_HOSTS = new Set(['goo.gl', 'maps.app.goo.gl'])
-    app.post('/api/geo/resolve-maps-link', adminMiddleware, async (req, res) => {
-        try {
-            const { url } = req.body
-            if (!url || typeof url !== 'string') {
-                return res.status(400).json({ message: 'url is required' })
-            }
-            let parsed: URL
-            try {
-                parsed = new URL(url)
-            } catch {
-                return res.status(400).json({ message: 'Not a valid URL' })
-            }
-            if (parsed.protocol !== 'https:' || !ALLOWED_MAPS_LINK_HOSTS.has(parsed.hostname)) {
-                return res.status(400).json({ message: 'Only Google Maps share links can be resolved here' })
-            }
-
-            const response = await fetch(parsed.toString(), { method: 'GET', redirect: 'follow' })
-            res.json({ finalUrl: response.url })
-        } catch (error: any) {
-            console.error('[geo] Failed to resolve maps link:', error)
-            res.status(400).json({ message: 'Failed to resolve that link' })
-        }
-    })
-
     // Create a new property (admin only)
     app.post('/api/properties/create', subscriptionMiddleware, async (req, res) => {
         console.log('[DEBUG] Incoming property data:', req.body)
@@ -1586,19 +1345,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const property = await storage.createProperty(propertyData)
             console.log('[DEBUG] Property created successfully:', property)
             res.status(201).json(property)
-
-            // Credit the uploading account for this listing (see
-            // server/gene/listing-earnings.ts). This is the normal,
-            // authenticated dashboard upload path only — self-serve-listing.ts
-            // submissions never reach this handler, so they can't be
-            // double-credited alongside their own separate 1,000 UGX referral
-            // payout. Fire-and-forget after the response so a rewards-write
-            // hiccup can never fail property creation itself.
-            if (req.user?.id) {
-                recordListingEarning(req.user.id, property.id, property.title).catch((err) =>
-                    console.error('[ERROR] recordListingEarning failed:', err)
-                )
-            }
         } catch (error: any) {
             console.error('[ERROR] Failed to create property:', error)
             res.status(400).json({ message: error.message })
@@ -2325,72 +2071,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
     })
 
-    /**
-     * Grant/revoke "complimentary" agent access (admin only) — the "act
-     * fully free, on the admin's behalf" account type: no subscription
-     * payment ever required, no free-trial listing cap, permanently active.
-     * Rather than inventing a new bypass branch in subscriptionMiddleware
-     * above, this reuses that middleware's EXISTING active-subscription
-     * check as-is — it just sets subscriptionStatus: 'active' with a
-     * membershipEndDate 100 years out, so the account is indistinguishable
-     * from a real, current subscriber to every check already in this
-     * codebase (subscriptionMiddleware here, the free_trial property cap in
-     * POST /api/properties/create, and AdminUserManager's own subscriptions
-     * tab). membershipPlan: 'complimentary' is the one honest marker that
-     * this isn't a real paid plan, purely for the admin's own visibility —
-     * same spirit as self-serve-listing.ts's membershipPlan: 'self-serve'
-     * for its own special-cased accounts.
-     *
-     * Promotes role to 'agent' only if the account is currently 'normal' —
-     * an existing agent keeps their role, and an existing admin (who
-     * already bypasses subscriptionMiddleware entirely) is left untouched
-     * rather than demoted.
-     */
-    app.patch('/api/users/:id/complimentary-access', adminMiddleware, async (req, res) => {
-        try {
-            const id = parseInt(req.params.id)
-            if (isNaN(id)) {
-                return res.status(400).json({ message: 'Invalid user ID' })
-            }
-
-            const { enabled } = req.body
-            if (typeof enabled !== 'boolean') {
-                return res.status(400).json({ message: "Field 'enabled' must be a boolean" })
-            }
-
-            const target = await storage.getUser(id)
-            if (!target) {
-                return res.status(404).json({ message: 'User not found' })
-            }
-
-            const update: Partial<typeof target> = enabled
-                ? {
-                      role: target.role === 'normal' ? 'agent' : target.role,
-                      membershipPlan: 'complimentary',
-                      subscriptionStatus: 'active',
-                      membershipStartDate: new Date().toISOString(),
-                      membershipEndDate: new Date(
-                          new Date().setFullYear(new Date().getFullYear() + 100)
-                      ).toISOString(),
-                  }
-                : {
-                      // Revoke: only unwind what granting it set, and only if
-                      // this account actually is the complimentary type -
-                      // never touch a real paid plan by accident.
-                      ...(target.membershipPlan === 'complimentary'
-                          ? { membershipPlan: null, subscriptionStatus: 'inactive', membershipEndDate: null }
-                          : {}),
-                  }
-
-            const updatedUser = await storage.updateUser(id, update as any)
-            const { password, ...userWithoutPassword } = updatedUser
-            res.json(userWithoutPassword)
-        } catch (error: any) {
-            console.error('[complimentary-access] update failed:', error)
-            res.status(500).json({ message: error.message || 'Failed to update complimentary access' })
-        }
-    })
-
     // Flutterwave Property Deposit Payment
     app.post('/api/pay-property-deposit', async (req, res) => {
         try {
@@ -2639,25 +2319,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
     })
 
-    // Virtual tour ZIP upload, direct to S3 (admin/agent only). The browser
-    // PUTs the ZIP straight to S3 in parallel parts using presigned URLs
-    // (see upload.ts's presignTourZipUpload for why multipart beats a
-    // single request-through-our-server relay on both speed and
-    // resilience) - our server is only involved before (presigning) and
-    // after (pulling the finished upload back from S3 to extract and
-    // republish it, in processTourFromS3).
-    app.post('/api/upload/virtual-tour/:propertyId/presign-zip', adminMiddleware, presignTourZipUpload)
-    app.post('/api/upload/virtual-tour/:propertyId/complete-multipart', adminMiddleware, completeTourZipMultipartUpload)
-    app.post('/api/upload/virtual-tour/:propertyId/process-from-s3', adminMiddleware, processTourFromS3)
+    // Upload virtual tour zip (admin/agent only -- was previously unauthenticated)
+    app.post('/api/upload/virtual-tour/:propertyId', adminMiddleware, (req, res) => {
+        // console.log("=== VIRTUAL TOUR UPLOAD ENDPOINT ===");
+        console.log('Property ID:', req.params.propertyId)
+
+        const propertyId = req.params.propertyId // Use string ID
+        if (!propertyId) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Invalid property ID',
+            })
+        }
+
+        // Pass the property ID to the upload function via request object
+        ;(req as any).propertyId = propertyId
+
+        console.log(`Received virtual tour upload request for property ${propertyId}`)
+        uploadVirtualTour(req, res, (err: any) => {
+            if (err) {
+                console.error(`Upload error: ${err.message}`)
+                return res.status(400).json({
+                    status: 'error',
+                    message: err.message,
+                })
+            }
+            // The new uploadVirtualTour responds immediately with jobId, so nothing else to do here.
+        })
+    })
 
     // SSE endpoint for tour progress
     app.get('/api/upload/virtual-tour/progress/:jobId', sseTourProgress)
 
     // Guided room-capture upload: agents upload photos/video per room instead of
     // a pre-built tour ZIP. Reuses the same SSE progress endpoint above (jobId is generic).
-    // The admin-only cross-property drafts overview gets the strict guard -
-    // see listRoomCaptureDrafts' own doc comment for why.
-    registerRoomCaptureRoutes(app, adminMiddleware, requireStrictAdmin)
+    registerRoomCaptureRoutes(app, adminMiddleware)
 
     // Get tour preview endpoint
     app.get('/api/tours/preview/:propertyId', async (req, res) => {
@@ -2801,8 +2497,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerSimilarPropertiesPassRoutes(app)
     registerPersonalAgentRoutes(app)
     registerReferralRewardsRoutes(app, adminMiddleware)
-    registerListingEarningsRoutes(app, adminMiddleware)
-    registerBnbBookingRoutes(app)
     registerWhatsappConciergeRoutes(app)
     registerMessagingRoutes(app, requireStrictAdmin)
     registerLandlordHubRoutes(app)

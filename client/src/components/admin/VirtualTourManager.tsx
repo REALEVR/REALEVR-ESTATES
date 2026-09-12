@@ -6,6 +6,7 @@ import { apiRequest, queryClient } from '@/lib/queryClient'
 import { useToast } from '@/hooks/use-toast'
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -13,7 +14,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import RoomCaptureGuide from './RoomCaptureGuide'
-import DirectS3TourUpload from './DirectS3TourUpload'
 import {
     AlertCircle,
     ArrowLeft,
@@ -22,6 +22,7 @@ import {
     Eye,
     Home,
     Loader2,
+    Upload,
 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
@@ -42,9 +43,13 @@ interface VirtualTourFormValues {
 
 export default function VirtualTourManager() {
     const [property, setProperty] = useState<Property | null>(null)
+    const [isUploading, setIsUploading] = useState(false)
+    const [uploadProgressMessage, setUploadProgressMessage] = useState('')
     const [uploadSuccess, setUploadSuccess] = useState(false)
+    const [uploadError, setUploadError] = useState('')
     const [tourPreviewUrl, setTourPreviewUrl] = useState<string | null>(null)
 
+    const fileInputRef = useRef<HTMLInputElement>(null)
     const { toast } = useToast()
     const [location, navigate] = useLocation()
 
@@ -90,6 +95,113 @@ export default function VirtualTourManager() {
             } else {
                 setTourPreviewUrl(null)
             }
+        }
+    }
+
+    const handleTourUpload = async () => {
+        if (!property) {
+            toast({
+                title: 'Error',
+                description: 'Please select a property first',
+                variant: 'destructive',
+            })
+            return
+        }
+
+        const fileInput = fileInputRef.current
+        if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+            toast({
+                title: 'Error',
+                description: 'Please select a 3D Vista tour zip file to upload',
+                variant: 'destructive',
+            })
+            return
+        }
+
+        const file = fileInput.files[0]
+
+        // Check if file is a zip
+        if (!file.name.endsWith('.zip')) {
+            toast({
+                title: 'Error',
+                description: 'Please upload a ZIP file from 3D Vista',
+                variant: 'destructive',
+            })
+            return
+        }
+
+        // Check file size (max 5GB)
+        if (file.size > 5 * 1024 * 1024 * 1024) {
+            toast({
+                title: 'Error',
+                description: 'Tour file is too large. Maximum allowed size is 5GB',
+                variant: 'destructive',
+            })
+            return
+        }
+
+        setIsUploading(true)
+        setUploadSuccess(false)
+        setUploadError('')
+        setUploadProgressMessage('Uploading ZIP...')
+
+        try {
+            // Create FormData
+            const formData = new FormData()
+            formData.append('tourZip', file)
+
+            // The server responds immediately with a jobId (extraction/S3 upload
+            // happen asynchronously) -- the real success/failure only arrives via
+            // the SSE progress stream below, not on this initial response.
+            const response = await fetch(`/api/upload/virtual-tour/${property.id}`, {
+                method: 'POST',
+                body: formData,
+                credentials: 'include',
+            })
+
+            const result = await response.json()
+
+            if (!response.ok || !result.jobId) {
+                throw new Error(result.message || 'Failed to start virtual tour upload')
+            }
+
+            await new Promise<void>((resolve, reject) => {
+                const source = new EventSource(`/api/upload/virtual-tour/progress/${result.jobId}`)
+                source.onmessage = (evt) => {
+                    const data = JSON.parse(evt.data)
+                    if (data.error) {
+                        source.close()
+                        reject(new Error(data.error))
+                        return
+                    }
+                    setUploadProgressMessage(data.message || '')
+                    if (data.done) {
+                        source.close()
+                        if (data.tourUrl) {
+                            setUploadSuccess(true)
+                            setTourPreviewUrl(data.tourUrl)
+                            queryClient.invalidateQueries({ queryKey: ['/api/properties', property.id] })
+                            toast({ title: 'Success', description: 'Virtual tour uploaded and extracted successfully' })
+                        }
+                        resolve()
+                    }
+                }
+                source.onerror = () => {
+                    source.close()
+                    reject(new Error('Lost connection while processing the tour upload'))
+                }
+            })
+        } catch (error: any) {
+            setUploadError(error.message || 'Failed to upload virtual tour')
+
+            toast({
+                title: 'Error',
+                description: 'Failed to upload virtual tour: ' + (error.message || 'Unknown error'),
+                variant: 'destructive',
+            })
+        } finally {
+            setIsUploading(false)
+            setUploadProgressMessage('')
         }
     }
 
@@ -144,22 +256,11 @@ export default function VirtualTourManager() {
                                     <SelectValue placeholder="Select a property" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {/* Guard against a null/undefined id: unlike the
-                                        Select's own value above (already optional-chained),
-                                        this was calling .toString() on p.id directly - any
-                                        one malformed row in the list (e.g. a property
-                                        missing its id) crashed the ENTIRE page with no
-                                        way to recover short of a reload, taking down tour
-                                        upload access for every property, not just the bad
-                                        one. Skip rows this page can't render into a valid
-                                        option instead of crashing on them. */}
-                                    {properties
-                                        ?.filter((p) => p.id != null)
-                                        .map((p) => (
-                                            <SelectItem key={p.id} value={p.id.toString()}>
-                                                {p.title} ({p.location})
-                                            </SelectItem>
-                                        ))}
+                                    {properties?.map((p) => (
+                                        <SelectItem key={p.id} value={p.id.toString()}>
+                                            {p.title} ({p.location})
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -226,14 +327,44 @@ export default function VirtualTourManager() {
                                                 software? Upload the ZIP file directly. Maximum file size: 5GB.
                                             </p>
 
-                                            <DirectS3TourUpload
-                                                propertyId={property.id}
-                                                onSuccess={(url) => {
-                                                    setUploadSuccess(true)
-                                                    setTourPreviewUrl(url)
-                                                    queryClient.invalidateQueries({ queryKey: ['/api/properties', property.id] })
-                                                }}
-                                            />
+                                            <div className="flex items-center space-x-2 mt-2">
+                                                <Input ref={fileInputRef} type="file" accept=".zip" className="flex-1" />
+                                                <Button type="button" onClick={handleTourUpload} disabled={isUploading}>
+                                                    {isUploading ? (
+                                                        <>
+                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                            Uploading...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Upload className="mr-2 h-4 w-4" />
+                                                            Upload
+                                                        </>
+                                                    )}
+                                                </Button>
+                                            </div>
+
+                                            {isUploading && uploadProgressMessage && (
+                                                <p className="text-sm text-muted-foreground mt-2">{uploadProgressMessage}</p>
+                                            )}
+
+                                            {uploadSuccess && (
+                                                <Alert className="mt-4 bg-green-50 border-green-300">
+                                                    <Check className="h-4 w-4 text-green-500" />
+                                                    <AlertTitle>Success!</AlertTitle>
+                                                    <AlertDescription>
+                                                        Virtual tour uploaded and extracted successfully.
+                                                    </AlertDescription>
+                                                </Alert>
+                                            )}
+
+                                            {uploadError && (
+                                                <Alert className="mt-4" variant="destructive">
+                                                    <AlertCircle className="h-4 w-4" />
+                                                    <AlertTitle>Upload Error</AlertTitle>
+                                                    <AlertDescription>{uploadError}</AlertDescription>
+                                                </Alert>
+                                            )}
                                         </div>
                                     </TabsContent>
                                 </Tabs>
@@ -248,9 +379,6 @@ export default function VirtualTourManager() {
                                                     className="w-full h-full"
                                                     title={`Virtual tour of ${property.title}`}
                                                     sandbox="allow-same-origin allow-scripts"
-                                                    // So an agent can actually test the VR button before
-                                                    // publishing - see VirtualTourModal.tsx's identical attribute.
-                                                    allow="xr-spatial-tracking; gyroscope; accelerometer; fullscreen"
                                                 />
                                             </div>
                                             <div className="flex justify-between">

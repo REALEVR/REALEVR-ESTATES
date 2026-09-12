@@ -22,7 +22,6 @@
 import type { Express, Request, Response, RequestHandler } from 'express'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
-import { notifyAdminsEverywhere } from './admin-notify'
 
 const COLLECTION = 'gene_tour_production_bookings'
 
@@ -93,16 +92,6 @@ export function registerTourProductionBookingRoutes(app: Express, adminMiddlewar
             }
             rows.push(booking)
             writeBookings(rows)
-
-            // Needs an admin/agent to confirm payment and schedule the crew.
-            notifyAdminsEverywhere({
-                title: 'Tour production shoot requested',
-                message: `${TOUR_PRODUCTION_PRICE_UGX.toLocaleString()} UGX shoot requested for "${property.title}" (contact: ${contactPhone}${preferredDate ? `, preferred date: ${preferredDate}` : ''}). Awaiting payment confirmation.`,
-                whatsappMessage: `🎥 Tour production shoot requested\n\n"${property.title}"\nFee: ${TOUR_PRODUCTION_PRICE_UGX.toLocaleString()} UGX\nContact: ${contactPhone}${preferredDate ? `\nPreferred date: ${preferredDate}` : ''}\n\nAwaiting payment confirmation.`,
-                link: '/admin',
-                data: { bookingId: booking.id, propertyId },
-            }).catch((err) => console.error('[gene/tour-production-booking] admin notification failed:', err))
-
             res.status(201).json({
                 booking,
                 message: `Shoot requested for ${TOUR_PRODUCTION_PRICE_UGX.toLocaleString()} UGX. Pay via mobile money and our team will confirm and schedule your crew.`,
