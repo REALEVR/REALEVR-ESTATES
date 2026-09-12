@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { WHATSAPP_NUMBERS, whatsAppLink } from "@/lib/siteLinks";
+import { WHATSAPP_NUMBERS, whatsAppLink, SOCIAL_LINKS } from "@/lib/siteLinks";
 import logoPath from '../../assets/logo.png';
 
 export default function Footer() {
@@ -58,31 +58,51 @@ export default function Footer() {
 
         <div className="border-t border-border pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center space-x-4">
-            {/* No real Facebook/Twitter/Instagram/Pinterest accounts exist yet
-                (see SOCIAL_LINKS's own comment in lib/siteLinks.ts) — these
-                used to be plain `<a href="#">`, which looks clickable and
-                silently jumps to the top of the page when tapped, reading as
-                broken rather than "not live yet." Rendered as inert,
-                slightly faded buttons with a real tooltip instead, so
-                there's no dead link pretending to work. Swap back to <a
-                href={SOCIAL_LINKS.x}> etc. the moment real accounts exist. */}
+            {/* Facebook and X are real, live accounts (SOCIAL_LINKS in
+                lib/siteLinks.ts) and render as real clickable links.
+                Instagram/Pinterest have no account yet — those two still
+                render as inert, slightly faded "Coming soon" buttons rather
+                than a plain `<a href="#">`, which looks clickable and
+                silently jumps to the top of the page when tapped, reading
+                as broken rather than "not live yet." Swap SOCIAL_LINKS'
+                value the moment either account exists — no change needed
+                here, this already renders a real link for any key whose
+                URL isn't "#". */}
             {([
               ['facebook', 'fa-facebook-f'],
               ['twitter', 'fa-twitter'],
               ['instagram', 'fa-instagram'],
               ['pinterest', 'fa-pinterest-p'],
-            ] as const).map(([key, icon]) => (
-              <button
-                key={key}
-                type="button"
-                disabled
-                title="Coming soon"
-                aria-label={`${key.charAt(0).toUpperCase()}${key.slice(1)} — coming soon`}
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-muted text-muted-foreground/50 cursor-not-allowed"
-              >
-                <i className={`fab ${icon} text-sm`}></i>
-              </button>
-            ))}
+            ] as const).map(([key, icon]) => {
+              const href = SOCIAL_LINKS[key];
+              if (href === "#") {
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    disabled
+                    title="Coming soon"
+                    aria-label={`${key.charAt(0).toUpperCase()}${key.slice(1)} — coming soon`}
+                    className="w-9 h-9 flex items-center justify-center rounded-full bg-muted text-muted-foreground/50 cursor-not-allowed"
+                  >
+                    <i className={`fab ${icon} text-sm`}></i>
+                  </button>
+                );
+              }
+              return (
+                <a
+                  key={key}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`${key.charAt(0).toUpperCase()}${key.slice(1)}`}
+                  aria-label={`${key.charAt(0).toUpperCase()}${key.slice(1)}`}
+                  className="w-9 h-9 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
+                >
+                  <i className={`fab ${icon} text-sm`}></i>
+                </a>
+              );
+            })}
             {WHATSAPP_NUMBERS.map((agent) => (
               <a
                 key={agent.number}
