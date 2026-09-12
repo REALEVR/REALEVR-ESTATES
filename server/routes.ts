@@ -48,6 +48,7 @@ import { registerWhatsappRoutes } from './gene/whatsapp'
 import { registerDataQualityRoutes } from './gene/data-quality'
 import { registerPaymentsCoreRoutes } from './gene/payments-core'
 import { notifyAdminsEverywhere } from './gene/admin-notify'
+import { registerAnalyticsExportRoutes } from './gene/analytics-export'
 import { registerBtcPaymentsRoutes } from './gene/btc-payments'
 import { registerInvestorAnalyticsRoutes } from './gene/investor-analytics'
 import { registerListingsLifecycleRoutes } from './gene/listings-lifecycle'
@@ -2781,6 +2782,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerGeneChatRoutes(app, adminMiddleware)
     registerGeneIngestionRoutes(app, adminMiddleware)
     registerGeneAnalyticsRoutes(app, adminMiddleware)
+    registerAnalyticsExportRoutes(app, adminMiddleware)
     registerGeneLearningLoopRoutes(app, adminMiddleware)
     registerDataPartnershipsRoutes(app, adminMiddleware)
     registerListingsApiRoutes(app, adminMiddleware)

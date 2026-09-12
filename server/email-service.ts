@@ -17,11 +17,18 @@ const createTransporter = () => {
     })
 }
 
+export interface EmailAttachment {
+    filename: string
+    content: string | Buffer
+    contentType?: string
+}
+
 export interface EmailOptions {
     to: string
     subject: string
     html: string
     text?: string
+    attachments?: EmailAttachment[]
 }
 
 export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
@@ -34,6 +41,7 @@ export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
             subject: options.subject,
             html: options.html,
             text: options.text,
+            attachments: options.attachments,
         }
 
         const result = await transporter.sendMail(mailOptions)
@@ -81,7 +89,12 @@ function getGuaranteedAdminEmails(): string[] {
  * nothing gets sent (sendEmail already no-throws on a misconfigured
  * transporter) — never blocks the caller's own flow.
  */
-export const sendEmailToAdmins = async (subject: string, html: string, text?: string): Promise<{ sent: number; attempted: number }> => {
+export const sendEmailToAdmins = async (
+    subject: string,
+    html: string,
+    text?: string,
+    attachments?: EmailAttachment[]
+): Promise<{ sent: number; attempted: number }> => {
     try {
         const { storage } = await import('./storage')
         const users = await storage.getAllUsers()
@@ -90,7 +103,7 @@ export const sendEmailToAdmins = async (subject: string, html: string, text?: st
 
         let sent = 0
         for (const email of recipients) {
-            const ok = await sendEmail({ to: email, subject, html, text })
+            const ok = await sendEmail({ to: email, subject, html, text, attachments })
             if (ok) sent += 1
         }
         return { sent, attempted: recipients.length }
@@ -102,7 +115,7 @@ export const sendEmailToAdmins = async (subject: string, html: string, text?: st
             let sent = 0
             const recipients = getGuaranteedAdminEmails()
             for (const email of recipients) {
-                const ok = await sendEmail({ to: email, subject, html, text })
+                const ok = await sendEmail({ to: email, subject, html, text, attachments })
                 if (ok) sent += 1
             }
             return { sent, attempted: recipients.length }
