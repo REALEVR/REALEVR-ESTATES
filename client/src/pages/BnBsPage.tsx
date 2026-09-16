@@ -9,7 +9,7 @@ import { useLocation } from "wouter";
 import type { Property } from "@shared/schema";
 import { PageSeo } from "@/components/seo/PageSeo";
 import { getSiteUrl } from "@/lib/siteUrl";
-import { CATEGORY_PAGE_META } from "@shared/seo";
+import { buildBreadcrumbJsonLd, CATEGORY_PAGE_META } from "@shared/seo";
 
 export default function BnBsPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -25,13 +25,19 @@ export default function BnBsPage() {
   
   const bnbsJsonLd = useMemo(() => {
     const site = getSiteUrl();
-    return {
-      "@context": "https://schema.org",
-      "@type": "CollectionPage",
-      name: CATEGORY_PAGE_META.bnbs.title,
-      description: CATEGORY_PAGE_META.bnbs.description,
-      url: `${site}${CATEGORY_PAGE_META.bnbs.path}`,
-    };
+    return [
+      {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: CATEGORY_PAGE_META.bnbs.title,
+        description: CATEGORY_PAGE_META.bnbs.description,
+        url: `${site}${CATEGORY_PAGE_META.bnbs.path}`,
+      },
+      buildBreadcrumbJsonLd(site, [
+        { name: "Home", path: "/" },
+        { name: "BnBs", path: CATEGORY_PAGE_META.bnbs.path },
+      ]),
+    ];
   }, []);
 
   // Filter for only furnished properties

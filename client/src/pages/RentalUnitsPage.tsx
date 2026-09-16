@@ -10,7 +10,7 @@ import PropertyCard from '@/components/home/PropertyCard'
 import type { Property } from '@shared/schema'
 import { PageSeo } from '@/components/seo/PageSeo'
 import { getSiteUrl } from '@/lib/siteUrl'
-import { CATEGORY_PAGE_META } from '@shared/seo'
+import { buildBreadcrumbJsonLd, CATEGORY_PAGE_META } from '@shared/seo'
 
 export default function RentalUnitsPage() {
     const { hasActiveViewingPackage, openViewingPaymentPrompt } = usePayment()
@@ -34,13 +34,19 @@ export default function RentalUnitsPage() {
 
     const rentalJsonLd = useMemo(() => {
         const site = getSiteUrl()
-        return {
-            '@context': 'https://schema.org',
-            '@type': 'CollectionPage',
-            name: CATEGORY_PAGE_META.rentalUnits.title,
-            description: CATEGORY_PAGE_META.rentalUnits.description,
-            url: `${site}${CATEGORY_PAGE_META.rentalUnits.path}`,
-        }
+        return [
+            {
+                '@context': 'https://schema.org',
+                '@type': 'CollectionPage',
+                name: CATEGORY_PAGE_META.rentalUnits.title,
+                description: CATEGORY_PAGE_META.rentalUnits.description,
+                url: `${site}${CATEGORY_PAGE_META.rentalUnits.path}`,
+            },
+            buildBreadcrumbJsonLd(site, [
+                { name: 'Home', path: '/' },
+                { name: 'Rental Units', path: CATEGORY_PAGE_META.rentalUnits.path },
+            ]),
+        ]
     }, [])
 
     // Handle URL parameters from hero search

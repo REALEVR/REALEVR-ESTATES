@@ -13,10 +13,20 @@ import type { Property } from "@shared/schema";
 import { PageSeo } from "@/components/seo/PageSeo";
 import {
   absolutePropertyImageUrl,
+  buildBreadcrumbJsonLd,
   buildPropertyJsonLd,
   buildPropertyMetaDescription,
   buildPropertyPageTitle,
 } from "@/lib/propertySeo";
+import { CATEGORY_PAGE_META } from "@shared/seo";
+
+const CATEGORY_BREADCRUMB: Record<string, { name: string; path: string }> = {
+  rental_units: { name: "Rental Units", path: CATEGORY_PAGE_META.rentalUnits.path },
+  rental: { name: "Rental Units", path: CATEGORY_PAGE_META.rentalUnits.path },
+  furnished_houses: { name: "BnBs", path: CATEGORY_PAGE_META.bnbs.path },
+  for_sale: { name: "For Sale", path: CATEGORY_PAGE_META.forSale.path },
+  bank_sales: { name: "Bank Sales", path: CATEGORY_PAGE_META.bankSales.path },
+};
 
 export default function PropertyPage() {
   const [, params] = useRoute<{ id: string }>("/property/:id");
@@ -98,11 +108,17 @@ export default function PropertyPage() {
   const propertySeo = useMemo(() => {
     if (!property) return null;
     const p = property as Property;
+    const category = CATEGORY_BREADCRUMB[p.category];
+    const breadcrumbTrail = [
+      { name: "Home", path: "/" },
+      ...(category ? [category] : []),
+      { name: p.title, path: propertyPath },
+    ];
     return {
       title: buildPropertyPageTitle(p),
       description: buildPropertyMetaDescription(p),
       image: absolutePropertyImageUrl(p) || undefined,
-      jsonLd: buildPropertyJsonLd(p, propertyPath),
+      jsonLd: [buildPropertyJsonLd(p, propertyPath), buildBreadcrumbJsonLd(breadcrumbTrail)],
     };
   }, [property, propertyPath]);
 

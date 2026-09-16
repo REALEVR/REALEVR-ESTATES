@@ -12,7 +12,7 @@ import { CalendarIcon, Clock, MapPin, Home, BedDouble, Bath, Maximize } from "lu
 import { useToast } from "@/hooks/use-toast";
 import { PageSeo } from "@/components/seo/PageSeo";
 import { getSiteUrl } from "@/lib/siteUrl";
-import { CATEGORY_PAGE_META } from "@shared/seo";
+import { buildBreadcrumbJsonLd, CATEGORY_PAGE_META } from "@shared/seo";
 
 export default function BankSalesPage() {
   const [activeBankTab, setActiveBankTab] = useState<string>("all");
@@ -59,13 +59,19 @@ export default function BankSalesPage() {
 
   const bankSalesJsonLd = useMemo(() => {
     const site = getSiteUrl();
-    return {
-      "@context": "https://schema.org",
-      "@type": "CollectionPage",
-      name: CATEGORY_PAGE_META.bankSales.title,
-      description: CATEGORY_PAGE_META.bankSales.description,
-      url: `${site}${CATEGORY_PAGE_META.bankSales.path}`,
-    };
+    return [
+      {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: CATEGORY_PAGE_META.bankSales.title,
+        description: CATEGORY_PAGE_META.bankSales.description,
+        url: `${site}${CATEGORY_PAGE_META.bankSales.path}`,
+      },
+      buildBreadcrumbJsonLd(site, [
+        { name: "Home", path: "/" },
+        { name: "Bank Sales", path: CATEGORY_PAGE_META.bankSales.path },
+      ]),
+    ];
   }, []);
 
   // Format auction status including time remaining
