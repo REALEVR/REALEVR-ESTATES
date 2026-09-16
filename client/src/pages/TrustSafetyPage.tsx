@@ -215,11 +215,16 @@ export default function TrustSafetyPage() {
                   is here to help.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <button className="px-6 py-3 bg-accent text-accent-foreground rounded-lg hover:bg-accent/90 transition-colors">
+                  {/* was bg-accent/text-accent-foreground — 3.59:1, below the
+                      4.5:1 floor for this regular-weight button label.
+                      primary/primary-foreground (13.16:1) passes. */}
+                  <button className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
                     <i className="fas fa-exclamation-triangle mr-2"></i>
                     Report Safety Issue
                   </button>
-                  <button className="px-6 py-3 border border-accent text-accent rounded-lg hover:bg-accent/5 transition-colors">
+                  {/* was border-accent/text-accent — accent as a text color
+                      on white computes to 3.7:1, also below 4.5:1. */}
+                  <button className="px-6 py-3 border border-primary text-primary rounded-lg hover:bg-primary/5 transition-colors">
                     <i className="fas fa-envelope mr-2"></i>
                     Contact Safety Team
                   </button>

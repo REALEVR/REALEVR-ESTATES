@@ -124,7 +124,7 @@ export default function MessagesInbox({
                                         <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                                             <div
                                                 className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm ${
-                                                    mine ? 'bg-accent text-accent-foreground' : 'bg-secondary text-foreground'
+                                                    mine ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground'
                                                 }`}
                                             >
                                                 {!mine && <p className="text-[11px] font-medium opacity-70 mb-0.5">{m.senderName}</p>}
