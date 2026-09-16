@@ -44,6 +44,7 @@ import RentRailReceiptList, { type RentRailReceiptRow } from '@/components/rentr
 // component with its own fetch/state, no routing assumptions to work around.
 import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
 import RewardsPanel from '@/components/rewards/RewardsPanel'
+import AgentPortfolioEditor from '@/components/agent/AgentPortfolioEditor'
 
 interface PropertyWithViews extends Property {
     viewCount: number
@@ -374,6 +375,7 @@ export function AgentDashboard() {
                         <TabsTrigger value="inbox">Inbox</TabsTrigger>
                         <TabsTrigger value="messages">Messages</TabsTrigger>
                         <TabsTrigger value="reviews">Reviews</TabsTrigger>
+                        <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
                         <TabsTrigger value="rentpay">
                             <Receipt className="mr-1.5 h-3.5 w-3.5" /> Rent Pay
                         </TabsTrigger>
@@ -653,6 +655,10 @@ export function AgentDashboard() {
 
                     <TabsContent value="reviews" className="space-y-6">
                         <ReviewsTab />
+                    </TabsContent>
+
+                    <TabsContent value="portfolio" className="space-y-6">
+                        <AgentPortfolioEditor />
                     </TabsContent>
 
                     <TabsContent value="rentpay" className="space-y-6">

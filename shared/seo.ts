@@ -136,3 +136,53 @@ export function buildPropertyJsonLd(
 export function defaultOgImageUrl(base: string): string {
     return toAbsoluteUrl(base, DEFAULT_OG_IMAGE_PATH)
 }
+
+// --- Agent portfolio (server/gene/agent-portfolio.ts) ---------------------
+
+export type AgentPortfolioSeoInput = {
+    fullName: string
+    tagline?: string | null
+    companyName?: string | null
+    totalProperties: number
+    avgRating: number
+    totalReviews: number
+}
+
+export function buildAgentPortfolioTitle(agent: Pick<AgentPortfolioSeoInput, 'fullName' | 'companyName'>): string {
+    const suffix = agent.companyName ? ` (${agent.companyName})` : ''
+    return `${agent.fullName}${suffix} | ${SITE_NAME}`
+}
+
+export function buildAgentPortfolioDescription(agent: AgentPortfolioSeoInput): string {
+    const parts = [
+        agent.tagline || `${agent.fullName}'s real estate portfolio on ${SITE_NAME}`,
+        agent.totalProperties > 0 ? `${agent.totalProperties} listing${agent.totalProperties === 1 ? '' : 's'}` : '',
+        agent.totalReviews > 0 ? `${agent.avgRating}★ from ${agent.totalReviews} tenant review${agent.totalReviews === 1 ? '' : 's'}` : '',
+    ].filter(Boolean)
+    return truncatePlainText(parts.join(' · '), MAX_META_DESC)
+}
+
+export function absoluteAgentImageUrl(base: string, avatarUrl?: string | null): string {
+    return avatarUrl ? toAbsoluteUrl(base, avatarUrl) : ''
+}
+
+export function buildAgentPortfolioJsonLd(
+    base: string,
+    agent: { fullName: string; bio?: string | null; avatarUrl?: string | null },
+    agentPath: string
+): Record<string, unknown> {
+    const url = toAbsoluteUrl(base, agentPath)
+    const image = absoluteAgentImageUrl(base, agent.avatarUrl)
+    return {
+        '@context': 'https://schema.org',
+        '@type': 'ProfilePage',
+        url,
+        mainEntity: {
+            '@type': 'RealEstateAgent',
+            name: agent.fullName,
+            ...(agent.bio ? { description: truncatePlainText(agent.bio, 5000) } : {}),
+            ...(image ? { image } : {}),
+            url,
+        },
+    }
+}

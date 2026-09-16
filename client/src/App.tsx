@@ -34,6 +34,7 @@ import TestPage from '@/pages/TestPage' // Added test page
 import { AgentDashboard } from '@/pages/AgentDashboard'
 import { UserDashboard } from '@/pages/UserDashboard'
 import AgentRegistrationPage from '@/pages/AgentRegistrationPage'
+import AgentPortfolioPage from '@/pages/AgentPortfolioPage'
 import AboutUsPage from '@/pages/AboutUsPage'
 import HowItWorksPage from '@/pages/HowItWorksPage'
 import HelpCenterPage from '@/pages/HelpCenterPage'
@@ -136,6 +137,11 @@ function Router() {
             <Route path="/test-page" component={TestPage} />
             <Route path="/agent/register" component={AgentRegistrationPage} />
             <Route path="/agent/dashboard" component={AgentDashboard} />
+            {/* Public, shareable agent portfolio — must come after the two
+                literal /agent/* routes above, since wouter matches routes
+                in declaration order and this would otherwise swallow
+                "register"/"dashboard" as a :username value. */}
+            <Route path="/agent/:username" component={AgentPortfolioPage} />
             <Route path="/list-your-property" component={ListYourPropertyPage} />
 
             <Route path="/dashboard" component={UserDashboard} />

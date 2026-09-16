@@ -32,8 +32,13 @@ import {
     buildPropertyPageTitle,
     defaultOgImageUrl,
     absolutePropertyImageUrl,
+    buildAgentPortfolioTitle,
+    buildAgentPortfolioDescription,
+    buildAgentPortfolioJsonLd,
+    absoluteAgentImageUrl,
 } from '../shared/seo'
 import { getCanonicalBaseUrl } from './sitemap'
+import { getPublicAgentPortfolio } from './gene/agent-portfolio'
 
 // Known link-unfurling / social-preview crawlers. Deliberately excludes Googlebot/
 // Bingbot: those already execute JS and index the SPA correctly, so leaving them
@@ -163,6 +168,27 @@ export function registerSocialPreviewRoutes(app: Express, storage: typeof storag
                     url: `${b}${propertyPath}`,
                     image: absolutePropertyImageUrl(b, property) || defaultOgImageUrl(b),
                     jsonLd: buildPropertyJsonLd(b, property, propertyPath),
+                })
+            )
+        })
+    )
+
+    app.get(
+        '/agent/:username',
+        guard(async (req, res, next) => {
+            const username = req.params.username
+            const data = await getPublicAgentPortfolio(username)
+            if (!data) return next()
+
+            const b = base()
+            const agentPath = `/agent/${encodeURIComponent(username)}`
+            res.type('html').send(
+                renderMetaHtml({
+                    title: buildAgentPortfolioTitle(data.agent),
+                    description: buildAgentPortfolioDescription({ ...data.agent, ...data.stats }),
+                    url: `${b}${agentPath}`,
+                    image: absoluteAgentImageUrl(b, data.portfolio.avatarUrl) || defaultOgImageUrl(b),
+                    jsonLd: buildAgentPortfolioJsonLd(b, { ...data.agent, bio: data.portfolio.bio, avatarUrl: data.portfolio.avatarUrl }, agentPath),
                 })
             )
         })
