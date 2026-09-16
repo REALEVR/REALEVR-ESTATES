@@ -326,8 +326,20 @@ export default function FeaturedTour() {
 
                   </div>
 
-                  {/* Property Manager/Agent Contact Information */}
-                  {propertyOwner && (
+                  {/* Property Manager/Agent Contact Information — a BnB shows
+                      its real host (featuredProperty.hostName/hostPhone, the
+                      same fields OwnerContactDetails.tsx already prefers over
+                      the uploading agent's own account), falling back to the
+                      agent only when no host contact was captured. Same
+                      isBnB test as PropertyDetails.tsx. */}
+                  {propertyOwner && (() => {
+                    const isBnB =
+                      featuredProperty?.category === 'BnB' ||
+                      featuredProperty?.category === 'furnished_houses' ||
+                      featuredProperty?.propertyType === 'Furnished Rental'
+                    const contactName = isBnB ? featuredProperty?.hostName || propertyOwner.fullName : propertyOwner.fullName
+                    const contactPhone = isBnB ? featuredProperty?.hostPhone || propertyOwner.phoneNumber : propertyOwner.phoneNumber
+                    return (
                     <div className="rounded-lg p-6 mb-6 border border-blue-100">
                       <h4 className="font-semibold mb-4 text-foreground flex items-center">
                         <UserIcon className="mr-2 h-5 w-5 text-blue-600" />
@@ -338,17 +350,17 @@ export default function FeaturedTour() {
                           <div className="flex items-center mb-3">
                             <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mr-4">
                               <span className="text-lg font-bold text-blue-600">
-                                {propertyOwner.fullName?.charAt(0)?.toUpperCase() || 'A'}
+                                {contactName?.charAt(0)?.toUpperCase() || 'A'}
                               </span>
                             </div>
                             <div>
-                              <h5 className="font-semibold text-foreground">{propertyOwner.fullName}</h5>
+                              <h5 className="font-semibold text-foreground">{contactName}</h5>
                               <p className="text-blue-600 font-medium">
-                                {propertyOwner.role === 'agent' ? 'Property Agent' : 'Property Manager'}
+                                {isBnB ? 'Host' : propertyOwner.role === 'agent' ? 'Property Agent' : 'Property Manager'}
                               </p>
                             </div>
                           </div>
-                          {propertyOwner.companyName && (
+                          {!isBnB && propertyOwner.companyName && (
                             <div className="flex items-center mb-2">
                               <Building className="h-4 w-4 text-muted-foreground mr-2" />
                               <span className="text-foreground">{propertyOwner.companyName}</span>
@@ -356,25 +368,25 @@ export default function FeaturedTour() {
                           )}
                         </div>
                         <div>
-                          {propertyOwner.phoneNumber && (
+                          {contactPhone && (
                             <div className="flex items-center mb-3">
                               <Phone className="h-4 w-4 text-green-600 mr-2" />
-                              <span className="text-green-700 font-medium">{propertyOwner.phoneNumber}</span>
+                              <span className="text-green-700 font-medium">{contactPhone}</span>
                             </div>
                           )}
                           <div className="flex flex-col gap-2">
-                            {propertyOwner.phoneNumber && (
+                            {contactPhone && (
                               <Button asChild size="sm" className="bg-green-600 hover:bg-green-700">
-                                <a href={`tel:${propertyOwner.phoneNumber}`} className="flex items-center">
+                                <a href={`tel:${contactPhone}`} className="flex items-center">
                                   <Phone className="mr-2 h-4 w-4" />
                                   Call Now
                                 </a>
                               </Button>
                             )}
-                            {propertyOwner.phoneNumber && (
+                            {contactPhone && (
                               <Button asChild size="sm" variant="outline" className="border-green-500 text-green-600 hover:bg-green-50">
                                 <a
-                                  href={`https://wa.me/${propertyOwner.phoneNumber.replace(/[^0-9]/g, '')}?text=Hello%2C%20I'm%20interested%20in%20the%20property%20${encodeURIComponent(featuredProperty?.title || '')}%20I%20saw%20on%20RealEVR%20Estates.%20Can%20you%20provide%20more%20details%3F`}
+                                  href={`https://wa.me/${contactPhone.replace(/[^0-9]/g, '')}?text=Hello%2C%20I'm%20interested%20in%20the%20property%20${encodeURIComponent(featuredProperty?.title || '')}%20I%20saw%20on%20RealEVR%20Estates.%20Can%20you%20provide%20more%20details%3F`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="flex items-center"
@@ -388,7 +400,8 @@ export default function FeaturedTour() {
                         </div>
                       </div>
                     </div>
-                  )}
+                    )
+                  })()}
 
                   <div className="border-t border-b border-border py-6 my-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

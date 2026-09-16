@@ -17,6 +17,17 @@ export default function PropertyCard({ property }: PropertyCardProps) {
     const [isShareModalOpen, setIsShareModalOpen] = useState(false)
     const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
     const [propertyOwner, setPropertyOwner] = useState<User | null>(null)
+    // Same isBnB test as PropertyDetails.tsx — a BnB's real point of contact
+    // is whoever is actually hosting the stay (property.hostName, captured
+    // on the upload form), never the uploading agent's own account name.
+    // PropertyDetails.tsx already gets this right (it hides the agent card
+    // entirely for BnBs and defers to OwnerContactDetails); this card was
+    // the one place still always showing "Property Agent" + the agent's
+    // name regardless of category.
+    const isBnB =
+        property.category === 'BnB' ||
+        property.category === 'furnished_houses' ||
+        property.propertyType === 'Furnished Rental'
     // Same badge, wherever this card renders — not just the featured
     // carousel — see server/gene/boost-placement.ts and useActiveBoosts.ts.
     const { data: activeBoosts } = useActiveBoostedPropertyIds()
@@ -219,25 +230,40 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                         {property.squareMeters ? ` • ${property.squareMeters} sq m` : ''}
                     </p>
 
-                    {/* Property Owner Contact */}
+                    {/* Property Owner Contact — a BnB shows its real host
+                        (property.hostName, same field OwnerContactDetails.tsx
+                        already prefers), never the uploading agent, falling
+                        back to the agent's own name only when no host name
+                        was captured on the listing. */}
                     {propertyOwner && (
                         <div className="mb-3 p-3 bg-secondary rounded-lg border border-border">
                             <div className="flex items-start justify-between">
                                 <div className="flex-1">
-                                    <div className="flex items-center mb-1">
-                                        <div className="w-6 h-6 rounded-full bg-accent/15 flex items-center justify-center mr-2">
-                                            <span className="text-xs font-semibold text-accent">
-                                                {propertyOwner.fullName?.charAt(0)?.toUpperCase() || 'A'}
-                                            </span>
-                                        </div>
-                                        <span className="text-xs font-semibold text-foreground">
-                                            {propertyOwner.fullName}
-                                        </span>
-                                    </div>
+                                    {(() => {
+                                        const displayName = isBnB
+                                            ? property.hostName || propertyOwner.fullName
+                                            : propertyOwner.fullName
+                                        return (
+                                            <div className="flex items-center mb-1">
+                                                <div className="w-6 h-6 rounded-full bg-accent/15 flex items-center justify-center mr-2">
+                                                    <span className="text-xs font-semibold text-accent">
+                                                        {displayName?.charAt(0)?.toUpperCase() || 'A'}
+                                                    </span>
+                                                </div>
+                                                <span className="text-xs font-semibold text-foreground">
+                                                    {displayName}
+                                                </span>
+                                            </div>
+                                        )
+                                    })()}
                                     <div className="text-xs text-accent font-medium mb-1">
-                                        {propertyOwner.role === 'agent' ? 'Property Agent' : 'Property Manager'}
+                                        {isBnB
+                                            ? 'Host'
+                                            : propertyOwner.role === 'agent'
+                                              ? 'Property Agent'
+                                              : 'Property Manager'}
                                     </div>
-                                    {propertyOwner.companyName && (
+                                    {!isBnB && propertyOwner.companyName && (
                                         <div className="text-xs text-muted-foreground mb-1">{propertyOwner.companyName}</div>
                                     )}
                                     {propertyOwner.phoneNumber && (
