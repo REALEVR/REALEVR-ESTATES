@@ -67,6 +67,18 @@ export default function Home() {
                 name: SITE_NAME,
                 url: `${site}/`,
                 description: CATEGORY_PAGE_META.home.description,
+                // Points at the Hero's location filter (Hero.tsx), the one search
+                // box on the homepage that actually navigates anywhere — the
+                // header's inline search box is a separate, currently non-functional
+                // stub (Header.tsx) and shouldn't be the SearchAction target.
+                potentialAction: {
+                    '@type': 'SearchAction',
+                    target: {
+                        '@type': 'EntryPoint',
+                        urlTemplate: `${site}/rental-units?location={search_term_string}`,
+                    },
+                    'query-input': 'required name=search_term_string',
+                },
             },
             {
                 '@context': 'https://schema.org',

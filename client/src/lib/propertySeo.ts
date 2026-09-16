@@ -1,6 +1,7 @@
 import type { Property } from '@shared/schema'
 import {
     absolutePropertyImageUrl as sharedAbsolutePropertyImageUrl,
+    buildBreadcrumbJsonLd as sharedBuildBreadcrumbJsonLd,
     buildPropertyJsonLd as sharedBuildPropertyJsonLd,
     buildPropertyMetaDescription as sharedBuildPropertyMetaDescription,
     buildPropertyPageTitle as sharedBuildPropertyPageTitle,
@@ -27,4 +28,8 @@ export function absolutePropertyImageUrl(p: Property): string {
 
 export function buildPropertyJsonLd(p: Property, propertyPath: string): Record<string, unknown> {
     return sharedBuildPropertyJsonLd(getSiteUrl(), p, propertyPath)
+}
+
+export function buildBreadcrumbJsonLd(trail: Array<{ name: string; path: string }>): Record<string, unknown> {
+    return sharedBuildBreadcrumbJsonLd(getSiteUrl(), trail)
 }

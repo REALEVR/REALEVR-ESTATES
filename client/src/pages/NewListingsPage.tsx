@@ -5,7 +5,7 @@ import PropertyCard from '@/components/home/PropertyCard'
 import { Loader2 } from 'lucide-react'
 import { PageSeo } from '@/components/seo/PageSeo'
 import { getSiteUrl } from '@/lib/siteUrl'
-import { CATEGORY_PAGE_META } from '@shared/seo'
+import { buildBreadcrumbJsonLd, CATEGORY_PAGE_META } from '@shared/seo'
 
 /**
  * "New Listings" — one of the 3 top-level browsing destinations (Featured /
@@ -24,13 +24,19 @@ export default function NewListingsPage() {
 
     const newListingsJsonLd = useMemo(() => {
         const site = getSiteUrl()
-        return {
-            '@context': 'https://schema.org',
-            '@type': 'CollectionPage',
-            name: CATEGORY_PAGE_META.newListings.title,
-            description: CATEGORY_PAGE_META.newListings.description,
-            url: `${site}${CATEGORY_PAGE_META.newListings.path}`,
-        }
+        return [
+            {
+                '@context': 'https://schema.org',
+                '@type': 'CollectionPage',
+                name: CATEGORY_PAGE_META.newListings.title,
+                description: CATEGORY_PAGE_META.newListings.description,
+                url: `${site}${CATEGORY_PAGE_META.newListings.path}`,
+            },
+            buildBreadcrumbJsonLd(site, [
+                { name: 'Home', path: '/' },
+                { name: 'New Listings', path: CATEGORY_PAGE_META.newListings.path },
+            ]),
+        ]
     }, [])
 
     const newest = (properties ?? [])
