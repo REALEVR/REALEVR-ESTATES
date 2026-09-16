@@ -37,6 +37,12 @@ interface RentRailPayment {
     disbursementError?: string
     receiptSent: boolean
     receiptDeliveryError?: string
+    // RealEVR's own EFRIS invoice for just the service fee — see
+    // server/gene/efris.ts. 'not_configured' until RealEVR is registered
+    // for EFRIS Direct API access.
+    efrisInvoiceStatus?: 'not_configured' | 'issued' | 'failed'
+    efrisInvoiceNumber?: string
+    efrisError?: string
     createdAt: string
 }
 
@@ -161,6 +167,11 @@ export default function AdminRentRailPayouts() {
                     by mobile money to the number shown and mark it paid out here — for whenever the automatic call
                     doesn't go through.
                 </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                    EFRIS invoicing for just RealEVR's own service fee (never the rent) isn't live yet — RealEVR isn't
+                    registered for EFRIS Direct API access. Rows below won't show an invoice number until that's set
+                    up; see server/gene/efris.ts.
+                </p>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
@@ -252,6 +263,17 @@ export default function AdminRentRailPayouts() {
                                                 <p className="text-sm mt-1 text-amber-600 flex items-start gap-1">
                                                     <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                                                     Automatic disbursement didn't go through — {r.disbursementError}
+                                                </p>
+                                            )}
+                                            {r.efrisInvoiceStatus === 'issued' && (
+                                                <p className="text-sm mt-1 text-muted-foreground">
+                                                    EFRIS service-fee invoice: {r.efrisInvoiceNumber}
+                                                </p>
+                                            )}
+                                            {r.efrisInvoiceStatus === 'failed' && (
+                                                <p className="text-sm mt-1 text-amber-600 flex items-start gap-1">
+                                                    <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                                                    EFRIS service-fee invoice failed — {r.efrisError}
                                                 </p>
                                             )}
                                         </div>
