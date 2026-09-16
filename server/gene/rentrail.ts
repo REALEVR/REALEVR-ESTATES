@@ -2,11 +2,15 @@
  * RentRail — pay any landlord's mobile money number, keep a UGX 1,000
  * service fee, send the rest to the landlord. See the build brief this
  * implements: EFRIS receipts can only be issued by the registered taxpayer
- * against their own TIN (never by whoever processed the payment), so this
- * is deliberately Phase 1 / "Path A" only — no EFRIS/URA API integration:
- * the tenant is told to collect the receipt from the landlord directly, and
- * this module's own record of the payment (amount, date, who it went to)
- * is the tenant's proof of what they paid in the meantime.
+ * against their own TIN (never by whoever processed the payment), so
+ * RentRail still never invoices the RENT — the tenant is told to collect
+ * that receipt from the landlord directly, and this module's own record of
+ * the payment (amount, date, who it went to) is the tenant's proof of what
+ * they paid in the meantime. The SERVICE FEE is different (see ./efris.ts):
+ * it's RealEVR's own sale, so it's the one thing this module does invoice
+ * via EFRIS, under RealEVR's own TIN — currently scaffolded but inert
+ * (efrisInvoiceStatus stays 'not_configured') until RealEVR is registered
+ * for EFRIS Direct API access; see efris.ts's top doc comment.
  *
  * PROVIDER: IoTec, not Flutterwave — reuses the exact collection flow
  * already live elsewhere in this app (client/src/lib/iotec-paymentpatch.ts
@@ -73,6 +77,7 @@ import type { Express, Request, Response, RequestHandler } from 'express'
 import crypto from 'crypto'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
+import { issueServiceFeeInvoice } from './efris'
 
 const COLLECTION = 'rentrail_payments'
 const SERVICE_FEE_UGX = 1000
@@ -122,10 +127,21 @@ export interface RentRailPayment {
     confirmedFullAmount: boolean
     policyAcceptedAt: string
     // Set once the WhatsApp payment-confirmation message (NOT an EFRIS
-    // receipt — see finalizePayout below) has been sent to the tenant.
+    // receipt for the rent — see deliverReceipt below) has been sent to
+    // the tenant.
     receiptSent: boolean
     receiptSentAt?: string
     receiptDeliveryError?: string
+    // RealEVR's OWN EFRIS e-invoice for just the serviceFee above (never
+    // the rent — see ./efris.ts's top doc comment for why that split
+    // matters legally). Set once, the instant collection is confirmed,
+    // since that's when the fee is actually earned regardless of how the
+    // landlord payout leg turns out. 'not_configured' until RealEVR is
+    // registered for EFRIS Direct API access — never a fabricated invoice.
+    efrisInvoiceStatus?: 'not_configured' | 'issued' | 'failed'
+    efrisInvoiceNumber?: string
+    efrisError?: string
+    efrisIssuedAt?: string
     createdAt: string
     updatedAt: string
 }
@@ -465,6 +481,23 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
             if (status === 'Success') {
                 payment.iotecTransactionId = transactionId
                 payment.status = 'payout_pending_manual' // attemptAutoDisbursement below may move this straight to paid_out or payout_processing
+                // RealEVR's own EFRIS invoice for the service fee — earned
+                // the instant collection is confirmed, independent of how
+                // the landlord payout leg below turns out. See ./efris.ts's
+                // top doc comment for why this covers only the service fee,
+                // never the rent, and why it's still 'not_configured' today.
+                const efrisResult = await issueServiceFeeInvoice({
+                    reference: payment.txRef,
+                    amount: payment.serviceFee,
+                    currency: payment.currency,
+                    buyerName: payment.tenantName,
+                    buyerPhone: payment.tenantPhone,
+                    description: `RentRail service fee — rent payment ${payment.txRef}`,
+                })
+                payment.efrisInvoiceStatus = efrisResult.status
+                payment.efrisInvoiceNumber = efrisResult.invoiceNumber
+                payment.efrisError = efrisResult.error
+                payment.efrisIssuedAt = efrisResult.issuedAt
                 await attemptAutoDisbursement(payment)
                 // (as RentRailStatus): see checkAndUpdateDisbursementStatus's
                 // comment on the same pattern — TS narrows across the call.
