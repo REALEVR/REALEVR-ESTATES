@@ -82,7 +82,7 @@ export default function WhatsappThreadsPanel() {
                                         <div key={m.id} className={`flex ${fromCustomer ? 'justify-start' : 'justify-end'}`}>
                                             <div
                                                 className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm ${
-                                                    fromCustomer ? 'bg-secondary text-foreground' : 'bg-accent text-accent-foreground'
+                                                    fromCustomer ? 'bg-secondary text-foreground' : 'bg-primary text-primary-foreground'
                                                 }`}
                                             >
                                                 <p className="whitespace-pre-wrap break-words">{m.text}</p>

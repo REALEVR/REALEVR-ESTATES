@@ -273,7 +273,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
         className="absolute inset-0 w-full h-full object-cover"
       />
       <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/50 to-black/60" />
- <section className="relative z-10 w-full mdx_hero p-8 md:p-12 mt-6 flex flex-col gap-8 hero-video-wrapper  newHero">
+ <section className="relative z-10 w-full hero-frame p-8 md:p-12 mt-6 flex flex-col gap-8 hero-video-wrapper">
 
       {/* Main hero content */}
       <div className="flex flex-col md:flex-row md:items-center gap-8">
@@ -479,15 +479,23 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             and the search bar overlapping the bottom edge. */}
         <div className="absolute top-20 right-4 z-10 flex gap-1.5">
           {(['tour', 'news'] as const).map((slide) => (
+            // The visible pill stays thin (h-1.5) for the small indicator
+            // look, but the button itself carries p-2.5 so the actual
+            // tappable area is ~28x28 — a bare h-1.5 hit target was ~6px
+            // tall, well under the accessibility floor for a control.
             <button
               key={slide}
               type="button"
               onClick={() => setHeroSlide(slide)}
               aria-label={slide === 'tour' ? 'Show tour video' : 'Show real estate news'}
-              className={`h-1.5 rounded-full transition-all ${
-                heroSlide === slide ? 'w-6 bg-white' : 'w-1.5 bg-white/50'
-              }`}
-            />
+              className="p-2.5 flex items-center justify-center"
+            >
+              <span
+                className={`h-1.5 rounded-full transition-all ${
+                  heroSlide === slide ? 'w-6 bg-white' : 'w-1.5 bg-white/50'
+                }`}
+              />
+            </button>
           ))}
         </div>
 
@@ -519,6 +527,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
         {!isMobile && (
           <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-[95%] bg-card rounded-full shadow-lg flex flex-wrap md:flex-nowrap items-center pl-2 pr-2 py-2">
           <select
+            aria-label="Location"
             className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none border-r border-border last:border-r-0"
             value={searchFilters.location}
             onChange={(e) => handleFilterChange('location', e.target.value)}
@@ -530,6 +539,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             ))}
           </select>
           <select
+            aria-label="Property Type"
             className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none border-r border-border last:border-r-0"
             value={searchFilters.propertyType}
             onChange={(e) => handleFilterChange('propertyType', e.target.value)}
@@ -541,6 +551,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             ))}
           </select>
           <select
+            aria-label="Price Range"
             className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none border-r border-border last:border-r-0"
             value={searchFilters.priceRange}
             onChange={(e) => handleFilterChange('priceRange', e.target.value)}
@@ -552,6 +563,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             ))}
           </select>
           <select
+            aria-label="Bedrooms"
             className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none border-r border-border last:border-r-0"
             value={searchFilters.bedrooms}
             onChange={(e) => handleFilterChange('bedrooms', e.target.value)}
@@ -563,6 +575,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             ))}
           </select>
           <select
+            aria-label="Bathrooms"
             className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none"
             value={searchFilters.bathrooms}
             onChange={(e) => handleFilterChange('bathrooms', e.target.value)}

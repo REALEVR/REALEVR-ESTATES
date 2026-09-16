@@ -282,42 +282,18 @@
   height: 200px !important;
 }
 
-.mdx_hero{
+/* Hero's outer frame. Used to be two classes applied together (.mdx_hero,
+   .newHero) with conflicting !important max-widths (106rem vs 93rem) — the
+   106rem never actually applied, silently overridden by .newHero's 93rem
+   through cascade order alone. Merged into the one effective rule that was
+   actually rendering, so there's a single source of truth. */
+.hero-frame {
   margin-top: -10px !important;
-    max-width: 106rem !important;
-        padding: 3rem !important;
-        margin-bottom: -8rem !important;
-        justify-self: center !important;
-}
-
-
-.newHero {
-    max-width: 93rem !important;
-    padding: 3rem !important;
-    border-radius: 0px !important;
-    justify-self: center !important;
-}
-
-
-.ann{
-  max-width: 1136px !important;
-}
-
-.ann_div{
-  place-content: center;
-  background-color: red;
-  height: 2rem;
-  color: white;
-  width: 100%;
-}
-
-.ann_div p{
-  font-size: 1rem;
-  justify-self: center;
-  color: white;
-  margin-bottom: 0px !important;
-  font-weight: 600;
-  text-align: center;
+  max-width: 93rem !important;
+  padding: 3rem !important;
+  margin-bottom: -8rem !important;
+  border-radius: 0 !important;
+  justify-self: center !important;
 }
 
 /* Google Translate Element (client/src/components/layout/LanguageSwitcher.tsx)
