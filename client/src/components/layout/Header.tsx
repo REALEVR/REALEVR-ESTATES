@@ -25,8 +25,10 @@ export default function Header() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would redirect to search results
-    console.log("Searching for:", searchQuery);
+    const trimmed = searchQuery.trim();
+    const params = new URLSearchParams();
+    if (trimmed) params.append('location', trimmed);
+    setLocation(`/rental-units?${params.toString()}`);
   };
 
   const handleLogout = () => {
