@@ -1,3 +1,4 @@
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function TrustSafetyPage() {
@@ -185,19 +186,19 @@ export default function TrustSafetyPage() {
                     <p className="text-gray-600 text-sm mb-3">
                       If you encounter any suspicious listings or behavior, please report it immediately.
                     </p>
-                    <button className="text-accent text-sm font-medium hover:underline">
+                    <Link href="/contact" className="text-accent text-sm font-medium hover:underline">
                       Report Issue →
-                    </button>
+                    </Link>
                   </div>
-                  
+
                   <div className="p-4 border border-gray-200 rounded-lg">
                     <h4 className="font-semibold mb-2">Safety Guidelines</h4>
                     <p className="text-gray-600 text-sm mb-3">
                       Learn about best practices for safe property viewing and transactions.
                     </p>
-                    <button className="text-accent text-sm font-medium hover:underline">
+                    <Link href="/help" className="text-accent text-sm font-medium hover:underline">
                       Read Guidelines →
-                    </button>
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -218,16 +219,22 @@ export default function TrustSafetyPage() {
                   {/* was bg-accent/text-accent-foreground — 3.59:1, below the
                       4.5:1 floor for this regular-weight button label.
                       primary/primary-foreground (13.16:1) passes. */}
-                  <button className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+                  <Link
+                    href="/contact"
+                    className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                  >
                     <i className="fas fa-exclamation-triangle mr-2"></i>
                     Report Safety Issue
-                  </button>
+                  </Link>
                   {/* was border-accent/text-accent — accent as a text color
                       on white computes to 3.7:1, also below 4.5:1. */}
-                  <button className="px-6 py-3 border border-primary text-primary rounded-lg hover:bg-primary/5 transition-colors">
+                  <Link
+                    href="/contact"
+                    className="px-6 py-3 border border-primary text-primary rounded-lg hover:bg-primary/5 transition-colors"
+                  >
                     <i className="fas fa-envelope mr-2"></i>
                     Contact Safety Team
-                  </button>
+                  </Link>
                 </div>
               </div>
             </CardContent>
