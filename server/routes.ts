@@ -29,6 +29,7 @@ import {
     getCanonicalBaseUrl,
     getStaticSitemapEntries,
     propertyToSitemapEntry,
+    isValidSitemapPropertyId,
 } from './sitemap'
 import { registerSocialPreviewRoutes } from './social-preview'
 import notificationRoutes from './routes/notifications'
@@ -227,7 +228,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const base = getCanonicalBaseUrl()
             const staticEntries = getStaticSitemapEntries(base)
             const properties = await storage.getAllProperties()
-            const propertyEntries = properties.filter(isPubliclyVisibleProperty).map((p) =>
+            const propertyEntries = properties
+                .filter(isPubliclyVisibleProperty)
+                .filter((p) => isValidSitemapPropertyId(p.id))
+                .map((p) =>
                 propertyToSitemapEntry(base, {
                     id: p.id,
                     title: p.title || 'Property',
