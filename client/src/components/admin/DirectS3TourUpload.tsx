@@ -42,6 +42,29 @@ interface PresignedPart {
   uploadUrl: string
 }
 
+interface PresignResponse {
+  s3Key: string
+  uploadId: string
+  partSize: number
+  parts: PresignedPart[]
+  // True when the part URLs point at S3 Transfer Acceleration - the route
+  // that gets retried on the standard endpoint if it can't be reached.
+  accelerated?: boolean
+}
+
+/**
+ * The browser never got an HTTP response from S3 (XHR onerror): a blocked
+ * or unreachable endpoint, a CORS rejection, a dropped connection. Kept
+ * distinct from a plain "S3 answered with an error status" so the caller can
+ * tell "try the other route" apart from "S3 said no".
+ */
+class StorageUnreachableError extends Error {
+  constructor(partNumber: number) {
+    super(`Part ${partNumber} could not reach the storage server`)
+    this.name = 'StorageUnreachableError'
+  }
+}
+
 /**
  * Uploads every part of a multipart upload in parallel (a worker-pool
  * pattern, same shape as the server's own uploadFilesInParallel in
@@ -122,7 +145,7 @@ async function uploadPartsInParallel(
           }
           xhr.onerror = () => {
             inFlightXhrs.delete(xhr)
-            reject(new Error(`Part ${part.partNumber} upload failed`))
+            reject(new StorageUnreachableError(part.partNumber))
           }
           xhr.onabort = () => {
             inFlightXhrs.delete(xhr)
@@ -217,18 +240,52 @@ export default function DirectS3TourUpload({ propertyId, onSuccess }: DirectS3To
       // small JSON describing where to PUT each part.
       setStage('presigning')
       const contentType = file.type || 'application/zip'
-      const presignRes = await apiRequest('POST', `/api/upload/virtual-tour/${propertyId}/presign-zip`, {
-        fileSizeBytes: file.size,
-        contentType,
-      })
-      const { s3Key, uploadId, partSize, parts } = await presignRes.json()
+      const requestPresign = async (standardEndpoint: boolean): Promise<PresignResponse> => {
+        const res = await apiRequest('POST', `/api/upload/virtual-tour/${propertyId}/presign-zip`, {
+          fileSizeBytes: file.size,
+          contentType,
+          standardEndpoint,
+        })
+        return res.json()
+      }
+      // Frees the parts of an upload we're giving up on (they're billed
+      // until aborted). Fire-and-forget: tidying up must never mask the
+      // real error or delay the retry.
+      const abandonQuietly = (p: PresignResponse) => {
+        apiRequest('POST', `/api/upload/virtual-tour/${propertyId}/abort-multipart`, {
+          s3Key: p.s3Key,
+          uploadId: p.uploadId,
+        }).catch(() => {})
+      }
+
+      let presign = await requestPresign(false)
 
       // Step 2: PUT each part straight to S3 in parallel. credentials/auth
       // headers are deliberately omitted here - these requests go to AWS,
       // not to our API, and each part's own presigned URL is the only
       // thing granting access to write it.
       setStage('uploading')
-      const uploadedParts = await uploadPartsInParallel(file, partSize, parts, setUploadPercent)
+      let uploadedParts: Array<{ partNumber: number; etag: string }>
+      try {
+        uploadedParts = await uploadPartsInParallel(file, presign.partSize, presign.parts, setUploadPercent)
+      } catch (firstErr) {
+        abandonQuietly(presign)
+        // Couldn't even reach the accelerated endpoint (some networks block
+        // or mangle it while the standard S3 endpoint works fine): start
+        // over once on the standard route instead of failing the upload.
+        if (!(firstErr instanceof StorageUnreachableError) || !presign.accelerated) throw firstErr
+
+        setUploadPercent(0)
+        setStage('presigning')
+        presign = await requestPresign(true)
+        setStage('uploading')
+        try {
+          uploadedParts = await uploadPartsInParallel(file, presign.partSize, presign.parts, setUploadPercent)
+        } catch (retryErr) {
+          abandonQuietly(presign)
+          throw retryErr
+        }
+      }
 
       // Step 3: tell S3 to assemble the parts into the final object. This
       // needs our server's own AWS credentials (a presigned URL alone
@@ -236,15 +293,17 @@ export default function DirectS3TourUpload({ propertyId, onSuccess }: DirectS3To
       // PUT actually completes), so it's a real API call, not a presign.
       setStage('completing')
       await apiRequest('POST', `/api/upload/virtual-tour/${propertyId}/complete-multipart`, {
-        s3Key,
-        uploadId,
+        s3Key: presign.s3Key,
+        uploadId: presign.uploadId,
         parts: uploadedParts,
       })
 
       // Step 4: tell our server the ZIP landed in S3 and to start
       // extracting it.
       setStage('starting')
-      const processRes = await apiRequest('POST', `/api/upload/virtual-tour/${propertyId}/process-from-s3`, { s3Key })
+      const processRes = await apiRequest('POST', `/api/upload/virtual-tour/${propertyId}/process-from-s3`, {
+        s3Key: presign.s3Key,
+      })
       const { jobId } = await processRes.json()
 
       // Step 5: listen for extraction progress over SSE.
@@ -307,7 +366,11 @@ export default function DirectS3TourUpload({ propertyId, onSuccess }: DirectS3To
       onSuccess(tourUrl)
     } catch (err: any) {
       setStage('error')
-      const message = err?.message || 'Failed to upload virtual tour'
+      console.error('[tour upload] failed:', err)
+      const message =
+        err instanceof StorageUnreachableError
+          ? "Couldn't reach our storage servers from this browser. Check your internet connection, turn off any VPN or ad-blocker for this site, then try again."
+          : err?.message || 'Failed to upload virtual tour'
       setError(message)
       toast({ title: 'Error', description: 'Failed to upload virtual tour: ' + message, variant: 'destructive' })
     }

@@ -479,4 +479,16 @@ export function registerRoomCaptureRoutes(
   app.post('/api/upload/room-capture/:propertyId/finalize', guard, finalizeRoomCapture);
   // Admin-only cross-property overview - see listRoomCaptureDrafts' own doc comment.
   app.get('/api/admin/room-capture-drafts', strictAdminGuard, listRoomCaptureDrafts);
+  // Normally unnecessary - the same pass runs in the background on every
+  // boot (see initializeS3). Exists to re-run it on demand and read the
+  // result: how many phone-captured tours were checked, updated, or failed.
+  app.post('/api/admin/tours/refresh-generated-viewers', strictAdminGuard, async (_req: Request, res: Response) => {
+    try {
+      const { refreshAllGeneratedTourShells } = await import('./s3-tour-hosting');
+      res.json(await refreshAllGeneratedTourShells());
+    } catch (e: any) {
+      console.error('[room-capture] refresh-generated-viewers failed:', e);
+      res.status(500).json({ status: 'error', message: e.message });
+    }
+  });
 }

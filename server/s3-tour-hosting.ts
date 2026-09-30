@@ -1,10 +1,12 @@
-import { S3Client, PutObjectCommand, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand, PutBucketCorsCommand, PutBucketAccelerateConfigurationCommand, GetObjectCommand, DeleteObjectCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand, PutBucketCorsCommand, PutBucketAccelerateConfigurationCommand, GetBucketAccelerateConfigurationCommand, GetObjectCommand, DeleteObjectCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
 import fs from 'fs';
 import path from 'path';
+import zlib from 'zlib';
 import mime from 'mime-types';
 import { getOptimizedConfig, shouldSkipFile, shouldSkipDirectory } from './upload-config';
+import { TEMPLATES_DIR, renderTourShell } from './tour-shell';
 
 // Initialize S3 client
 //
@@ -53,18 +55,26 @@ const REGION = process.env.AWS_REGION || 'us-east-1';
 // account doesn't have it enabled for this bucket (it's an opt-in
 // per-bucket setting - see setupS3TourBucket's own accelerate call below).
 const TRANSFER_ACCELERATION_ENABLED = process.env.S3_TRANSFER_ACCELERATION !== 'false';
-const s3AccelerateClient = TRANSFER_ACCELERATION_ENABLED
-  ? new S3Client({
-      region: process.env.AWS_REGION || 'us-east-1',
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
-      },
-      maxAttempts: 4,
-      useAccelerateEndpoint: true,
-      requestHandler: new NodeHttpHandler({ connectionTimeout: 10_000, socketTimeout: 30_000 }),
-    })
-  : s3Client;
+
+// Clients used ONLY to sign browser-facing part-upload URLs (nothing is sent
+// through them). `requestChecksumCalculation: 'WHEN_REQUIRED'` matters here:
+// since AWS SDK v3 3.729 the default ('WHEN_SUPPORTED') bakes an
+// x-amz-checksum-crc32 of the EMPTY body into a presigned UploadPart URL,
+// which S3 then rejects against the real part a browser actually sends.
+// UploadPart never requires a checksum, so opt out for signing only and
+// leave s3Client's behavior for the server's own PUTs untouched.
+const presignClientConfig = {
+  region: REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
+  },
+  maxAttempts: 4,
+  requestChecksumCalculation: 'WHEN_REQUIRED' as const,
+  requestHandler: new NodeHttpHandler({ connectionTimeout: 10_000, socketTimeout: 30_000 }),
+};
+const s3StandardPresignClient = new S3Client(presignClientConfig);
+const s3AccelerateClient = new S3Client({ ...presignClientConfig, useAccelerateEndpoint: true });
 
 interface UploadState {
   uploadedFiles: number;
@@ -81,6 +91,91 @@ interface UploadState {
 // the life of the process; a failure clears the cache so the next upload
 // still retries setup instead of being stuck permanently unconfigured.
 let bucketReady = false;
+
+// The browser PUTs tour ZIP parts straight to this bucket, cross-origin, so
+// without these rules S3 answers the preflight with no CORS headers and the
+// browser reports a bare network error (XHR onerror, no HTTP status) - the
+// "Part 1 upload failed" symptom. ETag must be exposed too: it's the only way
+// the browser can learn each part's ETag for CompleteMultipartUpload.
+const TOUR_BUCKET_CORS_RULES = [
+  {
+    AllowedOrigins: ["*"],
+    AllowedMethods: ["GET", "HEAD", "PUT", "POST"],
+    AllowedHeaders: ["*"],
+    ExposeHeaders: ["ETag", "Content-Length", "x-amz-request-id"],
+    MaxAgeSeconds: 3600,
+  },
+];
+
+// setupS3TourBucket only runs at boot, and it aborts at the first failing
+// step (the bucket-policy call, for instance, is rejected outright when the
+// account has Block Public Access on) - which used to leave CORS unapplied
+// for the presign path that actually needs it. This applies JUST the CORS
+// rules, once per process, and never throws: a missing s3:PutBucketCORS
+// permission shouldn't take uploads down if the bucket is already
+// configured correctly by hand.
+let corsEnsured = false;
+async function ensureBucketCors(): Promise<void> {
+  if (corsEnsured) return;
+  try {
+    await s3Client.send(
+      new PutBucketCorsCommand({
+        Bucket: BUCKET_NAME,
+        CORSConfiguration: { CORSRules: TOUR_BUCKET_CORS_RULES },
+      })
+    );
+    corsEnsured = true;
+  } catch (err) {
+    console.warn("Could not apply CORS rules to the tours bucket (uploads work only if it's already configured):", err);
+  }
+}
+
+// Transfer Acceleration only works if the bucket has it switched on -
+// otherwise S3 rejects every request to the s3-accelerate.amazonaws.com
+// endpoint, and (with no CORS headers on that rejection) a browser sees a
+// network error, not a readable message. setupS3TourBucket's enable call is
+// best-effort and runs LAST, so it's skipped whenever an earlier setup step
+// fails, or swallowed if the IAM user lacks s3:PutAccelerateConfiguration.
+// So: use the accelerate endpoint only once the bucket verifiably reports
+// Enabled, and quietly try to turn it on in the background of a request that
+// falls back to the standard endpoint. A "no" is re-checked after a few
+// minutes rather than cached forever, so fixing the permission or the
+// bucket setting takes effect without a redeploy.
+const ACCELERATION_RECHECK_MS = 5 * 60_000;
+let accelerationCheck: { usable: boolean; checkedAt: number } | null = null;
+
+async function isAccelerationUsable(): Promise<boolean> {
+  if (!TRANSFER_ACCELERATION_ENABLED) return false;
+  if (accelerationCheck && (accelerationCheck.usable || Date.now() - accelerationCheck.checkedAt < ACCELERATION_RECHECK_MS)) {
+    return accelerationCheck.usable;
+  }
+
+  let usable = false;
+  try {
+    const current = await s3Client.send(new GetBucketAccelerateConfigurationCommand({ Bucket: BUCKET_NAME }));
+    usable = current.Status === 'Enabled';
+  } catch (err) {
+    console.warn("Could not read the tours bucket's Transfer Acceleration setting; using the standard endpoint:", err);
+  }
+
+  if (!usable) {
+    // Not on yet (or unreadable): try to enable it for next time. This
+    // request stays on the standard endpoint - a bucket that was only just
+    // switched on can take a little while before the accelerate endpoint
+    // answers reliably.
+    try {
+      await s3Client.send(
+        new PutBucketAccelerateConfigurationCommand({ Bucket: BUCKET_NAME, AccelerateConfiguration: { Status: 'Enabled' } })
+      );
+      console.log("Requested S3 Transfer Acceleration for the tours bucket; using it once it reports Enabled");
+    } catch (err) {
+      console.warn("Could not enable S3 Transfer Acceleration (uploads use the standard endpoint):", err);
+    }
+  }
+
+  accelerationCheck = { usable, checkedAt: Date.now() };
+  return usable;
+}
 
 export async function setupS3TourBucket(): Promise<void> {
   if (bucketReady) return;
@@ -113,23 +208,10 @@ export async function setupS3TourBucket(): Promise<void> {
     await s3Client.send(
       new PutBucketCorsCommand({
         Bucket: BUCKET_NAME,
-        CORSConfiguration: {
-          CORSRules: [
-            {
-              AllowedOrigins: ["*"],
-              AllowedMethods: ["GET", "HEAD", "PUT", "POST"],
-              AllowedHeaders: ["*"],
-              ExposeHeaders: [
-                "ETag",
-                "Content-Length",
-                "x-amz-request-id"
-              ],
-              MaxAgeSeconds: 3600
-            }
-          ]
-        }
+        CORSConfiguration: { CORSRules: TOUR_BUCKET_CORS_RULES }
       })
     );
+    corsEnsured = true;
 
     console.log("S3 CORS configuration set successfully");
 
@@ -523,8 +605,20 @@ export async function createStagingMultipartUpload(
   s3Key: string,
   contentType: string,
   fileSizeBytes: number,
-  expiresInSeconds: number
-): Promise<{ uploadId: string; partSize: number; parts: MultipartUploadPart[] }> {
+  expiresInSeconds: number,
+  options: { forceStandardEndpoint?: boolean } = {}
+): Promise<{ uploadId: string; partSize: number; parts: MultipartUploadPart[]; accelerated: boolean }> {
+  // The browser talks to the bucket directly from here on, so the bucket's
+  // CORS rules have to be in place before any URL is handed out.
+  await ensureBucketCors();
+
+  // Accelerated only when the bucket verifiably has it on AND the caller
+  // hasn't asked for the standard route (the browser asks for that after
+  // failing to reach the accelerate endpoint - some networks block or
+  // mangle it even when the bucket is configured correctly).
+  const accelerated = !options.forceStandardEndpoint && (await isAccelerationUsable());
+  const signingClient = accelerated ? s3AccelerateClient : s3StandardPresignClient;
+
   const created = await s3Client.send(
     new CreateMultipartUploadCommand({ Bucket: BUCKET_NAME, Key: s3Key, ContentType: contentType })
   );
@@ -547,14 +641,15 @@ export async function createStagingMultipartUpload(
         UploadId: uploadId,
         PartNumber: partNumber,
       });
-      // Signed with the accelerate-endpoint client so the URL itself points
-      // at s3-accelerate.amazonaws.com - see that client's own comment.
-      const uploadUrl = await getSignedUrl(s3AccelerateClient, command, { expiresIn: expiresInSeconds });
+      // Signed with the accelerate-endpoint client only when acceleration is
+      // verified usable (so the URL points at s3-accelerate.amazonaws.com);
+      // otherwise the standard regional endpoint - see isAccelerationUsable.
+      const uploadUrl = await getSignedUrl(signingClient, command, { expiresIn: expiresInSeconds });
       return { partNumber, uploadUrl };
     })
   );
 
-  return { uploadId, partSize: MULTIPART_PART_SIZE_BYTES, parts };
+  return { uploadId, partSize: MULTIPART_PART_SIZE_BYTES, parts, accelerated };
 }
 
 /**
@@ -664,4 +759,181 @@ export async function initializeS3() {
   } catch (error) {
     console.error('Failed to initialize S3 tour hosting:', error);
   }
+
+  // Independent of the bucket setup above: it's only PutObject, and a setup
+  // step failing (e.g. the public-read policy) shouldn't stop the tour
+  // viewer from being published - or leave it stale after a deploy.
+  try {
+    await ensureTourViewerAssets();
+    console.log('Shared tour viewer assets published');
+
+    // Tours published before the viewer moved into the shared folder still
+    // point at the old CDN and show a black screen. Fix them in the
+    // background (not awaited - startup shouldn't wait on it); tours already
+    // on the current shell are skipped, so this is cheap on later boots.
+    refreshAllGeneratedTourShells()
+      .then((summary) => {
+        console.log(
+          `Phone-captured tours checked: ${summary.checked}, updated: ${summary.updated}, failed: ${summary.failed.length}`
+        );
+        summary.failed.forEach((f) => console.warn(`  property ${f.propertyId}: ${f.error}`));
+      })
+      .catch((error) => console.error('Failed to refresh phone-captured tour shells:', error));
+  } catch (error) {
+    console.error('Failed to publish shared tour viewer assets:', error);
+  }
+}
+
+// --- Shared viewer for phone-captured tours ---
+//
+// A generated tour's index.html is a thin shell; the viewer it runs (Photo
+// Sphere Viewer with its three.js, bundled into one file, plus our tour-app
+// script and styles) lives ONCE in the bucket under tour-viewer/current/ and
+// every tour points at it. That has three consequences worth knowing:
+//   - No third-party CDN at view time. The old template pulled a floating
+//     `@5` alias from jsDelivr, which silently stopped working (that
+//     version needs a separate three.js the page never loaded), leaving
+//     every tour a black screen.
+//   - Same origin as the tours, so nothing cross-origin to configure.
+//   - A viewer fix or redesign is one publish (the next boot/deploy), not a
+//     re-publish of every tour.
+// The files are re-published on every boot (they're ~170KB gzipped), so what
+// is in the bucket always matches the deployed code.
+const TOUR_VIEWER_KEY_PREFIX = 'tour-viewer/current';
+const TOUR_VIEWER_FILES = ['psv-viewer.js', 'psv-viewer.css', 'tour-app.js', 'tour-app.css'] as const;
+
+export function getTourViewerBaseUrl(): string {
+  return `https://${BUCKET_NAME}.s3.${REGION}.amazonaws.com/${TOUR_VIEWER_KEY_PREFIX}`;
+}
+
+let viewerAssetsPublished: Promise<void> | null = null;
+
+export function ensureTourViewerAssets(): Promise<void> {
+  if (!viewerAssetsPublished) {
+    // A failure clears the cache so the next call tries again.
+    viewerAssetsPublished = publishTourViewerAssets().catch((err) => {
+      viewerAssetsPublished = null;
+      throw err;
+    });
+  }
+  return viewerAssetsPublished;
+}
+
+async function publishTourViewerAssets(): Promise<void> {
+  const dir = path.join(TEMPLATES_DIR, 'tour-viewer');
+  await Promise.all(
+    TOUR_VIEWER_FILES.map(async (name) => {
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: BUCKET_NAME,
+          Key: `${TOUR_VIEWER_KEY_PREFIX}/${name}`,
+          Body: zlib.gzipSync(fs.readFileSync(path.join(dir, name)), { level: 9 }),
+          ContentType: name.endsWith('.js') ? 'application/javascript; charset=utf-8' : 'text/css; charset=utf-8',
+          ContentEncoding: 'gzip',
+          // One URL for every tour and every future release, so the cache
+          // is deliberately short; S3's ETag makes each revalidation a
+          // cheap 304 rather than a re-download.
+          CacheControl: 'public, max-age=300, must-revalidate',
+        })
+      );
+    })
+  );
+}
+
+/** The tour isn't a phone-captured one (no tour.json beside its index.html). */
+export class NotAGeneratedTourError extends Error {
+  constructor() {
+    super('This tour was not captured with the phone flow (no tour.json found), so there is nothing to refresh.');
+    this.name = 'NotAGeneratedTourError';
+  }
+}
+
+/**
+ * Rewrites an already-published phone-captured tour's index.html to the
+ * current shell, so tours published before the viewer was moved into the
+ * shared bucket folder (and so still pointing at the broken CDN) start
+ * working without being re-captured. Reads the title back from the tour's
+ * own tour.json; touches nothing else in the tour. A tour already on the
+ * current shell is left alone (`changed: false`), so running this over every
+ * tour is cheap and safe to repeat.
+ */
+export async function refreshGeneratedTourShell(
+  tourUrl: string,
+  propertyId: string
+): Promise<{ title: string; changed: boolean }> {
+  let url: URL;
+  try {
+    url = new URL(tourUrl);
+  } catch {
+    throw new Error('The stored tour URL is not a valid URL');
+  }
+
+  // The key comes from a stored URL; only ever touch this bucket, and only
+  // under this property's own tours/ folder.
+  const key = decodeURIComponent(url.pathname.replace(/^\//, ''));
+  const expectedHost = `${BUCKET_NAME}.s3.${REGION}.amazonaws.com`;
+  const ownPrefix = `tours/property_${propertyId}/`;
+  if (url.host !== expectedHost || !key.startsWith(ownPrefix) || key.includes('..') || !key.endsWith('/index.html')) {
+    throw new NotAGeneratedTourError();
+  }
+  const folder = key.slice(0, -'index.html'.length);
+
+  const readText = async (objectKey: string): Promise<string> => {
+    try {
+      const res = await s3Client.send(new GetObjectCommand({ Bucket: BUCKET_NAME, Key: objectKey }));
+      return (await res.Body?.transformToString()) || '';
+    } catch (err: any) {
+      if (err?.name === 'NoSuchKey' || err?.$metadata?.httpStatusCode === 404) throw new NotAGeneratedTourError();
+      throw err;
+    }
+  };
+
+  // A 3D Vista export has no tour.json; only our own generated tours do.
+  const tourJson = JSON.parse((await readText(`${folder}tour.json`)) || '{}');
+  const title = typeof tourJson.title === 'string' && tourJson.title ? tourJson.title : 'Virtual Tour';
+
+  const currentShell = await readText(key);
+  if (currentShell.includes(`${getTourViewerBaseUrl()}/tour-app.js`)) {
+    return { title, changed: false };
+  }
+
+  await ensureTourViewerAssets();
+  await s3Client.send(
+    new PutObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      Body: renderTourShell(title, getTourViewerBaseUrl()),
+      ContentType: 'text/html; charset=utf-8',
+      CacheControl: 'no-cache',
+    })
+  );
+  return { title, changed: true };
+}
+
+/**
+ * Runs refreshGeneratedTourShell over every property with a phone-captured
+ * tour (tourQuality is only ever set by that flow - see room-capture.ts),
+ * one at a time so it never competes with real traffic. Never throws: one
+ * tour failing is recorded and the rest carry on.
+ */
+export async function refreshAllGeneratedTourShells(): Promise<{
+  checked: number;
+  updated: number;
+  failed: Array<{ propertyId: number; error: string }>;
+}> {
+  const { storage } = await import('./storage');
+  const properties = await storage.getAllProperties();
+  const candidates = properties.filter((p) => p.tourUrl && p.tourQuality);
+
+  let updated = 0;
+  const failed: Array<{ propertyId: number; error: string }> = [];
+  for (const property of candidates) {
+    try {
+      const { changed } = await refreshGeneratedTourShell(property.tourUrl!, String(property.id));
+      if (changed) updated++;
+    } catch (err: any) {
+      failed.push({ propertyId: property.id, error: err?.message || String(err) });
+    }
+  }
+  return { checked: candidates.length, updated, failed };
 }
