@@ -28,7 +28,7 @@ import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
 import { notifyNewEscalation } from './slack-bridge'
 import { getAiReply } from './ai-provider'
-import { languageInstruction } from './locale'
+import { languageInstruction, chosenLanguageInstruction, parseChosenLanguage, type ChosenLanguage } from './locale'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -132,7 +132,9 @@ export function isLowConfidence(intent: GeneIntent, usedAi: boolean, reply: stri
     if (!usedAi && intent === 'general_question') return true
     const hedgeMarkers = ["i'm not sure", "i don't know", "i don't have", 'cannot help', "can't help", 'no information']
     const lowered = reply.toLowerCase()
-    if (reply.trim().length < 8) return true
+    // Length is only a meaningful signal for scripts where 8 characters is
+    // barely a word; a complete reply in Chinese or Japanese can be shorter.
+    if (reply.trim().length < 8 && /^[\x00-\x7F]*$/.test(reply)) return true
     return hedgeMarkers.some((marker) => lowered.includes(marker))
 }
 
@@ -154,14 +156,52 @@ async function buildPropertyContext(): Promise<string> {
     }
 }
 
-async function getReply(history: GeneChatMessage[], message: string, acceptLanguage?: string): Promise<string | null> {
+export type GenePersona = 'gene' | 'kevin'
+
+// Kevin is the site's floating concierge (client/src/components/kevin). His
+// replies are read aloud and may be in any language, so the prompt asks for
+// spoken-style text, and for a machine-readable marker when a human is wanted:
+// classifyIntent's regexes only understand English, so "I'd like to talk to a
+// person" in Luganda or French would otherwise never reach the team.
+const HUMAN_HANDOFF_TOKEN = '[[HUMAN]]'
+
+const GENE_PERSONA_PROMPT = [
+    'You are GENE, a helpful, concise real-estate assistant for a property platform operating across East Africa',
+    '(Uganda, Kenya, Tanzania, Rwanda). You help prospective tenants/buyers with pricing, availability, and',
+    'booking viewings. Be friendly, brief (2-4 sentences), and honest — if you do not know a specific fact',
+    '(exact price, exact availability), say so and offer to connect them with a human agent rather than guessing.',
+]
+
+const KEVIN_PERSONA_PROMPT = [
+    'You are Kevin, the warm, well-travelled concierge of RealEVR Estates, a property platform with immersive 360° virtual tours',
+    'across East Africa (Uganda first, also Kenya, Tanzania and Rwanda). You help visitors find a home, understand prices and',
+    'availability, book viewings, and use the site (virtual tours, BnB stays, paying rent through RentRail).',
+    'Your replies are read aloud, so write the way people speak: one to three short sentences, no markdown, no bullet lists,',
+    'no emojis, and never spell out web addresses.',
+    'Be honest: if you do not know an exact price or whether something is available, say so and offer a human from the team',
+    'rather than guessing.',
+    `If the visitor asks to speak to a person, an agent, a human or support (in any language), answer kindly and end your message with the exact token ${HUMAN_HANDOFF_TOKEN}.`,
+]
+
+const KEVIN_INTRO_INSTRUCTION =
+    'The visitor has just chosen their language. Introduce yourself as Kevin in one warm sentence, then ask in one short sentence how you can help them find a home today. Say nothing else.'
+
+interface ReplyOptions {
+    persona: GenePersona
+    chosenLanguage: ChosenLanguage | null
+}
+
+async function getReply(
+    history: GeneChatMessage[],
+    message: string,
+    acceptLanguage?: string | string[],
+    options: ReplyOptions = { persona: 'gene', chosenLanguage: null }
+): Promise<string | null> {
     const propertyContext = await buildPropertyContext()
     const systemPrompt = [
-        'You are GENE, a helpful, concise real-estate assistant for a property platform operating across East Africa',
-        '(Uganda, Kenya, Tanzania, Rwanda). You help prospective tenants/buyers with pricing, availability, and',
-        'booking viewings. Be friendly, brief (2-4 sentences), and honest — if you do not know a specific fact',
-        '(exact price, exact availability), say so and offer to connect them with a human agent rather than guessing.',
-        languageInstruction(acceptLanguage),
+        ...(options.persona === 'kevin' ? KEVIN_PERSONA_PROMPT : GENE_PERSONA_PROMPT),
+        // An explicit choice beats the browser's guess.
+        options.chosenLanguage ? chosenLanguageInstruction(options.chosenLanguage) : languageInstruction(acceptLanguage),
         propertyContext,
     ]
         .filter(Boolean)
@@ -173,6 +213,16 @@ async function getReply(history: GeneChatMessage[], message: string, acceptLangu
         history.slice(-8).map((m) => ({ role: m.role, text: m.text }))
     )
     return result?.reply ?? null
+}
+
+function extractHandoffToken(reply: string): { text: string; requested: boolean } {
+    if (!reply.includes(HUMAN_HANDOFF_TOKEN)) return { text: reply, requested: false }
+    return { text: reply.split(HUMAN_HANDOFF_TOKEN).join('').trim(), requested: true }
+}
+
+function cannedReply(intent: GeneIntent, persona: GenePersona): string {
+    const text = CANNED_REPLIES[intent]
+    return persona === 'kevin' ? text.replace('Thanks for reaching out to GENE.', "Thanks for stopping by, I'm Kevin.") : text
 }
 
 // ---------------------------------------------------------------------------
@@ -302,6 +352,21 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
     app.post('/api/gene/chat', async (req, res) => {
         try {
             const body = req.body ?? {}
+
+            // Kevin's "introduce yourself in the language I just picked" call.
+            // Stateless on purpose: no message is stored and nothing is
+            // escalated, and the intro is never saved into the conversation -
+            // a history that opens with an assistant turn is rejected by some
+            // providers (Anthropic requires the first turn to be the user's).
+            // A null reply tells the client to use its built-in intro line.
+            if (body.intro === true && body.persona === 'kevin') {
+                const reply = await getReply([], KEVIN_INTRO_INSTRUCTION, req.headers['accept-language'], {
+                    persona: 'kevin',
+                    chosenLanguage: parseChosenLanguage(body.language),
+                })
+                return res.json({ reply: reply ? extractHandoffToken(reply).text : null })
+            }
+
             const message = typeof body.message === 'string' ? body.message.trim() : ''
             if (!message) {
                 return res.status(400).json({ message: 'Field "message" is required and must be a non-empty string.' })
@@ -309,6 +374,11 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
 
             const sessionId =
                 typeof body.sessionId === 'string' && body.sessionId.trim().length > 0 ? body.sessionId.trim() : randomUUID()
+
+            // Only the site's own Kevin widget asks for his persona; every
+            // other caller (WhatsApp, the older widget) keeps GENE.
+            const persona: GenePersona = body.persona === 'kevin' ? 'kevin' : 'gene'
+            const chosenLanguage = parseChosenLanguage(body.language)
 
             const conversation = loadConversation(sessionId)
 
@@ -331,9 +401,23 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                 }
             }
 
-            const aiReply = await getReply(conversation.messages.slice(0, -1), message, req.headers['accept-language'])
+            const aiReply = await getReply(conversation.messages.slice(0, -1), message, req.headers['accept-language'], {
+                persona,
+                chosenLanguage,
+            })
             const usedAi = aiReply !== null
-            let reply = aiReply ?? CANNED_REPLIES[intent]
+            let reply = aiReply ?? cannedReply(intent, persona)
+
+            // Kevin flags "wants a human" in any language with a token (see
+            // KEVIN_PERSONA_PROMPT); strip it so it's never shown or spoken.
+            let effectiveIntent: GeneIntent = intent
+            if (persona === 'kevin' && aiReply) {
+                const extracted = extractHandoffToken(reply)
+                if (extracted.requested) {
+                    effectiveIntent = 'human_handoff_request'
+                    reply = extracted.text || cannedReply('human_handoff_request', persona)
+                }
+            }
             // Deterministic, not dependent on the AI provider cooperating —
             // guarantees every visitor who shares their details gets
             // acknowledged, matching this module's "never depend solely on
@@ -342,16 +426,16 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                 reply = `Thanks for sharing your contact details — a member of our team may follow up if you need anything specific. ${reply}`
             }
 
-            const escalated = isLowConfidence(intent, usedAi, reply)
+            const escalated = isLowConfidence(effectiveIntent, usedAi, reply)
             if (escalated) {
-                const reason = intent === 'human_handoff_request' ? 'human_handoff_request' : 'low_confidence_reply'
+                const reason = effectiveIntent === 'human_handoff_request' ? 'human_handoff_request' : 'low_confidence_reply'
                 writeEscalation(sessionId, message, reason)
             }
 
-            conversation.messages.push({ role: 'assistant', text: reply, intent, createdAt: nowIso() })
+            conversation.messages.push({ role: 'assistant', text: reply, intent: effectiveIntent, createdAt: nowIso() })
             saveConversation(conversation)
 
-            res.json({ sessionId, reply, intent, escalated, leadCaptured: justCapturedLead })
+            res.json({ sessionId, reply, intent: effectiveIntent, escalated, leadCaptured: justCapturedLead })
         } catch (err) {
             console.error('[gene/chat] POST /api/gene/chat failed:', err)
             res.status(500).json({ message: 'Failed to process chat message.' })

@@ -78,6 +78,50 @@ export function detectPreferredLanguage(acceptLanguageHeader: string | string[] 
     return { code, name: LANGUAGE_NAMES[code] || code }
 }
 
+export interface ChosenLanguage {
+    /** BCP-47-ish code when the client knows one (e.g. "sw", "fr-FR"); null for a free-typed language. */
+    code: string | null
+    /** Human-readable name that goes into the system prompt (e.g. "Luganda", "Runyankole"). */
+    name: string
+}
+
+// Letters and combining marks in any script, plus a little punctuation
+// ("Português (Brasil)", "Ki-Swahili"). Anything else is rejected outright:
+// this text is typed by a visitor and inserted into a system prompt, so it
+// must not be able to carry an instruction.
+// (Built from a string: the `u` flag is needed for \p{...}, but the tsc
+// target here predates it and rejects the literal form. Node handles it fine.)
+const SAFE_LANGUAGE_NAME = new RegExp("^[\\p{L}\\p{M}][\\p{L}\\p{M} '’().,-]{0,39}$", 'u')
+const SAFE_LANGUAGE_CODE = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/
+
+/**
+ * A language the visitor explicitly CHOSE (Kevin's language picker, or one
+ * they typed themselves), as opposed to one guessed from Accept-Language.
+ * Returns null for anything missing or unsafe, in which case callers simply
+ * fall back to the header-based hint.
+ */
+export function parseChosenLanguage(input: unknown): ChosenLanguage | null {
+    if (!input || typeof input !== 'object') return null
+    const { code, name } = input as { code?: unknown; name?: unknown }
+
+    const cleanCode = typeof code === 'string' && SAFE_LANGUAGE_CODE.test(code) ? code : null
+    const cleanName = typeof name === 'string' ? name.trim().replace(/\s+/g, ' ') : ''
+
+    if (cleanName && SAFE_LANGUAGE_NAME.test(cleanName)) return { code: cleanCode, name: cleanName }
+    if (cleanCode) {
+        const known = LANGUAGE_NAMES[cleanCode.split('-')[0].toLowerCase()]
+        if (known) return { code: cleanCode, name: known }
+    }
+    return null
+}
+
+/** System-prompt line for an explicitly chosen language. Unlike the
+ * header-based hint, this holds even if the visitor writes in another
+ * language, because they told us what they want. */
+export function chosenLanguageInstruction(lang: ChosenLanguage): string {
+    return `The visitor chose to speak ${lang.name}. Always reply in ${lang.name}, even if they write to you in a different language, until they ask to switch. Use natural, everyday ${lang.name}, not a stiff word-for-word translation from English. Keep place names, prices and currency codes exactly as written.`
+}
+
 /** A ready-to-drop-in system-prompt line — empty string (nothing to add)
  * when the visitor's browser is already English or unknown, since that's
  * this AI's natural default anyway. */

@@ -33,10 +33,10 @@ const ScrollToTop = () => {
           // right on top of MobileTabBar.tsx's fixed bar, z-50 winning over
           // its z-40 and covering its icons): left-5 keeps this clear of
           // WhatsAppFab/AgentLauncher's right-side row-1/row-2 stack, and
-          // --fab-row-2 clears the tab bar the same way they do. Reverts to
-          // its original bottom-right spot on desktop, where none of that
-          // applies (the tab bar is md:hidden).
-          className="fixed bottom-[var(--fab-row-2)] left-5 right-auto z-50 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full p-3 shadow-lg transition-all duration-500 ease-out hover:scale-110 hover:shadow-xl animate-in slide-in-from-bottom-4 zoom-in-95 md:bottom-6 md:left-auto md:right-6"
+          // --fab-row-2 clears the tab bar the same way they do. On desktop it
+          // stacks at the top of the right-hand column (Kevin, WhatsApp, then
+          // this), centred on the same line as the two below it.
+          className="fixed bottom-[var(--fab-row-2)] left-5 right-auto z-50 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full p-3 shadow-lg transition-all duration-500 ease-out hover:scale-110 hover:shadow-xl animate-in slide-in-from-bottom-4 zoom-in-95 md:bottom-[10.25rem] md:left-auto md:right-[1.625rem]"
           aria-label="Scroll to top"
           style={{
             animation: 'bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)'
