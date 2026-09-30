@@ -1,32 +1,95 @@
 /* Styles for the phone-captured tour page. Shared by every generated tour
-   (see tour-app.js) - edit here to restyle them all at once. */
-:root { color-scheme: dark; --room-bar-h: 64px; }
+   (see tour-app.js) - edit here to restyle them all at once.
+
+   The look is "a private viewing": near-black stage, warm gold accents, glass
+   panels, a serif title, and slow, deliberate motion. Everything decorative
+   is added by tour-app.js so the per-tour HTML shell can stay thin. */
+:root {
+  color-scheme: dark;
+  --room-bar-h: 72px;
+  --gold: #d8b46a;
+  --gold-soft: rgba(216, 180, 106, .55);
+  --ink: #0b0b0f;
+  --glass: rgba(14, 14, 20, .55);
+  --glass-line: rgba(255, 255, 255, .14);
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --ease: cubic-bezier(.22, 1, .36, 1);
+}
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: #0b0b0f; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+html, body { margin: 0; height: 100%; background: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
 #tour-root { position: relative; height: 100%; width: 100%; overflow: hidden; }
-#viewer { position: absolute; inset: 0; }
+#viewer { position: absolute; inset: 0; isolation: isolate; }
 #gallery { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: #000; }
 #gallery img { max-width: 100%; max-height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; }
-.gallery-nav { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,.45); color: #fff; border: none; width: 44px; height: 44px; border-radius: 999px; font-size: 20px; cursor: pointer; }
+.gallery-nav { position: absolute; top: 50%; transform: translateY(-50%); background: var(--glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--glass-line); color: #fff; width: 48px; height: 48px; border-radius: 999px; font-size: 22px; cursor: pointer; }
 .gallery-nav.prev { left: 16px; }
 .gallery-nav.next { right: 16px; }
-.gallery-counter { position: absolute; bottom: 88px; left: 50%; transform: translateX(-50%); color: #fff; background: rgba(0,0,0,.45); padding: 4px 12px; border-radius: 999px; font-size: 13px; }
+.gallery-counter { position: absolute; bottom: calc(var(--room-bar-h) + 24px); left: 50%; transform: translateX(-50%); color: #fff; background: var(--glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--glass-line); padding: 4px 14px; border-radius: 999px; font-size: 13px; letter-spacing: .04em; }
 
 /* Flat fallback: the panorama as a wide photo you scroll sideways. */
 #flat { position: absolute; inset: 0; display: none; overflow: auto; background: #000; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 #flat::-webkit-scrollbar { display: none; }
 #flat img { height: 100%; width: auto; max-width: none; display: block; user-select: none; -webkit-user-drag: none; }
-#notice { position: absolute; left: 16px; right: 16px; bottom: calc(var(--room-bar-h) + 16px + env(safe-area-inset-bottom)); z-index: 11; display: none; color: #fff; background: rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.15); border-radius: 12px; padding: 10px 14px; font-size: 13px; line-height: 1.4; text-align: center; pointer-events: none; }
+#notice { position: absolute; left: 16px; right: 16px; bottom: calc(var(--room-bar-h) + 20px + env(safe-area-inset-bottom)); z-index: 11; display: none; color: #fff; background: var(--glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--glass-line); border-radius: 14px; padding: 10px 14px; font-size: 13px; line-height: 1.4; text-align: center; pointer-events: none; }
 
 /* The viewer's own zoom/VR/fullscreen bar sat underneath the room bar and
-   was unreachable; lift it clear. */
-#viewer .psv-navbar { bottom: calc(var(--room-bar-h) + env(safe-area-inset-bottom)); }
+   was unreachable; lift it clear, and dress it to match. */
+#viewer .psv-navbar { bottom: calc(var(--room-bar-h) + env(safe-area-inset-bottom) + 6px); background: var(--glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--glass-line); border-radius: 999px; left: 50%; right: auto; transform: translateX(-50%); width: auto; padding: 0 6px; }
 
-#room-bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 8px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); overflow-x: auto; background: linear-gradient(to top, rgba(0,0,0,.75), transparent); z-index: 10; -webkit-overflow-scrolling: touch; }
-.room-chip { flex: 0 0 auto; padding: 8px 14px; border-radius: 999px; background: rgba(255,255,255,.12); color: #fff; font-size: 13px; border: 1px solid transparent; cursor: pointer; white-space: nowrap; }
-.room-chip.active { background: #fff; color: #0b0b0f; font-weight: 600; }
-.room-chip .badge { opacity: .7; font-size: 11px; margin-left: 6px; }
-#title-bar { position: absolute; top: 0; left: 0; right: 0; padding: 16px; color: #fff; background: linear-gradient(to bottom, rgba(0,0,0,.6), transparent); z-index: 10; pointer-events: none; }
-#title-bar h1 { margin: 0; font-size: 16px; font-weight: 600; }
-#title-bar p { margin: 2px 0 0; font-size: 12px; opacity: .75; }
+/* ---- Title bar ------------------------------------------------------- */
+#title-bar { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: calc(16px + env(safe-area-inset-top)) 16px 36px; color: #fff; background: linear-gradient(to bottom, rgba(5,5,8,.78), rgba(5,5,8,.35) 60%, transparent); z-index: 10; pointer-events: none; }
+#title-bar .title-text { min-width: 0; }
+.eyebrow { font-size: 10px; letter-spacing: .28em; text-transform: uppercase; color: var(--gold); font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.eyebrow::before { content: ''; width: 18px; height: 1px; background: var(--gold); display: block; }
+#title-bar h1 { margin: 6px 0 0; font-family: var(--serif); font-size: 22px; font-weight: 500; letter-spacing: .01em; line-height: 1.2; text-shadow: 0 2px 14px rgba(0,0,0,.5); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#title-bar p { margin: 4px 0 0; font-size: 12px; opacity: .8; letter-spacing: .04em; }
+
+#room-pager { display: none; align-items: center; gap: 4px; pointer-events: auto; background: var(--glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--glass-line); border-radius: 999px; padding: 2px; flex: 0 0 auto; }
+#room-pager button { width: 44px; height: 44px; border-radius: 999px; border: 0; background: transparent; color: #fff; font-size: 20px; cursor: pointer; }
+#room-pager button:hover { background: rgba(255,255,255,.12); }
+#room-pager .count { min-width: 56px; text-align: center; font-size: 12px; letter-spacing: .12em; font-variant-numeric: tabular-nums; color: #fff; }
+#room-pager .count b { color: var(--gold); font-weight: 600; }
+
+/* ---- Room dock ------------------------------------------------------- */
+#room-bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 8px; padding: 26px 16px calc(14px + env(safe-area-inset-bottom)); overflow-x: auto; scrollbar-width: none; background: linear-gradient(to top, rgba(5,5,8,.85), rgba(5,5,8,.4) 60%, transparent); z-index: 10; -webkit-overflow-scrolling: touch; }
+#room-bar::-webkit-scrollbar { display: none; }
+/* margin auto on both ends centres a short row but still scrolls a long one. */
+.room-chip:first-child { margin-left: auto; }
+.room-chip:last-child { margin-right: auto; }
+.room-chip { flex: 0 0 auto; min-height: 44px; padding: 8px 18px; border-radius: 999px; background: var(--glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: #fff; font-size: 13px; letter-spacing: .03em; border: 1px solid var(--glass-line); cursor: pointer; white-space: nowrap; transition: background .3s var(--ease), color .3s var(--ease), border-color .3s var(--ease), transform .3s var(--ease); }
+.room-chip:hover { border-color: var(--gold-soft); }
+.room-chip:active { transform: scale(.97); }
+.room-chip.active { background: var(--gold); color: var(--ink); border-color: var(--gold); font-weight: 600; box-shadow: 0 6px 22px rgba(216,180,106,.35); }
+.room-chip .badge { opacity: .75; font-size: 10px; letter-spacing: .1em; margin-left: 8px; text-transform: uppercase; }
+.room-chip:focus-visible, #room-pager button:focus-visible, .gallery-nav:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
 #loading, #empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; opacity: .8; text-align: center; padding: 24px; }
+
+/* ---- Entrance -------------------------------------------------------- */
+#intro { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 32px; text-align: center; color: #fff; cursor: pointer; background: radial-gradient(ellipse at 50% 42%, #1c1a26 0%, #0b0b0f 62%); transition: opacity .9s var(--ease), visibility .9s; }
+#intro.out { opacity: 0; visibility: hidden; pointer-events: none; }
+#intro .rule { width: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); animation: intro-rule 1.4s var(--ease) .2s forwards; }
+#intro .eyebrow { justify-content: center; opacity: 0; animation: intro-in 1s var(--ease) .35s forwards; }
+#intro .eyebrow::before { display: none; }
+#intro h2 { margin: 0; max-width: 18em; font-family: var(--serif); font-size: clamp(26px, 6vw, 44px); font-weight: 400; line-height: 1.15; letter-spacing: .01em; opacity: 0; transform: translateY(10px); animation: intro-in 1.1s var(--ease) .55s forwards; }
+#intro .presented { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: rgba(255,255,255,.65); opacity: 0; animation: intro-in 1s var(--ease) .9s forwards; }
+#intro .hint { position: absolute; bottom: calc(28px + env(safe-area-inset-bottom)); font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: rgba(255,255,255,.55); opacity: 0; animation: intro-in 1s var(--ease) 1.3s forwards; }
+@keyframes intro-rule { to { width: min(320px, 60vw); } }
+@keyframes intro-in { to { opacity: 1; transform: none; } }
+
+/* Between rooms: a quick dip to black so the change feels like walking
+   through a doorway instead of the picture snapping. */
+#curtain { position: absolute; inset: 0; z-index: 20; background: var(--ink); opacity: 0; pointer-events: none; transition: opacity .28s ease; }
+#curtain.on { opacity: 1; pointer-events: auto; }
+
+@media (min-width: 720px) {
+  #title-bar { padding: 24px 32px 48px; }
+  #title-bar h1 { font-size: 28px; }
+  #room-bar { padding-left: 32px; padding-right: 32px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #intro, #intro * { animation-duration: .01s !important; animation-delay: 0s !important; }
+  #intro { transition-duration: .2s; }
+  #curtain { transition-duration: .01s; }
+  .room-chip { transition: none; }
+}

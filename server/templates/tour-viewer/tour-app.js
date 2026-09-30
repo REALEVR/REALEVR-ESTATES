@@ -26,6 +26,10 @@
   var loadingEl = $('loading');
   var emptyEl = $('empty');
   var subtitleEl = $('room-subtitle');
+  var rootEl = $('tour-root');
+  var titleBar = $('title-bar');
+
+  var reducedMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   var PSV = window.PhotoSphereViewer;
   // Stereo (headset) mode is built on the gyroscope plugin in this viewer
@@ -35,6 +39,99 @@
   var psvInstance = null;
   var galleryIndex = 0;
   var currentRoom = null;
+  var rooms = [];
+  var firstReveal = true;
+  var userTookControl = false;
+
+  // ---- Presentation: the "private viewing" layer ------------------------
+  // Purely cosmetic and added from here so the per-tour HTML shell stays
+  // thin. Nothing below is allowed to keep the visitor from the tour: every
+  // overlay has a timer that removes it no matter what else fails.
+  var introEl = null;
+  var introShownAt = 0;
+  var curtainEl = null;
+  var curtainTimer = null;
+  var pagerCount = null;
+
+  function buildIntro(title) {
+    introEl = document.createElement('div');
+    introEl.id = 'intro';
+    introEl.setAttribute('role', 'presentation');
+    var eyebrow = document.createElement('div'); eyebrow.className = 'eyebrow'; eyebrow.textContent = 'Private viewing';
+    var rule = document.createElement('div'); rule.className = 'rule';
+    var h = document.createElement('h2'); h.textContent = title;
+    var by = document.createElement('div'); by.className = 'presented'; by.textContent = 'Presented by RealEVR Estates';
+    var hint = document.createElement('div'); hint.className = 'hint'; hint.textContent = 'Tap to enter';
+    introEl.appendChild(eyebrow); introEl.appendChild(rule); introEl.appendChild(h); introEl.appendChild(by); introEl.appendChild(hint);
+    introEl.onclick = function () { removeIntro(); };
+    rootEl.appendChild(introEl);
+    introShownAt = Date.now();
+    // Safety net: never trap the visitor behind the title card.
+    setTimeout(removeIntro, 9000);
+  }
+
+  function removeIntro() {
+    if (!introEl) return;
+    var el = introEl;
+    introEl = null;
+    el.classList.add('out');
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 1000);
+  }
+
+  // Called once a room is actually on screen. Holds the title card for a
+  // beat (so it reads as intentional rather than a flash) and then lifts it.
+  function roomIsVisible(onShown) {
+    hideCurtain();
+    if (!introEl) { if (onShown) onShown(); return; }
+    var minimum = reducedMotion ? 300 : 2200;
+    var wait = Math.max(0, minimum - (Date.now() - introShownAt));
+    setTimeout(function () {
+      removeIntro();
+      if (onShown) onShown();
+    }, wait);
+  }
+
+  function showCurtain(then) {
+    if (!curtainEl) {
+      curtainEl = document.createElement('div');
+      curtainEl.id = 'curtain';
+      rootEl.appendChild(curtainEl);
+    }
+    curtainEl.classList.add('on');
+    clearTimeout(curtainTimer);
+    // Safety net: a room that never finishes loading still gets un-blacked.
+    curtainTimer = setTimeout(hideCurtain, 6000);
+    setTimeout(then, reducedMotion ? 0 : 260);
+  }
+  function hideCurtain() {
+    clearTimeout(curtainTimer);
+    if (curtainEl) curtainEl.classList.remove('on');
+  }
+
+  // ---- Slow drift: the room turns by itself until the visitor takes over.
+  var drifting = false;
+  var lastFrame = 0;
+  function stopDrift() { drifting = false; }
+  function takeControl() { userTookControl = true; stopDrift(); }
+  function startDrift() {
+    if (reducedMotion || userTookControl || drifting || !psvInstance) return;
+    drifting = true;
+    lastFrame = performance.now();
+    requestAnimationFrame(driftStep);
+  }
+  function driftStep(now) {
+    if (!drifting || !psvInstance) { drifting = false; return; }
+    var dt = Math.min(0.1, (now - lastFrame) / 1000);
+    lastFrame = now;
+    try {
+      var pos = psvInstance.getPosition();
+      psvInstance.rotate({ yaw: pos.yaw + 0.055 * dt, pitch: pos.pitch });
+    } catch (err) { drifting = false; return; }
+    requestAnimationFrame(driftStep);
+  }
+  ['pointerdown', 'wheel', 'touchstart', 'keydown'].forEach(function (name) {
+    viewerEl.addEventListener(name, takeControl, { passive: true });
+  });
 
   function fail(message) {
     loadingEl.style.display = 'none';
@@ -79,6 +176,7 @@
     flatImg.src = room.panoUrl;
     flatEl.scrollLeft = 0;
     showNotice(reason);
+    roomIsVisible();
   }
 
   function renderGallery(room) {
@@ -86,6 +184,8 @@
     showOnly('gallery');
     galleryIndex = 0;
     function render() {
+      galleryImg.onload = function () { roomIsVisible(); };
+      galleryImg.onerror = function () { roomIsVisible(); };
       galleryImg.src = room.photos[galleryIndex];
       galleryCounter.textContent = (galleryIndex + 1) + ' / ' + room.photos.length;
     }
@@ -118,10 +218,29 @@
       }
     }
 
+    // The room has loaded: lift the curtain, and on the very first one
+    // glide in from a slightly tight view before settling into a slow drift.
+    function arrived() {
+      if (currentRoom !== room) return;
+      roomIsVisible(function () {
+        if (currentRoom !== room || !psvInstance) return;
+        if (firstReveal && !reducedMotion) {
+          firstReveal = false;
+          try {
+            var glide = psvInstance.animate({ yaw: psvInstance.getPosition().yaw + 0.5, pitch: 0, zoom: 0, speed: 2600 });
+            if (glide && glide.then) { glide.then(startDrift, startDrift); return; }
+          } catch (err) { /* fall through to a plain drift */ }
+        }
+        firstReveal = false;
+        startDrift();
+      });
+    }
+
     try {
       if (psvInstance) {
+        stopDrift();
         var pending = psvInstance.setPanorama(room.panoUrl);
-        if (pending && pending.catch) pending.catch(fallBack);
+        if (pending && pending.then) pending.then(arrived, fallBack);
         return;
       }
       psvInstance = new PSV.Viewer({
@@ -133,10 +252,11 @@
         // advertises a button that can't work. Gyroscope must come first:
         // stereo depends on it.
         navbar: stereoAvailable ? ['zoom', 'gyroscope', 'stereo', 'fullscreen'] : ['zoom', 'fullscreen'],
-        defaultZoomLvl: 0,
+        defaultZoomLvl: reducedMotion ? 0 : 55,
         plugins: stereoAvailable ? [PSV.GyroscopePlugin, PSV.StereoPlugin] : [],
       });
       psvInstance.addEventListener('panorama-error', function (e) { fallBack(e && e.error); });
+      psvInstance.addEventListener('panorama-loaded', arrived);
     } catch (err) {
       fallBack(err);
     }
@@ -158,9 +278,25 @@
     }
   });
 
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  // Go to a room, dipping through the curtain when one is already showing.
+  function switchRoom(room) {
+    if (room === currentRoom) return;
+    if (firstReveal && introEl) { selectRoom(room); return; }
+    showCurtain(function () { selectRoom(room); });
+  }
+  function stepRoom(delta) {
+    if (rooms.length < 2) return;
+    var index = rooms.indexOf(currentRoom);
+    switchRoom(rooms[(index + delta + rooms.length) % rooms.length]);
+  }
+
   function selectRoom(room) {
     currentRoom = room;
-    subtitleEl.textContent = room.mode === 'panorama' ? '360° panorama' : (room.photos.length + ' photos · basic tour');
+    var index = rooms.indexOf(room);
+    subtitleEl.textContent = room.name + ' · ' + (room.mode === 'panorama' ? '360°' : (room.photos.length + ' photos'));
+    if (pagerCount) pagerCount.innerHTML = '<b>' + pad(index + 1) + '</b> / ' + pad(rooms.length);
     Array.prototype.forEach.call(roomBar.children, function (chip) {
       var active = chip.dataset.slug === room.slug;
       chip.classList.toggle('active', active);
@@ -173,6 +309,38 @@
     }
   }
 
+  // Title-bar polish, the room pager and the entrance card.
+  function buildChrome(title) {
+    var titleEl = $('tour-title');
+    var wrap = document.createElement('div');
+    wrap.className = 'title-text';
+    var eyebrow = document.createElement('div');
+    eyebrow.className = 'eyebrow';
+    eyebrow.textContent = 'Private viewing';
+    titleBar.insertBefore(wrap, titleBar.firstChild);
+    wrap.appendChild(eyebrow);
+    wrap.appendChild(titleEl);
+    wrap.appendChild(subtitleEl);
+
+    if (rooms.length > 1) {
+      var pager = document.createElement('div');
+      pager.id = 'room-pager';
+      pager.style.display = 'flex';
+      var prev = document.createElement('button'); prev.type = 'button'; prev.setAttribute('aria-label', 'Previous room'); prev.innerHTML = '&#8249;';
+      var next = document.createElement('button'); next.type = 'button'; next.setAttribute('aria-label', 'Next room'); next.innerHTML = '&#8250;';
+      pagerCount = document.createElement('span'); pagerCount.className = 'count';
+      prev.onclick = function () { stepRoom(-1); };
+      next.onclick = function () { stepRoom(1); };
+      pager.appendChild(prev); pager.appendChild(pagerCount); pager.appendChild(next);
+      titleBar.appendChild(pager);
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowLeft') stepRoom(-1);
+        else if (e.key === 'ArrowRight') stepRoom(1);
+      });
+    }
+    buildIntro(title);
+  }
+
   fetch('./tour.json')
     .then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -180,12 +348,14 @@
     })
     .then(function (data) {
       loadingEl.style.display = 'none';
-      var rooms = data.rooms || [];
+      rooms = data.rooms || [];
       if (rooms.length === 0) {
         emptyEl.style.display = 'flex';
         return;
       }
-      document.getElementById('tour-title').textContent = data.title || document.title;
+      var tourTitle = data.title || document.title;
+      document.getElementById('tour-title').textContent = tourTitle;
+      buildChrome(tourTitle);
       rooms.forEach(function (room) {
         var chip = document.createElement('button');
         chip.className = 'room-chip';
@@ -204,7 +374,7 @@
           vrBadge.textContent = 'VR';
           chip.appendChild(vrBadge);
         }
-        chip.onclick = function () { selectRoom(room); };
+        chip.onclick = function () { switchRoom(room); };
         roomBar.appendChild(chip);
       });
       selectRoom(rooms[0]);
