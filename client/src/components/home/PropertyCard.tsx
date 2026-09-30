@@ -3,7 +3,8 @@ import { Link } from 'wouter'
 import type { Property, User } from '@shared/schema'
 import SharePropertyModal from '../property/SharePropertyModal'
 import BookingCalendarModal from '../property/BookingCalendarModal'
-import { AnimatedCard, FadeIn } from '@/components/ui/animated-components'
+import { FadeIn } from '@/components/ui/animated-components'
+import Tilt from '@/components/motion/Tilt'
 import { Star, Rocket } from 'lucide-react'
 import VRBadge from '../property/VRBadge'
 import { useActiveBoostedPropertyIds } from '@/hooks/useActiveBoosts'
@@ -103,8 +104,8 @@ export default function PropertyCard({ property }: PropertyCardProps) {
 
     return (
         <>
-            <AnimatedCard
-                className="property-card bg-card rounded-2xl overflow-hidden shadow-sm border-[1.5px] border-border cursor-pointer hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
+            <Tilt
+                className="property-card bg-card rounded-2xl overflow-hidden border-[1.5px] border-border cursor-pointer"
                 onClick={handleCardClick}
             >
                 <div className="relative">
@@ -313,7 +314,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                         </div>
                     </div>
                 </div>
-            </AnimatedCard>
+            </Tilt>
 
             {/* Modals */}
             <SharePropertyModal

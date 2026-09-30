@@ -252,13 +252,90 @@
   padding: 0.3rem 0.65rem;
 }
 
-.property-card {
-  transition: all 0.2s ease;
+/*
+ * Depth. Real objects cast a tight contact shadow AND a soft, wide ambient
+ * one, and the pair grows as the object lifts. Every raised surface on the
+ * site draws from these four steps instead of one-off shadows, so "how high
+ * is this?" is answered the same way everywhere. Tinted with the charcoal hue
+ * rather than black so shadows sit naturally on the alabaster background.
+ */
+:root {
+  --elev-1: 0 1px 2px hsl(235 21% 21% / 0.07), 0 2px 6px hsl(235 21% 21% / 0.05);
+  --elev-2: 0 2px 4px hsl(235 21% 21% / 0.06), 0 8px 18px hsl(235 21% 21% / 0.09);
+  --elev-3: 0 4px 8px hsl(235 21% 21% / 0.07), 0 16px 32px hsl(235 21% 21% / 0.14), 0 32px 60px -12px hsl(235 21% 21% / 0.16);
+  --elev-4: 0 8px 14px hsl(235 21% 21% / 0.08), 0 28px 52px hsl(235 21% 21% / 0.2), 0 52px 90px -16px hsl(235 21% 21% / 0.24);
+}
+.elev-1 { box-shadow: var(--elev-1); }
+.elev-2 { box-shadow: var(--elev-2); }
+.elev-3 { box-shadow: var(--elev-3); }
+.elev-4 { box-shadow: var(--elev-4); }
+
+/*
+ * .tilt — a surface that leans toward the pointer (see components/motion/Tilt.tsx,
+ * which only sets the --tilt-* variables). Resting and hover states are pure
+ * CSS so they cost nothing. On touch screens there is no hover; a press just
+ * sinks the card a touch, the way a physical key would.
+ */
+.tilt {
+  position: relative;
+  transform: perspective(1000px) translateY(var(--tilt-lift, 0px)) rotateX(var(--tilt-rx, 0deg)) rotateY(var(--tilt-ry, 0deg));
+  transform-origin: center;
+  box-shadow: var(--elev-1);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+.tilt.is-tilting {
+  /* Follow the pointer closely while it is moving; ease back when it leaves. */
+  transition: transform 0.08s linear, box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tilt::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle at var(--tilt-gx, 50%) var(--tilt-gy, 0%), rgba(255, 255, 255, 0.34), transparent 55%);
+  transition: opacity 0.35s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .tilt:hover {
+    --tilt-lift: -6px;
+    box-shadow: var(--elev-3);
+  }
+  .tilt:hover::after { opacity: 1; }
+}
+@media (hover: none) {
+  .tilt:active {
+    transform: perspective(1000px) scale(0.985);
+    box-shadow: var(--elev-1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tilt, .tilt.is-tilting { transition: box-shadow 0.2s ease; transform: none; }
+  .tilt:hover { --tilt-lift: 0px; }
+  .tilt::after { display: none; }
 }
 
-.property-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+/* The hero headline gets a stacked, extruded edge so it reads as raised
+   lettering rather than text painted on the photo. */
+.title-3d {
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.28),
+    0 2px 0 rgba(0, 0, 0, 0.24),
+    0 3px 0 rgba(0, 0, 0, 0.2),
+    0 4px 0 rgba(0, 0, 0, 0.16),
+    0 14px 26px rgba(0, 0, 0, 0.42);
+}
+
+/* Layers in a pointer-parallax scene (Hero.tsx sets --px / --py, -1..1, on the
+   section). Each layer moves a different distance so the scene gains depth. */
+.parallax-layer {
+  translate: calc(var(--px, 0) * var(--depth, 0px)) calc(var(--py, 0) * var(--depth, 0px));
+  transition: translate 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .parallax-layer { translate: none; transition: none; }
 }
 
 .tour-container iframe {

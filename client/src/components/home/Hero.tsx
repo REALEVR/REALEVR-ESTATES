@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import "../Hero.css"
 
 import houseImg from '../../assets/images/hero-house.jpg';
@@ -257,8 +257,33 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
     setIsVideoPlaying(!isVideoPlaying);
   };
 
+  // Depth: the photo drifts slower than the page as you scroll, and a mouse
+  // pointer nudges each layer (photo, headline, copy) by a different amount.
+  // Touch and reduced-motion visitors get the still scene.
+  const reduceMotion = useReducedMotion();
+  const { scrollY } = useScroll();
+  const bgY = useTransform(scrollY, [0, 700], [0, reduceMotion ? 0 : 56]);
+  const heroRef = React.useRef<HTMLElement | null>(null);
+  const handleSceneMove = (e: React.PointerEvent<HTMLElement>) => {
+    if (reduceMotion || e.pointerType !== 'mouse') return;
+    const el = heroRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    el.style.setProperty('--px', (((e.clientX - r.left) / r.width - 0.5) * 2).toFixed(3));
+    el.style.setProperty('--py', (((e.clientY - r.top) / r.height - 0.5) * 2).toFixed(3));
+  };
+  const handleSceneLeave = () => {
+    heroRef.current?.style.setProperty('--px', '0');
+    heroRef.current?.style.setProperty('--py', '0');
+  };
+
   return (
-    <section className='relative bg-background -mx-4 sm:-mx-6 lg:-mx-8 overflow-hidden'>
+    <section
+      ref={heroRef}
+      onPointerMove={handleSceneMove}
+      onPointerLeave={handleSceneLeave}
+      className='relative bg-background -mx-4 sm:-mx-6 lg:-mx-8 overflow-hidden'
+    >
       {/* Real photo instead of the old flat "VR grid" blueprint pattern —
           a modern villa render, aspirational rather than a specific real
           property (this section isn't tied to any one listing). A dark
@@ -266,11 +291,12 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           headline/stats stay readable over a busy image instead of the
           flat cream backdrop they were tuned for; every text color in this
           section was flipped to a white/light variant to match. */}
-      <img
+      <motion.img
         src={mansionBg}
         alt=""
         aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover"
+        className="absolute inset-0 w-full h-full object-cover parallax-layer"
+        style={{ y: bgY, scale: 1.12, ['--depth' as string]: '-10px' }}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/50 to-black/60" />
  <section className="relative z-10 w-full hero-frame p-8 md:p-12 mt-6 flex flex-col gap-8 hero-video-wrapper">
@@ -279,7 +305,8 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
       <div className="flex flex-col md:flex-row md:items-center gap-8">
         {/* Left: Headline */}
         <motion.div
-          className="flex-1 hero-left-content"
+          className="flex-1 hero-left-content parallax-layer"
+          style={{ ['--depth' as string]: '7px' }}
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
@@ -287,14 +314,15 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           <div className="mb-4">
             <VRBadge size="md" />
           </div>
-          <h1 className="text-5xl md:text-7xl font-light leading-tight text-white">
+          <h1 className="text-5xl md:text-7xl font-light leading-tight text-white title-3d">
             <span className="font-display italic font-medium text-white/80 text-6xl md:text-8xl hero-find-text">Step Inside</span> <br />
             <span className="font-display hero-text-two">Before You Arrive</span>
           </h1>
         </motion.div>
         {/* Right: Description and stats */}
         <motion.div
-          className="flex-1 flex flex-col gap-8 hero-right-content"
+          className="flex-1 flex flex-col gap-8 hero-right-content parallax-layer"
+          style={{ ['--depth' as string]: '3px' }}
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
