@@ -1,0 +1,73 @@
+/*
+ * The window a virtual tour opens in. Kept deliberately dark and quiet so the
+ * tour is the brightest thing on screen: near-black stage, a serif title, one
+ * warm gold accent. The tours themselves (server/templates/tour-viewer) use the
+ * same palette so the frame and the picture read as one product.
+ */
+.vt-modal {
+  --vt-gold: #d8b46a;
+  --vt-ink: #0b0b0f;
+  border-radius: 1rem;
+  box-shadow: 0 40px 120px -20px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(216, 180, 106, 0.22);
+}
+.vt-shell { background: var(--vt-ink); border-radius: 1rem; overflow: hidden; }
+.vt-header {
+  height: 4rem;
+  background: linear-gradient(180deg, #16151d, #0f0f14);
+  border-bottom: 1px solid rgba(216, 180, 106, 0.22);
+}
+.vt-eyebrow {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--vt-gold);
+}
+.vt-title {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.25;
+  color: #fff;
+}
+.vt-chip {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--vt-gold);
+  border: 1px solid rgba(216, 180, 106, 0.5);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  margin-right: 0.25rem;
+}
+/* The shared Button "ghost" variant hovers to solid charcoal; here it should
+   stay a quiet glass icon on the dark header. */
+.vt-icon-btn { color: #fff; }
+.vt-icon-btn:hover { background: rgba(255, 255, 255, 0.12); color: var(--vt-gold); }
+.vt-icon-btn:focus-visible { outline: 2px solid var(--vt-gold); outline-offset: 2px; }
+.vt-stage { background: var(--vt-ink); }
+
+/* Title card over the iframe until the tour has loaded. */
+.vt-curtain {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  padding: 2rem;
+  text-align: center;
+  color: #fff;
+  background: radial-gradient(ellipse at 50% 42%, #1c1a26 0%, var(--vt-ink) 62%);
+  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.7s;
+}
+.vt-curtain.is-off { opacity: 0; visibility: hidden; pointer-events: none; }
+.vt-curtain-rule { height: 1px; width: min(240px, 50vw); background: linear-gradient(90deg, transparent, var(--vt-gold), transparent); animation: vt-rule 1.6s ease-in-out infinite alternate; }
+.vt-curtain-by { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
+@keyframes vt-rule { from { opacity: 0.35; transform: scaleX(0.6); } to { opacity: 1; transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .vt-curtain-rule { animation: none; }
+  .vt-curtain { transition-duration: 0.01s; }
+}

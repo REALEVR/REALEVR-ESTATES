@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X, Maximize, Minimize, Headset } from "lucide-react";
+import "./virtual-tour-modal.css";
 import { enterTourVr } from "@/lib/tourVr";
 
 interface VirtualTourModalProps {
@@ -29,6 +30,9 @@ export default function VirtualTourModal({
 }: VirtualTourModalProps) {
   const [secondsLeft, setSecondsLeft] = useState(previewSeconds ?? 0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // Shown over the iframe until it has loaded (or a few seconds pass, so a
+  // slow or non-standard host can never leave the visitor stuck behind it).
+  const [frameReady, setFrameReady] = useState(false);
   const tourContainerRef = useRef<HTMLDivElement>(null);
   const tourIframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -63,6 +67,13 @@ export default function VirtualTourModal({
     }
   };
 
+  useEffect(() => {
+    if (!isOpen) return;
+    setFrameReady(false);
+    const timer = setTimeout(() => setFrameReady(true), 8000);
+    return () => clearTimeout(timer);
+  }, [isOpen, tourUrl]);
+
   // Restart the countdown fresh every time the modal opens with a preview
   // limit — without resetting on `isOpen`, closing and reopening the same
   // tour (e.g. after paying elsewhere and coming back) would either skip
@@ -89,22 +100,23 @@ export default function VirtualTourModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] h-[90vh] p-0 overflow-hidden border-none bg-transparent">
+      <DialogContent hideClose className="vt-modal max-w-[95vw] h-[90vh] p-0 overflow-hidden border-none bg-transparent">
         {/* Both the header bar and the iframe live inside this one ref'd
             container, so entering fullscreen (which only shows this
             element and its descendants, hiding everything else on the
             page - the modal chrome, the browser's own UI) still leaves
             the title, the "back to normal window" button, and Close all
             reachable, not just a bare iframe with no way out but Esc. */}
-        <div ref={tourContainerRef} className="w-full h-full flex flex-col bg-black">
-          <div className="bg-white w-full h-12 flex items-center justify-between px-4 rounded-t-lg shrink-0">
-            <DialogTitle className="text-lg truncate">
-              Virtual Tour: {propertyTitle}
-            </DialogTitle>
-            <div className="flex items-center gap-3 shrink-0">
+        <div ref={tourContainerRef} className="vt-shell w-full h-full flex flex-col">
+          <div className="vt-header w-full flex items-center justify-between gap-3 px-4 shrink-0">
+            <div className="min-w-0">
+              <div className="vt-eyebrow">RealEVR Estates</div>
+              <DialogTitle className="vt-title truncate">{propertyTitle}</DialogTitle>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
               {previewSeconds !== undefined && (
-                <span className="text-xs font-medium text-muted-foreground bg-secondary rounded-full px-3 py-1 whitespace-nowrap">
-                  Free preview: {secondsLeft}s
+                <span className="vt-chip whitespace-nowrap">
+                  Complimentary preview · {secondsLeft}s
                 </span>
               )}
               {/* Enter VR - see client/src/lib/tourVr.ts for exactly what
@@ -113,6 +125,7 @@ export default function VirtualTourModal({
               <Button
                 variant="ghost"
                 size="icon"
+                className="vt-icon-btn"
                 onClick={() => enterTourVr(tourContainerRef.current, tourIframeRef.current)}
                 aria-label="Enter VR"
                 title="View in VR - slot your phone into a headset once fullscreen"
@@ -122,25 +135,27 @@ export default function VirtualTourModal({
               <Button
                 variant="ghost"
                 size="icon"
+                className="vt-icon-btn"
                 onClick={toggleFullscreen}
                 aria-label={isFullscreen ? "Exit fullscreen" : "View fullscreen"}
                 title={isFullscreen ? "Exit fullscreen" : "View fullscreen"}
               >
                 {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
               </Button>
-              <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close virtual tour">
+              <Button variant="ghost" size="icon" className="vt-icon-btn" onClick={onClose} aria-label="Close virtual tour">
                 <X className="h-5 w-5" />
               </Button>
             </div>
           </div>
 
-          <div className="w-full flex-1 bg-black rounded-b-lg">
+          <div className="vt-stage relative w-full flex-1">
             <iframe
               ref={tourIframeRef}
               src={tourUrl}
               title={`Virtual tour of ${propertyTitle}`}
-              className="w-full h-full rounded-b-lg"
+              className="w-full h-full"
               allowFullScreen
+              onLoad={() => setFrameReady(true)}
               // Without this, a VR/Cardboard button already built into the
               // hosted tour itself (3D Vista's own player, Lapentor, or our
               // own generated-tour.html panoramas) is silently blocked: an
@@ -149,6 +164,10 @@ export default function VirtualTourModal({
               // never activates no matter what the tour's own UI offers.
               allow="xr-spatial-tracking; gyroscope; accelerometer; fullscreen"
             />
+            <div className={`vt-curtain ${frameReady ? "is-off" : ""}`} aria-hidden={frameReady}>
+              <div className="vt-curtain-rule" />
+              <div className="vt-curtain-by">Preparing your private viewing</div>
+            </div>
           </div>
         </div>
       </DialogContent>
