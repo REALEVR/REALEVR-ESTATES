@@ -37,8 +37,10 @@ export default function Reveal({
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, ...offset }}
-      whileInView={{ opacity: 1, x: 0, y: 0 }}
+      // A slight lean-back (rotateX) as it rises gives sections depth as they
+      // arrive; transformPerspective keeps it self-contained per element.
+      initial={{ opacity: 0, rotateX: direction === 'up' ? 7 : 0, transformPerspective: 1000, ...offset }}
+      whileInView={{ opacity: 1, x: 0, y: 0, rotateX: 0 }}
       viewport={{ once: true, margin: '-80px' }}
       transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
     >
