@@ -18,6 +18,7 @@ import {
     setupStaticFileRoutes,
     presignTourZipUpload,
     completeTourZipMultipartUpload,
+    abortTourZipMultipartUpload,
     processTourFromS3,
     sseTourProgress,
 } from './upload'
@@ -2650,6 +2651,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // republish it, in processTourFromS3).
     app.post('/api/upload/virtual-tour/:propertyId/presign-zip', adminMiddleware, presignTourZipUpload)
     app.post('/api/upload/virtual-tour/:propertyId/complete-multipart', adminMiddleware, completeTourZipMultipartUpload)
+    app.post('/api/upload/virtual-tour/:propertyId/abort-multipart', adminMiddleware, abortTourZipMultipartUpload)
     app.post('/api/upload/virtual-tour/:propertyId/process-from-s3', adminMiddleware, processTourFromS3)
 
     // SSE endpoint for tour progress

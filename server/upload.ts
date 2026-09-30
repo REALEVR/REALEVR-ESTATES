@@ -124,7 +124,9 @@ const MAX_TOUR_ZIP_BYTES = 5 * 1024 * 1024 * 1024; // 5GB
 export const presignTourZipUpload = async (req: Request, res: Response) => {
   try {
     const propertyId = req.params.propertyId;
-    const { fileSizeBytes, contentType } = req.body || {};
+    // standardEndpoint: the browser sets this after failing to reach the
+    // accelerated endpoint (see createStagingMultipartUpload).
+    const { fileSizeBytes, contentType, standardEndpoint } = req.body || {};
 
     if (typeof fileSizeBytes !== 'number' || !Number.isFinite(fileSizeBytes) || fileSizeBytes <= 0) {
       return res.status(400).json({ error: 'fileSizeBytes is required' });
@@ -143,16 +145,49 @@ export const presignTourZipUpload = async (req: Request, res: Response) => {
     const expiresInSeconds = 60 * 60; // 1 hour - comfortably long enough for a large, slow upload to start and finish
 
     const { createStagingMultipartUpload } = await import('./s3-tour-hosting');
-    const { uploadId, partSize, parts } = await createStagingMultipartUpload(
+    const { uploadId, partSize, parts, accelerated } = await createStagingMultipartUpload(
       s3Key,
       typeof contentType === 'string' && contentType ? contentType : 'application/zip',
       fileSizeBytes,
-      expiresInSeconds
+      expiresInSeconds,
+      { forceStandardEndpoint: standardEndpoint === true }
     );
 
-    res.status(200).json({ s3Key, uploadId, partSize, parts, expiresInSeconds });
+    res.status(200).json({ s3Key, uploadId, partSize, parts, expiresInSeconds, accelerated });
   } catch (e: any) {
     console.error('[upload] presignTourZipUpload failed:', e);
+    res.status(500).json({ error: e.message });
+  }
+};
+
+// --- Direct-to-S3 Virtual Tour Upload: abandon a multipart upload ---
+//
+// The browser calls this when an upload it started can't finish (or when it
+// restarts on the standard endpoint), so the parts already sent stop being
+// billed. Without it, every failed attempt left orphaned parts in the
+// bucket until someone cleaned them up by hand. The key is confined to THIS
+// property's staging prefix: presign-zip only ever issues keys of that
+// shape, so nothing else in the bucket can be aborted through here.
+export const abortTourZipMultipartUpload = async (req: Request, res: Response) => {
+  const { s3Key, uploadId } = req.body || {};
+  const stagingPrefix = `staging-tours/property_${req.params.propertyId}/`;
+
+  if (
+    typeof s3Key !== 'string' ||
+    typeof uploadId !== 'string' ||
+    !uploadId ||
+    !s3Key.startsWith(stagingPrefix) ||
+    s3Key.includes('..')
+  ) {
+    return res.status(400).json({ error: 'A staging s3Key for this property and an uploadId are required' });
+  }
+
+  try {
+    const { abortStagingMultipartUpload } = await import('./s3-tour-hosting');
+    await abortStagingMultipartUpload(s3Key, uploadId);
+    res.status(200).json({ success: true });
+  } catch (e: any) {
+    console.error('[upload] abortTourZipMultipartUpload failed (non-fatal):', e);
     res.status(500).json({ error: e.message });
   }
 };
@@ -347,6 +382,7 @@ export const sseTourProgress = (req: Request, res: Response) => {
 export function registerTourUploadRoutes(app: express.Application) {
   app.post('/api/upload/virtual-tour/:propertyId/presign-zip', presignTourZipUpload);
   app.post('/api/upload/virtual-tour/:propertyId/complete-multipart', completeTourZipMultipartUpload);
+  app.post('/api/upload/virtual-tour/:propertyId/abort-multipart', abortTourZipMultipartUpload);
   app.post('/api/upload/virtual-tour/:propertyId/process-from-s3', processTourFromS3);
   app.get('/api/upload/virtual-tour/progress/:jobId', sseTourProgress);
 }

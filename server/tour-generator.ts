@@ -17,16 +17,10 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import sharp from 'sharp';
 import { DraftManifest, RoomEntry } from './room-capture-types';
-
-// `__dirname` doesn't exist in ESM (this file compiles/bundles to an ES
-// module — see package.json's "type": "module" — which is what crashed
-// production on boot: "ReferenceError: __dirname is not defined in ES
-// module scope"). This is the standard ESM equivalent.
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TEMPLATE_PATH = path.join(__dirname, 'templates', 'generated-tour.html');
+import { renderTourShell } from './tour-shell';
+import { ensureTourViewerAssets, getTourViewerBaseUrl } from './s3-tour-hosting';
 
 interface TourJsonRoom {
   slug: string;
@@ -87,9 +81,15 @@ export async function generateTourFromManifest(
   };
   fs.writeFileSync(path.join(extractDir, 'tour.json'), JSON.stringify(tourJson, null, 2));
 
-  const template = fs.readFileSync(TEMPLATE_PATH, 'utf8');
-  const html = template.split('{{TOUR_TITLE}}').join(escapeHtml(propertyTitle));
-  fs.writeFileSync(path.join(extractDir, 'index.html'), html);
+  // The page is just a shell; the viewer it loads lives once in the bucket
+  // (see s3-tour-hosting.ts's ensureTourViewerAssets). Publishing those is
+  // best-effort here: a previous run or boot has usually put them there
+  // already, and if S3 is genuinely unreachable the tour upload that follows
+  // fails loudly on its own.
+  await ensureTourViewerAssets().catch((err) => {
+    console.warn('[tour-generator] could not publish shared viewer assets (continuing):', err);
+  });
+  fs.writeFileSync(path.join(extractDir, 'index.html'), renderTourShell(propertyTitle, getTourViewerBaseUrl()));
 
   return { extractDir, roomCount: tourJsonRooms.length, tourJson };
 }
@@ -126,12 +126,4 @@ async function materializeRoom(room: RoomEntry, draftDir: string, extractDir: st
     qualityTier: 'photo_sweep_lite',
     photos,
   };
-}
-
-function escapeHtml(input: string): string {
-  return input
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
