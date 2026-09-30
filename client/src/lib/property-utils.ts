@@ -1,6 +1,17 @@
 import type { Property } from "@shared/schema";
 
 /**
+ * Splits a comma-separated amenities string, trimming whitespace and
+ * discarding empty entries (e.g. "" or "wifi,,pool,").
+ */
+function splitAmenities(value: string): string[] {
+  return value
+    .split(',')
+    .map((s: string) => s.trim())
+    .filter((s: string) => s.length > 0);
+}
+
+/**
  * Ensures that a property's amenities field is always an array
  * This is a defensive programming measure to handle any malformed data
  */
@@ -18,11 +29,11 @@ export function ensureAmenitiesArray(property: Property): Property {
         amenities = parsed;
       } else {
         // If it's a string but not a JSON array, treat as comma-separated
-        amenities = property.amenities.split(',').map((s: string) => s.trim());
+        amenities = splitAmenities(property.amenities);
       }
     } catch (e) {
       // If JSON parsing fails, treat as comma-separated
-      amenities = property.amenities.split(',').map((s: string) => s.trim());
+      amenities = splitAmenities(property.amenities);
     }
   }
   // If amenities is null, undefined, or any other type, it remains an empty array
