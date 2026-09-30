@@ -187,21 +187,12 @@ export default function FeaturedTour() {
 
                 <div className="absolute bottom-4 right-4 bg-card/80 backdrop-blur-sm rounded-lg p-2 shadow-lg">
                   <div className="flex space-x-3">
-                    <button className="p-2 hover:bg-card rounded-full" title="Zoom in">
-                      <i className="fas fa-plus"></i>
-                    </button>
-                    <button className="p-2 hover:bg-card rounded-full" title="Zoom out">
-                      <i className="fas fa-minus"></i>
-                    </button>
                     <button
                       className="p-2 hover:bg-card rounded-full"
                       title="Fullscreen"
                       onClick={() => setIsFullscreen(!isFullscreen)}
                     >
                       <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
-                    </button>
-                    <button className="p-2 hover:bg-card rounded-full" title="Floor plan">
-                      <i className="fas fa-map"></i>
                     </button>
                   </div>
                 </div>
