@@ -147,6 +147,10 @@
     loadingEl.style.display = 'none';
     emptyEl.textContent = message;
     emptyEl.style.display = 'flex';
+    // Tell the page showing this tour, which lets the platform check it and alert the administrators.
+    if (!editMode) {
+      try { window.parent.postMessage({ type: 'realevr-tour-failed', message: String(message).slice(0, 200) }, '*'); } catch (err) { /* not in a frame */ }
+    }
   }
 
   function showNotice(message) {

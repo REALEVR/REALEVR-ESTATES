@@ -689,6 +689,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                 isOpen={isTourModalOpen}
                 onClose={() => setIsTourModalOpen(false)}
                 propertyTitle={property.title}
+                propertyId={property.id}
                 tourUrl={property.tourUrl || undefined}
                 previewSeconds={requiresTourPayment && !hasValidPayment ? 5 : undefined}
                 onPreviewExpired={handleTourPreviewExpired}

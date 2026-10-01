@@ -9,6 +9,8 @@ interface VirtualTourModalProps {
   isOpen: boolean;
   onClose: () => void;
   propertyTitle: string;
+  /** When known, a tour that fails to load is reported so the administrators can fix it. */
+  propertyId?: number;
   tourUrl?: string;
   /** Rental-unit free preview (payments round 2): when set, the tour opens
    * immediately and free, then this many seconds later `onPreviewExpired`
@@ -24,6 +26,7 @@ export default function VirtualTourModal({
   isOpen,
   onClose,
   propertyTitle,
+  propertyId,
   tourUrl = "https://app.lapentor.com/sphere/la-rose-apartments",
   previewSeconds,
   onPreviewExpired,
@@ -66,6 +69,21 @@ export default function VirtualTourModal({
       tourContainerRef.current?.requestFullscreen().catch(() => {});
     }
   };
+
+  // The tour page tells us when it could not start (see tour-app.js). The report is only a nudge: the
+  // server opens the tour itself, and tells the administrators only if it really is broken.
+  useEffect(() => {
+    if (!isOpen || !propertyId) return;
+    let reported = false;
+    const onMessage = (event: MessageEvent) => {
+      if (reported || event.source !== tourIframeRef.current?.contentWindow) return;
+      if (event.data?.type !== "realevr-tour-failed") return;
+      reported = true;
+      fetch(`/api/properties/${propertyId}/tour-report`, { method: "POST" }).catch(() => {});
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [isOpen, propertyId]);
 
   useEffect(() => {
     if (!isOpen) return;
