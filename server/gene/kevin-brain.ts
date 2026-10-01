@@ -198,7 +198,7 @@ const LOCATION_STOP = new RegExp(
     '\\b(under|below|for|with|that|which|and|budget|around|today|now|please|price|priced|costing|ugx|shillings?|maybe|or|near|less|more|from|within|about|by|on|if|but|because|so|available|ok|okay|thanks|thank|really|just|to|rent|buy|let|be|is|are|was|get|have|find|where|when|soon|next|this)\\b.*$',
     'i',
 )
-const NOT_PLACES = new Set(['the', 'a', 'an', 'my', 'your', 'this', 'that', 'it', 'here', 'there', 'general', 'somewhere', 'anywhere', 'any', 'town', 'city', 'area', 'place', 'house', 'home', 'apartment', 'flat', 'rent', 'sale', 'buy', 'budget', 'bedroom', 'bedrooms', 'mind', 'fact', 'order', 'case', 'touch', 'love', 'need', 'time', 'future', 'month', 'week', 'year'])
+const NOT_PLACES = new Set(['the', 'a', 'an', 'my', 'your', 'this', 'that', 'it', 'here', 'there', 'general', 'somewhere', 'anywhere', 'any', 'town', 'city', 'area', 'place', 'house', 'home', 'apartment', 'flat', 'rent', 'sale', 'buy', 'budget', 'bedroom', 'bedrooms', 'mind', 'fact', 'order', 'building', 'buildings', 'estate', 'compound', 'block', 'case', 'touch', 'love', 'need', 'time', 'future', 'month', 'week', 'year'])
 
 /** The place the visitor named, matched to a known area when it is close (speech is rarely spelled right). */
 export function findPlace(text: string, known: string[]): { name: string; known: boolean } | null {
@@ -209,10 +209,10 @@ export function findPlace(text: string, known: string[]): { name: string; known:
         .sort((a, b) => b.length - a.length)[0]
     if (exact) return { name: exact, known: true }
 
-    const m = text.match(/\b(?:in|at|around|near|towards|close to|within|to)\s+([A-Za-z][A-Za-z' -]{2,32})/i)
+    const m = text.match(/\b(?:in|at|around|near|towards|close to|within)\s+([A-Za-z][A-Za-z' -]{2,32})/i)
     if (!m) return null
     const raw = m[1].replace(LOCATION_STOP, '').replace(/[-' ]+$/g, '').trim()
-    const words = raw.split(/\s+/).filter(Boolean).slice(0, 3)
+    const words = raw.replace(/^(?:a|an|the|my|this)\s+/i, '').split(/\s+/).filter(Boolean).slice(0, 3)
     if (!words.length || words.every((w) => NOT_PLACES.has(w.toLowerCase()))) return null
     const guess = words.join(' ')
     if (NOT_PLACES.has(guess.toLowerCase())) return null
@@ -409,6 +409,7 @@ export function parseSignals(message: string, knownPlaces: string[], expecting?:
 
     if (/\b(pay (?:my )?rent|rent ?rail|pay for rent)\b/i.test(t)) s.page = 'payrent'
     else if (/\b(list (?:my|a|our) (?:property|house|home|apartment)|sell my|put my (?:property|house) on|i am a landlord|i'?m a landlord|i'?m an agent|become an agent)\b/i.test(t)) s.page = 'list'
+    else if (/\b(recommend (?:a |my |the )?(?:building|place|property|apartment|estate)|i live in (?:a |an |the )?(?:building|apartment|estate)|not on (?:your|the) (?:site|website|platform)|earn (?:points|money)|points|reward)\b/i.test(t)) s.page = 'recommend'
     else if (/\b(how (?:does|do) (?:it|this|realevr|the site|it all) work|how it works)\b/i.test(t)) s.page = 'howitworks'
     else if (/\b(safe|safety|scam|fraud|trust|verified)\b/i.test(t)) s.page = 'safety'
     else if (/\b(contact (?:us|page)|your (?:office|address|email))\b/i.test(t)) s.page = 'contact'
@@ -669,13 +670,14 @@ export async function converse(input: BrainInput): Promise<BrainResult> {
         else lines.push('Nothing is scheduled to open soon yet, but tell me what you are looking for and I will make sure the team knows to add it.')
         const taken = snap.upcoming.filter((u) => u.kind === 'taken')
         if (taken.length) lines.push(`${taken.length} others are taken for now; the team can tell you if one frees up.`)
-    } else if (sig.page && !(sig.location || sig.bedrooms || sig.maxPrice || sig.minPrice)) {
+    } else if (sig.page && (sig.page === 'recommend' || !(sig.location || sig.bedrooms || sig.maxPrice || sig.minPrice))) {
         const explain: Record<string, string> = {
             payrent: 'You can pay your rent securely through RentRail. Taking you there now.',
             list: 'You can list your property for free and add a 360 tour. Taking you to the listing page.',
             howitworks: 'Here is how it works: browse, tour a place in 360, then book a viewing. Opening the guide.',
             safety: 'Every listing is checked and payments stay protected. Opening our trust and safety page.',
             contact: 'Opening our contact page for you.',
+            recommend: 'If you live in a building that is not on RealEVR yet, you can tell us about it and earn points: 100 points are worth 10,000 shillings. Taking you there now.',
             properties: 'Open any property to book a viewing or start its 3D tour. Taking you to the properties.',
         }
         lines.push(explain[sig.page] ?? 'Taking you there now.')

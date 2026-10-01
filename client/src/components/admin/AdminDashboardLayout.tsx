@@ -42,6 +42,7 @@ const NAV_ITEMS: Array<{ href: string; label: string; icon: typeof LayoutDashboa
     { href: '/admin/virtual-tour-manager', label: 'Virtual Tours', icon: Video, roles: ['admin', 'agent'] },
     { href: '/admin/room-captures', label: 'Room Captures', icon: Camera, roles: ['admin'] },
     { href: '/admin/kevin-leads', label: 'Leads', icon: Sparkles, roles: ['admin'] },
+    { href: '/admin/recommendations', label: 'Recommendations', icon: Building2, roles: ['admin'] },
     { href: '/admin/users', label: 'Users', icon: Users, roles: ['admin'] },
     { href: '/admin/messages', label: 'Messages', icon: MessageSquare, roles: ['admin'] },
     { href: '/admin/broker-applications', label: 'Broker Applications', icon: UserPlus, roles: ['admin'] },
