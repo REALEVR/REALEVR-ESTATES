@@ -66,15 +66,17 @@ export default function TermsOfService() {
           
           <h2 className="text-xl font-bold mt-8 mb-4">6. Bank Sales and Auctions</h2>
           <p>
-            For bank sales and auction properties:
+            Bank sales are run as live online auctions under our <Link href="/auction-terms" className="text-accent hover:underline">Auction Terms and Conditions</Link>,
+            which form part of these Terms. In short:
           </p>
           <ul className="list-disc pl-6 my-4 space-y-2">
-            <li>All bidding and purchasing is subject to the rules and regulations of the respective financial institutions</li>
-            <li>RealEVR Estates does not guarantee the outcome of any auction or sale</li>
-            <li>Buyers are responsible for conducting their due diligence on the property</li>
+            <li>Only bidders we have vetted (see the <Link href="/bidder-vetting" className="text-accent hover:underline">Bidder Vetting Policy</Link>) may bid, and each must pay a non-refundable commitment fee for the auction before bidding</li>
+            <li>Bids are binding, and the seller's provisions shown on the listing bind the winning bidder</li>
+            <li>The sale is between the bidder and the seller; RealEVR Estates is the platform and does not guarantee the outcome of any auction or sale</li>
+            <li>Buyers are responsible for their own due diligence on the property, including its title</li>
             <li>All legal requirements under Ugandan law for property transfer must be followed</li>
           </ul>
-          
+
           <h2 className="text-xl font-bold mt-8 mb-4">7. Intellectual Property</h2>
           <p>
             The Service and its original content, features, and functionality are owned by RealEVR Estates and are protected by international copyright, trademark, and other intellectual property laws. Users may not reproduce, distribute, or create derivative works without our express permission.

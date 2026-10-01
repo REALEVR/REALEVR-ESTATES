@@ -24,6 +24,7 @@ export default function PrivacyPolicy() {
             <li><strong>Account Information:</strong> Username, password, account preferences.</li>
             <li><strong>Transaction Information:</strong> Details about property viewings, bookings, and payments.</li>
             <li><strong>Technical Information:</strong> IP address, browser type, device information, and usage data.</li>
+            <li><strong>Auction Bidder Verification:</strong> If you apply to bid in a bank-sale auction: identity document and number, proof of address, proof of funds, source-of-funds and public-position declarations, and your bids. These are kept privately, seen only by the administrators who vet bidders, used only to vet you and run the auction, and kept for the period the law requires. See the <Link href="/bidder-vetting" className="text-accent hover:underline">Bidder Vetting Policy</Link>.</li>
             <li><strong>Location Information:</strong> With your consent, precise or approximate location to show properties near you.</li>
           </ul>
           

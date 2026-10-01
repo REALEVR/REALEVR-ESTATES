@@ -56,6 +56,7 @@ export default function Footer() {
             <h3 className="font-display text-base mb-4 text-foreground">RealEVR Estates</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link href="/about" className="hover:text-accent transition-colors">About Us</Link></li>
+              <li><Link href="/partners" className="hover:text-accent transition-colors">Partners</Link></li>
               <li><Link href="/how-it-works" className="hover:text-accent transition-colors">How It Works</Link></li>
               <li><Link href="/careers" className="hover:text-accent transition-colors">Careers</Link></li>
               <li><Link href="/investors" className="hover:text-accent transition-colors">Investors</Link></li>
@@ -164,6 +165,12 @@ export default function Footer() {
             <Link href="/cookies" className="hover:text-accent hover:underline">Cookies</Link>
             <span className="mx-2">·</span>
             <Link href="/refund-policy" className="hover:text-accent hover:underline">Refund Policy</Link>
+            <span className="mx-2">·</span>
+            <Link href="/auction-terms" className="hover:text-accent hover:underline">Auction Terms</Link>
+            <span className="mx-2">·</span>
+            <Link href="/bidder-vetting" className="hover:text-accent hover:underline">Bidder Vetting</Link>
+            <span className="mx-2">·</span>
+            <Link href="/legal" className="hover:text-accent hover:underline">Legal</Link>
             <span className="mx-2">·</span>
             <Link href="/sitemap.xml" className="hover:text-accent hover:underline">Sitemap</Link>
           </div>

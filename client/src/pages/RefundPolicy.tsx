@@ -92,7 +92,20 @@ export default function RefundPolicy() {
             Estates isn't a party to your tenancy and can't compel either one.
           </p>
 
-          <h2 className="text-xl font-bold mt-8 mb-4">5. Why These Payments Are Structured This Way</h2>
+          <h2 className="text-xl font-bold mt-8 mb-4">5. Auction Commitment Fee (US$1,000)</h2>
+          <p>
+            To bid in a live bank-sale auction you must first be approved (vetting is free) and then pay a US$1,000
+            commitment fee for that auction.
+          </p>
+          <p>
+            <strong>This fee is non-refundable</strong>, whether you win, lose, withdraw or are removed. It is not a
+            deposit and is not part of the purchase price. You must confirm that you understand this before the payment
+            details are shown. The only exceptions are a fee taken by mistake or twice, and any refund the law that
+            applies to you requires. Full details are in the{" "}
+            <Link href="/auction-terms" className="text-accent hover:underline">Auction Terms and Conditions</Link>.
+          </p>
+
+          <h2 className="text-xl font-bold mt-8 mb-4">6. Why These Payments Are Structured This Way</h2>
           <p>
             Every payment on this platform pays for something delivered immediately and irreversibly — tour access
             that's already granted, a booking slot that's already held, a subscription period that's already active,
@@ -101,7 +114,7 @@ export default function RefundPolicy() {
             non-refundable rather than case-by-case.
           </p>
 
-          <h2 className="text-xl font-bold mt-8 mb-4">6. Payment Errors</h2>
+          <h2 className="text-xl font-bold mt-8 mb-4">7. Payment Errors</h2>
           <p>
             The one situation always eligible for a refund, regardless of payment type: you were charged but did not
             receive what you paid for, due to a technical fault on our side (a duplicate charge, a payment that
@@ -109,7 +122,7 @@ export default function RefundPolicy() {
             ID and we will investigate.
           </p>
 
-          <h2 className="text-xl font-bold mt-8 mb-4">7. Contact Us</h2>
+          <h2 className="text-xl font-bold mt-8 mb-4">8. Contact Us</h2>
           <p>To report a payment error or ask about a specific charge:</p>
           <address className="not-italic mt-4">
             RealEVR Estates<br />
