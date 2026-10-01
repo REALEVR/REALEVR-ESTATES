@@ -45,6 +45,7 @@ import { runDepositReminders, runViewingReminders, postDailyUpdate } from './cro
 // GENE Platform — additive scaffolding (see docs/GENE_PLATFORM.md)
 import { registerGeneChatRoutes } from './gene/chat'
 import { registerKevinVoiceRoutes } from './gene/kevin-voice'
+import { registerTourHealthRoutes, scheduleTourHealthAtStartup } from './gene/tour-health'
 import { registerGeneIngestionRoutes } from './gene/ingestion'
 import { registerGeneAnalyticsRoutes } from './gene/analytics'
 import { registerGeneLearningLoopRoutes } from './gene/learning-loop'
@@ -2819,6 +2820,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // GENE Platform — additive scaffolding, 4 teams / 16 modules (see docs/GENE_PLATFORM.md)
     registerGeneChatRoutes(app, adminMiddleware)
     registerKevinVoiceRoutes(app)
+    registerTourHealthRoutes(app)
+    scheduleTourHealthAtStartup()
     registerGeneIngestionRoutes(app, adminMiddleware)
     registerGeneAnalyticsRoutes(app, adminMiddleware)
     registerAnalyticsExportRoutes(app, adminMiddleware)

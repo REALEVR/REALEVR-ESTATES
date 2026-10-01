@@ -3,6 +3,7 @@ import { runDepositReminders } from './dailyReminders'
 import { runViewingReminders } from './viewingReminders'
 import { postDailyUpdate } from '../social'
 import { sendWeeklyAnalyticsExport } from '../gene/analytics-export'
+import { runTourHealth } from '../gene/tour-health'
 
 let initialized = false
 
@@ -42,7 +43,14 @@ export function initCronJobs(): void {
         await sendWeeklyAnalyticsExport()
     }, { timezone: 'Africa/Kampala' })
 
-    console.log(`[Cron] Scheduled jobs initialized: deposit reminders (00:00 UTC), viewing reminders (09:00 UTC), social post (${socialCron} UTC), weekly analytics export (Sat 10:00 EAT)`)
+    // Every virtual tour is opened the way a visitor's browser would, every six hours; broken ones are reported
+    // to the administrators (dashboard bell, email, WhatsApp). TOUR_HEALTH_CRON changes the schedule.
+    cron.schedule(process.env.TOUR_HEALTH_CRON || '17 */6 * * *', async () => {
+        console.log('[Cron] Checking that every virtual tour loads...')
+        await runTourHealth().catch((err) => console.error('[Cron] tour health check failed:', err))
+    }, { timezone: 'UTC' })
+
+    console.log(`[Cron] Scheduled jobs initialized: tour health (every 6h), deposit reminders (00:00 UTC), viewing reminders (09:00 UTC), social post (${socialCron} UTC), weekly analytics export (Sat 10:00 EAT)`)
 }
 
 export { runDepositReminders, runViewingReminders, postDailyUpdate, sendWeeklyAnalyticsExport }

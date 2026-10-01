@@ -63,6 +63,7 @@ import AdminRentRailPayouts from '@/pages/AdminRentRailPayouts'
 import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
 import AdminRoomCaptures from '@/pages/AdminRoomCaptures'
 import AdminKevinLeads from '@/pages/AdminKevinLeads'
+import AdminTourHealth from '@/pages/AdminTourHealth'
 import AdminRecommendations from '@/pages/AdminRecommendations'
 import PlaceBar from '@/components/PlaceBar'
 import PlaceHomesPage from '@/pages/PlaceHomesPage'
@@ -205,6 +206,7 @@ function Router() {
             />
             {/* Strictly admin-only — visitors' personal details, see server/gene/kevin-leads.ts. */}
             <ProtectedAdminRoute path="/admin/kevin-leads" component={AdminKevinLeads} allowedRoles={['admin']} />
+            <ProtectedAdminRoute path="/admin/tour-health" component={AdminTourHealth} allowedRoles={['admin']} />
             {/* Strictly admin-only — phone numbers and point redemptions, see server/gene/building-recommendations.ts. */}
             <ProtectedAdminRoute path="/admin/recommendations" component={AdminRecommendations} allowedRoles={['admin']} />
             {/* Strictly admin-only — platform-wide user PII / mass
