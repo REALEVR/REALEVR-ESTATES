@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Headset } from "lucide-react";
 import { enterTourVr } from "@/lib/tourVr";
+import ExitFullscreenButton from "./ExitFullscreenButton";
 
 interface VirtualTourProps {
   tourUrl: string;
@@ -12,11 +13,45 @@ interface VirtualTourProps {
    * would just be clutter - opt in from full-size viewing contexts
    * (PropertyPage.tsx, FeaturedTour.tsx). */
   showVrButton?: boolean;
+  /** Called when the visitor leaves full screen (the Exit button, or Esc), so the parent can drop its own full-screen state. */
+  onExitFullscreen?: () => void;
 }
 
-export default function VirtualTour({ tourUrl, isFullscreen = false, showVrButton = false }: VirtualTourProps) {
+export default function VirtualTour({ tourUrl, isFullscreen = false, showVrButton = false, onExitFullscreen }: VirtualTourProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // True while the browser has THIS tour full screen (by the prop below, or by the Enter VR button).
+  const [apiFull, setApiFull] = useState(false);
+  const wasMine = useRef(false);
+  useEffect(() => {
+    const onChange = () => {
+      const fs = document.fullscreenElement ?? (document as any).webkitFullscreenElement ?? null;
+      const mine = !!fs && fs === containerRef.current;
+      setApiFull(mine);
+      // Left with Esc or the browser's own control: let the parent know too, or its overlay stays up.
+      if (wasMine.current && !mine) onExitFullscreenRef.current?.();
+      wasMine.current = mine;
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    document.addEventListener("webkitfullscreenchange", onChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onChange);
+      document.removeEventListener("webkitfullscreenchange", onChange);
+    };
+  }, []);
+  const onExitFullscreenRef = useRef(onExitFullscreen);
+  onExitFullscreenRef.current = onExitFullscreen;
+
+  const exitFullscreen = () => {
+    try {
+      if (document.fullscreenElement) void document.exitFullscreen();
+      else if ((document as any).webkitFullscreenElement) (document as any).webkitExitFullscreen?.();
+    } catch {
+      /* fall through to the parent's own state */
+    }
+    onExitFullscreen?.();
+  };
 
   useEffect(() => {
     if (isFullscreen && containerRef.current) {
@@ -47,6 +82,7 @@ export default function VirtualTour({ tourUrl, isFullscreen = false, showVrButto
         allow="xr-spatial-tracking; gyroscope; accelerometer; fullscreen"
         className="w-full h-full border-0"
       />
+      {(isFullscreen || apiFull) && <ExitFullscreenButton onClick={exitFullscreen} />}
       {showVrButton && (
         <button
           type="button"

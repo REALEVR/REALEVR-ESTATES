@@ -182,6 +182,7 @@ export default function FeaturedTour() {
                 <VirtualTour
                   tourUrl={featuredProperty.tourUrl || "https://realevr.com/LA%20ROSE%20ROYAL%20APARTMENTS/"}
                   isFullscreen={isFullscreen}
+                  onExitFullscreen={() => setIsFullscreen(false)}
                   showVrButton
                 />
 
