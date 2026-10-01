@@ -64,6 +64,8 @@ export interface AdminNotifyEvent {
     link?: string
     /** Optional structured payload stored alongside the in-app notification. */
     data?: Record<string, any>
+    /** Extra WhatsApp numbers (digits, with country code) that must get this event on top of the owner's numbers; deduplicated. */
+    whatsappAlso?: string[]
 }
 
 /**
@@ -135,8 +137,9 @@ export async function notifyAdminsEverywhere(event: AdminNotifyEvent): Promise<v
     // 3. WhatsApp — both owner numbers, independently.
     try {
         const text = event.whatsappMessage ?? `${event.title}\n\n${event.message}`
+        const numbers = Array.from(new Set([...getAdminWhatsappNumbers(), ...(event.whatsappAlso ?? []).map((n) => normalizePhone(n)).filter(Boolean)]))
         await Promise.all(
-            getAdminWhatsappNumbers().map((number) =>
+            numbers.map((number) =>
                 sendWhatsAppMessage(number, text).catch((err) =>
                     console.error(`[gene/admin-notify] WhatsApp failed for ${number}:`, err)
                 )

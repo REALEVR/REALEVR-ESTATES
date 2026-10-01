@@ -215,6 +215,15 @@ async function processVideo(
   return { kind: videoKind, assets: accepted, warnings, rejectionReasons };
 }
 
+/**
+ * Every new room capture is announced by dashboard notification, email and WhatsApp, and the WhatsApp always goes to
+ * the owner's capture number (ROOM_CAPTURE_WHATSAPP, default +256771891323) even if the general admin list is changed.
+ */
+const ROOM_CAPTURE_WHATSAPP = (process.env.ROOM_CAPTURE_WHATSAPP || '256771891323')
+  .split(',')
+  .map((n) => n.replace(/\D/g, ''))
+  .filter(Boolean);
+
 async function notifyAdminsOfRoomUpload(
   propertyId: string,
   uploader: { id: number; fullName?: string; username?: string },
@@ -227,7 +236,10 @@ async function notifyAdminsOfRoomUpload(
   const agentName = uploader.fullName || uploader.username || `Agent #${uploader.id}`;
   const propertyTitle = property?.title || `Property ${propertyId}`;
   const statusText = room.status === 'qualified' ? 'qualified' : 'needs a retake';
-  const summary = `${agentName} uploaded "${room.name}" for ${propertyTitle} — ${statusText}.`;
+  const who = uploader.id && (uploader as { role?: string }).role === 'admin' ? `${agentName} (admin)` : agentName;
+  const what = room.kind === 'equirect_video' || room.kind === 'walkthrough_video' ? 'a video' : `${room.assets.length} photo${room.assets.length === 1 ? '' : 's'}`;
+  const problems = room.status === 'qualified' ? '' : ` ${room.rejectionReasons.slice(0, 2).join(' ')}`.trimEnd();
+  const summary = `${who} uploaded ${what} of "${room.name}" for ${propertyTitle} — ${statusText}.${problems ? ' ' + problems : ''}`;
   const link = `/admin/virtual-tour-manager?propertyId=${propertyId}`;
   // sendPushToAdmins is a browser web-push notification (separate from the
   // in-app bell) — kept alongside notifyAdminsEverywhere below, which adds
@@ -239,6 +251,7 @@ async function notifyAdminsOfRoomUpload(
       message: summary,
       whatsappMessage: `📸 New room photos uploaded\n${summary}`,
       link,
+      whatsappAlso: ROOM_CAPTURE_WHATSAPP,
     }).catch(() => {}),
   ]);
 }
@@ -290,13 +303,10 @@ export const uploadRoomCapture = (req: Request, res: Response, next: NextFunctio
       manifest.rooms.push(entry);
       saveManifest(propertyId, manifest);
 
-      // Live admin notification ("let the admin get live notifications
-      // provided any agent is uploading photos") — fire-and-forget, never
-      // lets a push failure (or push simply not being configured) affect
-      // the upload response itself. Skipped when an admin does the
-      // uploading themselves — nothing to notify them of.
+      // Every new room capture is announced (dashboard, email and WhatsApp), whoever uploaded it —
+      // fire-and-forget, never lets a notification failure affect the upload response itself.
       const uploader = req.user as { id: number; role: string; fullName?: string; username?: string } | undefined;
-      if (uploader?.role === 'agent') {
+      if (uploader) {
         void notifyAdminsOfRoomUpload(propertyId, uploader, entry).catch(() => {});
       }
 
@@ -463,6 +473,19 @@ export const finalizeRoomCapture = (req: Request, res: Response) => {
       fs.rmSync(draftDir, { recursive: true, force: true });
 
       sendProgress(jobId, { progress: 100, message: 'Virtual tour published!', done: true, tourUrl });
+
+      // The captured rooms are now a live tour: tell the owner on every channel, too.
+      void import('./gene/admin-notify')
+        .then(({ notifyAdminsEverywhere }) =>
+          notifyAdminsEverywhere({
+            title: 'Virtual tour published',
+            message: `The room captures for ${propertyTitle} are now a live virtual tour (${tourJson.rooms.length} room${tourJson.rooms.length === 1 ? '' : 's'}).`,
+            whatsappMessage: `🏠 Virtual tour published\n${propertyTitle}: ${tourJson.rooms.length} room${tourJson.rooms.length === 1 ? '' : 's'} captured and live.`,
+            link: `/admin/virtual-tour-manager?propertyId=${propertyId}`,
+            whatsappAlso: ROOM_CAPTURE_WHATSAPP,
+          })
+        )
+        .catch(() => {});
     } catch (e: any) {
       sendProgress(jobId, { error: e.message, done: true });
     }
