@@ -21,6 +21,9 @@ import Orb from './Orb'
 import ResultCards from './ResultCards'
 import VoiceStage, { type VoicePhase } from './VoiceStage'
 import type { KevinAction, KevinCard } from './kevinTypes'
+import { KEVIN_OPEN_EVENT, type KevinOpenDetail } from './kevinEvents'
+import { assistantFor, audienceLabel } from './kevinAssistant'
+import { AUDIENCES, type Audience } from '@shared/kevin-audience'
 import './kevin.css'
 
 /**
@@ -99,6 +102,9 @@ type Message =
   | { id: number; kind: 'picker' }
   | { id: number; kind: 'cards'; cards: KevinCard[] }
   | { id: number; kind: 'whatsapp' }
+  | { id: number; kind: 'audience' }
+  | { id: number; kind: 'links'; links: Array<{ label: string; path: string }> }
+  | { id: number; kind: 'urgent'; level: 'emergency' | 'urgent'; text: string }
 
 // A message before it's been given an id (Omit distributed over the union, so
 // each variant keeps its own fields).
@@ -190,6 +196,10 @@ export default function KevinOrb() {
   const waNumber = useKevinWhatsapp()
   const [leadName, setLeadName] = useState<string | null>(null)
   const [offerWhatsapp, setOfferWhatsapp] = useState(false)
+  // Where the visitor is (the sign-up screen, or just after it), so Kevin behaves like an assistant for that moment.
+  const contextRef = useRef<'signup' | 'welcome' | null>(null)
+  const greetedRef = useRef(false)
+  const [nudge, setNudge] = useState<string | null>(null)
 
   // Voice mode
   const [voiceMode, setVoiceMode] = useState(false)
@@ -410,6 +420,14 @@ export default function KevinOrb() {
     setOpen(true)
     setMessages((prev) => prev.filter((m) => m.kind !== 'picker'))
 
+    // Opened from the sign-up screen: he is a personal assistant first, and asks who he is helping.
+    if (contextRef.current === 'signup' && !greetedRef.current && ['en', 'sw', 'fr'].includes(picked.code ?? '')) {
+      greetedRef.current = true
+      kevinSays(assistantFor(picked).signupWelcome, picked)
+      push({ kind: 'audience' })
+      return
+    }
+
     let intro = intakeDoneRef.current ? stringsFor(picked).intro : stringsFor(picked).introIntake
     if (!hasBuiltInIntro(picked)) {
       // Languages we don't ship an introduction for: the AI writes it.
@@ -432,7 +450,7 @@ export default function KevinOrb() {
     kevinSays(intro, picked)
   }
 
-  const send = async (raw: string, opts: { voice?: boolean } = {}) => {
+  const send = async (raw: string, opts: { voice?: boolean; choice?: Audience } = {}) => {
     const message = raw.trim()
     if (!message || busy) return
     voice.stop()
@@ -451,6 +469,8 @@ export default function KevinOrb() {
         voice: opts.voice === true,
         shown: shownRef.current,
         intake: !intakeDoneRef.current,
+        ...(contextRef.current ? { context: contextRef.current } : {}),
+        ...(opts.choice ? { choice: opts.choice } : {}),
         ...(current ? { language: { code: current.code, name: current.name } } : {}),
       })
       const data = await res.json()
@@ -477,7 +497,12 @@ export default function KevinOrb() {
       const spoke = kevinSays(text, current, opts.voice ? () => actionsRef.current.beginListening(true) : undefined)
       if (opts.voice) setPhase(spoke ? 'speaking' : 'idle')
       // The button comes right after what he said about it.
-      if (data.whatsapp === true) {
+      if (Array.isArray(data.links) && data.links.length) push({ kind: 'links', links: data.links.filter((l: any) => typeof l?.path === 'string' && l.path.startsWith('/') && typeof l?.label === 'string') })
+      if (data.urgent && (data.urgent.level === 'emergency' || data.urgent.level === 'urgent')) {
+        // The team has already been told; this puts the direct line in front of them.
+        setOfferWhatsapp(true)
+        push({ kind: 'urgent', level: data.urgent.level, text: message })
+      } else if (data.whatsapp === true) {
         setOfferWhatsapp(true)
         push({ kind: 'whatsapp' })
       }
@@ -572,6 +597,39 @@ export default function KevinOrb() {
       beginListening(false)
     }
   }
+
+  // Other screens (the sign-up card) can ask Kevin to open, so he is there while someone signs up.
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const d = ((e as CustomEvent<KevinOpenDetail>).detail ?? {}) as KevinOpenDetail
+      if (d.context === 'welcome') {
+        contextRef.current = 'welcome'
+        const first = (d.name ?? '').trim().split(/\s+/)[0]
+        setNudge(assistantFor(langRef.current).welcomeBack(first || 'friend'))
+        return
+      }
+      contextRef.current = d.context ?? null
+      setBubble(false)
+      setNudge(null)
+      setChangingLanguage(false)
+      setOpen(true)
+      if (d.handsFree && readStore(HANDSFREE_KEY) !== '1') setConsentOpen(true)
+      const l = langRef.current
+      if (d.context === 'signup' && l && !greetedRef.current) {
+        greetedRef.current = true
+        const text = assistantFor(l).signupWelcome
+        setMessages((prev) => [
+          ...prev.filter((m) => m.kind !== 'picker'),
+          { id: nextId(), kind: 'text', role: 'kevin', text },
+          { id: nextId(), kind: 'audience' },
+        ])
+        setLastReply(text)
+        say(text, l)
+      }
+    }
+    window.addEventListener(KEVIN_OPEN_EVENT, onOpen)
+    return () => window.removeEventListener(KEVIN_OPEN_EVENT, onOpen)
+  }, [say])
 
   // ---- Hands-free ----------------------------------------------------------
   // Listening starts on arrival, and the browser's microphone question is asked ONCE: the first time
@@ -782,7 +840,7 @@ export default function KevinOrb() {
           onContextMenu={(e) => e.preventDefault()}
           onPointerLeave={() => clearTimeout(pressTimer.current)}
           aria-label="Chat with Kevin, your RealEVR concierge. Press and hold to talk."
-          className="group fixed select-none [-webkit-touch-callout:none] bottom-[var(--fab-row-1)] right-3 z-40 flex w-16 flex-col items-center gap-1.5 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f5c469] md:bottom-5 md:right-4"
+          className="kevin-fab group fixed select-none [-webkit-touch-callout:none] bottom-[var(--fab-row-1)] right-3 z-40 flex w-16 flex-col items-center gap-1.5 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f5c469] md:bottom-5 md:right-4"
         >
           <span className="relative block h-11 w-11 md:h-12 md:w-12">
             <Orb speaking={voice.speaking || phase === 'speaking'} listening={voice.listening} thinking={busy} />
@@ -806,12 +864,37 @@ export default function KevinOrb() {
         </button>
       )}
 
+      {/* After sign-up: a small welcome from the assistant */}
+      {nudge && !open && (
+        <div
+          role="status"
+          className="kevin-pop kevin-bubble fixed bottom-[calc(var(--fab-row-1)+4.25rem)] right-3 z-[60] w-[min(22rem,calc(100vw-1.5rem))] rounded-3xl border border-white/10 bg-[#0d1024]/95 p-4 text-white shadow-2xl backdrop-blur-xl md:bottom-[6.25rem] md:right-4"
+        >
+          <button type="button" onClick={() => setNudge(null)} aria-label="Dismiss" className="absolute right-2.5 top-2.5 rounded-full p-1.5 text-white/50 transition hover:bg-white/10 hover:text-white">
+            <X size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setNudge(null)
+              setOpen(true)
+            }}
+            className="flex w-full items-start gap-3 pr-5 text-left"
+          >
+            <span className="mt-0.5 block h-9 w-9 shrink-0">
+              <Orb mini />
+            </span>
+            <span className="text-sm leading-relaxed text-white/90">{nudge}</span>
+          </button>
+        </div>
+      )}
+
       {/* First-visit greeting */}
       {bubble && !open && (
         <div
           role="dialog"
           aria-label="Kevin says hello"
-          className="kevin-pop fixed bottom-[calc(var(--fab-row-1)+4.25rem)] right-3 z-[60] w-[min(22rem,calc(100vw-1.5rem))] rounded-3xl border border-white/10 bg-[#0d1024]/95 p-4 text-white shadow-2xl backdrop-blur-xl md:bottom-[6.25rem] md:right-4"
+          className="kevin-pop kevin-bubble fixed bottom-[calc(var(--fab-row-1)+4.25rem)] right-3 z-[60] w-[min(22rem,calc(100vw-1.5rem))] rounded-3xl border border-white/10 bg-[#0d1024]/95 p-4 text-white shadow-2xl backdrop-blur-xl md:bottom-[6.25rem] md:right-4"
         >
           <button
             type="button"
@@ -1036,6 +1119,68 @@ export default function KevinOrb() {
                     </a>
                   </div>
                 ) : null
+              }
+              if (m.kind === 'audience') {
+                const words = assistantFor(lang)
+                return (
+                  <div key={m.id} className="kevin-rise flex gap-2.5">
+                    <span className="mt-0.5 block h-7 w-7 shrink-0"><Orb mini /></span>
+                    <div className="max-w-[90%] rounded-2xl rounded-tl-md border border-white/10 bg-white/[0.07] px-3.5 py-3 text-sm">
+                      <p className="mb-2.5 leading-relaxed text-white/90">{words.audienceQuestion}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {AUDIENCES.map((a) => (
+                          <button
+                            key={a}
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void send(audienceLabel(a, lang), { choice: a })}
+                            className="min-h-10 rounded-full border border-white/20 px-3.5 text-sm text-white/90 transition hover:border-[#f5c469] hover:text-[#f5c469] disabled:opacity-50"
+                          >
+                            {audienceLabel(a, lang)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )
+              }
+              if (m.kind === 'links') {
+                return (
+                  <div key={m.id} className="flex flex-wrap gap-2 pl-9">
+                    {m.links.map((l) => (
+                      <Link
+                        key={l.path}
+                        href={l.path}
+                        onClick={() => setOpen(false)}
+                        className="kevin-rise inline-flex min-h-10 items-center rounded-full bg-[#f5c469] px-4 text-sm font-semibold text-[#1b1305] transition hover:brightness-110"
+                      >
+                        {l.label}
+                      </Link>
+                    ))}
+                  </div>
+                )
+              }
+              if (m.kind === 'urgent') {
+                const words = assistantFor(lang)
+                const who = leadName ? `I'm ${leadName}. ` : ''
+                const href = waNumber ? whatsappHref(waNumber, `URGENT${m.level === 'emergency' ? ' (emergency)' : ''}: ${m.text}\n${who}Sent through Kevin on RealEVR Estates.`) : null
+                return (
+                  <div key={m.id} className="kevin-rise ml-9 rounded-2xl border border-red-400/40 bg-red-500/10 p-3 text-sm" role="alert">
+                    <p className="font-semibold text-red-100">{words.urgentBanner}</p>
+                    {m.level === 'emergency' && <p className="mt-1 leading-relaxed text-white/85">{words.callFirst}</p>}
+                    {href && (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 inline-flex min-h-12 items-center gap-2 rounded-full bg-[#25D366] px-5 text-sm font-bold text-[#06260f] shadow-lg transition hover:brightness-110"
+                      >
+                        <MessageCircle size={18} aria-hidden="true" />
+                        {words.urgentButton}
+                      </a>
+                    )}
+                  </div>
+                )
               }
               if (m.kind === 'picker') {
                 return (

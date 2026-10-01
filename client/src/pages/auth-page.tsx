@@ -1,3 +1,4 @@
+import KevinSignupHelper from '@/components/kevin/KevinSignupHelper'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
@@ -257,6 +258,7 @@ export default function AuthPage() {
                         <div className="absolute left-0 right-0 top-1/2 h-px bg-gray-200" />
                     </div>
 
+                    <KevinSignupHelper />
                     <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab} className="w-full">
                         <TabsList className="grid w-full grid-cols-2 mb-6">
                             <TabsTrigger value="login">Login</TabsTrigger>
