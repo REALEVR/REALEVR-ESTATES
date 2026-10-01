@@ -30,6 +30,7 @@ import {
     type SearchQuery,
 } from './kevin-actions'
 import { detectContactUpdate, type KevinLead, type LeadUpdate } from './kevin-leads'
+import { AFRICAN_COUNTRIES, currencyForCountry, placeLabel, type Place } from '../../shared/africa'
 
 // ---------------------------------------------------------------------------
 // What is on the platform
@@ -54,7 +55,8 @@ export interface Upcoming {
 
 export interface PlatformSnapshot {
     total: number
-    byCategory: Partial<Record<SearchCategory, { count: number; min: number; max: number }>>
+    /** Per category: how many, and the price range in each currency listings are priced in. */
+    byCategory: Partial<Record<SearchCategory, { count: number; ranges: Record<string, { min: number; max: number }> }>>
     /** Place names as they appear on listings, most common first. */
     locations: string[]
     featured: KevinCard[]
@@ -81,22 +83,22 @@ export function buildSnapshot(all: any[], now = new Date()): PlatformSnapshot {
     const places = new Map<string, number>()
     for (const p of live) {
         const cat = p.category as SearchCategory
-        if (CATEGORIES.includes(cat) && (!p.currency || p.currency === 'UGX')) {
-            const row = byCategory[cat] ?? { count: 0, min: Infinity, max: 0 }
+        if (CATEGORIES.includes(cat)) {
+            const row = byCategory[cat] ?? { count: 0, ranges: {} }
             row.count++
-            row.min = Math.min(row.min, Number(p.price) || 0)
-            row.max = Math.max(row.max, Number(p.price) || 0)
+            const cur = String(p.currency || 'UGX')
+            const price = Number(p.price) || 0
+            const range = row.ranges[cur] ?? { min: Infinity, max: 0 }
+            range.min = Math.min(range.min, price)
+            range.max = Math.max(range.max, price)
+            row.ranges[cur] = range
             byCategory[cat] = row
-        } else if (CATEGORIES.includes(cat)) {
-            byCategory[cat] = byCategory[cat] ?? { count: 0, min: Infinity, max: 0 }
-            byCategory[cat]!.count++
         }
         for (const part of String(p.location ?? '').split(',')) {
             const name = part.trim()
             if (name.length >= 3 && name.length <= 40) places.set(name, (places.get(name) ?? 0) + 1)
         }
     }
-    for (const row of Object.values(byCategory)) if (row && row.min === Infinity) row.min = 0
 
     const upcoming: Upcoming[] = []
     for (const p of all) {
@@ -136,16 +138,26 @@ export async function getSnapshot(): Promise<PlatformSnapshot> {
 }
 
 /** Everything Kevin may say about what the platform holds, for the AI's instructions. */
-export function knowledgeContext(snap: PlatformSnapshot): string {
+/** The price range of a category in the visitor's currency, else in whichever currency it has the most to show. */
+function rangeFor(row: NonNullable<PlatformSnapshot['byCategory'][SearchCategory]>, currency: string): { currency: string; min: number; max: number } | null {
+    const own = row.ranges[currency]
+    if (own && own.max) return { currency, ...own }
+    const other = Object.entries(row.ranges).find(([, r]) => r.max)
+    return other ? { currency: other[0], ...other[1] } : null
+}
+
+export function knowledgeContext(snap: PlatformSnapshot, currency = 'UGX', place?: Place | null): string {
     if (!snap.total) return 'The platform has no live listings at the moment; say so honestly and offer to note what the visitor wants.'
     const cats = CATEGORIES.filter((c) => snap.byCategory[c]?.count)
         .map((c) => {
             const row = snap.byCategory[c]!
-            const range = row.max ? (row.min === row.max ? `, ${spokenMoney(row.max)}` : `, from ${spokenMoney(row.min)} up to ${spokenMoney(row.max)}`) : ''
+            const r = rangeFor(row, currency)
+            const range = r ? (r.min === r.max ? `, ${spokenMoney(r.max, r.currency)}` : `, from ${spokenMoney(r.min, r.currency)} up to ${spokenMoney(r.max, r.currency)}`) : ''
             return `${row.count} ${row.count === 1 ? CATEGORY_LABEL[c].one : CATEGORY_LABEL[c].many}${range}`
         })
         .join('; ')
     const lines = [`Live on the platform right now: ${cats}.`]
+    if (place) lines.push(`The visitor appears to be in ${placeLabel(place)}: prefer homes near them, and quote prices in ${currency} when you can.`)
     if (snap.locations.length) lines.push(`Areas with listings: ${snap.locations.slice(0, 12).join(', ')}.`)
     if (snap.featured.length) lines.push(`Featured: ${snap.featured.map((c) => `${c.title} in ${c.location}`).join('; ')}.`)
     if (snap.newest.length) lines.push(`Newest: ${snap.newest.map((c) => `${c.title} in ${c.location}`).join('; ')}.`)
@@ -165,17 +177,20 @@ const trimZero = (n: number) => String(Math.round(n * 10) / 10).replace(/\.0$/, 
 
 /** "1.5 million shillings": reads aloud well, and reads fine on screen. */
 export function spokenMoney(n: number, currency = 'UGX'): string {
-    if (currency && currency !== 'UGX') return `${Math.round(n).toLocaleString('en-US')} ${currency}`
-    if (n >= 1e9) return `${trimZero(n / 1e9)} billion shillings`
-    if (n >= 1e6) return `${trimZero(n / 1e6)} million shillings`
-    if (n >= 1e3) return `${Math.round(n / 1e3)} thousand shillings`
-    return `${Math.round(n)} shillings`
+    // Say "shillings" where people do; elsewhere the currency's code reads fine aloud ("rand", "naira" aside).
+    const unit = ['UGX', 'KES', 'TZS', 'SOS'].includes(currency) ? 'shillings' : currency
+    if (n >= 1e9) return `${trimZero(n / 1e9)} billion ${unit}`
+    if (n >= 1e6) return `${trimZero(n / 1e6)} million ${unit}`
+    if (n >= 1e3) return `${Math.round(n / 1e3)} thousand ${unit}`
+    return `${Math.round(n)} ${unit}`
 }
 
 const AREAS = [
     'Kololo', 'Nakasero', 'Muyenga', 'Ntinda', 'Bugolobi', 'Munyonyo', 'Naguru', 'Bukoto', 'Kiwatule', 'Najjera', 'Kisaasi', 'Kyanja', 'Entebbe',
     'Mbuya', 'Makindye', 'Lubowa', 'Naalya', 'Kansanga', 'Kabalagala', 'Wandegeya', 'Nansana', 'Mukono', 'Jinja', 'Gulu', 'Mbarara', 'Kampala',
-    'Namugongo', 'Kira', 'Buziga', 'Luzira', 'Rubaga', 'Mengo', 'Kawempe', 'Nairobi', 'Kigali', 'Dar es Salaam', 'Mombasa', 'Arusha',
+    'Namugongo', 'Kira', 'Buziga', 'Luzira', 'Rubaga', 'Mengo', 'Kawempe',
+    // Every main city and country in Africa, so a visitor anywhere can name where they want to live.
+    ...AFRICAN_COUNTRIES.flatMap((c) => [c.name, ...c.cities.map((city) => city.name)]),
 ]
 
 function editDistance(a: string, b: string): number {
@@ -467,15 +482,15 @@ export function describeNeed(w: {
     location?: string
     minBudget?: number
     maxBudget?: number
-}): string | undefined {
+}, currency = 'UGX'): string | undefined {
     if (!w.category && !w.propertyType && !w.bedrooms && !w.location && !w.maxBudget && !w.minBudget) return undefined
     const what = [w.bedrooms ? `${w.bedrooms}-bedroom` : '', w.propertyType ?? 'home'].filter(Boolean).join(' ')
     const verb = w.category ? CATEGORY_LABEL[w.category as SearchCategory]?.verb : ''
     const parts = [`${what}${verb ? ` ${verb}` : ''}`]
     if (w.location) parts.push(`in ${w.location}`)
-    if (w.minBudget && w.maxBudget) parts.push(`${spokenMoney(w.minBudget)} to ${spokenMoney(w.maxBudget)}`)
-    else if (w.maxBudget) parts.push(`up to ${spokenMoney(w.maxBudget)}`)
-    else if (w.minBudget) parts.push(`from ${spokenMoney(w.minBudget)}`)
+    if (w.minBudget && w.maxBudget) parts.push(`${spokenMoney(w.minBudget, currency)} to ${spokenMoney(w.maxBudget, currency)}`)
+    else if (w.maxBudget) parts.push(`up to ${spokenMoney(w.maxBudget, currency)}`)
+    else if (w.minBudget) parts.push(`from ${spokenMoney(w.minBudget, currency)}`)
     return parts.join(', ').slice(0, 300)
 }
 
@@ -494,6 +509,8 @@ export interface BrainInput {
     turn: number
     /** For a signed-in visitor: their saved preferences (from "My Agent"), so he does not ask what is known. */
     hints?: { category?: string; location?: string; minBudget?: number; maxBudget?: number }
+    /** Where the visitor is (their country and city), so prices are in their currency and nearby homes come first. */
+    place?: Place | null
     /** For a signed-in visitor: the homes that best fit their saved profile, with why. */
     picks?: Array<{ card: KevinCard; reason?: string }>
 }
@@ -542,7 +559,7 @@ function nextQuestion(lead: Partial<KevinLead>, account: User | null, intaking: 
 }
 
 /** Run the search, loosening one thing at a time until something real can be recommended. */
-export async function searchWithRelaxing(query: SearchQuery): Promise<{ cards: KevinCard[]; total: number; used: SearchQuery; dropped: string | null }> {
+export async function searchWithRelaxing(query: SearchQuery, near?: Place | null): Promise<{ cards: KevinCard[]; total: number; used: SearchQuery; dropped: string | null }> {
     // Change the area before the kind of home: someone who wants a 2-bedroom apartment is better
     // served by one in the next suburb than by a house in the one they named.
     const steps: Array<[string, (q: SearchQuery) => SearchQuery]> = [
@@ -553,13 +570,13 @@ export async function searchWithRelaxing(query: SearchQuery): Promise<{ cards: K
         ['category', (q) => ({ ...q, category: undefined })],
     ]
     let current = { ...query }
-    let found = await searchListings(current, 3)
+    let found = await searchListings(current, 3, near)
     if (found.total) return { ...found, used: current, dropped: null }
     for (const [name, loosen] of steps) {
         const next = loosen(current)
         if (JSON.stringify(next) === JSON.stringify(current)) continue
         current = next
-        found = await searchListings(current, 3)
+        found = await searchListings(current, 3, near)
         if (found.total) return { ...found, used: current, dropped: name }
     }
     return { cards: [], total: 0, used: current, dropped: null }
@@ -576,10 +593,11 @@ const queryFrom = (u: LeadUpdate & { propertyType?: string }): SearchQuery => {
     return q
 }
 
-function overview(snap: PlatformSnapshot): string {
+function overview(snap: PlatformSnapshot, currency = 'UGX'): string {
     const parts = CATEGORIES.filter((c) => snap.byCategory[c]?.count).map((c) => {
         const row = snap.byCategory[c]!
-        const from = row.min ? `, from ${spokenMoney(row.min)}` : ''
+        const r = rangeFor(row, currency)
+        const from = r?.min ? `, from ${spokenMoney(r.min, r.currency)}` : ''
         return `${row.count} ${row.count === 1 ? CATEGORY_LABEL[c].one : CATEGORY_LABEL[c].many}${from}`
     })
     if (!parts.length) return 'I do not have any live listings right now, but tell me what you are looking for and I will make sure the team hears it.'
@@ -597,8 +615,9 @@ function upcomingNote(snap: PlatformSnapshot, want?: { category?: string; locati
 }
 
 export async function converse(input: BrainInput): Promise<BrainResult> {
-    const { message, lead, account, intaking, shown, turn, hints, picks } = input
+    const { message, lead, account, intaking, shown, turn, hints, picks, place } = input
     const snap = await getSnapshot()
+    const money = place ? currencyForCountry(place.country) : 'UGX'
     const expecting = (lead?.lastAsk as Slot | undefined) ?? undefined
     const needsName = !lead?.name && !account?.fullName
     const sig = parseSignals(message, snap.locations, expecting, needsName)
@@ -625,8 +644,9 @@ export async function converse(input: BrainInput): Promise<BrainResult> {
         maxBudget: carry(update.maxBudget, lead?.maxBudget),
     }
     const hasCriteria = !!(sig.category || sig.propertyType || sig.bedrooms || sig.minPrice || sig.maxPrice || sig.location)
-    const need = describeNeed(wants)
+    const need = describeNeed(wants, money)
     if (hasCriteria && need) update.need = need
+    if (place && !lead?.country) update.country = place.country
     if (sig.usdBudget && !update.budget) update.budget = message.match(/(?:\$|usd)\s?[\d,]+(?:\.\d+)?|[\d,]+(?:\.\d+)?\s?(?:usd|dollars?)/i)?.[0]?.trim()
 
     const merged: Partial<KevinLead> = { ...lead, ...update, ...wants }
@@ -683,7 +703,7 @@ export async function converse(input: BrainInput): Promise<BrainResult> {
         lines.push(explain[sig.page] ?? 'Taking you there now.')
         result.action = { type: 'go', page: sig.page, path: GO_PAGES[sig.page] }
     } else if (sig.wantsOverview && !hasCriteria) {
-        lines.push(overview(snap))
+        lines.push(overview(snap, money))
         if (snap.featured[0]) lines.push(`A featured one is ${describeCard(snap.featured[0])}.`)
         const later = upcomingNote(snap, undefined, true)
         if (later) lines.push(`Coming up: ${later}.`)
@@ -692,12 +712,13 @@ export async function converse(input: BrainInput): Promise<BrainResult> {
             result.action = { type: 'results', query: {}, total: snap.featured.length }
         }
     } else if (hasCriteria || (sig.wantsSearch && !sig.wantsOverview && (merged.category || merged.location))) {
-        const query = queryFrom({ ...wants })
-        const found = await searchWithRelaxing(query)
+        // A budget someone speaks is in their own currency, so compare it with listings priced in that.
+        const query = { ...queryFrom({ ...wants }), ...(place ? { currency: currencyForCountry(place.country) } : {}) }
+        const found = await searchWithRelaxing(query, place)
         result.search = { query, total: found.dropped ? 0 : found.total }
         if (!found.total) {
             lines.push(
-                `I do not have anything like that right now. ${overview(snap)} I have noted exactly what you are after so the team can add it.`,
+                `I do not have anything like that right now. ${overview(snap, money)} I have noted exactly what you are after so the team can add it.`,
             )
         } else {
             result.results = found.cards
@@ -738,7 +759,7 @@ export async function converse(input: BrainInput): Promise<BrainResult> {
         lines.push('Sorry, I did not catch the amount. You can say something like "under two million shillings".')
     } else {
         // Nothing recognised: say something useful about the platform, never the same line twice.
-        lines.push(pick([`${overview(snap)}`, 'I can help you find a home, check prices, or book a viewing.', 'Tell me what kind of place you want and where, and I will look.'], turn))
+        lines.push(pick([`${overview(snap, money)}`, 'I can help you find a home, check prices, or book a viewing.', 'Tell me what kind of place you want and where, and I will look.'], turn))
     }
 
     // ---- the one follow-up question ----

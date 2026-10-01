@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { usePlace } from "@/lib/place";
+import { countryByCode, currencyForCountry } from "@shared/africa";
 
 interface ExploreFiltersDialogProps {
   isOpen: boolean;
@@ -16,6 +18,8 @@ interface ExploreFiltersDialogProps {
 export default function ExploreFiltersDialog({ isOpen, onClose }: ExploreFiltersDialogProps) {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("type");
+  const { place } = usePlace();
+  const currency = currencyForCountry(place.country);
 
   // Property types with their routes
   const propertyTypes = [
@@ -26,13 +30,16 @@ export default function ExploreFiltersDialog({ isOpen, onClose }: ExploreFilters
   ];
 
   // Areas
-  const popularAreas = [
-    "Kololo", "Nakasero", "Bugolobi", "Muyenga", "Ntinda", 
-    "Munyonyo", "Naguru", "Kira", "Lubowa", "Entebbe"
-  ];
+  // Areas follow the visitor: Kampala's well-known neighbourhoods at home, the main cities of
+  // whichever African country they are in everywhere else.
+  const popularAreas =
+    place.country === "UG"
+      ? ["Kololo", "Nakasero", "Bugolobi", "Muyenga", "Ntinda", "Munyonyo", "Naguru", "Kira", "Lubowa", "Entebbe"]
+      : (countryByCode(place.country)?.cities.map((c) => c.name) ?? []);
 
   // Price ranges for filtering
-  const priceRanges = [
+  // The three ready-made bands are in Ugandan shillings; elsewhere the visitor sets their own range.
+  const priceRanges = currency !== "UGX" ? [] : [
     { label: "Budget (Under 500,000 UGX)", value: "low" },
     { label: "Mid-range (500K - 1.5M UGX)", value: "medium" },
     { label: "Luxury (Above 1.5M UGX)", value: "high" }
@@ -149,7 +156,7 @@ export default function ExploreFiltersDialog({ isOpen, onClose }: ExploreFilters
               <h3 className="font-medium mb-2">Custom Price Range</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="min-price">Minimum (UGX)</Label>
+                  <Label htmlFor="min-price">Minimum ({currency})</Label>
                   <Input 
                     id="min-price" 
                     placeholder="Min price"
@@ -158,7 +165,7 @@ export default function ExploreFiltersDialog({ isOpen, onClose }: ExploreFilters
                   />
                 </div>
                 <div>
-                  <Label htmlFor="max-price">Maximum (UGX)</Label>
+                  <Label htmlFor="max-price">Maximum ({currency})</Label>
                   <Input 
                     id="max-price" 
                     placeholder="Max price"

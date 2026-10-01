@@ -44,6 +44,7 @@ interface Lead {
 }
 
 interface DemandRow {
+  country: string | null;
   category: string;
   location: string;
   bedrooms: number | null;
@@ -345,6 +346,7 @@ function DemandView({ demand }: { demand: Demand | null }) {
             </caption>
             <thead>
               <tr className="border-y bg-muted/40 text-left">
+                <th className="px-4 py-2 font-medium">Country</th>
                 <th className="px-4 py-2 font-medium">Kind</th>
                 <th className="px-4 py-2 font-medium">Area</th>
                 <th className="px-4 py-2 font-medium">Bedrooms</th>
@@ -356,6 +358,7 @@ function DemandView({ demand }: { demand: Demand | null }) {
             <tbody>
               {demand.rows.map((r, i) => (
                 <tr key={i} className="border-b last:border-0">
+                  <td className="px-4 py-2">{r.country ?? "—"}</td>
                   <td className="px-4 py-2">{CATEGORY_NAME[r.category] ?? r.category}</td>
                   <td className="px-4 py-2">{r.location}</td>
                   <td className="px-4 py-2">{r.bedrooms ?? "any"}</td>

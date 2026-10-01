@@ -270,7 +270,7 @@ export default function Home() {
                                 variant="outline"
                                 className="rounded-full border-accent text-accent hover:bg-accent hover:text-accent-foreground hover:shadow-lg px-8 py-3 text-lg font-semibold transition-all"
                             >
-                                <Link href="/list-your-property">List a Property, Earn 1,000 UGX</Link>
+                                <Link href="/list-your-property">List a Property</Link>
                             </Button>
                         </div>
                     </div>
