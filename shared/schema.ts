@@ -6,6 +6,10 @@ export const properties = pgTable("properties", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   location: text("location").notNull(),
+  // ISO country code of any African country (shared/africa.ts). Listings made before
+  // this field existed have none; inferListingCountry() works it out from their
+  // coordinates, place names and currency, defaulting to Uganda where we began.
+  country: text("country"),
   // Exact map pin for this property, set from the "Location on map" picker
   // in the upload/edit form (client/src/components/admin/PropertyFormNew.tsx)
   // - either dropped/dragged on the map itself or parsed out of a pasted

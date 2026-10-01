@@ -6,6 +6,7 @@ import { z } from 'zod'
 import fetch from 'node-fetch'
 import path from 'path'
 import { getTourConfig } from './tour-config'
+import { inferListingCountry, isAfricanCountry } from '../shared/africa'
 import * as dropboxStorage from './dropbox-storage'
 import { request as request7 } from 'undici'
 
@@ -1502,6 +1503,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             // Parse and validate the incoming data
             const propertyData = { ...req.body }
+            // Any African country may list; anything else is dropped, and the country is worked out from the place when missing.
+            propertyData.country = isAfricanCountry(propertyData.country)
+                ? String(propertyData.country).toUpperCase()
+                : inferListingCountry({ location: propertyData.location, currency: propertyData.currency })
 
             // Convert string fields to appropriate types
             if (typeof propertyData.price === 'string') {

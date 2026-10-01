@@ -5,6 +5,7 @@ import { Property, insertPropertySchema, PropertyType, Amenity } from '@shared/s
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import LocationPinPicker from '@/components/admin/LocationPinPicker';
+import { AFRICAN_COUNTRIES, currenciesForCountry, currencyForCountry, placeFromTimezone } from '@shared/africa';
 import DirectS3TourUpload from '@/components/admin/DirectS3TourUpload';
 import {
   Form,
@@ -165,6 +166,14 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
     landlordName: '',
     landlordPhone: '',
     availableFrom: '',
+    // Any African country can list: start on the one the browser's time zone points to.
+    country: (() => {
+      try {
+        return placeFromTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone)?.country ?? 'UG';
+      } catch {
+        return 'UG';
+      }
+    })(),
   };
 
   const form = useForm<PropertyFormValues>({
@@ -568,12 +577,47 @@ const onSubmit = async (data: PropertyFormValues) => {
 
                   <FormField
                     control={form.control}
+                    name="country"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Country</FormLabel>
+                        <Select
+                          value={(field.value as string) || 'UG'}
+                          onValueChange={(code) => {
+                            field.onChange(code);
+                            // Price in that country's own currency unless they pick dollars.
+                            const current = form.getValues('currency');
+                            if (!currenciesForCountry(code).includes(current)) {
+                              form.setValue('currency', currencyForCountry(code), { shouldDirty: true });
+                            }
+                          }}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="max-h-72">
+                            {AFRICAN_COUNTRIES.map((c) => (
+                              <SelectItem key={c.code} value={c.code}>
+                                {c.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
                     name="location"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Location</FormLabel>
                         <FormControl>
-                          <Input placeholder="Kampala, Uganda" {...field} />
+                          <Input placeholder="Area and city, e.g. Westlands, Nairobi" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -764,16 +808,19 @@ const onSubmit = async (data: PropertyFormValues) => {
                                 <FormLabel>Currency</FormLabel>
                                 <Select
                                   onValueChange={field.onChange}
-                                  defaultValue={field.value}
+                                  value={field.value}
                                 >
                                   <FormControl>
                                     <SelectTrigger>
-                                      <SelectValue placeholder="UGX" />
+                                      <SelectValue placeholder="Currency" />
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
-                                    <SelectItem value="UGX">UGX</SelectItem>
-                                    <SelectItem value="USD">USD</SelectItem>
+                                    {currenciesForCountry(form.watch('country') as string).map((cur) => (
+                                      <SelectItem key={cur} value={cur}>
+                                        {cur}
+                                      </SelectItem>
+                                    ))}
                                   </SelectContent>
                                 </Select>
                                 <FormMessage />

@@ -15,6 +15,10 @@ import { useMutation } from "@tanstack/react-query";
 export interface SelfServeDraftInput {
   title: string;
   location: string;
+  /** ISO code of the African country the property is in. */
+  country: string;
+  /** The currency of the price: that country's own or USD. */
+  currency: string;
   price: number;
   description: string;
   bedrooms: number;

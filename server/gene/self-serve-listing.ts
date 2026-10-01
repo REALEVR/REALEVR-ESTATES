@@ -56,7 +56,7 @@
  * verification. Flagged here, not hidden.
  *
  * UGANDA-SPECIFIC PHONE HANDLING: unchanged from the original draft — see
- * `ugandaDigitsCore()` below.
+ * `toWhatsappFormat()` below (any African country).
  *
  * Persistence: shared JSON-file collection store (see ./store.ts).
  */
@@ -69,11 +69,20 @@ import { sendWhatsAppMessage } from './whatsapp'
 import { normalizePhone, findLinkByPhone, linkPhoneToUser } from './whatsapp-concierge'
 import { issueMagicLoginLink } from './magic-login'
 import { paidUploadsEnabled } from './paid-uploads'
+import { DEFAULT_COUNTRY, countryName, currenciesForCountry, currencyForCountry, isAfricanCountry, toInternationalDigits } from '../../shared/africa'
 import { requireStrictAdmin } from './admin-guard'
 import { notifyAdminsEverywhere } from './admin-notify'
 import { randomBytes } from 'crypto'
 
 const COLLECTION = 'gene_selfserve_submissions'
+
+// The WhatsApp code is the ONLY proof that the landlord agreed to a listing. Without WhatsApp set up the code
+// cannot reach them, so the old behaviour (show the code to whoever is filling the form in) let anybody
+// "verify" their own listing. That is fine on a developer's machine and not on the live site, where anyone in
+// Africa can now list: there, no WhatsApp means no verification until it is configured.
+const whatsappConfigured = () => Boolean(process.env.WHATSAPP_BUSINESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID)
+const showCodeInsteadOfSending = () => !whatsappConfigured() && process.env.NODE_ENV !== 'production'
+const VERIFICATION_UNAVAILABLE = 'Verification by WhatsApp is not available right now, so new listings cannot go live yet. Please try again later.'
 const PAYOUT_COLLECTION = 'gene_listing_payout_requests'
 const REFERRAL_FEE_UGX = 1000
 // Paying a fee per upload is switched off (paid-uploads.ts): the listing still goes live after the landlord confirms it.
@@ -113,6 +122,10 @@ type SubmissionStatus = 'draft' | 'otp_sent' | 'live' | 'expired'
 interface PropertyDraft {
     title: string
     location: string
+    /** ISO code of the African country the property is in. */
+    country: string
+    /** The currency the price is in: that country's own, or US dollars. */
+    currency: string
     price: number
     description: string
     bedrooms: number
@@ -255,20 +268,13 @@ function maskPhone(phone: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Uganda phone handling — unchanged from the original draft.
+// Phone handling — any African country (shared/africa.ts).
 // ---------------------------------------------------------------------------
 
-function ugandaDigitsCore(raw: string): string | null {
-    const digits = raw.replace(/\D/g, '')
-    let core = digits
-    if (core.startsWith('256')) core = core.slice(3)
-    else if (core.startsWith('0')) core = core.slice(1)
-    if (!/^\d{9}$/.test(core)) return null
-    return core
-}
-function toWhatsappFormat(raw: string): string | null {
-    const core = ugandaDigitsCore(raw)
-    return core ? `256${core}` : null
+// A number typed the way people type it anywhere in Africa (+, 00, country code, or the
+// local leading 0) becomes the digits WhatsApp needs. `country` is where a local number is.
+function toWhatsappFormat(raw: string, country: string = DEFAULT_COUNTRY): string | null {
+    return toInternationalDigits(raw, country)
 }
 
 // ---------------------------------------------------------------------------
@@ -285,6 +291,9 @@ function validateDraft(body: any): { draft: PropertyDraft } | { error: string } 
     const bedrooms = Number(body?.bedrooms)
     const bathrooms = Number(body?.bathrooms)
     const squareMeters = Number(body?.squareMeters)
+    const country = isAfricanCountry(body?.country) ? String(body.country).toUpperCase() : DEFAULT_COUNTRY
+    const requestedCurrency = String(body?.currency ?? '').toUpperCase()
+    const currency = currenciesForCountry(country).includes(requestedCurrency) ? requestedCurrency : currencyForCountry(country)
     const amenities = Array.isArray(body?.amenities) ? body.amenities.filter((a: any) => typeof a === 'string') : undefined
 
     if (!title) return { error: 'Title is required.' }
@@ -299,7 +308,7 @@ function validateDraft(body: any): { draft: PropertyDraft } | { error: string } 
     if (!Number.isFinite(bathrooms) || bathrooms < 0) return { error: 'Bathrooms must be 0 or more.' }
     if (!Number.isFinite(squareMeters) || squareMeters <= 0) return { error: 'Size (sq m) must be a positive number.' }
 
-    return { draft: { title, location, description, propertyType, category, price, bedrooms, bathrooms, squareMeters, amenities } }
+    return { draft: { title, location, country, currency, description, propertyType, category, price, bedrooms, bathrooms, squareMeters, amenities } }
 }
 
 // ---------------------------------------------------------------------------
@@ -320,14 +329,14 @@ export function registerSelfServeListingRoutes(app: Express): void {
             const landlordPhoneRaw = String(req.body?.landlordPhone ?? '').trim()
 
             if (!agentName) return res.status(400).json({ message: 'Your name is required.' })
-            const agentPhoneWhatsapp = toWhatsappFormat(agentPhoneRaw)
+            const agentPhoneWhatsapp = toWhatsappFormat(agentPhoneRaw, validated.draft.country)
             if (!agentPhoneWhatsapp) {
-                return res.status(400).json({ message: 'Enter a valid Uganda phone number for yourself, e.g. 0770000000 — this is where your dashboard link goes.' })
+                return res.status(400).json({ message: `Enter a valid phone number for yourself in ${countryName(validated.draft.country)} (or with its +code) — this is where your dashboard link goes.` })
             }
             if (!landlordName) return res.status(400).json({ message: "The landlord/manager's name is required." })
-            const landlordPhoneWhatsapp = toWhatsappFormat(landlordPhoneRaw)
+            const landlordPhoneWhatsapp = toWhatsappFormat(landlordPhoneRaw, validated.draft.country)
             if (!landlordPhoneWhatsapp) {
-                return res.status(400).json({ message: "Enter a valid Uganda phone number for the landlord/manager, e.g. 0770000000 — we'll text them a code to confirm this listing." })
+                return res.status(400).json({ message: "Enter a valid phone number for the landlord/manager (or with its +code) — we'll text them a code to confirm this listing." })
             }
             // Fraud check #1 — see the const block above. Blocked outright,
             // not just flagged, because there is no legitimate reason the
@@ -399,6 +408,7 @@ export function registerSelfServeListingRoutes(app: Express): void {
         if (submission.status !== 'draft') return res.status(409).json({ message: `This listing is already ${submission.status.replace('_', ' ')}.` })
         if (!submission.coverImageUrl) return res.status(400).json({ message: 'Add a cover photo before requesting verification.' })
 
+        if (!whatsappConfigured() && !showCodeInsteadOfSending()) return res.status(503).json({ message: VERIFICATION_UNAVAILABLE })
         try {
             await sendOtp(submission)
             res.json({ status: 'otp_sent', message: `We've texted a verification code to the landlord/manager's WhatsApp (ending ${submission.landlordPhoneWhatsapp.slice(-4)}).` })
@@ -415,12 +425,11 @@ export function registerSelfServeListingRoutes(app: Express): void {
         const submission = findByIdAndToken(id, token)
         if (!submission) return res.status(404).json({ message: 'Listing draft not found.' })
 
-        const whatsappConfigured = Boolean(process.env.WHATSAPP_BUSINESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID)
-        const payload: any = { ...toPublicView(submission), whatsappConfigured }
+        const payload: any = { ...toPublicView(submission), whatsappConfigured: whatsappConfigured() }
         // Dev-mode fallback only: if WhatsApp isn't configured we can't
         // actually deliver the OTP, so surface it — clearly labeled, never
         // silently pretended to have been sent.
-        if (!whatsappConfigured && submission.status === 'otp_sent' && submission.otpCode) {
+        if (showCodeInsteadOfSending() && submission.status === 'otp_sent' && submission.otpCode) {
             payload.devOtpCode = submission.otpCode
         }
         res.json(payload)
@@ -438,9 +447,9 @@ export function registerSelfServeListingRoutes(app: Express): void {
         if (submission.otpLastSentAt && Date.now() - new Date(submission.otpLastSentAt).getTime() < OTP_RESEND_COOLDOWN_MS) {
             return res.status(429).json({ message: 'Please wait a moment before requesting another code.' })
         }
+        if (!whatsappConfigured() && !showCodeInsteadOfSending()) return res.status(503).json({ message: VERIFICATION_UNAVAILABLE })
         await sendOtp(submission)
-        const whatsappConfigured = Boolean(process.env.WHATSAPP_BUSINESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID)
-        res.json({ sent: true, whatsappConfigured, devOtpCode: whatsappConfigured ? undefined : submission.otpCode })
+        res.json({ sent: true, whatsappConfigured: whatsappConfigured(), devOtpCode: showCodeInsteadOfSending() ? submission.otpCode : undefined })
     })
 
     // Step 4 — verify the code, go live, create the payout request.
@@ -471,7 +480,8 @@ export function registerSelfServeListingRoutes(app: Express): void {
                 title: submission.draft.title,
                 location: submission.draft.location,
                 price: submission.draft.price,
-                currency: 'UGX',
+                currency: submission.draft.currency ?? 'UGX',
+                country: submission.draft.country ?? DEFAULT_COUNTRY,
                 description: submission.draft.description,
                 bedrooms: submission.draft.bedrooms,
                 bathrooms: submission.draft.bathrooms,
