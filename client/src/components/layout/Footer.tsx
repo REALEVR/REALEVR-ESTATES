@@ -170,6 +170,8 @@ export default function Footer() {
             <span className="mx-2">·</span>
             <Link href="/bidder-vetting" className="hover:text-accent hover:underline">Bidder Vetting</Link>
             <span className="mx-2">·</span>
+            <Link href="/data-rights" className="hover:text-accent hover:underline">Your data rights</Link>
+            <span className="mx-2">·</span>
             <Link href="/legal" className="hover:text-accent hover:underline">Legal</Link>
             <span className="mx-2">·</span>
             <Link href="/sitemap.xml" className="hover:text-accent hover:underline">Sitemap</Link>
