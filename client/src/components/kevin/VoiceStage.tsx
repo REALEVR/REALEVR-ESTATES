@@ -1,5 +1,6 @@
 import { Keyboard } from 'lucide-react'
 import Orb from './Orb'
+import FeaturedWallpaper from './FeaturedWallpaper'
 import ResultCards from './ResultCards'
 import type { KevinCard } from './kevinTypes'
 import { MessageCircle } from 'lucide-react'
@@ -32,7 +33,7 @@ interface VoiceStageProps {
 }
 
 /**
- * The hands-free view: a big orb, the words as they are heard, Kevin's short
+ * The hands-free view: Kevin's dot over a slow drift of featured homes, the words as they are heard, Kevin's short
  * answer, and the homes he found. The orb is the only control that matters:
  * tap to speak, tap while he talks to interrupt, just like a phone assistant.
  */
@@ -42,8 +43,9 @@ export default function VoiceStage({ phase, heard, reply, cards, strings, hint, 
   const label = phase === 'speaking' ? 'Interrupt Kevin and speak' : phase === 'listening' ? 'Stop listening' : strings.talkToKevin
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-5 py-5 text-center">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+      <FeaturedWallpaper />
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-5 py-5 text-center">
         <button
           type="button"
           onClick={onOrbTap}
@@ -96,7 +98,7 @@ export default function VoiceStage({ phase, heard, reply, cards, strings, hint, 
         </div>
       </div>
 
-      <div className="flex justify-center border-t border-white/10 p-3">
+      <div className="relative z-10 flex justify-center border-t border-white/10 bg-[#0b0d1c]/60 p-3 backdrop-blur">
         <button
           type="button"
           onClick={onType}
