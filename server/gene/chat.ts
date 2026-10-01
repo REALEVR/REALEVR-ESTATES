@@ -37,9 +37,14 @@ import {
     getLead,
     isIntakeComplete,
     listLeads,
+    recordInterest,
     recordLeadTurn,
+    summarizeDemand,
     type KevinLead,
+    type LeadUpdate,
 } from './kevin-leads'
+import { converse, describeNeed, getSnapshot, knowledgeContext, parseSignals, wantsFrom, type BrainResult } from './kevin-brain'
+import { getAdminWhatsappNumbers } from './admin-notify'
 import {
     ACTION_PROMPT,
     GO_PAGES,
@@ -230,7 +235,8 @@ const KEVIN_INTAKE_PROMPT = [
     'If they ask you something first, answer it briefly, then ask for the next thing.',
     'When you ask for an email address or WhatsApp number, say once, in one short sentence, that you will share it with the RealEVR team so they can help, and that they are free to say no.',
     'Never ask for passwords, ID numbers, card or mobile-money details.',
-    'Whenever the visitor tells you any of these, end your reply with [[LEAD {"name":"...","email":"...","phone":"...","need":"...","location":"...","budget":"..."}]] containing ONLY the fields they just gave, exactly as they said them (a short summary for need).',
+    'Whenever the visitor tells you any of these, end your reply with [[LEAD {"name":"...","email":"...","phone":"...","need":"...","location":"...","budget":"...","propertyType":"apartment","bedrooms":2,"maxBudget":1500000,"movingSoon":true,"moveTiming":"next month"}]] containing ONLY the fields they just gave (a short summary for need; budgets as plain numbers of Ugandan shillings; movingSoon only when they say they are moving or shifting soon).',
+    'Also find out, one question at a time, what kind of place they want (type, bedrooms, area, budget) and whether they are shifting soon and when. Recommend only homes from the platform facts you are given.',
     'If they decline to share contact details, thank them kindly, carry on helping, and end your reply with [[LEAD {"declined":true}]].',
     'Once you have what you need, thank them by name and carry on helping with their search; do not ask again. Never mention the token.',
 ]
@@ -252,6 +258,8 @@ interface ReplyOptions {
     facts?: string
     /** The welcome conversation is still under way: what Kevin knows and should ask next. */
     intake?: string
+    /** What the platform really holds (kevin-brain.ts knowledgeContext), so Kevin can recommend from it. */
+    knowledge?: string
 }
 
 async function getReply(
@@ -272,7 +280,7 @@ async function getReply(
         ...(options.persona === 'kevin' && options.intake ? [...KEVIN_INTAKE_PROMPT, options.intake] : []),
         // An explicit choice beats the browser's guess.
         options.chosenLanguage ? chosenLanguageInstruction(options.chosenLanguage) : languageInstruction(acceptLanguage),
-        propertyContext,
+        options.persona === 'kevin' && options.knowledge ? options.knowledge : propertyContext,
     ]
         .filter(Boolean)
         .join('\n')
@@ -525,17 +533,36 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             const signedIn = persona === 'kevin' && req.isAuthenticated?.() ? (req.user as User) : null
             const knownLead = persona === 'kevin' ? await getLead(sessionId) : null
             const intaking = persona === 'kevin' && !isIntakeComplete(knownLead) && (body.intake === true || !!knownLead)
+            const snapshot = persona === 'kevin' ? await getSnapshot().catch(() => null) : null
             const replyOptions: ReplyOptions = {
                 persona,
                 chosenLanguage,
                 voice: persona === 'kevin' && body.voice === true,
                 shown: persona === 'kevin' ? parseShown(body.shown) : undefined,
                 intake: intaking ? describeLead(knownLead, signedIn) : undefined,
+                knowledge: snapshot ? knowledgeContext(snapshot) : undefined,
             }
             const history = conversation.messages.slice(0, -1)
             const aiReply = await getReply(history, message, req.headers['accept-language'], replyOptions)
-            const usedAi = aiReply !== null
-            let reply = aiReply ?? cannedReply(intent, persona)
+            // No AI provider (or it failed): Kevin answers from the real listings himself
+            // (kevin-brain.ts) instead of repeating one canned line.
+            let brain: BrainResult | null = null
+            if (persona === 'kevin' && !aiReply) {
+                try {
+                    brain = await converse({
+                        message,
+                        lead: knownLead,
+                        account: signedIn,
+                        intaking,
+                        shown: replyOptions.shown ?? [],
+                        turn: conversation.messages.filter((m) => m.role === 'assistant').length,
+                    })
+                } catch (err) {
+                    console.error('[gene/chat] Kevin brain failed, using the canned reply:', err)
+                }
+            }
+            const usedAi = aiReply !== null || brain !== null
+            let reply = aiReply ?? brain?.reply ?? cannedReply(intent, persona)
 
             // Kevin flags "wants a human" in any language with a token (see
             // KEVIN_PERSONA_PROMPT), and asks for an on-screen action with
@@ -545,10 +572,30 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             let action: KevinAction | null = null
             let results: KevinCard[] = []
             let leadUpdate = null as ReturnType<typeof extractLeadUpdate>['update']
+            let whatsapp = false
+            let search: BrainResult['search']
+            if (brain) {
+                leadUpdate = brain.update
+                action = brain.action
+                results = brain.results
+                whatsapp = brain.whatsapp
+                search = brain.search
+                if (brain.handoff) effectiveIntent = 'human_handoff_request'
+            }
             if (persona === 'kevin' && aiReply) {
                 const learned = extractLeadUpdate(reply)
                 reply = learned.text
                 leadUpdate = learned.update
+                // Whatever the model remembers to report, what people want and when they move is
+                // worth keeping: pick it out of the message ourselves as well.
+                if (snapshot) {
+                    const picked = wantsFrom(parseSignals(message, snapshot.locations))
+                    delete picked.name
+                    const want = { ...knownLead, ...picked, ...(leadUpdate ?? {}) }
+                    const need = describeNeed(want)
+                    leadUpdate = { ...picked, ...(need && !knownLead?.need ? { need } : {}), ...(leadUpdate ?? {}) }
+                    if (Object.keys(leadUpdate).length === 0) leadUpdate = null
+                }
             }
             if (persona === 'kevin' && aiReply) {
                 const extracted = extractHandoffToken(reply)
@@ -583,13 +630,13 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             if (persona === 'kevin') {
                 const typed = detectContactUpdate(message)
                 const merged = leadUpdate || typed ? { ...(typed ?? {}), ...(leadUpdate ?? {}) } : null
-                lead = await recordLeadTurn({ sessionId, update: merged, signedIn, language: chosenLanguage?.name })
+                lead = await recordLeadTurn({ sessionId, update: merged, signedIn, language: chosenLanguage?.name, search: search ? { query: search.query as Record<string, unknown>, total: search.total } : undefined })
             }
             if (justCapturedLead && !(persona === 'kevin' && usedAi)) {
                 reply = `Thanks for sharing your contact details — a member of our team may follow up if you need anything specific. ${reply}`
             }
 
-            const escalated = isLowConfidence(effectiveIntent, usedAi, reply, replyOptions.voice === true)
+            const escalated = isLowConfidence(effectiveIntent, usedAi, reply, replyOptions.voice === true || brain !== null)
             if (escalated) {
                 const reason = effectiveIntent === 'human_handoff_request' ? 'human_handoff_request' : 'low_confidence_reply'
                 writeEscalation(sessionId, message, reason)
@@ -606,6 +653,8 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                 leadCaptured: justCapturedLead,
                 action,
                 results,
+                // Offer the visitor the "message us on WhatsApp" button.
+                whatsapp,
                 // Lets the widget stop asking once the welcome conversation is over.
                 lead: lead ? { complete: isIntakeComplete(lead), declined: lead.declined === true, name: lead.name ?? null } : null,
             })
@@ -623,6 +672,51 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
         } catch (err) {
             console.error('[gene/chat] GET /api/admin/kevin-leads failed:', err)
             res.status(500).json({ message: 'Failed to load leads.' })
+        }
+    })
+
+    // GET /api/admin/kevin-demand — platform owner only. What visitors ask Kevin for (type, area,
+    // bedrooms, budget), counted, with how many of them searched and found nothing: which
+    // properties to add. Includes visitors who never left contact details.
+    app.get('/api/admin/kevin-demand', requireStrictAdmin, async (_req, res) => {
+        try {
+            res.json(summarizeDemand(await listLeads({ includeAnonymous: true })))
+        } catch (err) {
+            console.error('[gene/chat] GET /api/admin/kevin-demand failed:', err)
+            res.status(500).json({ message: 'Failed to load demand.' })
+        }
+    })
+
+    // GET /api/gene/kevin/whatsapp — public. The number visitors message when they want to talk to the
+    // owner directly: KEVIN_WHATSAPP_NUMBER, else the business number the site's WhatsApp button
+    // already uses, else the owner's first notification number.
+    app.get('/api/gene/kevin/whatsapp', (_req, res) => {
+        const digits = (process.env.KEVIN_WHATSAPP_NUMBER || process.env.WHATSAPP_DISPLAY_NUMBER || getAdminWhatsappNumbers()[0] || '').replace(/\D/g, '')
+        res.set('Cache-Control', 'public, max-age=300').json({ number: digits || null })
+    })
+
+    // POST /api/gene/kevin/interest — public. { sessionId, propertyId }: the visitor is opening WhatsApp
+    // about this home. Recorded on their lead and the team is told, once per home.
+    const interestHits = new Map<string, number[]>()
+    app.post('/api/gene/kevin/interest', async (req, res) => {
+        try {
+            const sessionId = typeof req.body?.sessionId === 'string' ? req.body.sessionId.trim().slice(0, 80) : ''
+            const propertyId = Number(req.body?.propertyId)
+            if (!sessionId || !Number.isSafeInteger(propertyId) || propertyId <= 0) return res.status(400).json({ message: 'sessionId and propertyId are required.' })
+            // Each tap can alert the owner, so keep one address from flooding them.
+            const now = Date.now()
+            const recent = (interestHits.get(req.ip || 'unknown') ?? []).filter((t) => now - t < 3_600_000)
+            if (recent.length >= 8) return res.status(429).json({ message: 'Slow down a little.' })
+            recent.push(now)
+            interestHits.set(req.ip || 'unknown', recent)
+            const property = await storage.getProperty(propertyId)
+            if (!property || property.isAvailable === false) return res.status(404).json({ message: 'Property not found.' })
+            const signedIn = req.isAuthenticated?.() ? (req.user as User) : null
+            const ok = await recordInterest({ sessionId, signedIn, property: { id: property.id, title: property.title, location: property.location } })
+            res.json({ ok })
+        } catch (err) {
+            console.error('[gene/chat] POST /api/gene/kevin/interest failed:', err)
+            res.status(500).json({ message: 'Failed to record interest.' })
         }
     })
 

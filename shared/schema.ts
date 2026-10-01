@@ -36,6 +36,10 @@ export const properties = pgTable("properties", {
   amenities: text("amenities").array(),
   monthlyPrice: integer("monthly_price"), // Now optional for rental properties
   isAvailable: boolean("is_available").default(true), // Property availability status
+  // When a not-yet-available home opens (ISO date, e.g. 2026-11-15). Kevin tells
+  // visitors what is coming up from this; a home marked unavailable with a
+  // future date here is announced rather than hidden from the conversation.
+  availableFrom: text("available_from"),
   ownerContactInfo: text("owner_contact_info"), // Property contact / manager info
   // A single, dedicated phone number for whoever a prospective tenant/buyer
   // should actually reach about THIS property - captured on its own field

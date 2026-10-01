@@ -28,6 +28,8 @@ export interface SearchQuery {
     maxPrice?: number
     bedrooms?: number
     category?: SearchCategory
+    /** apartment, house, land, commercial or hostel: a plain word, matched loosely against the listing's type and title. */
+    propertyType?: string
 }
 
 export interface KevinCard {
@@ -58,6 +60,14 @@ const CATEGORY_WORDS: Record<string, SearchCategory> = {
     bnb: 'furnished_houses',
     furnished: 'furnished_houses',
     banksale: 'bank_sales',
+}
+
+const TYPE_SYNONYMS: Record<string, string[]> = {
+    apartment: ['apartment', 'flat', 'condo', 'studio'],
+    house: ['house', 'home', 'bungalow', 'villa', 'mansion', 'maisonette', 'townhouse'],
+    land: ['land', 'plot'],
+    commercial: ['office', 'shop', 'commercial', 'warehouse', 'store'],
+    hostel: ['hostel'],
 }
 
 /** Fixed allowlist: the model can name a page, never a URL. */
@@ -145,7 +155,7 @@ export function extractKevinAction(reply: string): { text: string; action: RawAc
     return { text, action }
 }
 
-function toCard(p: any): KevinCard {
+export function toCard(p: any): KevinCard {
     return {
         id: Number(p.id),
         title: String(p.title ?? '').slice(0, 120),
@@ -173,6 +183,11 @@ export async function searchListings(query: SearchQuery, limit = 3): Promise<{ c
         if (inShillings && query.maxPrice && p.price > query.maxPrice) return false
         if (inShillings && query.minPrice && p.price < query.minPrice) return false
         if (query.bedrooms && (Number(p.bedrooms) || 0) < query.bedrooms) return false
+        if (query.propertyType) {
+            const synonyms = TYPE_SYNONYMS[query.propertyType] ?? [query.propertyType]
+            const text = `${p.propertyType ?? ''} ${p.title ?? ''}`.toLowerCase()
+            if (!synonyms.some((w) => text.includes(w))) return false
+        }
         return true
     })
     matches.sort((a: any, b: any) => Number(!!b.isFeatured) - Number(!!a.isFeatured) || Number(b.id) - Number(a.id))
