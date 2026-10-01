@@ -51,7 +51,7 @@ export default function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80">
+    <header className="fx-glass-bar sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto flex h-16 max-w-[1500px] items-center gap-3 px-4 md:h-20 md:gap-6 md:px-8">
         {/* Logo: the mark alone on a phone (the search needs the room), the full lockup from tablet up. */}
         <Link href="/" className="flex shrink-0 items-center" aria-label="RealEVR Estates home">

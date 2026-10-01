@@ -55,6 +55,7 @@ import { paymentEmitter } from './lib/iotec-paymentpatch'
 import IotechMetricCounterPaymentHandle from './components/payment/sio-iotech'
 import AgentLauncher from './components/agent/AgentLauncher'
 import KevinOrb from './components/kevin/KevinOrb'
+import FxRoot from './components/fx/FxRoot'
 import ErrorBoundary from '@/components/layout/ErrorBoundary'
 import CookieConsentBanner from '@/components/layout/CookieConsentBanner'
 import ListYourPropertyPage from '@/pages/ListYourPropertyPage'
@@ -330,6 +331,7 @@ function AppShell() {
                 <Footer />
             </div>
             <AgentLauncher />
+            <FxRoot />
             <KevinOrb />
             <WhatsAppFab />
             <ScrollToTop />

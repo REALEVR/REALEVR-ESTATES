@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation } from 'wouter'
 import { useAuth } from '@/hooks/use-auth'
 import AuthModal from '@/components/auth/AuthModal'
+import LiquidGlass from '@/components/fx/LiquidGlass'
 import { Compass, Building2, PlusCircle, Receipt, UserCircle2 } from 'lucide-react'
 
 /**
@@ -25,8 +26,10 @@ export default function MobileTabBar() {
 
     return (
         <>
-            <nav
-                className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur-xl"
+            <LiquidGlass
+                as="nav"
+                radius={28}
+                className="fx-dock md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur-xl"
                 style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
                 aria-label="Primary"
             >
@@ -43,7 +46,7 @@ export default function MobileTabBar() {
                         </button>
                     )}
                 </div>
-            </nav>
+            </LiquidGlass>
 
             <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
         </>

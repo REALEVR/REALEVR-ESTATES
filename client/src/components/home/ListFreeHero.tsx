@@ -42,7 +42,7 @@ export default function ListFreeHero() {
             <Link
               key={label}
               href={href}
-              className="group rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur transition hover:bg-white/15"
+              data-magnet className="group rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur transition hover:bg-white/15"
             >
               <Icon className="mb-3 h-6 w-6 text-[hsl(40_92%_62%)]" aria-hidden="true" />
               <div className="font-semibold">{label}</div>
@@ -54,7 +54,7 @@ export default function ListFreeHero() {
             href={bankSaleLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="group rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur transition hover:bg-white/15"
+            data-magnet className="group rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur transition hover:bg-white/15"
           >
             <Gavel className="mb-3 h-6 w-6 text-[hsl(40_92%_62%)]" aria-hidden="true" />
             <div className="font-semibold">Bank sales &amp; auctions</div>

@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
+import LiquidPageSweep from "@/components/fx/LiquidPageSweep";
 
 interface AnimatedLayoutProps {
   children: ReactNode;
@@ -35,6 +36,8 @@ export default function AnimatedLayout({ children }: AnimatedLayoutProps) {
   };
 
   return (
+    <>
+    <LiquidPageSweep routeKey={location} />
     <AnimatePresence mode="wait">
       <motion.div
         key={location}
@@ -47,5 +50,6 @@ export default function AnimatedLayout({ children }: AnimatedLayoutProps) {
         {children}
       </motion.div>
     </AnimatePresence>
+    </>
   );
 }
