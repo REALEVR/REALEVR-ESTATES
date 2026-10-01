@@ -333,7 +333,11 @@ async function uploadFileToS3(
     ContentLength: fileSize,
     ContentType: contentType,
     // Set cache control for performance
-    CacheControl: contentType.startsWith('text/html') ? 'no-cache' : 'public, max-age=31536000',
+    // tour.json is editable after publishing (rooms get connected with doors -
+    // see tour-links.ts), so like the page itself it must be revalidated, not
+    // cached for a year. Panoramas and photos never change under the same name.
+    CacheControl:
+      contentType.startsWith('text/html') || s3Key.endsWith('/tour.json') ? 'no-cache' : 'public, max-age=31536000',
     // Additional metadata
     Metadata: {
       'uploaded-by': 'realevr-system',
@@ -857,26 +861,51 @@ export class NotAGeneratedTourError extends Error {
  * current shell is left alone (`changed: false`), so running this over every
  * tour is cheap and safe to repeat.
  */
-export async function refreshGeneratedTourShell(
-  tourUrl: string,
-  propertyId: string
-): Promise<{ title: string; changed: boolean }> {
+/**
+ * Where a phone-captured tour's files live: the S3 folder (ending in "/")
+ * holding its index.html, tour.json and panos/. The key comes from a stored
+ * URL, so it is only accepted for this bucket and this property's own tours/
+ * folder; anything else is "not a generated tour" rather than an error.
+ */
+export function resolveGeneratedTourFolder(tourUrl: string, propertyId: string): string {
   let url: URL;
   try {
     url = new URL(tourUrl);
   } catch {
     throw new Error('The stored tour URL is not a valid URL');
   }
-
-  // The key comes from a stored URL; only ever touch this bucket, and only
-  // under this property's own tours/ folder.
   const key = decodeURIComponent(url.pathname.replace(/^\//, ''));
   const expectedHost = `${BUCKET_NAME}.s3.${REGION}.amazonaws.com`;
   const ownPrefix = `tours/property_${propertyId}/`;
   if (url.host !== expectedHost || !key.startsWith(ownPrefix) || key.includes('..') || !key.endsWith('/index.html')) {
     throw new NotAGeneratedTourError();
   }
-  const folder = key.slice(0, -'index.html'.length);
+  return key.slice(0, -'index.html'.length);
+}
+
+/** Read one object from the tours bucket; null when it does not exist. */
+export async function readTourObject(key: string): Promise<Buffer | null> {
+  try {
+    const res = await s3Client.send(new GetObjectCommand({ Bucket: BUCKET_NAME, Key: key }));
+    return res.Body ? Buffer.from(await res.Body.transformToByteArray()) : null;
+  } catch (err: any) {
+    if (err?.name === 'NoSuchKey' || err?.$metadata?.httpStatusCode === 404) return null;
+    throw err;
+  }
+}
+
+export async function writeTourObject(key: string, body: Buffer | string, contentType: string, cacheControl: string): Promise<void> {
+  await s3Client.send(
+    new PutObjectCommand({ Bucket: BUCKET_NAME, Key: key, Body: body, ContentType: contentType, CacheControl: cacheControl })
+  );
+}
+
+export async function refreshGeneratedTourShell(
+  tourUrl: string,
+  propertyId: string
+): Promise<{ title: string; changed: boolean }> {
+  const folder = resolveGeneratedTourFolder(tourUrl, propertyId);
+  const key = `${folder}index.html`;
 
   const readText = async (objectKey: string): Promise<string> => {
     try {

@@ -58,6 +58,8 @@ interface PropertyWithViews extends Property {
     // PropertyFormNew.
 }
 
+import ConnectRoomsButton from '@/components/admin/ConnectRoomsButton'
+
 export function AgentDashboard() {
     const { user } = useAuth()
     const { toast } = useToast()
@@ -628,15 +630,20 @@ export function AgentDashboard() {
                                                     </p>
                                                     <PropertyCapturedPhotos propertyId={property.id} />
                                                 </div>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="shrink-0"
-                                                    onClick={() => openTourUpload(property)}
-                                                >
-                                                    <Upload className="mr-1 h-3 w-3" />
-                                                    {property.hasTour ? 'Manage Tour' : 'Add Tour'}
-                                                </Button>
+                                                <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
+                                                    {property.hasTour && property.tourUrl && property.tourQuality && (
+                                                        <ConnectRoomsButton propertyId={property.id} tourUrl={property.tourUrl} />
+                                                    )}
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="shrink-0"
+                                                        onClick={() => openTourUpload(property)}
+                                                    >
+                                                        <Upload className="mr-1 h-3 w-3" />
+                                                        {property.hasTour ? 'Manage Tour' : 'Add Tour'}
+                                                    </Button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
