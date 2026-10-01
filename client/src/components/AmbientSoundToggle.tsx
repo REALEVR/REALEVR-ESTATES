@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Volume2, VolumeX } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useAmbientSound } from '@/hooks/useAmbientSound'
-import { attemptWelcomeAmbient, consumeJustSignedInFlag, stopAmbient } from '@/lib/ambientSound'
+import { AMBIENT_SOUND_AVAILABLE, attemptWelcomeAmbient, consumeJustSignedInFlag, stopAmbient } from '@/lib/ambientSound'
 
 /**
  * The soothing welcome ambience's only visible UI — a small floating
@@ -34,7 +34,8 @@ export default function AmbientSoundToggle() {
         if (!user) stopAmbient()
     }, [user])
 
-    if (!user) return null
+    // Switched off for now (see AMBIENT_SOUND_AVAILABLE): no button, no sound.
+    if (!AMBIENT_SOUND_AVAILABLE || !user) return null
 
     return (
         <button

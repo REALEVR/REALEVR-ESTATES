@@ -36,6 +36,14 @@
  * gesture, so it always works).
  */
 
+/**
+ * Master switch. The welcome ambience is OFF for now: nothing starts, on sign-in
+ * or from the toggle, and the toggle itself is hidden (AmbientSoundToggle.tsx).
+ * Set to true to bring it back exactly as it was; visitors' saved on/off choices
+ * are untouched.
+ */
+export const AMBIENT_SOUND_AVAILABLE = false
+
 const STORAGE_KEY_ENABLED = 'realevr_ambient_sound_enabled' // localStorage — the user's own on/off choice, remembered
 export const JUST_SIGNED_IN_FLAG = 'realevr_just_signed_in' // sessionStorage — breadcrumb across the login page reload
 
@@ -347,6 +355,7 @@ function fadeIn(ctx: AudioContext, masterGain: GainNode) {
  * brand new performance — see startPerformance's doc comment.
  */
 export async function startAmbient(): Promise<boolean> {
+    if (!AMBIENT_SOUND_AVAILABLE) return false
     if (playing) return true
     try {
         if (!audioCtx) {
