@@ -70,6 +70,11 @@ import AcceptableUse from '@/pages/AcceptableUse'
 import AmlSanctions from '@/pages/AmlSanctions'
 import LegalRegions from '@/pages/LegalRegions'
 import DataRights from '@/pages/DataRights'
+import PartnerTerms from '@/pages/PartnerTerms'
+import FeesPage from '@/pages/FeesPage'
+import BecomeAPartner from '@/pages/BecomeAPartner'
+import CareersPage from '@/pages/CareersPage'
+import AdminPartners from '@/pages/AdminPartners'
 import AdminDataRequests from '@/pages/AdminDataRequests'
 import AuctionApplyPage from '@/pages/AuctionApplyPage'
 import AuctionTerms from '@/pages/AuctionTerms'
@@ -121,6 +126,10 @@ function Router() {
             <Route path="/acceptable-use" component={AcceptableUse} />
             <Route path="/aml-sanctions" component={AmlSanctions} />
             <Route path="/data-rights" component={DataRights} />
+            <Route path="/partner-terms" component={PartnerTerms} />
+            <Route path="/fees" component={FeesPage} />
+            <Route path="/become-a-partner" component={BecomeAPartner} />
+            <Route path="/become-a-partner/:country" component={BecomeAPartner} />
             <Route path="/partners" component={PartnersPage} />
             <Route path="/auctions/apply" component={AuctionApplyPage} />
             {/* Footer previously linked these three at "#" — no real content
@@ -128,13 +137,7 @@ function Router() {
                 news articles to show honestly), so each gets a real,
                 non-fabricated "not live yet, here's how to reach us" page
                 instead of a dead link. */}
-            <Route path="/careers">
-                <ComingSoonPage
-                    title="Careers"
-                    description="We're not running a public careers page yet. If you're interested in working with RealEVR Estates, reach out and we'll follow up directly."
-                    canonicalPath="/careers"
-                />
-            </Route>
+            <Route path="/careers" component={CareersPage} />
             <Route path="/investors">
                 <ComingSoonPage
                     title="Investors"
@@ -230,6 +233,7 @@ function Router() {
             <ProtectedAdminRoute path="/admin/tour-health" component={AdminTourHealth} allowedRoles={['admin']} />
             <ProtectedAdminRoute path="/admin/auctions" component={AdminAuctions} allowedRoles={['admin', 'agent']} />
             <ProtectedAdminRoute path="/admin/payments" component={AdminPayments} allowedRoles={['admin']} />
+            <ProtectedAdminRoute path="/admin/partners" component={AdminPartners} allowedRoles={['admin']} />
             <ProtectedAdminRoute path="/admin/data-requests" component={AdminDataRequests} allowedRoles={['admin']} />
             {/* Strictly admin-only — phone numbers and point redemptions, see server/gene/building-recommendations.ts. */}
             <ProtectedAdminRoute path="/admin/recommendations" component={AdminRecommendations} allowedRoles={['admin']} />
