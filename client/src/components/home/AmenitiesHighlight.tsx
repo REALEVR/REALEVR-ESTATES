@@ -10,7 +10,7 @@ export default function AmenitiesHighlight() {
     return (
       <section className="py-10 bg-secondary -mx-4 sm:-mx-6 lg:-mx-8">
         <div className="container mx-auto px-6 ann">
-          <h2 className="text-2xl md:text-3xl font-display font-medium mb-8">Popular Amenities</h2>
+          <h2 className="section-title mb-8">Popular Amenities</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {[...Array(12)].map((_, index) => (
               <div key={index} className="bg-card p-6 rounded-xl shadow-md animate-pulse">
@@ -35,7 +35,7 @@ export default function AmenitiesHighlight() {
   return (
     <section className="py-10 bg-secondary -mx-4 sm:-mx-6 lg:-mx-8">
       <div className="container mx-auto px-6 ann">
-        <h2 className="text-2xl md:text-3xl font-display font-medium mb-8">Popular Amenities</h2>
+        <h2 className="section-title mb-8">Popular Amenities</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {limitedAmenities.map((amenity) => (
             <div key={amenity.id} className="bg-card p-6 rounded-xl shadow-md text-center">

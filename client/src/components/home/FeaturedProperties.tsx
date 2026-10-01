@@ -72,7 +72,7 @@ export default function FeaturedProperties() {
       <section className="py-10 bg-card">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl md:text-3xl font-display font-medium">Featured Properties</h2>
+            <h2 className="section-title">Featured Properties</h2>
             <Button variant="link" asChild>
               <Link href="/explore" className="flex items-center">
                 View all <ChevronRight className="h-4 w-4 ml-1" />
@@ -106,20 +106,18 @@ export default function FeaturedProperties() {
   }
 
   return (
-    <section className="py-10 bg-card">
-      <div className="container mx-auto px-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl md:text-3xl font-display font-medium">Featured Properties</h2>
-          <Button variant="link" asChild>
-            <Link href="/featured-properties" className="flex items-center">
-              View all <ChevronRight className="h-4 w-4 ml-1" />
-            </Link>
-          </Button>
+    <section className="py-8 md:py-12">
+      <div className="mx-auto max-w-[1500px] px-0 md:px-8">
+        <div className="mb-4 flex items-end justify-between md:mb-6">
+          <h2 className="section-title">Featured homes</h2>
+          <Link href="/featured-properties" className="flex items-center text-sm font-semibold text-foreground underline-offset-4 hover:underline">
+            Show all <ChevronRight className="ml-0.5 h-4 w-4" aria-hidden="true" />
+          </Link>
         </div>
         
         <div className="relative">
           {/* Carousel controls */}
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 z-10">
+          <div className="absolute left-0 top-1/3 -translate-y-1/2 z-10 hidden md:block">
             <Button
               variant="outline"
               className="rounded-full h-10 w-10 p-2 bg-card/80 hover:bg-card shadow-md"
@@ -129,7 +127,7 @@ export default function FeaturedProperties() {
               <ChevronLeft className="h-6 w-6" />
             </Button>
           </div>
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10">
+          <div className="absolute right-0 top-1/3 -translate-y-1/2 z-10 hidden md:block">
             <Button
               variant="outline"
               className="rounded-full h-10 w-10 p-2 bg-card/80 hover:bg-card shadow-md"
@@ -144,7 +142,7 @@ export default function FeaturedProperties() {
           <div className="overflow-hidden" ref={emblaRef}>
             <div className="flex">
               {featuredProperties.map((property) => (
-                <div key={property.id} className="flex-[0_0_100%] sm:flex-[0_0_50%] lg:flex-[0_0_33.333%] xl:flex-[0_0_25%] px-3">
+                <div key={property.id} className="flex-[0_0_78%] sm:flex-[0_0_50%] lg:flex-[0_0_33.333%] xl:flex-[0_0_25%] pr-3 md:px-3">
                   <PropertyCard property={property} />
                 </div>
               ))}

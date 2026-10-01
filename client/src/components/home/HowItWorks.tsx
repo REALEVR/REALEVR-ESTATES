@@ -23,7 +23,7 @@ export default function HowItWorks() {
   return (
     <section className="py-12">
       <div className="container mx-auto px-4">
-        <h2 className="text-2xl md:text-3xl font-display font-medium mb-2 text-center">How Virtual Tours Work in Uganda</h2>
+        <h2 className="section-title mb-2 text-center">How Virtual Tours Work in Uganda</h2>
         <p className="text-muted-foreground text-center mb-10 max-w-2xl mx-auto">
           Experience Kampala properties from anywhere with our immersive virtual tours
         </p>

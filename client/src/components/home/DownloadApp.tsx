@@ -20,7 +20,7 @@ export default function DownloadApp() {
       <div className="container mx-auto px-4">
         <div className="md:flex items-center">
           <div className="md:w-1/2 mb-8 md:mb-0">
-            <h2 className="text-2xl md:text-3xl font-display font-medium mb-4 text-foreground">Coming soon on mobile</h2>
+            <h2 className="section-title mb-4 text-foreground">Coming soon on mobile</h2>
             <p className="mb-6 text-muted-foreground">
               Download our mobile app to explore virtual tours on the go. Access our full catalog of properties,
               save favorites, and get notifications about new listings.

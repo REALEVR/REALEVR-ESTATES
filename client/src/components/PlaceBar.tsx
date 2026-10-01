@@ -42,26 +42,35 @@ export default function PlaceBar() {
 
   return (
     <>
-      <div className="border-b border-border bg-secondary/40 px-3 py-1.5 text-xs sm:text-sm">
-        <div className="container mx-auto flex flex-wrap items-center gap-x-3 gap-y-1">
+      <div className="border-b border-border bg-secondary/50 px-4 text-xs md:px-8 md:text-sm">
+        <div className="mx-auto flex h-9 max-w-[1500px] items-center justify-between gap-3">
           <span className="flex min-w-0 items-center gap-1.5 text-foreground">
             <MapPin className="h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
-            <span className="truncate">
+            <span className="truncate md:hidden">
+              Near <strong>{placeLabel(place)}</strong>
+            </span>
+            <span className="hidden truncate md:inline">
               Showing homes near <strong>{placeLabel(place)}</strong> first
             </span>
           </span>
-          <button
-            type="button"
-            onClick={() => void locate()}
-            disabled={busy}
-            className="flex items-center gap-1 text-accent underline-offset-2 hover:underline disabled:opacity-60"
-          >
-            <LocateFixed className="h-3.5 w-3.5" aria-hidden="true" />
-            {place.source === "geo" ? "Update my location" : "Use my exact location"}
-          </button>
-          <button type="button" onClick={() => setOpen(true)} className="text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
-            Change
-          </button>
+          <span className="flex shrink-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => void locate()}
+              disabled={busy}
+              className="hidden items-center gap-1 text-accent underline-offset-2 hover:underline disabled:opacity-60 md:flex"
+            >
+              <LocateFixed className="h-3.5 w-3.5" aria-hidden="true" />
+              {place.source === "geo" ? "Update my location" : "Use my exact location"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="min-h-[36px] font-semibold text-foreground underline underline-offset-2 hover:text-accent"
+            >
+              Change
+            </button>
+          </span>
         </div>
       </div>
 

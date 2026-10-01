@@ -278,105 +278,174 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
   };
 
   return (
-    <section
-      ref={heroRef}
-      onPointerMove={handleSceneMove}
-      onPointerLeave={handleSceneLeave}
-      className='relative bg-background -mx-4 sm:-mx-6 lg:-mx-8 overflow-hidden'
-    >
-      {/* Real photo instead of the old flat "VR grid" blueprint pattern —
-          a modern villa render, aspirational rather than a specific real
-          property (this section isn't tied to any one listing). A dark
-          scrim sits between the photo and the content below so the
-          headline/stats stay readable over a busy image instead of the
-          flat cream backdrop they were tuned for; every text color in this
-          section was flipped to a white/light variant to match. */}
-      <motion.img
-        src={mansionBg}
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover parallax-layer"
-        style={{ y: bgY, scale: 1.12, ['--depth' as string]: '-10px' }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/50 to-black/60" />
- <section className="relative z-10 w-full hero-frame p-8 md:p-12 mt-6 flex flex-col gap-8 hero-video-wrapper">
+    <>
+      {/* ------------------------------------------------------------------
+          Desktop and tablet: a full-bleed photo at golden hour, a headline
+          with room to breathe, and the search as a floating pill. */}
+      <section
+        ref={heroRef}
+        onPointerMove={handleSceneMove}
+        onPointerLeave={handleSceneLeave}
+        className="relative -mx-4 hidden overflow-hidden bg-foreground sm:-mx-6 md:block lg:-mx-8"
+        aria-label="Search homes"
+      >
+        <motion.img
+          src={mansionBg}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full object-cover parallax-layer"
+          style={{ y: bgY, scale: 1.12, ['--depth' as string]: '-10px' }}
+        />
+        {/* Dusk: ink rising from the left and the bottom, so white type has 7:1 or better wherever it sits. */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[hsl(235_30%_8%/0.88)] via-[hsl(235_30%_8%/0.55)] to-[hsl(235_30%_8%/0.1)]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[hsl(235_30%_8%/0.75)] via-transparent to-transparent" />
 
-      {/* Main hero content */}
-      <div className="flex flex-col md:flex-row md:items-center gap-8">
-        {/* Left: Headline */}
-        <motion.div
-          className="flex-1 hero-left-content parallax-layer"
-          style={{ ['--depth' as string]: '7px' }}
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <div className="mb-4">
-            <VRBadge size="md" />
-          </div>
-          <h1 className="text-5xl md:text-7xl font-light leading-tight text-white title-3d">
-            <span className="font-display italic font-medium text-white/80 text-6xl md:text-8xl hero-find-text">Step Inside</span> <br />
-            <span className="font-display hero-text-two">Before You Arrive</span>
-          </h1>
-        </motion.div>
-        {/* Right: Description and stats */}
-        <motion.div
-          className="flex-1 flex flex-col gap-8 hero-right-content parallax-layer"
-          style={{ ['--depth' as string]: '3px' }}
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <p className="text-lg md:text-xl text-white/80 mb-4">
-            Every listing comes with an immersive 360° virtual tour — walk through real homes on your phone, tablet, or a VR headset, before you ever set foot on the property.
-          </p>
-          <div className="flex gap-12">
-            <div>
-              <div className="text-3xl md:text-4xl font-display font-medium text-white">
-                <CountUp value={liveListingCount} suffix="+" />
+        <div className="relative z-10 mx-auto flex min-h-[640px] max-w-[1500px] flex-col justify-end gap-10 px-8 pb-14 pt-24 lg:min-h-[700px]">
+          <motion.div
+            className="max-w-3xl parallax-layer"
+            style={{ ['--depth' as string]: '7px' }}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <span className="tour-chip mb-6">
+              <i className="fas fa-vr-cardboard" aria-hidden="true" /> 360° tours · across Africa
+            </span>
+            <h1 className="font-display text-6xl font-bold leading-[1.02] tracking-tight text-white lg:text-[5.5rem]">
+              Walk in
+              <br />
+              <span className="font-medium italic text-[hsl(var(--gold))]">before you arrive.</span>
+            </h1>
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/90 lg:text-xl">
+              Tour real homes on your phone, tablet or headset, then message the owner on WhatsApp. Rentals, BnBs, homes for sale and bank
+              auctions.
+            </p>
+            <div className="mt-7 flex gap-10 text-white">
+              <div>
+                <div className="font-display text-3xl font-semibold">
+                  <CountUp value={liveListingCount} suffix="+" />
+                </div>
+                <div className="text-sm text-white/80">live listings</div>
               </div>
-              <div className="text-white/70 text-base">Live Listings Today</div>
-            </div>
-            {tourCoveragePercent !== null && (
-              <>
-                <div className="border-l border-white/30 h-12 mx-4"></div>
+              {tourCoveragePercent !== null && (
                 <div>
-                  <div className="text-3xl md:text-4xl font-display font-medium text-white">
+                  <div className="font-display text-3xl font-semibold">
                     <CountUp value={tourCoveragePercent} suffix="%" />
                   </div>
-                  <div className="text-white/70 text-base">Listings With a Virtual Tour</div>
+                  <div className="text-sm text-white/80">with a virtual tour</div>
                 </div>
-              </>
-            )}
-          </div>
-        </motion.div>
-      </div>
-      {/* FilterBar is shared with Home.tsx, where it sits on the normal
-          light page background — its own text/border colors are tuned for
-          that, not the dark photo now behind Hero. Rather than recolor a
-          shared component for one caller, give it an opaque light backing
-          here so it renders exactly as designed regardless of what's behind
-          it. */}
-      <div className="bg-card rounded-2xl shadow-md overflow-hidden">
-        <FilterBar />
-      </div>
+              )}
+            </div>
+          </motion.div>
 
-      {/* House image/video and search bar — plus, sharing this same
-          container, the "news" slide (HeroNewsSlide, real Africa
-          property/housing news + this platform's own live listings),
-          alternating with the tour video/image every 10s. */}
+          <div className="flex justify-start">
+        {/* Search bar - desktop only (5 inline fields need the width).
+            One seamless pill with thin dividers between segments (Airbnb's
+            actual search-bar signature - "Where / Check in / ... / Who" as
+            one bar, not five separate boxes) instead of five individually
+            bordered/rounded selects. Same fields, same handleSearch - purely
+            a container/border restyle. */}
+        {!isMobile && (
+          <div className="w-full max-w-5xl bg-card rounded-full shadow-[0_20px_60px_-12px_rgba(0,0,0,0.55)] flex flex-wrap md:flex-nowrap items-center pl-3 pr-2 py-2">
+          <select
+            aria-label="Location"
+            className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none border-r border-border last:border-r-0"
+            value={searchFilters.location}
+            onChange={(e) => handleFilterChange('location', e.target.value)}
+          >
+            {locations.map((location, index) => (
+              <option key={index} value={location.value}>
+                {location.label}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Property Type"
+            className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none border-r border-border last:border-r-0"
+            value={searchFilters.propertyType}
+            onChange={(e) => handleFilterChange('propertyType', e.target.value)}
+          >
+            {propertyTypes.map((type, index) => (
+              <option key={index} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Price Range"
+            className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none border-r border-border last:border-r-0"
+            value={searchFilters.priceRange}
+            onChange={(e) => handleFilterChange('priceRange', e.target.value)}
+          >
+            {priceRanges.map((range, index) => (
+              <option key={index} value={range.value}>
+                {range.label}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Bedrooms"
+            className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none border-r border-border last:border-r-0"
+            value={searchFilters.bedrooms}
+            onChange={(e) => handleFilterChange('bedrooms', e.target.value)}
+          >
+            {bedroomOptions.map((option, index) => (
+              <option key={index} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Bathrooms"
+            className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none"
+            value={searchFilters.bathrooms}
+            onChange={(e) => handleFilterChange('bathrooms', e.target.value)}
+          >
+            {bathroomOptions.map((option, index) => (
+              <option key={index} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <button
+            className="shine rounded-full px-8 py-2.5 font-semibold text-lg hover:opacity-90 transition ml-2"
+            onClick={handleSearch}
+          >
+            <i className="fas fa-search mr-2 text-base"></i>
+            Search
+          </button>
+        </div>
+        )}
+          </div>
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------------------
+          Phone: no wall of text. One line of headline, then straight to
+          browsing, the way people expect from a home-search app. */}
+      <section className="pt-5 md:hidden">
+        <h1 className="font-display text-[1.65rem] font-semibold leading-tight tracking-tight text-foreground">
+          Walk in before you arrive
+        </h1>
+        <p className="mt-1 text-[15px] text-muted-foreground">Tour real homes in 360° first.</p>
+      </section>
+
+      <FilterBar />
+
+      {/* The tour (or the news slide that alternates with it). */}
+      <section className="mt-5 md:mt-10" aria-label="Featured tour">
       <div
-        className="relative mt-4"
+        className="relative"
         onMouseEnter={() => setIsSlidePaused(true)}
         onMouseLeave={() => setIsSlidePaused(false)}
       >
         {heroSlide === 'news' ? (
-          <div className="relative w-full h-96 md:h-[500px] lg:h-[600px] rounded-2xl shadow-md overflow-hidden bg-muted">
+          <div className="relative w-full aspect-[4/3] md:aspect-auto md:h-[520px] lg:h-[600px] rounded-3xl shadow-[0_8px_30px_-8px_rgba(31,32,55,0.35)] overflow-hidden bg-muted">
             <HeroNewsSlide active={heroSlide === 'news'} />
           </div>
         ) : videoUrl && !showImage ? (
           // Video content - full width and height
-          <div className="relative w-full h-96 md:h-[500px] lg:h-[600px] rounded-2xl shadow-md overflow-hidden">
+          <div className="relative w-full aspect-[4/3] md:aspect-auto md:h-[520px] lg:h-[600px] rounded-3xl shadow-[0_8px_30px_-8px_rgba(31,32,55,0.35)] overflow-hidden">
             {/* Loading spinner — suppressed while the tap-to-play facade is
                 showing, since nothing is actually loading yet at that point. */}
             {isVideoLoading && !showYoutubeFacade && (
@@ -461,7 +530,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           // flat, uncomposited photo — a small thing, but it's what most of
           // this page's visitors actually see before any admin-configured
           // video is set.
-          <div className="relative w-full h-96 md:h-[500px] lg:h-[600px] rounded-2xl shadow-md overflow-hidden">
+          <div className="relative w-full aspect-[4/3] md:aspect-auto md:h-[520px] lg:h-[600px] rounded-3xl shadow-[0_8px_30px_-8px_rgba(31,32,55,0.35)] overflow-hidden">
             <motion.img
               src={houseImg}
               alt="Modern house"
@@ -526,113 +595,11 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             </button>
           ))}
         </div>
-
-        {/* Mobile: a single tappable Airbnb-style "Where to?" pill in place
-            of the 5-field bar (which doesn't fit and was previously just
-            hidden with nothing shown instead). Opens the same
-            ExploreFiltersDialog the "Filters" button in FilterBar already
-            uses — one filter UI, not a second one to maintain. */}
-        {isMobile && (
-          <button
-            type="button"
-            onClick={() => setIsMobileSearchOpen(true)}
-            className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] bg-card rounded-full shadow-lg border border-border flex items-center gap-3 px-5 py-3.5 text-left active:scale-[0.98] transition-transform"
-          >
-            <i className="fas fa-search text-foreground"></i>
-            <span className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold text-foreground">Where are you looking?</span>
-              <span className="text-xs text-muted-foreground">Any type · Any price</span>
-            </span>
-          </button>
-        )}
-
-        {/* Search bar - desktop only (5 inline fields need the width).
-            One seamless pill with thin dividers between segments (Airbnb's
-            actual search-bar signature - "Where / Check in / ... / Who" as
-            one bar, not five separate boxes) instead of five individually
-            bordered/rounded selects. Same fields, same handleSearch - purely
-            a container/border restyle. */}
-        {!isMobile && (
-          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-[95%] bg-card rounded-full shadow-lg flex flex-wrap md:flex-nowrap items-center pl-2 pr-2 py-2">
-          <select
-            aria-label="Location"
-            className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none border-r border-border last:border-r-0"
-            value={searchFilters.location}
-            onChange={(e) => handleFilterChange('location', e.target.value)}
-          >
-            {locations.map((location, index) => (
-              <option key={index} value={location.value}>
-                {location.label}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Property Type"
-            className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none border-r border-border last:border-r-0"
-            value={searchFilters.propertyType}
-            onChange={(e) => handleFilterChange('propertyType', e.target.value)}
-          >
-            {propertyTypes.map((type, index) => (
-              <option key={index} value={type.value}>
-                {type.label}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Price Range"
-            className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none border-r border-border last:border-r-0"
-            value={searchFilters.priceRange}
-            onChange={(e) => handleFilterChange('priceRange', e.target.value)}
-          >
-            {priceRanges.map((range, index) => (
-              <option key={index} value={range.value}>
-                {range.label}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Bedrooms"
-            className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none border-r border-border last:border-r-0"
-            value={searchFilters.bedrooms}
-            onChange={(e) => handleFilterChange('bedrooms', e.target.value)}
-          >
-            {bedroomOptions.map((option, index) => (
-              <option key={index} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Bathrooms"
-            className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none"
-            value={searchFilters.bathrooms}
-            onChange={(e) => handleFilterChange('bathrooms', e.target.value)}
-          >
-            {bathroomOptions.map((option, index) => (
-              <option key={index} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <button
-            className="shine rounded-full px-8 py-2.5 font-semibold text-lg hover:opacity-90 transition ml-2"
-            onClick={handleSearch}
-          >
-            <i className="fas fa-search mr-2 text-base"></i>
-            Search
-          </button>
-        </div>
-        )}
       </div>
-      <div className={isMobile ? "h-8" : "h-12"} /> {/* Spacer for search bar overlap — smaller on mobile since the pill sits closer to the image */}
+      </section>
 
-      <ExploreFiltersDialog
-        isOpen={isMobileSearchOpen}
-        onClose={() => setIsMobileSearchOpen(false)}
-      />
-    </section>
-    </section>
-
+      <ExploreFiltersDialog isOpen={isMobileSearchOpen} onClose={() => setIsMobileSearchOpen(false)} />
+    </>
   );
 };
 

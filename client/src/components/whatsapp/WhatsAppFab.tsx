@@ -55,7 +55,7 @@ export default function WhatsAppFab() {
         // Right-hand column, bottom to top: Kevin (row 1 on mobile, bottom-5 on
         // desktop), then this, then scroll-to-top. All three centre on the same
         // line 3rem in from the edge so the column reads as straight.
-        className="fixed bottom-[var(--fab-row-2)] right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg shadow-black/20 md:bottom-24"
+        className="fixed bottom-[var(--fab-row-2)] right-5 z-40 hidden h-14 w-14 md:flex items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg shadow-black/20 md:bottom-24"
       >
         <MessageCircle className="h-7 w-7" fill="white" strokeWidth={0} />
       </motion.a>
