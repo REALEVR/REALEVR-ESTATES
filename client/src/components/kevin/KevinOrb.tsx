@@ -7,6 +7,7 @@ import {
   KEVIN_LANGUAGES,
   hasBuiltInIntro,
   isRtl,
+  languageFromBrowser,
   languageFromText,
   stringsFor,
   type KevinLanguage,
@@ -46,8 +47,7 @@ const LANG_KEY = 'realevr_kevin_lang'
 const GREETED_KEY = 'realevr_kevin_greeted'
 const MUTED_KEY = 'realevr_kevin_muted'
 const SESSION_KEY = 'realevr_gene_chat_session_id' // shared with the older widget so a thread survives
-const HANDSFREE_KEY = 'realevr_kevin_handsfree' // '1' once the visitor turned hands-free on
-const HANDSFREE_OFFERED_KEY = 'realevr_kevin_handsfree_offered'
+const HANDSFREE_KEY = 'realevr_kevin_handsfree' // '0' once the visitor switched hands-free off; otherwise it starts on arrival
 const INTAKE_KEY = 'realevr_kevin_intake' // 'done' once he has what he needs from this visitor (or they said no)
 
 // Same rule the server applies before putting a language name into the AI's
@@ -176,6 +176,9 @@ export default function KevinOrb() {
   const [touched, setTouched] = useState(
     () => typeof navigator !== 'undefined' && !!(navigator as any).userActivation?.hasBeenActive,
   )
+  // Browsers refuse to play sound before the visitor's first tap, so a reply that
+  // arrives sooner waits (on screen, in text) and is spoken at that first tap.
+  const [needsTap, setNeedsTap] = useState(false)
 
   // Voice mode
   const [voiceMode, setVoiceMode] = useState(false)
@@ -192,6 +195,10 @@ export default function KevinOrb() {
   mutedRef.current = muted
   const intakeDoneRef = useRef(intakeDone)
   intakeDoneRef.current = intakeDone
+  const touchedRef = useRef(touched)
+  touchedRef.current = touched
+  const pendingSpeech = useRef<{ text: string; target: KevinLanguage | null } | null>(null)
+  const retryAfterTap = useRef(false)
   const sessionIdRef = useRef<string>()
   if (!sessionIdRef.current) sessionIdRef.current = getSessionId()
   const endRef = useRef<HTMLDivElement>(null)
@@ -217,6 +224,11 @@ export default function KevinOrb() {
   const say = useCallback(
     (text: string, target: KevinLanguage | null, onDone?: () => void): boolean => {
       if (mutedRef.current || !voice.canSpeak) return false
+      if (!touchedRef.current) {
+        pendingSpeech.current = { text, target }
+        setNeedsTap(true)
+        return false
+      }
       const tag = target?.bcp47 ?? null
       if (voice.speak(text, tag, onDone)) return true
       const key = target?.name ?? ''
@@ -415,6 +427,7 @@ export default function KevinOrb() {
       const text = typeof data.reply === 'string' && data.reply ? data.reply : stringsFor(current).error
       // In voice mode, once he has finished speaking he listens again: that is
       // what makes it a conversation rather than a series of button presses.
+      if (opts.voice) setHeard('') // the answer takes the place of the words they said
       const spoke = kevinSays(text, current, opts.voice ? () => actionsRef.current.beginListening(true) : undefined)
       if (opts.voice) setPhase(spoke ? 'speaking' : 'idle')
       runAction(data.action)
@@ -510,24 +523,35 @@ export default function KevinOrb() {
   }
 
   // ---- Hands-free ----------------------------------------------------------
-  // On a later visit, listening resumes by itself only if the visitor chose it
-  // before AND the browser already lets this site use the microphone (so no
-  // surprise permission prompt), and only after the first tap on the page
-  // (browsers refuse to play sound before that, so he could not answer aloud).
+  // Listening starts the moment someone arrives, unless they switched it off
+  // before or their browser has the microphone blocked. The browser asks for
+  // permission itself the first time (that prompt is the consent and cannot be
+  // skipped); the orb's badge shows whenever the microphone is open, and the
+  // toggle turns it off for good.
   useEffect(() => {
-    if (readStore(HANDSFREE_KEY) !== '1') return
+    if (readStore(HANDSFREE_KEY) === '0') return
+    if (!voice.canListen) return
     let cancelled = false
-    ;(navigator as any).permissions
-      ?.query?.({ name: 'microphone' })
+    const permissions = (navigator as any).permissions
+    if (!permissions?.query) {
+      setHandsFreeOn(true)
+      return
+    }
+    permissions
+      .query({ name: 'microphone' })
       .then((status: PermissionStatus) => {
-        if (!cancelled && status.state === 'granted') setHandsFreeOn(true)
+        if (!cancelled && status.state !== 'denied') setHandsFreeOn(true)
       })
-      .catch(() => {})
+      .catch(() => {
+        // Some browsers cannot be asked: try anyway, the recogniser reports a refusal.
+        if (!cancelled) setHandsFreeOn(true)
+      })
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [voice.canListen])
 
+  // The first tap or key press: sound is allowed from here on.
   useEffect(() => {
     if (touched) return
     const mark = () => setTouched(true)
@@ -539,13 +563,20 @@ export default function KevinOrb() {
     }
   }, [touched])
 
-  // The first time the panel opens, offer it (once) with the full explanation.
+  // ...so say what was waiting, and retry a microphone the browser would only open after a tap (Safari).
   useEffect(() => {
-    if (!open || !voice.canListen || !lang || handsFreeOn) return
-    if (readStore(HANDSFREE_OFFERED_KEY)) return
-    writeStore(HANDSFREE_OFFERED_KEY, '1')
-    setConsentOpen(true)
-  }, [open, voice.canListen, lang, handsFreeOn])
+    if (!touched) return
+    const waiting = pendingSpeech.current
+    if (waiting) {
+      pendingSpeech.current = null
+      setNeedsTap(false)
+      say(waiting.text, waiting.target)
+    }
+    if (retryAfterTap.current && readStore(HANDSFREE_KEY) !== '0') {
+      retryAfterTap.current = false
+      setHandsFreeOn(true)
+    }
+  }, [touched, say])
 
   // A wake that never turned into a full sentence should not leave "listening" on screen.
   useEffect(() => {
@@ -562,8 +593,24 @@ export default function KevinOrb() {
     voiceModeRef.current = true
   }
 
+  // The visitor's choice: stays off on later visits too.
+  // Someone who just starts talking has already chosen a language: their browser's.
+  const adoptBrowserLanguage = () => {
+    if (langRef.current) return
+    const guess = languageFromBrowser()
+    setLang(guess)
+    langRef.current = guess
+    writeStore(LANG_KEY, JSON.stringify(guess))
+    setMessages((prev) => prev.filter((m) => m.kind !== 'picker'))
+  }
+
   const turnOffHandsFree = () => {
     writeStore(HANDSFREE_KEY, '0')
+    setHandsFreeOn(false)
+    setWaking(false)
+  }
+  // Used when the browser, not the visitor, stopped it: no lasting choice is recorded.
+  const pauseHandsFree = () => {
     setHandsFreeOn(false)
     setWaking(false)
   }
@@ -575,25 +622,27 @@ export default function KevinOrb() {
   }
 
   const ambient = useAmbientListening({
-    enabled: handsFreeOn && !!lang && touched && voice.canListen,
+    enabled: handsFreeOn && voice.canListen,
     // Kevin is already in the middle of something (hearing you, thinking, talking): the mic is his.
     paused: busy || voice.speaking || voice.listening || phase !== 'idle',
-    bcp47: lang?.bcp47 ?? null,
+    bcp47: (lang ?? languageFromBrowser()).bcp47,
     onWake: (interim) => {
+      adoptBrowserLanguage()
       ensureVoiceMode()
       setWaking(true)
       setHeard(interim)
     },
     onUtterance: (text) => {
+      adoptBrowserLanguage()
       if (!voiceModeRef.current) ensureVoiceMode()
       handleUtterance(text)
     },
     onProblem: (problem) => {
-      turnOffHandsFree()
-      if (problem === 'blocked') {
-        push({ kind: 'note', text: stringsFor(langRef.current).micBlocked })
-        setOpen(true)
-      }
+      pauseHandsFree()
+      if (problem !== 'blocked') return
+      // Some browsers only open the microphone after a tap: try once more at the first one.
+      if (!touchedRef.current) retryAfterTap.current = true
+      else push({ kind: 'note', text: stringsFor(langRef.current).micBlocked })
     },
   })
 
@@ -803,6 +852,17 @@ export default function KevinOrb() {
               </button>
             )}
           </div>
+
+          {needsTap && (
+            <button
+              type="button"
+              onClick={() => setTouched(true)}
+              className="kevin-rise flex min-h-11 w-full items-center justify-center gap-2 border-b border-white/10 bg-[#f5c469]/10 px-4 py-2 text-sm font-medium text-[#f5c469]"
+            >
+              <Volume2 size={16} aria-hidden="true" />
+              {strings.tapToHear}
+            </button>
+          )}
 
           {consentOpen && !handsFreeOn && (
             <div className="kevin-rise border-b border-white/10 bg-white/[0.04] px-4 py-3">

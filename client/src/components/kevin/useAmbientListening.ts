@@ -6,9 +6,11 @@ import { useEffect, useRef, useState } from 'react'
  *
  * This is the only place the site listens continuously, so it is deliberately
  * narrow and honest:
- *  - It runs only after the visitor turned hands-free on (the caller enforces
- *    that, with a consent card), and `active` is true exactly while the
- *    microphone is open, so the UI can always show it.
+ *  - It starts when the visitor arrives, unless they switched it off or their
+ *    browser blocks the microphone. The browser's own permission prompt is the
+ *    consent, and the caller leaves a visible toggle to turn it off for good.
+ *    `active` is true exactly while the microphone is open, so the UI can
+ *    always show it.
  *  - It stops whenever the tab is hidden, and whenever Kevin is busy
  *    (`paused`): listening, thinking or talking. That also stops him hearing
  *    his own voice.

@@ -29,6 +29,17 @@ export const KEVIN_LANGUAGES: KevinLanguage[] = [
   { code: 'so', name: 'Somali', native: 'Soomaali', bcp47: 'so-SO' },
 ]
 
+/** The visitor's browser language if Kevin ships it, else English: what he listens and speaks in until they choose. */
+export function languageFromBrowser(): KevinLanguage {
+  const tags = typeof navigator === 'undefined' ? [] : [...(navigator.languages ?? []), navigator.language].filter(Boolean)
+  for (const tag of tags) {
+    const base = String(tag).toLowerCase().split('-')[0]
+    const found = KEVIN_LANGUAGES.find((l) => l.code === base)
+    if (found) return found
+  }
+  return KEVIN_LANGUAGES[0]
+}
+
 /** A typed-in language becomes a chip-equivalent if it matches a known one
  * (by English or native name, any case); otherwise it's passed through by
  * name alone and Kevin will still answer in it, just without a voice. */
@@ -63,6 +74,7 @@ export interface KevinStrings {
   handsFreeNotNow: string
   handsFreeLabel: string // toolbar tooltip
   handsFreeActive: string // shown while he is listening for you
+  tapToHear: string // shown when his reply is waiting for a first tap (browsers block sound before one)
 }
 
 const en: KevinStrings = {
@@ -85,6 +97,7 @@ const en: KevinStrings = {
   handsFreeNotNow: 'Not now',
   handsFreeLabel: 'Hands-free',
   handsFreeActive: 'Listening: just talk',
+  tapToHear: 'Tap anywhere to hear my reply',
 }
 
 // Written only for languages where the wording is straightforward and safe.
@@ -112,6 +125,7 @@ const BY_CODE: Record<string, KevinStrings> = {
   handsFreeNotNow: 'Si sasa',
   handsFreeLabel: 'Hands-free',
   handsFreeActive: 'Nakusikiliza: zungumza tu',
+  tapToHear: 'Gusa popote ili usikie jibu langu',
   },
   fr: {
     placeholder: 'Posez une question à Kevin…',
@@ -133,6 +147,7 @@ const BY_CODE: Record<string, KevinStrings> = {
   handsFreeNotNow: 'Pas maintenant',
   handsFreeLabel: 'Mains libres',
   handsFreeActive: "À l'écoute : parlez simplement",
+  tapToHear: 'Touchez l’écran pour entendre ma réponse',
   },
   es: {
     placeholder: 'Pregúntale a Kevin lo que quieras…',
@@ -154,6 +169,7 @@ const BY_CODE: Record<string, KevinStrings> = {
   handsFreeNotNow: 'Ahora no',
   handsFreeLabel: 'Manos libres',
   handsFreeActive: 'Escuchando: solo habla',
+  tapToHear: 'Toca la pantalla para oír mi respuesta',
   },
   pt: {
     placeholder: 'Pergunte qualquer coisa ao Kevin…',
@@ -175,6 +191,7 @@ const BY_CODE: Record<string, KevinStrings> = {
   handsFreeNotNow: 'Agora não',
   handsFreeLabel: 'Mãos livres',
   handsFreeActive: 'Ouvindo: é só falar',
+  tapToHear: 'Toque na tela para ouvir minha resposta',
   },
   de: {
     placeholder: 'Frag Kevin alles…',
@@ -196,6 +213,7 @@ const BY_CODE: Record<string, KevinStrings> = {
   handsFreeNotNow: 'Nicht jetzt',
   handsFreeLabel: 'Freisprechen',
   handsFreeActive: 'Ich höre zu: sprechen Sie einfach',
+  tapToHear: 'Tippen Sie irgendwo, um meine Antwort zu hören',
   },
   ar: {
     placeholder: 'اسأل كيفن أي شيء…',
@@ -217,6 +235,7 @@ const BY_CODE: Record<string, KevinStrings> = {
   handsFreeNotNow: 'ليس الآن',
   handsFreeLabel: 'بدون لمس',
   handsFreeActive: 'أستمع: تحدّث فقط',
+  tapToHear: 'المس الشاشة لتسمع ردي',
   },
   zh: {
     placeholder: '问问 Kevin 任何问题…',
@@ -238,6 +257,7 @@ const BY_CODE: Record<string, KevinStrings> = {
   handsFreeNotNow: '暂时不要',
   handsFreeLabel: '免提',
   handsFreeActive: '正在聆听：直接说话',
+  tapToHear: '点一下屏幕，听我的回答',
   },
   hi: {
     placeholder: 'केविन से कुछ भी पूछें…',
@@ -259,6 +279,7 @@ const BY_CODE: Record<string, KevinStrings> = {
   handsFreeNotNow: 'अभी नहीं',
   handsFreeLabel: 'हैंड्स-फ़्री',
   handsFreeActive: 'सुन रहा हूँ: बस बोलिए',
+  tapToHear: 'मेरा जवाब सुनने के लिए कहीं भी टैप करें',
   },
 }
 
