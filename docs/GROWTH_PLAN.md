@@ -41,6 +41,33 @@ become tenants.
 7. **Partnerships**: SACCOs, student guilds, employer relocation desks, moving
    companies (they meet "shifting soon" people daily: Kevin has a category for it).
 
+## Start today, before Google has processed the sitemap
+
+Search is the slow channel (days to weeks). People can arrive today through links.
+
+**What the site now does by itself:** it lists the sitemap in `robots.txt` (Google finds it
+unprompted) and pings IndexNow, so Bing, Yandex and the AI search tools built on them crawl new
+pages within hours. Nothing to set up; the key file is served at `/<key>.txt`. Google is the
+exception: it needs the sitemap submitted once in Search Console (Sitemaps > `sitemap.xml`), then
+"URL inspection > Request indexing" for the home page speeds it up.
+
+**Links that already look good when shared:** the home page, every property and every
+`/homes/<country>/<city>` page return a proper title, photo and description to WhatsApp,
+Facebook, X, Telegram and LinkedIn. Share the *specific* page, not just the home page, and add
+`?utm_source=<where>` so the Leads page shows which channel worked.
+
+**Copy-paste messages (send to people you know, in groups you belong to, admin permission first):**
+
+- Renters: "Found a way to walk through a home on your phone before going there: <place link>.
+  Real homes in <city>, owner replies on WhatsApp."
+- Landlords / agents: "List your property free on RealEVR Estates and get a 360 tour link tenants
+  can open from anywhere. Verified over WhatsApp, leads go straight to you: <list link>"
+- Residents: "Does your building have a home that isn't online? Tell us about it and earn points
+  (100 = 10,000 UGX): <recommend link>"
+
+One real listing with a tour, posted to five groups that fit it, beats the home-page link posted
+to fifty that do not.
+
 ## Rough funnel (so the target is believable)
 
 To reach 1,000 users you need on the order of 10,000 visits at a typical

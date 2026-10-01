@@ -34,6 +34,7 @@ import {
     getStaticSitemapEntries,
     propertyToSitemapEntry,
 } from './sitemap'
+import { registerIndexNowKeyRoute, startIndexNowSubmitter } from './indexnow'
 import { registerSocialPreviewRoutes } from './social-preview'
 import notificationRoutes from './routes/notifications'
 import reviewRoutes from './routes/reviews'
@@ -238,25 +239,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
     })
 
+    // Every public page we want found: the sitemap and the IndexNow submitter both use this list.
+    async function publicSitemapEntries() {
+        const base = getCanonicalBaseUrl()
+        const staticEntries = getStaticSitemapEntries(base)
+        const properties = (await storage.getAllProperties()).filter(isPubliclyVisibleProperty)
+        const propertyEntries = properties.map((p) =>
+            propertyToSitemapEntry(base, {
+                id: p.id,
+                title: p.title || 'Property',
+                imageUrl: p.imageUrl || '',
+            })
+        )
+        // One page per country and city that really has homes (populatedPlaces leaves empty ones out).
+        const placeEntries = placePagePaths(populatedPlaces(properties)).map((path) => ({
+            loc: `${base}${path}`,
+            changefreq: 'daily',
+            priority: '0.8',
+        }))
+        return [...staticEntries, ...placeEntries, ...propertyEntries]
+    }
+
     app.get('/sitemap.xml', async (_req, res) => {
         try {
-            const base = getCanonicalBaseUrl()
-            const staticEntries = getStaticSitemapEntries(base)
-            const properties = await storage.getAllProperties()
-            const propertyEntries = properties.filter(isPubliclyVisibleProperty).map((p) =>
-                propertyToSitemapEntry(base, {
-                    id: p.id,
-                    title: p.title || 'Property',
-                    imageUrl: p.imageUrl || '',
-                })
-            )
-            // One page per country and city that really has homes (populatedPlaces leaves empty ones out).
-            const placeEntries = placePagePaths(populatedPlaces(properties.filter(isPubliclyVisibleProperty))).map((path) => ({
-                loc: `${base}${path}`,
-                changefreq: 'daily',
-                priority: '0.8',
-            }))
-            const xml = buildSitemapXml([...staticEntries, ...placeEntries, ...propertyEntries])
+            const xml = buildSitemapXml(await publicSitemapEntries())
             res.setHeader('Content-Type', 'application/xml; charset=utf-8')
             res.setHeader('Cache-Control', 'public, max-age=600')
             res.send(xml)
@@ -265,6 +271,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             res.status(500).type('text/plain').send('Sitemap temporarily unavailable')
         }
     })
+
+    // Instant-crawl for Bing/Yandex & co. (see server/indexnow.ts); proof of ownership is this key file.
+    registerIndexNowKeyRoute(app, getCanonicalBaseUrl)
+    startIndexNowSubmitter(getCanonicalBaseUrl, async () => (await publicSitemapEntries()).map((e) => e.loc))
 
     app.get('/robots.txt', (_req, res) => {
         const base = getCanonicalBaseUrl()
