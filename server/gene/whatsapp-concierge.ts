@@ -62,11 +62,9 @@ const LINK_COLLECTION = 'gene_whatsapp_user_links'
 const MESSAGE_COLLECTION = 'gene_whatsapp_messages'
 const SIGNAL_COLLECTION = 'gene_agent_signals' // shared contract with personal-agent.ts — read-only here
 
-/** Easy to customize — keep in sync with the display name used by the web
- * popup (client/src/components/broker/BrokerOnlinePresence.tsx) so the
- * persona is consistent whether a visitor meets "Grace" on the site or on
- * WhatsApp. */
-const CONCIERGE_NAME = 'Grace'
+/** The same Kevin visitors meet on the site (client/src/components/kevin), so the
+ * persona is consistent on WhatsApp. */
+const CONCIERGE_NAME = 'Kevin'
 
 export interface WhatsappUserLink {
     id: number

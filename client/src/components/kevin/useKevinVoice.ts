@@ -57,11 +57,23 @@ function normalise(tag: string): string {
 // like a person or a screen reader.
 const NATURAL_VOICE = /\b(premium|enhanced|natural|neural|online|siri|google)\b|samantha|daniel|karen|moira|serena/i
 
+// Kevin is a man. Devices rarely say a voice's gender, but most name it: these are the
+// common male and female names and words across Apple, Google and Microsoft voices,
+// including the African-English ones (Kenya, Nigeria, Tanzania, South Africa).
+const MALE_VOICE = /\b(male|man)\b|daniel|alex|fred|oliver|arthur|aaron|david|mark|guy|ryan|george|james|thomas|ezra|abeo|chilemba|elimu|rafiki|luke|jorge|diego|paul|henri|claude|stefan/i
+const FEMALE_VOICE = /\bfemale\b|woman|samantha|karen|moira|serena|susan|zira|hazel|eva|aria|jenny|libby|sonia|emma|ezinne|imani|zuri|leah|mzuri|google .*\(female\)|victoria|fiona|tessa|amelie|sara|laura|paulina|monica|helena|anna|katja/i
+const AFRICAN_REGION = /-(ke|ng|tz|za|gh|ug|zw|rw)$/
+
 function voiceScore(v: SpeechSynthesisVoice, wanted: string): number {
   let score = 0
-  if (normalise(v.lang) === wanted) score += 4 // exact region beats same language
+  const lang = normalise(v.lang)
+  if (lang === wanted) score += 4 // exact region beats same language
   if (NATURAL_VOICE.test(v.name)) score += 3
   if (!v.localService) score += 1 // cloud voices are usually the better ones
+  const male = MALE_VOICE.test(v.name) && !FEMALE_VOICE.test(v.name)
+  if (male) score += 5 // Kevin's a man; this outweighs "natural" so a flat male voice beats a lovely female one
+  else if (FEMALE_VOICE.test(v.name)) score -= 5
+  if (male && AFRICAN_REGION.test(lang)) score += 5 // an African male voice is better still
   return score
 }
 
