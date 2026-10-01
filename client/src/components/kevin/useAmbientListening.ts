@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
+import { isAboutProperties } from './propertyTalk'
 
 /**
  * Hands-free: keep the microphone open while the page is on screen, and when
- * someone speaks, wake Kevin so he can answer without a tap.
+ * someone speaks to Kevin about property, wake him so he can answer without a tap.
  *
  * This is the only place the site listens continuously, so it is deliberately
  * narrow and honest:
- *  - It starts when the visitor arrives, unless they switched it off or their
- *    browser blocks the microphone. The browser's own permission prompt is the
- *    consent, and the caller leaves a visible toggle to turn it off for good.
- *    `active` is true exactly while the microphone is open, so the UI can
- *    always show it.
+ *  - The caller starts it only when the browser has already been given
+ *    permission (it never causes a permission prompt by itself), and leaves a
+ *    visible toggle to turn it off for good. `active` is true exactly while the
+ *    microphone is open, so the UI can always show it.
+ *  - It reacts only to speech about property (renting, buying, selling, homes,
+ *    land, stays, anywhere in the world) or said to him by name. Everything else
+ *    heard is let go, so a conversation in the room or a television never opens him.
  *  - It stops whenever the tab is hidden, and whenever Kevin is busy
  *    (`paused`): listening, thinking or talking. That also stops him hearing
  *    his own voice.
@@ -34,6 +37,8 @@ interface Options {
   /** The sentence that woke him, complete. */
   onUtterance: (text: string) => void
   onProblem: (problem: AmbientProblem) => void
+  /** Only speech that passes this wakes him (default: about property, anywhere in the world, or said to Kevin by name). */
+  relevant?: (text: string) => boolean
 }
 
 /** Worth waking for: two words or more, or a real mouthful of characters (languages without spaces). */
@@ -48,12 +53,12 @@ function recognitionConstructor(): any {
   return typeof window !== 'undefined' ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition : null
 }
 
-export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtterance, onProblem }: Options) {
+export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtterance, onProblem, relevant = isAboutProperties }: Options) {
   const [active, setActive] = useState(false)
   const [visible, setVisible] = useState(() => typeof document === 'undefined' || document.visibilityState === 'visible')
   // The callbacks change on every render of the caller; the recogniser must not restart for that.
-  const handlers = useRef({ onWake, onUtterance, onProblem })
-  handlers.current = { onWake, onUtterance, onProblem }
+  const handlers = useRef({ onWake, onUtterance, onProblem, relevant })
+  handlers.current = { onWake, onUtterance, onProblem, relevant }
 
   useEffect(() => {
     const onVisibility = () => setVisible(document.visibilityState === 'visible')
@@ -74,6 +79,7 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
     let recognition: any = null
     let restart: ReturnType<typeof setTimeout> | undefined
     let failures = 0
+    let quiet = 0 // consecutive rounds that ended with nothing said: each one waits longer before reopening
 
     const start = () => {
       if (stopped) return
@@ -91,12 +97,14 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
       }
       recognition.onresult = (event: any) => {
         if (consumed || stopped) return
+        quiet = 0
         let interim = ''
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const result = event.results[i]
           const text: string = result?.[0]?.transcript ?? ''
           if (result.isFinal) {
-            if (!isMeaningfulSpeech(text)) {
+            // Said, but not about property and not to him: let it pass, as a person in the room would.
+            if (!isMeaningfulSpeech(text) || !handlers.current.relevant(text)) {
               woke = false
               continue
             }
@@ -106,7 +114,7 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
           }
           interim += text
         }
-        if (!woke && isMeaningfulSpeech(interim)) {
+        if (!woke && isMeaningfulSpeech(interim) && handlers.current.relevant(interim)) {
           woke = true
           handlers.current.onWake(interim.trim())
         }
@@ -123,7 +131,11 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
       recognition.onend = () => {
         setActive(false)
         if (stopped) return
-        restart = setTimeout(start, Math.min(250 + failures * 900, 6000))
+        // Every reopening can make a phone chirp or flash its microphone indicator, so a quiet room is
+        // revisited ever more slowly (a quarter second at first, up to 12 seconds), and speech resets that.
+        quiet = Math.min(quiet + 1, 8)
+        const wait = Math.min(250 * Math.pow(2, quiet - 1), 12_000)
+        restart = setTimeout(start, Math.max(wait, Math.min(250 + failures * 900, 6000)))
       }
       try {
         recognition.start()
