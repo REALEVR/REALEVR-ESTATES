@@ -5,6 +5,7 @@ import { postDailyUpdate } from '../social'
 import { sendWeeklyAnalyticsExport } from '../gene/analytics-export'
 import { runTourHealth } from '../gene/tour-health'
 import { finalizeDueAuctions } from '../gene/auctions'
+import { sendPendingInvites } from '../gene/partner-program'
 
 let initialized = false
 
@@ -47,6 +48,11 @@ export function initCronJobs(): void {
     // Live auctions close on the minute: the winner is fixed and everyone concerned is told.
     cron.schedule('* * * * *', () => {
         finalizeDueAuctions().catch((err) => console.error('[Cron] closing auctions failed:', err))
+    }, { timezone: 'UTC' })
+
+    // Partner-programme invitations go out a few at a time (PARTNER_INVITES_PER_RUN, default 20) so a mailbox is never flooded.
+    cron.schedule('11 * * * *', () => {
+        sendPendingInvites().catch((err) => console.error('[Cron] sending partner invitations failed:', err))
     }, { timezone: 'UTC' })
 
     // Every virtual tour is opened the way a visitor's browser would, every six hours; broken ones are reported

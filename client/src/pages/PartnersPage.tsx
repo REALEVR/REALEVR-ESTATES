@@ -117,6 +117,9 @@ export default function PartnersPage() {
         </ul>
         <div className="mt-6 flex flex-wrap gap-3">
           <Button asChild className="rounded-full">
+            <Link href="/become-a-partner">Become a partner in your country</Link>
+          </Button>
+          <Button asChild variant="outline" className="rounded-full">
             <a href={bankMessage} target="_blank" rel="noopener noreferrer">
               <MessageCircle className="mr-2 h-4 w-4" aria-hidden="true" /> List a bank sale
             </a>

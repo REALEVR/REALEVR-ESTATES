@@ -48,7 +48,9 @@ import { registerKevinVoiceRoutes } from './gene/kevin-voice'
 import { registerTourHealthRoutes, scheduleTourHealthAtStartup } from './gene/tour-health'
 import { registerAuctionRoutes, startAuctionService } from './gene/auctions'
 import { registerPaymentSettingsRoutes } from './gene/payment-settings'
+import { registerPartnerProgramRoutes, startPartnerProgramService } from './gene/partner-program'
 import { registerDataRequestRoutes } from './gene/data-requests'
+import { programForAllCountries } from '../shared/partner-program'
 import { registerGeneIngestionRoutes } from './gene/ingestion'
 import { registerGeneAnalyticsRoutes } from './gene/analytics'
 import { registerGeneLearningLoopRoutes } from './gene/learning-loop'
@@ -261,7 +263,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             changefreq: 'daily',
             priority: '0.8',
         }))
-        return [...staticEntries, ...placeEntries, ...propertyEntries]
+        // One page per country for the partner programme: its own fee, requirements and laws.
+        const partnerEntries = programForAllCountries().map((c) => ({ loc: `${base}/become-a-partner/${c.slug}`, changefreq: 'monthly', priority: '0.4' }))
+        return [...staticEntries, ...placeEntries, ...partnerEntries, ...propertyEntries]
     }
 
     app.get('/sitemap.xml', async (_req, res) => {
@@ -2826,6 +2830,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerTourHealthRoutes(app)
     registerAuctionRoutes(app)
     registerPaymentSettingsRoutes(app)
+    registerPartnerProgramRoutes(app)
+    startPartnerProgramService()
     registerDataRequestRoutes(app)
     startAuctionService()
     scheduleTourHealthAtStartup()

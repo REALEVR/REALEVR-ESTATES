@@ -152,7 +152,7 @@ export function readPaymentNotice(text: string): ReadNotice {
     for (const m of Array.from(t.matchAll(AMOUNT_BEFORE))) found.push({ index: m.index ?? 0, amount: Number(m[1].replace(/,/g, '')), currency: normalizeCurrency(m[2]) })
     found.sort((a, b) => a.index - b.index)
     const first = found.find((f) => Number.isFinite(f.amount) && f.amount > 0 && !NOT_THE_PAYMENT.test(t.slice(Math.max(0, f.index - 20), f.index)))
-    const tid = t.match(/(?:transaction\s*(?:id|no\.?|number)|txn\s*(?:id|no\.?)?|trans\.?\s*id|tid|ref(?:erence)?(?:\s*(?:no\.?|number|id))?)\s*[:.#-]?\s*([A-Za-z0-9]{6,24})/i)
+    const tid = t.match(/\b(?:transaction\s*(?:id|no\.?|number)|txn\s*(?:id|no\.?)?|trans\.?\s*id|tid|ref(?:erence)?(?:\s*(?:no\.?|number|id))?)\s*[:.#-]?\s*((?=[A-Za-z0-9]*\d)[A-Za-z0-9]{8,24})/i)
     return { looksLikeReceipt, amount: first?.amount, currency: first?.currency, txnId: tid?.[1] }
 }
 
