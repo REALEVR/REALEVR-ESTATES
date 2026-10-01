@@ -41,7 +41,7 @@ export default function VoiceStage({ phase, heard, reply, cards, strings, hint, 
           type="button"
           onClick={onOrbTap}
           aria-label={label}
-          className="relative block h-36 w-36 shrink-0 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f5c469] md:h-40 md:w-40"
+          className="relative block h-36 w-36 shrink-0 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f5c469] md:h-40 md:w-40 [@media(max-height:520px)]:h-20 [@media(max-height:520px)]:w-20"
         >
           <Orb speaking={phase === 'speaking'} listening={phase === 'listening'} thinking={phase === 'thinking'} />
         </button>

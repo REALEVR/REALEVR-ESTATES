@@ -196,3 +196,59 @@
 .kevin.is-thinking .kevin__aurora { animation-duration: 2.6s; }
 .kevin.is-thinking .kevin__ring { animation-duration: 2.4s; }
 .kevin.is-thinking .kevin__core { animation: kevin-talk 1.6s ease-in-out infinite; }
+
+/*
+ * The chat panel. On phones (and any short landscape screen) it is a full-screen
+ * sheet: a floating card there covers the site's own header and tab bar, sits
+ * under the on-screen keyboard, and leaves a slice of page behind it to scroll
+ * by accident. --kevin-vh / --kevin-top track the *visible* area (set from
+ * window.visualViewport in KevinOrb), so the input stays above the keyboard.
+ * Tablets and desktops get a floating card in the corner, sized to the screen.
+ */
+.kevin-panel {
+  position: fixed;
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+@media (max-width: 767px), (max-height: 520px) {
+  .kevin-panel {
+    left: var(--kevin-left, 0px);
+    width: var(--kevin-vw, 100%);
+    top: var(--kevin-top, 0px);
+    height: var(--kevin-vh, 100dvh);
+    border-radius: 0;
+    border: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    animation: kevin-sheet 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+@media (min-width: 768px) and (min-height: 521px) {
+  .kevin-panel {
+    right: 1rem;
+    bottom: 1.25rem;
+    width: min(460px, calc(100vw - 2rem));
+    height: min(700px, calc(var(--kevin-vh, 100dvh) - 2.5rem));
+    border-radius: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+@media (min-width: 1280px) and (min-height: 521px) {
+  .kevin-panel { width: 420px; }
+}
+@keyframes kevin-sheet { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+
+/* Short landscape phones: every row of chrome counts. */
+@media (max-height: 520px) {
+  .kevin-panel .kevin-sub { display: none; }
+  .kevin-panel .kevin-head { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+  .kevin-panel .kevin-tools { padding-top: 0.125rem; padding-bottom: 0.125rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kevin-panel { animation: none !important; }
+}
