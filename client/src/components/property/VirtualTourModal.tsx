@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { X, Maximize, Minimize, Headset } from "lucide-react";
 import "./virtual-tour-modal.css";
 import { enterTourVr } from "@/lib/tourVr";
+import ExitFullscreenButton from "./ExitFullscreenButton";
 
 interface VirtualTourModalProps {
   isOpen: boolean;
@@ -33,6 +34,10 @@ export default function VirtualTourModal({
 }: VirtualTourModalProps) {
   const [secondsLeft, setSecondsLeft] = useState(previewSeconds ?? 0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // Phones that cannot full-screen an element (iPhone Safari) get the same thing done with CSS:
+  // the tour covers the whole screen and the same Exit button brings it back.
+  const [coverScreen, setCoverScreen] = useState(false);
+  const full = isFullscreen || coverScreen;
   // Shown over the iframe until it has loaded (or a few seconds pass, so a
   // slow or non-standard host can never leave the visitor stuck behind it).
   const [frameReady, setFrameReady] = useState(false);
@@ -57,16 +62,22 @@ export default function VirtualTourModal({
   // Leaving the modal (closing it, or it unmounting) should never leave the
   // browser stuck in fullscreen with nothing visible behind it.
   useEffect(() => {
-    if (!isOpen && document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
+    if (!isOpen) {
+      setCoverScreen(false);
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     }
   }, [isOpen]);
 
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => {});
+    } else if (coverScreen) {
+      setCoverScreen(false);
     } else {
-      tourContainerRef.current?.requestFullscreen().catch(() => {});
+      const el = tourContainerRef.current as (HTMLDivElement & { webkitRequestFullscreen?: () => void }) | null;
+      if (el?.requestFullscreen) el.requestFullscreen().catch(() => setCoverScreen(true));
+      else if (el?.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      else setCoverScreen(true);
     }
   };
 
@@ -118,15 +129,29 @@ export default function VirtualTourModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent hideClose className="vt-modal max-w-[95vw] h-[90vh] p-0 overflow-hidden border-none bg-transparent">
+      <DialogContent
+        hideClose
+        // Esc first leaves the CSS full screen (the browser's own full screen handles Esc by itself).
+        onEscapeKeyDown={(e) => {
+          if (coverScreen) {
+            e.preventDefault();
+            setCoverScreen(false);
+          }
+        }}
+        className={`vt-modal max-w-[95vw] h-[90vh] p-0 overflow-hidden border-none bg-transparent ${
+          coverScreen ? "!left-0 !top-0 !h-[100dvh] !w-screen !max-w-none !translate-x-0 !translate-y-0 !rounded-none" : ""
+        }`}
+      >
         {/* Both the header bar and the iframe live inside this one ref'd
             container, so entering fullscreen (which only shows this
             element and its descendants, hiding everything else on the
             page - the modal chrome, the browser's own UI) still leaves
             the title, the "back to normal window" button, and Close all
             reachable, not just a bare iframe with no way out but Esc. */}
-        <div ref={tourContainerRef} className="vt-shell w-full h-full flex flex-col">
-          <div className="vt-header w-full flex items-center justify-between gap-3 px-4 shrink-0">
+        <div ref={tourContainerRef} className={`vt-shell relative w-full h-full flex flex-col ${coverScreen ? "!rounded-none" : ""}`}>
+          {/* Full screen: the tour gets the whole screen, with one clear way out. */}
+          {full && <ExitFullscreenButton onClick={toggleFullscreen} />}
+          <div className={`vt-header w-full flex items-center justify-between gap-3 px-4 shrink-0 ${full ? "hidden" : ""}`}>
             <div className="min-w-0">
               <div className="vt-eyebrow">RealEVR Estates</div>
               <DialogTitle className="vt-title truncate">{propertyTitle}</DialogTitle>

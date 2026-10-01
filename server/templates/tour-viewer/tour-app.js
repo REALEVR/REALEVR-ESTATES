@@ -670,6 +670,36 @@
     if (editMode) buildEditor(); else buildIntro(title);
   }
 
+  // ---- The way out of full screen ---------------------------------------
+  // The viewer's own full-screen button shows only the 360 view; this puts a clear "Exit full screen"
+  // pill on top of whatever element is full screen, so nobody has to know about Esc.
+  var exitFsBtn = null;
+  function leaveFullscreen() {
+    try {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    } catch (err) { /* nothing to leave */ }
+  }
+  function syncExitButton() {
+    var fs = document.fullscreenElement || document.webkitFullscreenElement;
+    if (!fs || editMode) {
+      if (exitFsBtn && exitFsBtn.parentNode) exitFsBtn.parentNode.removeChild(exitFsBtn);
+      return;
+    }
+    if (!exitFsBtn) {
+      exitFsBtn = document.createElement('button');
+      exitFsBtn.type = 'button';
+      exitFsBtn.className = 'fs-exit';
+      exitFsBtn.setAttribute('aria-label', 'Exit full screen');
+      exitFsBtn.textContent = 'Exit full screen';
+      exitFsBtn.addEventListener('click', function (e) { e.stopPropagation(); leaveFullscreen(); });
+    }
+    var host = fs === document.documentElement ? document.body : fs;
+    if (exitFsBtn.parentNode !== host) host.appendChild(exitFsBtn);
+  }
+  document.addEventListener('fullscreenchange', syncExitButton);
+  document.addEventListener('webkitfullscreenchange', syncExitButton);
+
   fetch('./tour.json')
     .then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
