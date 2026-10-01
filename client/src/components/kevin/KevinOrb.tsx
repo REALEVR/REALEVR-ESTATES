@@ -12,6 +12,7 @@ import {
   type KevinLanguage,
 } from './kevinLanguages'
 import { chime, useKevinVoice } from './useKevinVoice'
+import { useAmbientListening } from './useAmbientListening'
 import Orb from './Orb'
 import ResultCards from './ResultCards'
 import VoiceStage, { type VoicePhase } from './VoiceStage'
@@ -45,6 +46,8 @@ const LANG_KEY = 'realevr_kevin_lang'
 const GREETED_KEY = 'realevr_kevin_greeted'
 const MUTED_KEY = 'realevr_kevin_muted'
 const SESSION_KEY = 'realevr_gene_chat_session_id' // shared with the older widget so a thread survives
+const HANDSFREE_KEY = 'realevr_kevin_handsfree' // '1' once the visitor turned hands-free on
+const HANDSFREE_OFFERED_KEY = 'realevr_kevin_handsfree_offered'
 const INTAKE_KEY = 'realevr_kevin_intake' // 'done' once he has what he needs from this visitor (or they said no)
 
 // Same rule the server applies before putting a language name into the AI's
@@ -165,6 +168,14 @@ export default function KevinOrb() {
   // The welcome conversation: name, what they need, how to reach them. Asked once.
   const [intakeDone, setIntakeDone] = useState(() => readStore(INTAKE_KEY) === 'done')
   const [, navigate] = useLocation()
+
+  // Hands-free: Kevin wakes when someone speaks. Opt-in, remembered, always visible while on.
+  const [handsFreeOn, setHandsFreeOn] = useState(false)
+  const [consentOpen, setConsentOpen] = useState(false)
+  const [waking, setWaking] = useState(false)
+  const [touched, setTouched] = useState(
+    () => typeof navigator !== 'undefined' && !!(navigator as any).userActivation?.hasBeenActive,
+  )
 
   // Voice mode
   const [voiceMode, setVoiceMode] = useState(false)
@@ -421,6 +432,20 @@ export default function KevinOrb() {
   // closures created them.
   const actionsRef = useRef({ beginListening: (_followUp: boolean) => {} })
 
+  // One finished sentence from the visitor in voice mode (however it was heard).
+  const handleUtterance = (text: string) => {
+    setWaking(false)
+    setHeard(text)
+    // The few words that mean "never mind" end the conversation quietly.
+    if (/^(stop|cancel|never ?mind|that'?s (all|it)|enough)[.!\s]*$/i.test(text)) {
+      chime('end')
+      setPhase('idle')
+      setHeard('')
+      return
+    }
+    void send(text, { voice: true })
+  }
+
   const beginListening = (followUp: boolean) => {
     if (!voice.canListen || !voiceModeRef.current) return
     setHeard('')
@@ -432,17 +457,7 @@ export default function KevinOrb() {
       if (!voiceModeRef.current) return
       voice.listen({
         onInterim: (text) => setHeard(text),
-        onFinal: (text) => {
-          setHeard(text)
-          // The few words that mean "never mind" end the conversation quietly.
-          if (/^(stop|cancel|never ?mind|that'?s (all|it)|enough)[.!\s]*$/i.test(text)) {
-            chime('end')
-            setPhase('idle')
-            setHeard('')
-            return
-          }
-          void send(text, { voice: true })
-        },
+        onFinal: (text) => handleUtterance(text),
         onEnd: ({ heard: gotSomething, error }) => {
           if (gotSomething) return
           setPhase('idle')
@@ -493,6 +508,94 @@ export default function KevinOrb() {
       beginListening(false)
     }
   }
+
+  // ---- Hands-free ----------------------------------------------------------
+  // On a later visit, listening resumes by itself only if the visitor chose it
+  // before AND the browser already lets this site use the microphone (so no
+  // surprise permission prompt), and only after the first tap on the page
+  // (browsers refuse to play sound before that, so he could not answer aloud).
+  useEffect(() => {
+    if (readStore(HANDSFREE_KEY) !== '1') return
+    let cancelled = false
+    ;(navigator as any).permissions
+      ?.query?.({ name: 'microphone' })
+      .then((status: PermissionStatus) => {
+        if (!cancelled && status.state === 'granted') setHandsFreeOn(true)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (touched) return
+    const mark = () => setTouched(true)
+    window.addEventListener('pointerdown', mark, { once: true, capture: true })
+    window.addEventListener('keydown', mark, { once: true, capture: true })
+    return () => {
+      window.removeEventListener('pointerdown', mark, true)
+      window.removeEventListener('keydown', mark, true)
+    }
+  }, [touched])
+
+  // The first time the panel opens, offer it (once) with the full explanation.
+  useEffect(() => {
+    if (!open || !voice.canListen || !lang || handsFreeOn) return
+    if (readStore(HANDSFREE_OFFERED_KEY)) return
+    writeStore(HANDSFREE_OFFERED_KEY, '1')
+    setConsentOpen(true)
+  }, [open, voice.canListen, lang, handsFreeOn])
+
+  // A wake that never turned into a full sentence should not leave "listening" on screen.
+  useEffect(() => {
+    if (!waking) return
+    const t = setTimeout(() => setWaking(false), 8000)
+    return () => clearTimeout(t)
+  }, [waking])
+
+  const ensureVoiceMode = () => {
+    setBubble(false)
+    setOpen(true)
+    setChangingLanguage(false)
+    setVoiceMode(true)
+    voiceModeRef.current = true
+  }
+
+  const turnOffHandsFree = () => {
+    writeStore(HANDSFREE_KEY, '0')
+    setHandsFreeOn(false)
+    setWaking(false)
+  }
+  const confirmHandsFree = () => {
+    writeStore(HANDSFREE_KEY, '1')
+    setHandsFreeOn(true)
+    setTouched(true) // this tap is the gesture
+    setConsentOpen(false)
+  }
+
+  const ambient = useAmbientListening({
+    enabled: handsFreeOn && !!lang && touched && voice.canListen,
+    // Kevin is already in the middle of something (hearing you, thinking, talking): the mic is his.
+    paused: busy || voice.speaking || voice.listening || phase !== 'idle',
+    bcp47: lang?.bcp47 ?? null,
+    onWake: (interim) => {
+      ensureVoiceMode()
+      setWaking(true)
+      setHeard(interim)
+    },
+    onUtterance: (text) => {
+      if (!voiceModeRef.current) ensureVoiceMode()
+      handleUtterance(text)
+    },
+    onProblem: (problem) => {
+      turnOffHandsFree()
+      if (problem === 'blocked') {
+        push({ kind: 'note', text: stringsFor(langRef.current).micBlocked })
+        setOpen(true)
+      }
+    },
+  })
 
   const toggleMute = () => {
     const next = !muted
@@ -559,6 +662,15 @@ export default function KevinOrb() {
           className="group fixed select-none [-webkit-touch-callout:none] bottom-[var(--fab-row-1)] right-5 z-40 h-14 w-14 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f5c469] md:bottom-5 md:right-4 md:h-16 md:w-16"
         >
           <Orb speaking={voice.speaking || phase === 'speaking'} listening={voice.listening} thinking={busy} />
+          {ambient.active && (
+            <span
+              className="pointer-events-none absolute -left-0.5 -top-0.5 grid h-5 w-5 place-items-center rounded-full bg-[#f5c469] text-[#1b1305] shadow"
+              title={strings.handsFreeActive}
+            >
+              <Mic size={11} />
+              <span className="sr-only">{strings.handsFreeActive}</span>
+            </span>
+          )}
           <span className="pointer-events-none absolute right-full top-1/2 mr-3 hidden -translate-y-1/2 whitespace-nowrap rounded-full border border-white/10 bg-[#0d1024]/90 px-3 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg backdrop-blur transition group-hover:opacity-100 md:block">
             {voice.canListen && lang ? 'Ask Kevin · hold to talk' : 'Ask Kevin'}
           </span>
@@ -652,6 +764,21 @@ export default function KevinOrb() {
               <span className="truncate" lang={lang?.code ?? undefined}>{lang?.native ?? 'Language'}</span>
             </button>
             <span className="flex-1" />
+            {voice.canListen && lang && (
+              <button
+                type="button"
+                onClick={() => (handsFreeOn ? turnOffHandsFree() : setConsentOpen((v) => !v))}
+                aria-pressed={handsFreeOn}
+                aria-label={strings.handsFreeLabel}
+                title={handsFreeOn ? strings.handsFreeActive : strings.handsFreeLabel}
+                className={`relative grid h-10 w-10 shrink-0 place-items-center rounded-full transition hover:bg-white/10 ${
+                  handsFreeOn ? 'bg-[#f5c469]/15 text-[#f5c469]' : 'text-white/75 hover:text-white'
+                }`}
+              >
+                <Mic size={19} />
+                {ambient.active && <span className="absolute right-1.5 top-1.5 h-2 w-2 animate-pulse rounded-full bg-[#f5c469]" />}
+              </button>
+            )}
             {user && (
               <button
                 type="button"
@@ -677,6 +804,28 @@ export default function KevinOrb() {
             )}
           </div>
 
+          {consentOpen && !handsFreeOn && (
+            <div className="kevin-rise border-b border-white/10 bg-white/[0.04] px-4 py-3">
+              <p className="text-sm leading-relaxed text-white/85">{strings.handsFreeOffer}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={confirmHandsFree}
+                  className="min-h-11 rounded-full bg-[#f5c469] px-4 text-sm font-semibold text-[#1b1305] transition hover:brightness-110"
+                >
+                  {strings.handsFreeOn}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConsentOpen(false)}
+                  className="min-h-11 rounded-full border border-white/15 px-4 text-sm text-white/80 transition hover:text-white"
+                >
+                  {strings.handsFreeNotNow}
+                </button>
+              </div>
+            </div>
+          )}
+
           {showPicker && (
             <div className="kevin-rise border-b border-white/10 bg-white/[0.03] px-4 py-3">
               <p className="mb-2 text-xs uppercase tracking-wider text-white/50">Choose a language</p>
@@ -686,7 +835,8 @@ export default function KevinOrb() {
 
           {voiceMode ? (
             <VoiceStage
-              phase={phase}
+              phase={waking ? 'listening' : phase}
+              idleLabel={ambient.active ? strings.handsFreeActive : undefined}
               heard={heard}
               reply={lastReply}
               cards={cards}

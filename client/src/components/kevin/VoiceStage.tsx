@@ -22,6 +22,8 @@ interface VoiceStageProps {
   onOrbTap: () => void
   onOpenCard: (id: number) => void
   onType: () => void
+  /** Shown instead of "tap to speak" while hands-free is keeping the microphone open. */
+  idleLabel?: string
 }
 
 /**
@@ -29,9 +31,9 @@ interface VoiceStageProps {
  * answer, and the homes he found. The orb is the only control that matters:
  * tap to speak, tap while he talks to interrupt, just like a phone assistant.
  */
-export default function VoiceStage({ phase, heard, reply, cards, strings, hint, notice, dir, onOrbTap, onOpenCard, onType }: VoiceStageProps) {
+export default function VoiceStage({ phase, heard, reply, cards, strings, hint, notice, dir, onOrbTap, onOpenCard, onType, idleLabel }: VoiceStageProps) {
   const status =
-    phase === 'listening' ? strings.listening : phase === 'thinking' ? strings.thinking : phase === 'idle' ? strings.tapToSpeak : ''
+    phase === 'listening' ? strings.listening : phase === 'thinking' ? strings.thinking : phase === 'idle' ? idleLabel ?? strings.tapToSpeak : ''
   const label = phase === 'speaking' ? 'Interrupt Kevin and speak' : phase === 'listening' ? 'Stop listening' : strings.talkToKevin
 
   return (
