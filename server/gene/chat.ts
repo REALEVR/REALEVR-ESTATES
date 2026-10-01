@@ -24,6 +24,7 @@
  */
 import type { Express, RequestHandler } from 'express'
 import { randomUUID } from 'crypto'
+import { isAboutProperties } from '../../shared/property-talk'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
 import type { User } from '@shared/schema'
@@ -99,6 +100,8 @@ export interface GeneConversation {
     // details" form to build. Only ever set once per conversation, so a
     // visitor who mentions their number twice doesn't re-notify admins.
     capturedLead?: { contact: string; capturedAt: string }
+    /** Set once the conversation is about property; from then on its follow-ups ("the second one", "2 million") are kept too. */
+    propertyRelated?: boolean
     createdAt: string
     updatedAt: string
 }
@@ -122,6 +125,8 @@ export interface GeneEscalation {
     customerPhone?: string
 }
 
+const OFF_TOPIC_REPLY =
+    "I'm Kevin, and property is what I know: homes to rent or buy, BnBs, land and bank sales. Tell me what you're looking for, an area, a type of home or a budget, and I'll find it."
 const CONVERSATIONS_COLLECTION = 'gene_conversations'
 const ESCALATIONS_COLLECTION = 'gene_escalations'
 
@@ -586,7 +591,12 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             // No AI provider (or it failed): Kevin answers from the real listings himself
             // (kevin-brain.ts) instead of repeating one canned line.
             let brain: BrainResult | null = null
-            if (persona === 'kevin' && !aiReply) {
+            // Without an AI, the brain treats whatever it hears as a home search. Talk that has nothing to do with
+            // property (and no property conversation under way, no welcome questions being answered) must not become
+            // a search, a "wanted" place or a saved need: he just says what he is for.
+            const offTopic =
+                persona === 'kevin' && !aiReply && !intaking && !conversation.propertyRelated && !isAboutProperties(message) && intent !== 'human_handoff_request'
+            if (persona === 'kevin' && !aiReply && !offTopic) {
                 try {
                     brain = await converse({
                         message,
@@ -603,8 +613,8 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                     console.error('[gene/chat] Kevin brain failed, using the canned reply:', err)
                 }
             }
-            const usedAi = aiReply !== null || brain !== null
-            let reply = aiReply ?? brain?.reply ?? cannedReply(intent, persona)
+            const usedAi = aiReply !== null || brain !== null || offTopic
+            let reply = aiReply ?? brain?.reply ?? (offTopic ? OFF_TOPIC_REPLY : null) ?? cannedReply(intent, persona)
 
             // Kevin flags "wants a human" in any language with a token (see
             // KEVIN_PERSONA_PROMPT), and asks for an on-screen action with
@@ -691,16 +701,26 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                 reply = `Thanks for sharing your contact details — a member of our team may follow up if you need anything specific. ${reply}`
             }
 
+            // Only real-estate talk is kept. A turn is kept when it is about property (or the conversation already
+            // is), when Kevin ran a search or learned something about the visitor's need, when contact details were
+            // shared, or when they asked for a person. Anything else (small talk, the weather) is answered and forgotten.
+            if (isAboutProperties(message) || search || leadUpdate || justCapturedLead || effectiveIntent === 'human_handoff_request') {
+                conversation.propertyRelated = true
+            }
+            const keep = conversation.propertyRelated === true
+
             const escalated = isLowConfidence(effectiveIntent, usedAi, reply, replyOptions.voice === true || brain !== null)
-            if (escalated) {
+            if (escalated && keep) {
                 const reason = effectiveIntent === 'human_handoff_request' ? 'human_handoff_request' : 'low_confidence_reply'
                 writeEscalation(sessionId, message, reason)
             }
 
-            conversation.messages.push({ role: 'assistant', text: reply, intent: effectiveIntent, createdAt: nowIso() })
-            saveConversation(conversation)
+            if (keep) {
+                conversation.messages.push({ role: 'assistant', text: reply, intent: effectiveIntent, createdAt: nowIso() })
+                saveConversation(conversation)
+            }
             // One thread for a signed-in visitor across Kevin, the My Agent panel and WhatsApp.
-            if (persona === 'kevin' && signedIn) {
+            if (keep && persona === 'kevin' && signedIn) {
                 try {
                     appendAgentMessage(signedIn.id, 'user', message)
                     appendAgentMessage(signedIn.id, 'assistant', reply)

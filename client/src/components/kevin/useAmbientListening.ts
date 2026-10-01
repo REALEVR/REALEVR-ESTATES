@@ -7,10 +7,10 @@ import { isAboutProperties } from './propertyTalk'
  *
  * This is the only place the site listens continuously, so it is deliberately
  * narrow and honest:
- *  - The caller starts it only when the browser has already been given
- *    permission (it never causes a permission prompt by itself), and leaves a
- *    visible toggle to turn it off for good. `active` is true exactly while the
- *    microphone is open, so the UI can always show it.
+ *  - The caller starts it on arrival (the browser asks for the microphone once,
+ *    ever; after that only if it was allowed) and leaves a visible toggle to turn
+ *    it off for good. `active` is true exactly while the microphone is open, so
+ *    the UI can always show it.
  *  - It reacts only to speech about property (renting, buying, selling, homes,
  *    land, stays, anywhere in the world) or said to him by name. Everything else
  *    heard is let go, so a conversation in the room or a television never opens him.
