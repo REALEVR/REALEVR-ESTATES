@@ -10,6 +10,12 @@ const DOCS = [
   { href: "/auction-terms", title: "Auction Terms and Conditions", text: "How live bank-sale auctions work, including the commitment fee.", Icon: Gavel },
   { href: "/bidder-vetting", title: "Bidder Vetting Policy", text: "How we verify bidders and protect what they give us.", Icon: ShieldCheck },
   { href: "/trust-safety", title: "Trust & Safety", text: "How to avoid fraud, and how we keep listings honest.", Icon: ScrollText },
+  { href: "/acceptable-use", title: "Acceptable Use Policy", text: "What you may and may not do on the platform.", Icon: ScrollText },
+  { href: "/aml-sanctions", title: "Anti-Money-Laundering and Sanctions", text: "How we guard against dirty money, sanctions and bribery.", Icon: ShieldCheck },
+  { href: "/data-rights", title: "Your data rights", text: "Ask for a copy, correction or deletion of your data.", Icon: Lock },
+  { href: "/partner-terms", title: "Partner Terms", text: "For banks, developers, agencies and other partners.", Icon: FileText },
+  { href: "/fees", title: "Fee Schedule", text: "Every fee we charge, by country, and which are refundable.", Icon: Receipt },
+  { href: "/legal/regions", title: "Laws by region", text: "The laws we design around in each part of the world.", Icon: ScrollText },
 ];
 
 export default function LegalCenter() {
@@ -44,7 +50,7 @@ export default function LegalCenter() {
         <li>We are a platform that shows properties, virtual tours and live auctions. We are not a bank, a lender, a licensed valuer or a law firm, and nothing on the site is legal, tax, investment or financial advice.</li>
         <li>Listings are provided by owners, agents, developers and banks. We check what we can, but you should verify title, condition and the seller's authority before you pay for or commit to anything.</li>
         <li>Virtual tours and photos are there to help you look; they are not a survey or a promise about a property.</li>
-        <li>We will never ask you to pay into a personal account. Payments are made through the details shown inside your signed-in account.</li>
+        <li>We take payments only to the payee details shown inside your signed-in account, including the account name to check before you pay. We never ask you to pay anywhere else, by message, call or email. Our fees are listed on the <Link href="/fees">Fee Schedule</Link>.</li>
       </ul>
 
       <h2>Making a complaint</h2>
@@ -53,10 +59,10 @@ export default function LegalCenter() {
         <li><strong>We acknowledge it</strong> within two working days and tell you who is handling it.</li>
         <li><strong>We reply</strong> with our findings and what we will do within 14 days. If it needs longer we say why and when.</li>
         <li><strong>If you are not satisfied,</strong> ask for it to be reviewed by a senior member of our team, who will reply within a further 14 days.</li>
-        <li><strong>Still not settled?</strong> We will try mediation before either side goes to court. These matters are governed by the laws of Uganda.</li>
+        <li><strong>Still not settled?</strong> We will try mediation before either side goes to court. These matters are governed by the laws of Uganda, subject to any mandatory rights you have where you live.</li>
       </ol>
       <p>
-        Complaints about how we handle personal data may also be made to Uganda's Personal Data Protection Office.
+        Complaints about how we handle personal data may also be made to Uganda's Personal Data Protection Office, or to the authority in your country (see <Link href="/legal/regions">the list by region</Link>).
       </p>
 
       <h2>Reporting a listing, a bidder or a concern</h2>

@@ -54,7 +54,7 @@ export default function AuctionTerms() {
         <li>It is not a guarantee of anything: it does not reserve the property for you and does not make a bid binding on the seller.</li>
         <li>The only cases in which we return it are (a) we took it by mistake or twice, and (b) a court or law that applies to you requires us to. If the auction is cancelled before it opens, we will refund it only if the seller or we cancel it without a good reason connected to you.</li>
         <li>You must tick a box confirming that you understand this before the payment details are shown.</li>
-        <li>We confirm receipt by hand. You can bid only after we have confirmed that the fee has arrived. We never ask for it into a personal account or by any method other than the details shown to you inside your signed-in RealEVR account. If anyone asks you to pay somewhere else, do not, and tell us.</li>
+        <li>We confirm receipt by hand. You can bid only after we have confirmed that the fee has arrived. We take it only to the payee details shown to you inside your signed-in RealEVR account, including the account name: check that the name shown when you pay matches before you confirm. If anyone asks you to pay anywhere else, or by any other method, do not, and tell us. When your payment arrives (often within minutes, because we match the receipt to your reference), you are told in the app.</li>
       </ul>
 
       <h2>5. How bidding works</h2>

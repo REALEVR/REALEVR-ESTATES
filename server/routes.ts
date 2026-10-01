@@ -48,6 +48,7 @@ import { registerKevinVoiceRoutes } from './gene/kevin-voice'
 import { registerTourHealthRoutes, scheduleTourHealthAtStartup } from './gene/tour-health'
 import { registerAuctionRoutes, startAuctionService } from './gene/auctions'
 import { registerPaymentSettingsRoutes } from './gene/payment-settings'
+import { registerDataRequestRoutes } from './gene/data-requests'
 import { registerGeneIngestionRoutes } from './gene/ingestion'
 import { registerGeneAnalyticsRoutes } from './gene/analytics'
 import { registerGeneLearningLoopRoutes } from './gene/learning-loop'
@@ -2825,6 +2826,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerTourHealthRoutes(app)
     registerAuctionRoutes(app)
     registerPaymentSettingsRoutes(app)
+    registerDataRequestRoutes(app)
     startAuctionService()
     scheduleTourHealthAtStartup()
     registerGeneIngestionRoutes(app, adminMiddleware)

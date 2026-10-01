@@ -66,6 +66,11 @@ import AdminKevinLeads from '@/pages/AdminKevinLeads'
 import AdminTourHealth from '@/pages/AdminTourHealth'
 import AdminAuctions from '@/pages/AdminAuctions'
 import AdminPayments from '@/pages/AdminPayments'
+import AcceptableUse from '@/pages/AcceptableUse'
+import AmlSanctions from '@/pages/AmlSanctions'
+import LegalRegions from '@/pages/LegalRegions'
+import DataRights from '@/pages/DataRights'
+import AdminDataRequests from '@/pages/AdminDataRequests'
 import AuctionApplyPage from '@/pages/AuctionApplyPage'
 import AuctionTerms from '@/pages/AuctionTerms'
 import BidderVetting from '@/pages/BidderVetting'
@@ -112,6 +117,10 @@ function Router() {
             <Route path="/auction-terms" component={AuctionTerms} />
             <Route path="/bidder-vetting" component={BidderVetting} />
             <Route path="/legal" component={LegalCenter} />
+            <Route path="/legal/regions" component={LegalRegions} />
+            <Route path="/acceptable-use" component={AcceptableUse} />
+            <Route path="/aml-sanctions" component={AmlSanctions} />
+            <Route path="/data-rights" component={DataRights} />
             <Route path="/partners" component={PartnersPage} />
             <Route path="/auctions/apply" component={AuctionApplyPage} />
             {/* Footer previously linked these three at "#" — no real content
@@ -221,6 +230,7 @@ function Router() {
             <ProtectedAdminRoute path="/admin/tour-health" component={AdminTourHealth} allowedRoles={['admin']} />
             <ProtectedAdminRoute path="/admin/auctions" component={AdminAuctions} allowedRoles={['admin', 'agent']} />
             <ProtectedAdminRoute path="/admin/payments" component={AdminPayments} allowedRoles={['admin']} />
+            <ProtectedAdminRoute path="/admin/data-requests" component={AdminDataRequests} allowedRoles={['admin']} />
             {/* Strictly admin-only — phone numbers and point redemptions, see server/gene/building-recommendations.ts. */}
             <ProtectedAdminRoute path="/admin/recommendations" component={AdminRecommendations} allowedRoles={['admin']} />
             {/* Strictly admin-only — platform-wide user PII / mass

@@ -5,7 +5,7 @@ export default function CookiePolicy() {
     <div className="container mx-auto px-4 py-12">
       <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-sm">
         <h1 className="text-3xl font-bold mb-6">Cookie Policy</h1>
-        <p className="text-gray-500 mb-8">Last Updated: September 7, 2026</p>
+        <p className="text-gray-500 mb-8">Last Updated: October 1, 2026</p>
 
         <div className="prose max-w-none">
           <p>
@@ -67,13 +67,24 @@ export default function CookiePolicy() {
             cookies and site data at any time from your browser's settings, which resets all of the above.
           </p>
 
-          <h2 className="text-xl font-bold mt-8 mb-4">5. Changes to This Policy</h2>
+          <h2 className="text-xl font-bold mt-8 mb-4">5. Consent, Do Not Track and your region</h2>
+          <p>
+            Where the law (for example the EU/UK ePrivacy rules, GDPR, or Kenya's and Nigeria's data protection laws) requires
+            consent before optional storage, we ask first and set nothing optional until you choose; you can change your choice at
+            any time by clearing this site's data in your browser and answering the banner again. We do not sell personal data or
+            share it for cross-site advertising, so there is nothing to opt out of under US state privacy laws, and we treat a
+            browser "Global Privacy Control" or "Do Not Track" signal as an instruction not to do so either. The microphone (for
+            Kevin) and precise location are separate browser permissions that you grant and can withdraw in your browser's
+            site settings at any time.
+          </p>
+
+          <h2 className="text-xl font-bold mt-8 mb-4">6. Changes to This Policy</h2>
           <p>
             If what this site actually stores changes, this page will be updated and the "Last Updated" date above
             will change with it.
           </p>
 
-          <h2 className="text-xl font-bold mt-8 mb-4">6. Contact Us</h2>
+          <h2 className="text-xl font-bold mt-8 mb-4">7. Contact Us</h2>
           <p>Questions about this policy:</p>
           <address className="not-italic mt-4">
             RealEVR Estates<br />
