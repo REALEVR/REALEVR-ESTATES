@@ -4,6 +4,7 @@ import { runViewingReminders } from './viewingReminders'
 import { postDailyUpdate } from '../social'
 import { sendWeeklyAnalyticsExport } from '../gene/analytics-export'
 import { runTourHealth } from '../gene/tour-health'
+import { finalizeDueAuctions } from '../gene/auctions'
 
 let initialized = false
 
@@ -42,6 +43,11 @@ export function initCronJobs(): void {
         console.log('[Cron] Triggering weekly property analytics export...')
         await sendWeeklyAnalyticsExport()
     }, { timezone: 'Africa/Kampala' })
+
+    // Live auctions close on the minute: the winner is fixed and everyone concerned is told.
+    cron.schedule('* * * * *', () => {
+        finalizeDueAuctions().catch((err) => console.error('[Cron] closing auctions failed:', err))
+    }, { timezone: 'UTC' })
 
     // Every virtual tour is opened the way a visitor's browser would, every six hours; broken ones are reported
     // to the administrators (dashboard bell, email, WhatsApp). TOUR_HEALTH_CRON changes the schedule.
