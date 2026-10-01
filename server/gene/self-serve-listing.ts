@@ -68,13 +68,16 @@ import { hashPassword } from '../auth'
 import { sendWhatsAppMessage } from './whatsapp'
 import { normalizePhone, findLinkByPhone, linkPhoneToUser } from './whatsapp-concierge'
 import { issueMagicLoginLink } from './magic-login'
+import { paidUploadsEnabled } from './paid-uploads'
 import { requireStrictAdmin } from './admin-guard'
 import { notifyAdminsEverywhere } from './admin-notify'
 import { randomBytes } from 'crypto'
 
 const COLLECTION = 'gene_selfserve_submissions'
 const PAYOUT_COLLECTION = 'gene_listing_payout_requests'
-const PAYOUT_AMOUNT_UGX = 1000
+const REFERRAL_FEE_UGX = 1000
+// Paying a fee per upload is switched off (paid-uploads.ts): the listing still goes live after the landlord confirms it.
+const payoutAmountUgx = () => (paidUploadsEnabled() ? REFERRAL_FEE_UGX : 0)
 const OTP_LIFETIME_MS = 10 * 60 * 1000 // 10 minutes
 const OTP_RESEND_COOLDOWN_MS = 45 * 1000
 const MAX_OTP_ATTEMPTS = 5
@@ -319,7 +322,7 @@ export function registerSelfServeListingRoutes(app: Express): void {
             if (!agentName) return res.status(400).json({ message: 'Your name is required.' })
             const agentPhoneWhatsapp = toWhatsappFormat(agentPhoneRaw)
             if (!agentPhoneWhatsapp) {
-                return res.status(400).json({ message: 'Enter a valid Uganda phone number for yourself, e.g. 0770000000 — this is where your payout confirmation and dashboard link go.' })
+                return res.status(400).json({ message: 'Enter a valid Uganda phone number for yourself, e.g. 0770000000 — this is where your dashboard link goes.' })
             }
             if (!landlordName) return res.status(400).json({ message: "The landlord/manager's name is required." })
             const landlordPhoneWhatsapp = toWhatsappFormat(landlordPhoneRaw)
@@ -331,7 +334,7 @@ export function registerSelfServeListingRoutes(app: Express): void {
             // agent and the person verifying them are the same phone.
             if (agentPhoneWhatsapp === landlordPhoneWhatsapp) {
                 return res.status(400).json({
-                    message: "The agent and landlord/manager numbers must be different — RealEVR pays a referral fee for a real introduction, and can't verify a listing where the same number is on both sides.",
+                    message: "The agent and landlord/manager numbers must be different — RealEVR can't verify a listing where the same number is on both sides.",
                 })
             }
 
@@ -352,14 +355,14 @@ export function registerSelfServeListingRoutes(app: Express): void {
                 agentUserId,
                 landlordName,
                 landlordPhoneWhatsapp,
-                payoutAmount: PAYOUT_AMOUNT_UGX,
+                payoutAmount: payoutAmountUgx(),
                 payoutCurrency: 'UGX',
                 otpAttempts: 0,
                 createdAt: nowIso(),
                 updatedAt: nowIso(),
             }
             saveSubmission(submission)
-            res.status(201).json({ submissionId: submission.id, token: submission.token, payoutAmount: PAYOUT_AMOUNT_UGX, payoutCurrency: 'UGX' })
+            res.status(201).json({ submissionId: submission.id, token: submission.token, payoutAmount: submission.payoutAmount, payoutCurrency: 'UGX' })
         } catch (err) {
             console.error('[gene/self-serve] start failed:', err)
             res.status(500).json({ message: 'Could not start your listing. Please try again.' })
@@ -509,25 +512,30 @@ export function registerSelfServeListingRoutes(app: Express): void {
             submission.createdPropertyId = property.id
             saveSubmission(submission)
 
-            const payoutRows = readPayouts()
-            const fraudFlagReason = checkFraudCaps(submission.agentPhoneWhatsapp, submission.landlordPhoneWhatsapp)
-            const payout: ListingPayoutRequest = {
-                id: nextId(payoutRows),
-                submissionId: submission.id,
-                agentUserId: userId,
-                propertyId: property.id,
-                amountUgx: submission.payoutAmount,
-                status: fraudFlagReason ? 'flagged_fraud_review' : 'pending_admin_review',
-                propertyTitle: property.title,
-                agentName: submission.agentName,
-                agentPhone: submission.agentPhoneWhatsapp,
-                landlordName: submission.landlordName,
-                landlordPhone: submission.landlordPhoneWhatsapp,
-                createdAt: nowIso(),
-                ...(fraudFlagReason ? { fraudFlagReason } : {}),
+            const paid = submission.payoutAmount > 0
+            let payout: ListingPayoutRequest | null = null
+            if (paid) {
+                const payoutRows = readPayouts()
+                const fraudFlagReason = checkFraudCaps(submission.agentPhoneWhatsapp, submission.landlordPhoneWhatsapp)
+                const created: ListingPayoutRequest = {
+                    id: nextId(payoutRows),
+                    submissionId: submission.id,
+                    agentUserId: userId,
+                    propertyId: property.id,
+                    amountUgx: submission.payoutAmount,
+                    status: fraudFlagReason ? 'flagged_fraud_review' : 'pending_admin_review',
+                    propertyTitle: property.title,
+                    agentName: submission.agentName,
+                    agentPhone: submission.agentPhoneWhatsapp,
+                    landlordName: submission.landlordName,
+                    landlordPhone: submission.landlordPhoneWhatsapp,
+                    createdAt: nowIso(),
+                    ...(fraudFlagReason ? { fraudFlagReason } : {}),
+                }
+                payoutRows.push(created)
+                writePayouts(payoutRows)
+                payout = created
             }
-            payoutRows.push(payout)
-            writePayouts(payoutRows)
 
             const { url } = issueMagicLoginLink(userId)
             const introLine = isNewAccount
@@ -536,9 +544,11 @@ export function registerSelfServeListingRoutes(app: Express): void {
             const agentMessage = [
                 introLine,
                 `Open it here to add photos or a virtual tour, see interested tenants, and manage availability: ${url}`,
-                `Your ${submission.payoutAmount} UGX listing referral fee is pending review by our team — you'll get a WhatsApp message once it's approved.`,
+                paid ? `Your ${submission.payoutAmount} UGX listing referral fee is pending review by our team — you'll get a WhatsApp message once it's approved.` : '',
                 `You can also just text "dashboard" here anytime for a fresh link, or "available ${property.id}" / "unavailable ${property.id}" to toggle this listing.`,
-            ].join('\n\n')
+            ]
+                .filter(Boolean)
+                .join('\n\n')
             const agentSendResult = await sendWhatsAppMessage(submission.agentPhoneWhatsapp, agentMessage)
 
             // Courtesy confirmation to the landlord — they now have a record
@@ -548,14 +558,16 @@ export function registerSelfServeListingRoutes(app: Express): void {
                 `Thanks for confirming! "${property.title}" is now live on RealEVR Estates, listed by ${submission.agentName}. If you didn't authorize this, reply here or contact us at realevrestates.com/contact.`
             )
 
-            notifyAdminsOfPendingPayout(payout).catch((err) =>
-                console.error('[gene/self-serve] admin payout notification failed:', err)
-            )
+            if (payout) {
+                notifyAdminsOfPendingPayout(payout).catch((err) =>
+                    console.error('[gene/self-serve] admin payout notification failed:', err)
+                )
+            }
 
             res.json({
                 status: 'live',
                 propertyId: property.id,
-                payoutStatus: payout.status,
+                payoutStatus: payout?.status ?? null,
                 whatsappConfigured: agentSendResult.sent,
                 dashboardUrl: agentSendResult.sent ? undefined : url,
             })

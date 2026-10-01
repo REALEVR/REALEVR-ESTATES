@@ -138,13 +138,18 @@ function ListingEarningsCard() {
     const requestPayout = useRequestListingPayout()
     const balance = balanceQuery.data
 
+    // Nothing was ever earned and nothing new accrues: no reason to show an empty card.
+    if (balance && balance.totalUgx === 0 && !(payoutsQuery.data && payoutsQuery.data.length > 0)) return null
+
     return (
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Building2 className="h-5 w-5 text-primary" /> Listing Earnings
                 </CardTitle>
-                <CardDescription>Earn money for every property you list. Claim once you reach 10,000 UGX.</CardDescription>
+                <CardDescription>
+                    Listing a property no longer earns money. What you already earned is yours to claim once you reach 10,000 UGX.
+                </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 {balanceQuery.isLoading ? (
