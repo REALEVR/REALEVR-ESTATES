@@ -64,6 +64,10 @@ import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
 import AdminRoomCaptures from '@/pages/AdminRoomCaptures'
 import AdminKevinLeads from '@/pages/AdminKevinLeads'
 import AdminTourHealth from '@/pages/AdminTourHealth'
+import AuctionTerms from '@/pages/AuctionTerms'
+import BidderVetting from '@/pages/BidderVetting'
+import LegalCenter from '@/pages/LegalCenter'
+import PartnersPage from '@/pages/PartnersPage'
 import AdminRecommendations from '@/pages/AdminRecommendations'
 import PlaceBar from '@/components/PlaceBar'
 import PlaceHomesPage from '@/pages/PlaceHomesPage'
@@ -102,6 +106,10 @@ function Router() {
             <Route path="/terms" component={TermsOfService} />
             <Route path="/cookies" component={CookiePolicy} />
             <Route path="/refund-policy" component={RefundPolicy} />
+            <Route path="/auction-terms" component={AuctionTerms} />
+            <Route path="/bidder-vetting" component={BidderVetting} />
+            <Route path="/legal" component={LegalCenter} />
+            <Route path="/partners" component={PartnersPage} />
             {/* Footer previously linked these three at "#" — no real content
                 exists for them yet (no job listings, investor materials, or
                 news articles to show honestly), so each gets a real,
