@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AudioLines, Globe, Mic, Send, Sparkles, Volume2, VolumeX, X } from 'lucide-react'
+import { AudioLines, Globe, MessageCircle, Mic, Send, Sparkles, Volume2, VolumeX, X } from 'lucide-react'
 import { Link, useLocation } from 'wouter'
 import { useAuth } from '@/hooks/use-auth'
 import { apiRequest } from '@/lib/queryClient'
@@ -14,6 +14,7 @@ import {
 } from './kevinLanguages'
 import { chime, useKevinVoice } from './useKevinVoice'
 import { useAmbientListening } from './useAmbientListening'
+import { interestText, recordInterest, useKevinWhatsapp, whatsappHref } from './useKevinWhatsapp'
 import Orb from './Orb'
 import ResultCards from './ResultCards'
 import VoiceStage, { type VoicePhase } from './VoiceStage'
@@ -92,6 +93,7 @@ type Message =
   | { id: number; kind: 'note'; text: string }
   | { id: number; kind: 'picker' }
   | { id: number; kind: 'cards'; cards: KevinCard[] }
+  | { id: number; kind: 'whatsapp' }
 
 // A message before it's been given an id (Omit distributed over the union, so
 // each variant keeps its own fields).
@@ -179,6 +181,10 @@ export default function KevinOrb() {
   // Browsers refuse to play sound before the visitor's first tap, so a reply that
   // arrives sooner waits (on screen, in text) and is spoken at that first tap.
   const [needsTap, setNeedsTap] = useState(false)
+  // WhatsApp: the owner's number, who the visitor is (for the message), and whether Kevin just offered it.
+  const waNumber = useKevinWhatsapp()
+  const [leadName, setLeadName] = useState<string | null>(null)
+  const [offerWhatsapp, setOfferWhatsapp] = useState(false)
 
   // Voice mode
   const [voiceMode, setVoiceMode] = useState(false)
@@ -397,6 +403,7 @@ export default function KevinOrb() {
     setLastReply('')
     setMessages((prev) => [...prev.filter((m) => m.kind !== 'picker'), { id: nextId(), kind: 'text', role: 'user', text: message }])
     setBusy(true)
+    setOfferWhatsapp(false)
     if (opts.voice) setPhase('thinking')
     try {
       const current = langRef.current
@@ -417,6 +424,8 @@ export default function KevinOrb() {
         setIntakeDone(true)
       }
 
+      if (typeof data.lead?.name === 'string' && data.lead.name) setLeadName(data.lead.name)
+
       const found: KevinCard[] = Array.isArray(data.results) ? data.results : []
       if (data.action?.type === 'results') {
         setCards(found)
@@ -430,6 +439,11 @@ export default function KevinOrb() {
       if (opts.voice) setHeard('') // the answer takes the place of the words they said
       const spoke = kevinSays(text, current, opts.voice ? () => actionsRef.current.beginListening(true) : undefined)
       if (opts.voice) setPhase(spoke ? 'speaking' : 'idle')
+      // The button comes right after what he said about it.
+      if (data.whatsapp === true) {
+        setOfferWhatsapp(true)
+        push({ kind: 'whatsapp' })
+      }
       runAction(data.action)
     } catch {
       kevinSays(stringsFor(langRef.current).error)
@@ -646,6 +660,31 @@ export default function KevinOrb() {
     },
   })
 
+  // "Message the owner": about a home when there is one on screen, else in general.
+  const generalWhatsapp = () => {
+    const first = shownRef.current[0]
+    const who = leadName ? `Hi, I'm ${leadName}. ` : 'Hi! '
+    return waNumber
+      ? whatsappHref(
+          waNumber,
+          first
+            ? `${who}I'm interested in "${first.title}" on RealEVR Estates: ${window.location.origin}/property/${first.id}`
+            : `${who}I'm interested in a property on RealEVR Estates.`,
+        )
+      : '#'
+  }
+  const tapGeneralWhatsapp = () => {
+    const first = shownRef.current[0]
+    if (first) recordInterest(sessionIdRef.current, first.id)
+  }
+  const cardWhatsapp = waNumber
+    ? {
+        label: 'WhatsApp', // the card is narrow: the brand name says it
+        href: (c: KevinCard) => whatsappHref(waNumber, interestText(c, leadName)),
+        onTap: (c: KevinCard) => recordInterest(sessionIdRef.current, c.id),
+      }
+    : null
+
   const toggleMute = () => {
     const next = !muted
     setMuted(next)
@@ -839,6 +878,19 @@ export default function KevinOrb() {
                 <Sparkles size={19} />
               </button>
             )}
+            {waNumber && (
+              <a
+                href={generalWhatsapp()}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={tapGeneralWhatsapp}
+                title={strings.whatsapp}
+                aria-label={strings.whatsapp}
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#25D366]/85 transition hover:bg-white/10 hover:text-[#25D366]"
+              >
+                <MessageCircle size={19} />
+              </a>
+            )}
             {voice.canSpeak && (
               <button
                 type="button"
@@ -907,6 +959,8 @@ export default function KevinOrb() {
               onOrbTap={onStageOrbTap}
               onOpenCard={openCard}
               onType={exitVoiceMode}
+              cardWhatsapp={cardWhatsapp}
+              offer={waNumber && offerWhatsapp ? { label: strings.whatsapp, href: generalWhatsapp(), onTap: tapGeneralWhatsapp } : null}
             />
           ) : (
             <>
@@ -922,9 +976,25 @@ export default function KevinOrb() {
               if (m.kind === 'cards') {
                 return (
                   <div key={m.id} className="pl-9">
-                    <ResultCards cards={m.cards} onOpen={openCard} />
+                    <ResultCards cards={m.cards} onOpen={openCard} whatsapp={cardWhatsapp} />
                   </div>
                 )
+              }
+              if (m.kind === 'whatsapp') {
+                return waNumber ? (
+                  <div key={m.id} className="pl-9">
+                    <a
+                      href={generalWhatsapp()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={tapGeneralWhatsapp}
+                      className="kevin-rise inline-flex min-h-11 items-center gap-2 rounded-full bg-[#25D366] px-5 text-sm font-semibold text-[#06260f] shadow-lg transition hover:brightness-110"
+                    >
+                      <MessageCircle size={16} aria-hidden="true" />
+                      {strings.whatsapp}
+                    </a>
+                  </div>
+                ) : null
               }
               if (m.kind === 'picker') {
                 return (

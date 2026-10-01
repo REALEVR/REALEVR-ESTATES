@@ -164,6 +164,7 @@ export default function PropertyForm({ property: initialProperty, onSuccess }: P
     hostPhone: '',
     landlordName: '',
     landlordPhone: '',
+    availableFrom: '',
   };
 
   const form = useForm<PropertyFormValues>({
@@ -1042,6 +1043,25 @@ const onSubmit = async (data: PropertyFormValues) => {
                             onCheckedChange={field.onChange}
                           />
                         </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* When a not-yet-available home opens: Kevin tells visitors what is coming up from this. */}
+                  <FormField
+                    control={form.control}
+                    name="availableFrom"
+                    render={({ field }) => (
+                      <FormItem className="rounded-lg border p-4">
+                        <FormLabel className="text-base">Available from (optional)</FormLabel>
+                        <FormDescription>
+                          Leave empty if it is available now. If it opens later, pick the date: Kevin
+                          will tell interested visitors it is coming up.
+                        </FormDescription>
+                        <FormControl>
+                          <Input type="date" {...field} value={(field.value as string) || ''} />
+                        </FormControl>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />

@@ -43,12 +43,30 @@ export interface KevinLead {
     need?: string
     location?: string
     budget?: string
+    // What kind of place they are after, as numbers the owner can count: this is
+    // the "which properties should we add" picture (see summarizeDemand).
+    category?: string
+    propertyType?: string
+    bedrooms?: number
+    minBudget?: number // shillings
+    maxBudget?: number
+    // The "shifting soon" category: people about to move are the most valuable
+    // leads, so they are flagged on their own and the team is told separately.
+    movingSoon?: boolean
+    moveTiming?: string
+    // Searches that Kevin ran for them, with whether anything matched.
+    searches?: Array<{ query: Record<string, unknown>; total: number; at: string }>
+    // Homes they said they are interested in (tapped WhatsApp about, etc.).
+    interest?: Array<{ propertyId: number; title: string; at: string }>
+    // Bookkeeping for the no-AI conversation (kevin-brain.ts).
+    lastAsk?: string
+    asks?: Record<string, number>
     language?: string
     declined?: boolean
     userId?: number
     accountEmail?: string
     consentNotice: string
-    notified?: { contact?: boolean; need?: boolean }
+    notified?: { contact?: boolean; need?: boolean; mover?: boolean }
     createdAt: string
     updatedAt: string
 }
@@ -60,6 +78,17 @@ export interface LeadUpdate {
     need?: string
     location?: string
     budget?: string
+    category?: string
+    propertyType?: string
+    bedrooms?: number
+    minBudget?: number
+    maxBudget?: number
+    movingSoon?: boolean
+    moveTiming?: string
+    lastAsk?: string
+    asks?: Record<string, number>
+    /** Internal: a different kind of home was asked for, so the old bedrooms, budget and type no longer apply. */
+    resetWants?: boolean
     declined?: boolean
 }
 
@@ -71,6 +100,7 @@ const LEAD_TOKEN = /\[\[\s*LEAD\b([^\]]*)\]\]/gi
 // Built from strings: the `u` flag as a literal trips this repo's tsc target.
 const NOT_NAME_CHARS = new RegExp("[^\\p{L}\\p{M} '’.-]", 'gu')
 const CONTROL_CHARS = new RegExp('[\\u0000-\\u001f\\u007f]', 'g')
+const CATEGORY_VALUES = ['rental_units', 'for_sale', 'furnished_houses', 'bank_sales']
 const EMAIL = /^[^\s@<>"]{1,64}@[^\s@<>"]{1,190}\.[^\s@<>".]{2,}$/
 
 function clean(value: unknown, max: number): string | undefined {
@@ -100,6 +130,27 @@ export function sanitizeLeadUpdate(raw: unknown): LeadUpdate {
     const budget = clean(input.budget, 60)
     if (budget) update.budget = budget
     if (input.declined === true) update.declined = true
+    const category = clean(input.category, 20)
+    if (category && CATEGORY_VALUES.includes(category)) update.category = category
+    const propertyType = clean(input.propertyType, 30)?.toLowerCase()
+    if (propertyType) update.propertyType = propertyType
+    const bedrooms = Number(input.bedrooms)
+    if (Number.isInteger(bedrooms) && bedrooms >= 1 && bedrooms <= 20) update.bedrooms = bedrooms
+    for (const key of ['minBudget', 'maxBudget'] as const) {
+        const n = Number(input[key])
+        if (Number.isFinite(n) && n > 0 && n <= 1e12) update[key] = Math.round(n)
+    }
+    if (typeof input.movingSoon === 'boolean') update.movingSoon = input.movingSoon
+    const moveTiming = clean(input.moveTiming, 60)
+    if (moveTiming) update.moveTiming = moveTiming
+    if (typeof input.lastAsk === 'string') update.lastAsk = clean(input.lastAsk, 12) ?? ''
+    if (input.asks && typeof input.asks === 'object') {
+        const asks: Record<string, number> = {}
+        for (const [slot, n] of Object.entries(input.asks as Record<string, unknown>).slice(0, 6)) {
+            if (/^[a-z]{2,10}$/.test(slot) && Number.isInteger(n) && (n as number) >= 0 && (n as number) < 20) asks[slot] = n as number
+        }
+        update.asks = asks
+    }
     return update
 }
 
@@ -146,9 +197,21 @@ export const isIntakeComplete = (lead: KevinLead | null): boolean =>
 
 export function mergeLead(existing: KevinLead, update: LeadUpdate): KevinLead {
     const next: KevinLead = { ...existing }
-    for (const key of ['name', 'email', 'phone', 'need', 'location', 'budget'] as const) {
-        if (update[key]) next[key] = update[key]
+    if (update.resetWants) {
+        delete next.bedrooms
+        delete next.minBudget
+        delete next.maxBudget
+        delete next.propertyType
+        delete next.budget
     }
+    for (const key of ['name', 'email', 'phone', 'need', 'location', 'budget', 'category', 'propertyType', 'bedrooms', 'minBudget', 'maxBudget', 'moveTiming'] as const) {
+        if (update[key]) (next as unknown as Record<string, unknown>)[key] = update[key]
+    }
+    if (typeof update.movingSoon === 'boolean') next.movingSoon = update.movingSoon
+    if (update.lastAsk !== undefined) next.lastAsk = update.lastAsk
+    if (update.asks) next.asks = update.asks
+    // A new price range replaces the old one rather than blending with it.
+    if (update.maxBudget && !update.minBudget) delete next.minBudget
     // Giving contact details after earlier declining is a change of mind.
     if (update.declined && !isContactable(next)) next.declined = true
     if (isContactable(next)) next.declined = false
@@ -164,11 +227,15 @@ export function describeLead(lead: KevinLead | null, account: User | null): stri
     if (lead?.need) known.push(`looking for: ${lead.need}`)
     if (lead?.location) known.push(`area: ${lead.location}`)
     if (lead?.budget) known.push(`budget: ${lead.budget}`)
+    if (lead?.bedrooms) known.push(`bedrooms: ${lead.bedrooms}`)
+    if (lead?.propertyType) known.push(`type: ${lead.propertyType}`)
+    if (lead?.movingSoon) known.push(`moving soon${lead.moveTiming ? ` (${lead.moveTiming})` : ''}`)
     const contact = lead?.email ?? lead?.phone ?? account?.email
     if (contact) known.push(`contact: ${contact}`)
     const missing: string[] = []
     if (!name) missing.push('their first name')
     if (!lead?.need) missing.push('what they are looking for (renting, buying, a BnB stay or listing a property), the area and a rough budget')
+    if (lead?.movingSoon === undefined) missing.push('whether they are shifting soon, and when')
     if (!contact) missing.push('an email address or WhatsApp number')
     const signedIn = account ? ` The visitor is signed in to their RealEVR account (${account.email}), so you already have a way to reach them.` : ''
     return `Known so far: ${known.length ? known.join('; ') : 'nothing yet'}.${signedIn} Still to ask, in this order: ${missing.length ? missing.join('; then ') : 'nothing, you have it all'}.`
@@ -206,7 +273,7 @@ export async function saveLead(lead: KevinLead): Promise<void> {
     }
 }
 
-export async function listLeads(): Promise<KevinLead[]> {
+export async function listLeads(options: { includeAnonymous?: boolean } = {}): Promise<KevinLead[]> {
     const byId = new Map<string, KevinLead>()
     for (const lead of readCollection<KevinLead>(COLLECTION)) byId.set(lead.sessionId, lead)
     try {
@@ -219,7 +286,7 @@ export async function listLeads(): Promise<KevinLead[]> {
         console.error('[kevin-leads] could not read leads from the database (showing local copy):', err)
     }
     return Array.from(byId.values())
-        .filter((l) => l.name || l.email || l.phone || l.need)
+        .filter((l) => options.includeAnonymous || l.name || l.email || l.phone || l.need)
         .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
 }
 
@@ -254,26 +321,32 @@ async function linkAccount(lead: KevinLead, signedIn: User | null): Promise<User
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string)
 
-function notifyTeam(lead: KevinLead, reason: 'new' | 'update'): void {
+function notifyTeam(lead: KevinLead, reason: 'new' | 'update' | 'mover'): void {
     const rows: Array<[string, string | undefined]> = [
         ['Name', lead.name],
         ['Email', lead.email],
         ['Phone / WhatsApp', lead.phone],
         ['Looking for', lead.need],
         ['Area', lead.location],
-        ['Budget', lead.budget],
+        ['Budget', lead.budget ?? (lead.maxBudget ? `up to ${lead.maxBudget.toLocaleString('en-US')} UGX` : undefined)],
+        ['Shifting soon', lead.movingSoon ? lead.moveTiming ?? 'yes' : undefined],
         ['Language', lead.language],
         ['RealEVR account', lead.accountEmail ? `${lead.accountEmail} (user ${lead.userId})` : 'not signed in'],
     ]
     const shown = rows.filter((r): r is [string, string] => !!r[1])
-    const title = reason === 'new' ? `New lead from Kevin${lead.name ? `: ${lead.name}` : ''}` : `Kevin learned more about ${lead.name ?? 'a lead'}`
+    const title =
+        reason === 'mover'
+            ? `Shifting soon${lead.moveTiming ? ` (${lead.moveTiming})` : ''}: ${lead.name ?? 'a visitor'}`
+            : reason === 'new'
+              ? `New lead from Kevin${lead.name ? `: ${lead.name}` : ''}`
+              : `Kevin learned more about ${lead.name ?? 'a lead'}`
     notifyAdminsEverywhere({
         title,
         message: shown.map(([k, v]) => `${k}: ${v}`).join(' | '),
         html: `<p>A visitor told Kevin about themselves.</p><table cellpadding="6" style="border-collapse:collapse">${shown
             .map(([k, v]) => `<tr><td style="color:#666">${esc(k)}</td><td><strong>${esc(v)}</strong></td></tr>`)
             .join('')}</table><p>See every lead in the admin dashboard under Leads.</p>`,
-        whatsappMessage: `🧭 ${title}\n${shown.map(([k, v]) => `${k}: ${v}`).join('\n')}`,
+        whatsappMessage: `${reason === 'mover' ? '🚚' : '🧭'} ${title}\n${shown.map(([k, v]) => `${k}: ${v}`).join('\n')}`,
         link: '/admin/kevin-leads',
         data: { sessionId: lead.sessionId, leadId: lead.id },
     }).catch((err) => console.error('[kevin-leads] team notification failed:', err))
@@ -289,12 +362,14 @@ export async function recordLeadTurn(args: {
     update: LeadUpdate | null
     signedIn: User | null
     language?: string
+    /** A search Kevin ran for them: kept so the owner can see what people look for and do not find. */
+    search?: { query: Record<string, unknown>; total: number }
 }): Promise<KevinLead | null> {
     try {
-        const { sessionId, update, signedIn, language } = args
+        const { sessionId, update, signedIn, language, search } = args
         let lead = await getLead(sessionId)
         const touched = !!update && Object.keys(update).length > 0
-        if (!lead && !touched && !signedIn) return null
+        if (!lead && !touched && !signedIn && !search) return null
 
         const now = nowIso()
         const hadNeed = !!lead?.need
@@ -306,12 +381,24 @@ export async function recordLeadTurn(args: {
             lead = mergeLead(lead, { name: lead.name ? undefined : signedIn.fullName, email: lead.email ? undefined : signedIn.email.toLowerCase() })
         }
         if (touched) lead = mergeLead(lead, update!)
+        if (search) {
+            const log = (lead.searches = lead.searches ?? [])
+            const key = JSON.stringify(search.query)
+            if (!log.some((x) => JSON.stringify(x.query) === key)) log.push({ query: search.query, total: search.total, at: nowIso() })
+            if (log.length > 12) log.splice(0, log.length - 12)
+        }
 
         await linkAccount(lead, signedIn)
 
         const notified = (lead.notified = lead.notified ?? {})
-        let notify: 'new' | 'update' | null = null
-        if (isContactable(lead) && !notified.contact && (!signedIn || lead.need || touched)) {
+        let notify: 'new' | 'update' | 'mover' | null = null
+        if (lead.movingSoon && isContactable(lead) && !notified.mover) {
+            // People about to move get their own alert, not a line in the general lead stream.
+            notified.mover = true
+            notified.contact = true
+            if (lead.need) notified.need = true
+            notify = 'mover'
+        } else if (isContactable(lead) && !notified.contact && (!signedIn || lead.need || touched)) {
             // A signed-in visitor is contactable from the start; wait until they have actually said something.
             notified.contact = true
             if (lead.need) notified.need = true
@@ -327,5 +414,100 @@ export async function recordLeadTurn(args: {
     } catch (err) {
         console.error('[kevin-leads] could not record the lead:', err)
         return null
+    }
+}
+
+
+// ---------------------------------------------------------------------------
+// Homes they care about
+// ---------------------------------------------------------------------------
+
+/** They tapped through to WhatsApp (or otherwise showed interest) about a specific home: keep it, and tell the team. */
+export async function recordInterest(args: { sessionId: string; signedIn: User | null; property: { id: number; title: string; location?: string } }): Promise<boolean> {
+    try {
+        const { sessionId, signedIn, property } = args
+        let lead = await getLead(sessionId)
+        const now = nowIso()
+        lead = lead ?? { id: dbId(sessionId), sessionId, consentNotice: CONSENT_NOTICE_VERSION, createdAt: now, updatedAt: now }
+        if (signedIn) lead = mergeLead(lead, { name: lead.name ? undefined : signedIn.fullName, email: lead.email ? undefined : signedIn.email.toLowerCase() })
+        const list = (lead.interest = lead.interest ?? [])
+        if (list.some((i) => i.propertyId === property.id)) return true // already told the team
+        list.push({ propertyId: property.id, title: property.title.slice(0, 100), at: now })
+        if (list.length > 10) list.splice(0, list.length - 10)
+        lead.updatedAt = now
+        await linkAccount(lead, signedIn)
+        await saveLead(lead)
+        const who = lead.name ?? signedIn?.fullName ?? 'A visitor'
+        const where = property.location ? ` in ${property.location}` : ''
+        notifyAdminsEverywhere({
+            title: `Interested in ${property.title}`,
+            message: `${who} is opening WhatsApp about ${property.title}${where}. ${lead.phone ?? lead.email ?? ''}`.trim(),
+            whatsappMessage: `💬 ${who} is opening WhatsApp about ${property.title}${where}.${lead.phone ? ` Number: ${lead.phone}` : ''}`,
+            link: '/admin/kevin-leads',
+            data: { sessionId, propertyId: property.id },
+        }).catch((err) => console.error('[kevin-leads] interest notification failed:', err))
+        return true
+    } catch (err) {
+        console.error('[kevin-leads] could not record interest:', err)
+        return false
+    }
+}
+
+// ---------------------------------------------------------------------------
+// What people are asking for: the "which properties should we add" picture
+// ---------------------------------------------------------------------------
+
+export interface DemandRow {
+    category: string
+    location: string
+    bedrooms: number | null
+    maxBudget: number | null
+    people: number
+    /** How many of those people's searches found nothing exact. */
+    unmet: number
+    lastAt: string
+}
+
+const budgetBand = (n?: number): number | null => {
+    if (!n) return null
+    const steps = [300_000, 500_000, 800_000, 1_200_000, 2_000_000, 3_500_000, 6_000_000, 10_000_000, 25_000_000, 60_000_000, 150_000_000, 500_000_000]
+    return steps.find((step) => n <= step) ?? steps[steps.length - 1]
+}
+
+export function summarizeDemand(leads: KevinLead[]) {
+    const rows = new Map<string, DemandRow>()
+    for (const lead of leads) {
+        if (!lead.category && !lead.location && !lead.bedrooms && !lead.maxBudget && !lead.propertyType) continue
+        const row: DemandRow = {
+            category: lead.category ?? 'any',
+            location: lead.location ?? 'any area',
+            bedrooms: lead.bedrooms ?? null,
+            maxBudget: budgetBand(lead.maxBudget),
+            people: 1,
+            unmet: lead.searches?.some((x) => x.total === 0) ? 1 : 0,
+            lastAt: lead.updatedAt,
+        }
+        const key = `${row.category}|${row.location.toLowerCase()}|${row.bedrooms}|${row.maxBudget}`
+        const have = rows.get(key)
+        if (have) {
+            have.people++
+            have.unmet += row.unmet
+            if (row.lastAt > have.lastAt) have.lastAt = row.lastAt
+        } else rows.set(key, row)
+    }
+    const count = (pick: (l: KevinLead) => string | undefined) => {
+        const m = new Map<string, number>()
+        for (const l of leads) {
+            const v = pick(l)
+            if (v) m.set(v, (m.get(v) ?? 0) + 1)
+        }
+        return Array.from(m.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, people]) => ({ name, people }))
+    }
+    return {
+        visitors: leads.length,
+        movingSoon: leads.filter((l) => l.movingSoon).length,
+        rows: Array.from(rows.values()).sort((a, b) => b.unmet - a.unmet || b.people - a.people || (a.lastAt < b.lastAt ? 1 : -1)).slice(0, 40),
+        topLocations: count((l) => l.location),
+        topCategories: count((l) => l.category),
     }
 }

@@ -2,6 +2,7 @@ import { Keyboard } from 'lucide-react'
 import Orb from './Orb'
 import ResultCards from './ResultCards'
 import type { KevinCard } from './kevinTypes'
+import { MessageCircle } from 'lucide-react'
 import type { KevinStrings } from './kevinLanguages'
 
 export type VoicePhase = 'idle' | 'listening' | 'thinking' | 'speaking'
@@ -24,6 +25,10 @@ interface VoiceStageProps {
   onType: () => void
   /** Shown instead of "tap to speak" while hands-free is keeping the microphone open. */
   idleLabel?: string
+  /** Per-card "ask on WhatsApp" buttons. */
+  cardWhatsapp?: Parameters<typeof ResultCards>[0]['whatsapp']
+  /** A general "message us on WhatsApp" button, shown when Kevin offers it. */
+  offer?: { label: string; href: string; onTap: () => void } | null
 }
 
 /**
@@ -31,7 +36,7 @@ interface VoiceStageProps {
  * answer, and the homes he found. The orb is the only control that matters:
  * tap to speak, tap while he talks to interrupt, just like a phone assistant.
  */
-export default function VoiceStage({ phase, heard, reply, cards, strings, hint, notice, dir, onOrbTap, onOpenCard, onType, idleLabel }: VoiceStageProps) {
+export default function VoiceStage({ phase, heard, reply, cards, strings, hint, notice, dir, onOrbTap, onOpenCard, onType, idleLabel, cardWhatsapp, offer }: VoiceStageProps) {
   const status =
     phase === 'listening' ? strings.listening : phase === 'thinking' ? strings.thinking : phase === 'idle' ? idleLabel ?? strings.tapToSpeak : ''
   const label = phase === 'speaking' ? 'Interrupt Kevin and speak' : phase === 'listening' ? 'Stop listening' : strings.talkToKevin
@@ -73,8 +78,21 @@ export default function VoiceStage({ phase, heard, reply, cards, strings, hint, 
           </p>
         )}
 
+        {offer && (
+          <a
+            href={offer.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={offer.onTap}
+            className="kevin-rise inline-flex min-h-11 items-center gap-2 rounded-full bg-[#25D366] px-5 text-sm font-semibold text-[#06260f] shadow-lg transition hover:brightness-110"
+          >
+            <MessageCircle size={16} aria-hidden="true" />
+            {offer.label}
+          </a>
+        )}
+
         <div className="w-full max-w-[24rem]">
-          <ResultCards cards={cards} onOpen={onOpenCard} />
+          <ResultCards cards={cards} onOpen={onOpenCard} whatsapp={cardWhatsapp} />
         </div>
       </div>
 

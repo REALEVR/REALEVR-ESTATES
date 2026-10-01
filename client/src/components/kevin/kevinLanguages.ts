@@ -75,6 +75,7 @@ export interface KevinStrings {
   handsFreeLabel: string // toolbar tooltip
   handsFreeActive: string // shown while he is listening for you
   tapToHear: string // shown when his reply is waiting for a first tap (browsers block sound before one)
+  whatsapp: string // the button that opens a WhatsApp chat with the team
 }
 
 const en: KevinStrings = {
@@ -98,6 +99,7 @@ const en: KevinStrings = {
   handsFreeLabel: 'Hands-free',
   handsFreeActive: 'Listening: just talk',
   tapToHear: 'Tap anywhere to hear my reply',
+  whatsapp: 'Message us on WhatsApp',
 }
 
 // Written only for languages where the wording is straightforward and safe.
@@ -126,6 +128,7 @@ const BY_CODE: Record<string, KevinStrings> = {
   handsFreeLabel: 'Hands-free',
   handsFreeActive: 'Nakusikiliza: zungumza tu',
   tapToHear: 'Gusa popote ili usikie jibu langu',
+  whatsapp: 'Tutumie ujumbe WhatsApp',
   },
   fr: {
     placeholder: 'Posez une question à Kevin…',
@@ -148,6 +151,7 @@ const BY_CODE: Record<string, KevinStrings> = {
   handsFreeLabel: 'Mains libres',
   handsFreeActive: "À l'écoute : parlez simplement",
   tapToHear: 'Touchez l’écran pour entendre ma réponse',
+  whatsapp: 'Écrivez-nous sur WhatsApp',
   },
   es: {
     placeholder: 'Pregúntale a Kevin lo que quieras…',
@@ -170,6 +174,7 @@ const BY_CODE: Record<string, KevinStrings> = {
   handsFreeLabel: 'Manos libres',
   handsFreeActive: 'Escuchando: solo habla',
   tapToHear: 'Toca la pantalla para oír mi respuesta',
+  whatsapp: 'Escríbenos por WhatsApp',
   },
   pt: {
     placeholder: 'Pergunte qualquer coisa ao Kevin…',
@@ -192,6 +197,7 @@ const BY_CODE: Record<string, KevinStrings> = {
   handsFreeLabel: 'Mãos livres',
   handsFreeActive: 'Ouvindo: é só falar',
   tapToHear: 'Toque na tela para ouvir minha resposta',
+  whatsapp: 'Fale conosco no WhatsApp',
   },
   de: {
     placeholder: 'Frag Kevin alles…',
@@ -214,6 +220,7 @@ const BY_CODE: Record<string, KevinStrings> = {
   handsFreeLabel: 'Freisprechen',
   handsFreeActive: 'Ich höre zu: sprechen Sie einfach',
   tapToHear: 'Tippen Sie irgendwo, um meine Antwort zu hören',
+  whatsapp: 'Schreiben Sie uns auf WhatsApp',
   },
   ar: {
     placeholder: 'اسأل كيفن أي شيء…',
@@ -236,6 +243,7 @@ const BY_CODE: Record<string, KevinStrings> = {
   handsFreeLabel: 'بدون لمس',
   handsFreeActive: 'أستمع: تحدّث فقط',
   tapToHear: 'المس الشاشة لتسمع ردي',
+  whatsapp: 'راسلنا عبر واتساب',
   },
   zh: {
     placeholder: '问问 Kevin 任何问题…',
@@ -258,6 +266,7 @@ const BY_CODE: Record<string, KevinStrings> = {
   handsFreeLabel: '免提',
   handsFreeActive: '正在聆听：直接说话',
   tapToHear: '点一下屏幕，听我的回答',
+  whatsapp: '通过 WhatsApp 联系我们',
   },
   hi: {
     placeholder: 'केविन से कुछ भी पूछें…',
@@ -280,6 +289,7 @@ const BY_CODE: Record<string, KevinStrings> = {
   handsFreeLabel: 'हैंड्स-फ़्री',
   handsFreeActive: 'सुन रहा हूँ: बस बोलिए',
   tapToHear: 'मेरा जवाब सुनने के लिए कहीं भी टैप करें',
+  whatsapp: 'WhatsApp पर संदेश भेजें',
   },
 }
 

@@ -1,8 +1,17 @@
-import { BedDouble, MapPin } from 'lucide-react'
+import { BedDouble, MapPin, MessageCircle } from 'lucide-react'
 import { formatPrice, type KevinCard } from './kevinTypes'
 
 /** The homes Kevin found, as tappable cards. Spoken answers stay short because these carry the detail. */
-export default function ResultCards({ cards, onOpen }: { cards: KevinCard[]; onOpen: (id: number) => void }) {
+export default function ResultCards({
+  cards,
+  onOpen,
+  whatsapp,
+}: {
+  cards: KevinCard[]
+  onOpen: (id: number) => void
+  /** When set, each card gets a button that opens a WhatsApp chat about that home. */
+  whatsapp?: { label: string; href: (card: KevinCard) => string; onTap: (card: KevinCard) => void } | null
+}) {
   if (cards.length === 0) return null
   return (
     <ul className="flex gap-2.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Homes Kevin found">
@@ -39,6 +48,18 @@ export default function ResultCards({ cards, onOpen }: { cards: KevinCard[]; onO
               <span className="block truncate text-xs font-semibold text-[#f5c469]">{formatPrice(card)}</span>
             </span>
           </button>
+          {whatsapp && (
+            <a
+              href={whatsapp.href(card)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => whatsapp.onTap(card)}
+              className="mt-1.5 flex min-h-9 items-center justify-center gap-1.5 rounded-full bg-[#25D366]/15 px-3 text-xs font-medium text-[#6ee79a] transition hover:bg-[#25D366]/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#25D366]"
+            >
+              <MessageCircle size={13} aria-hidden="true" />
+              <span className="truncate">{whatsapp.label}</span>
+            </a>
+          )}
         </li>
       ))}
     </ul>
