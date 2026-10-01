@@ -65,6 +65,7 @@ import AdminRoomCaptures from '@/pages/AdminRoomCaptures'
 import AdminKevinLeads from '@/pages/AdminKevinLeads'
 import AdminTourHealth from '@/pages/AdminTourHealth'
 import AdminAuctions from '@/pages/AdminAuctions'
+import AdminPayments from '@/pages/AdminPayments'
 import AuctionApplyPage from '@/pages/AuctionApplyPage'
 import AuctionTerms from '@/pages/AuctionTerms'
 import BidderVetting from '@/pages/BidderVetting'
@@ -219,6 +220,7 @@ function Router() {
             <ProtectedAdminRoute path="/admin/kevin-leads" component={AdminKevinLeads} allowedRoles={['admin']} />
             <ProtectedAdminRoute path="/admin/tour-health" component={AdminTourHealth} allowedRoles={['admin']} />
             <ProtectedAdminRoute path="/admin/auctions" component={AdminAuctions} allowedRoles={['admin', 'agent']} />
+            <ProtectedAdminRoute path="/admin/payments" component={AdminPayments} allowedRoles={['admin']} />
             {/* Strictly admin-only — phone numbers and point redemptions, see server/gene/building-recommendations.ts. */}
             <ProtectedAdminRoute path="/admin/recommendations" component={AdminRecommendations} allowedRoles={['admin']} />
             {/* Strictly admin-only — platform-wide user PII / mass
