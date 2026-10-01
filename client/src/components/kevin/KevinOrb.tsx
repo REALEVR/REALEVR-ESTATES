@@ -53,6 +53,7 @@ const LANGUAGE_QUESTION = 'Hello, I’m Kevin, your guide to RealEVR Estates. Wh
 const MUTED_KEY = 'realevr_kevin_muted'
 const SESSION_KEY = 'realevr_gene_chat_session_id' // shared with the older widget so a thread survives
 const HANDSFREE_KEY = 'realevr_kevin_handsfree' // '0' once the visitor switched hands-free off; otherwise it starts on arrival
+const MIC_ASKED_KEY = 'realevr_kevin_mic_asked' // '1' once we have opened the microphone (so the browser's question is asked once, ever)
 const INTAKE_KEY = 'realevr_kevin_intake' // 'done' once he has what he needs from this visitor (or they said no)
 
 // Same rule the server applies before putting a language name into the AI's
@@ -573,26 +574,35 @@ export default function KevinOrb() {
   }
 
   // ---- Hands-free ----------------------------------------------------------
-  // Quiet by design. Listening starts by itself only when the browser has ALREADY given this site the
-  // microphone (so arriving never raises a permission prompt, on this visit or any other), and it reacts
-  // only to talk about property or to his name (see useAmbientListening). Someone who has not allowed the
-  // microphone is never asked; they can switch it on from the mic button in his panel, which is where the
-  // browser's one-time question appears. The orb's badge shows whenever the microphone is open, and the
-  // toggle turns it off for good.
+  // Listening starts on arrival, and the browser's microphone question is asked ONCE: the first time
+  // we open the microphone we note it (MIC_ASKED_KEY), and on every later visit we start only if the
+  // browser has already said yes, so nobody is asked again (or sees a prompt on a "not now"). A blocked
+  // microphone is left alone. It reacts only to talk about property or to his name (see
+  // useAmbientListening), the server keeps only real-estate conversation (see server/gene/chat.ts),
+  // the orb's badge shows whenever the microphone is open, and the toggle turns it off for good.
   useEffect(() => {
     if (readStore(HANDSFREE_KEY) === '0') return
     if (!voice.canListen) return
     let cancelled = false
+    const startOnce = () => {
+      if (cancelled) return
+      if (readStore(MIC_ASKED_KEY) === '1') return // asked on an earlier visit and not allowed since: never again
+      writeStore(MIC_ASKED_KEY, '1')
+      setHandsFreeOn(true) // the browser asks here, once
+    }
     const permissions = (navigator as any).permissions
-    if (!permissions?.query) return // cannot tell without asking: leave the mic alone
+    if (!permissions?.query) {
+      startOnce()
+      return
+    }
     permissions
       .query({ name: 'microphone' })
       .then((status: PermissionStatus) => {
-        if (!cancelled && status.state === 'granted') setHandsFreeOn(true)
+        if (cancelled) return
+        if (status.state === 'granted') setHandsFreeOn(true)
+        else if (status.state === 'prompt') startOnce()
       })
-      .catch(() => {
-        /* cannot be asked: stay quiet */
-      })
+      .catch(() => startOnce())
     return () => {
       cancelled = true
     }
