@@ -1,6 +1,35 @@
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { WHATSAPP_NUMBERS, whatsAppLink, SOCIAL_LINKS } from "@/lib/siteLinks";
 import logoPath from '../../assets/logo.png';
+
+/** Links to the countries and cities that really have homes listed (and only those). */
+function PlaceLinks() {
+  const { data } = useQuery<Array<{ slug: string; name: string; count: number; cities: Array<{ slug: string; name: string }> }>>({
+    queryKey: ["/api/places"],
+    staleTime: 5 * 60 * 1000,
+  });
+  const places = (data ?? []).slice(0, 6);
+  if (places.length === 0) return null;
+  return (
+    <>
+      <h3 className="font-display text-base mb-4 mt-6 text-foreground">Homes in</h3>
+      <ul className="space-y-2 text-sm text-muted-foreground">
+        {places.map((p) => (
+          <li key={p.slug}>
+            <Link href={`/homes/${p.slug}`} className="hover:text-accent transition-colors">{p.name}</Link>
+            {p.cities[0] && (
+              <>
+                {" · "}
+                <Link href={`/homes/${p.slug}/${p.cities[0].slug}`} className="hover:text-accent transition-colors">{p.cities[0].name}</Link>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -41,7 +70,9 @@ export default function Footer() {
               <li><Link href="/featured-properties" className="hover:text-accent transition-colors">Featured Properties</Link></li>
               <li><Link href="/properties" className="hover:text-accent transition-colors">Building Types</Link></li>
               <li><Link href="/rentrail" className="hover:text-accent transition-colors">Pay Rent (RentRail)</Link></li>
+              <li><Link href="/recommend-a-place" className="hover:text-accent transition-colors">Recommend Your Building</Link></li>
             </ul>
+            <PlaceLinks />
             <h3 className="font-display text-base mb-4 mt-6 text-foreground">Hosting</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link href="/admin/properties" className="hover:text-accent transition-colors">Add Your Property</Link></li>

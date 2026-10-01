@@ -65,6 +65,7 @@ import AdminRoomCaptures from '@/pages/AdminRoomCaptures'
 import AdminKevinLeads from '@/pages/AdminKevinLeads'
 import AdminRecommendations from '@/pages/AdminRecommendations'
 import PlaceBar from '@/components/PlaceBar'
+import PlaceHomesPage from '@/pages/PlaceHomesPage'
 import { PlaceProvider } from '@/lib/place'
 import RecommendPlacePage from '@/pages/RecommendPlacePage'
 import AdminAnalytics from '@/pages/AdminAnalytics'
@@ -150,6 +151,7 @@ function Router() {
             <Route path="/agent/:username" component={AgentPortfolioPage} />
             <Route path="/list-your-property" component={ListYourPropertyPage} />
             <Route path="/recommend-a-place" component={RecommendPlacePage} />
+            <Route path="/homes/:country/:city?" component={PlaceHomesPage} />
 
             <Route path="/dashboard" component={UserDashboard} />
 

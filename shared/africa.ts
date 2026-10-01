@@ -320,3 +320,33 @@ export function toInternationalDigits(raw: string, defaultCountry: string | null
     // The code at the front should be a real African one for this platform.
     return AFRICAN_COUNTRIES.some((x) => digits.startsWith(x.dial)) ? digits : null
 }
+
+// ---------------------------------------------------------------------------
+// Places as web addresses (/homes/kenya/nairobi)
+// ---------------------------------------------------------------------------
+
+export const slugify = (name: string): string =>
+    name
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+
+export const countrySlug = (code: string): string => slugify(countryName(code))
+
+export function countryBySlug(slug: string | undefined): AfricanCountry | undefined {
+    return slug ? AFRICAN_COUNTRIES.find((x) => slugify(x.name) === slug.toLowerCase()) : undefined
+}
+
+export function cityBySlug(country: AfricanCountry | undefined, slug: string | undefined): AfricanCity | undefined {
+    return country && slug ? country.cities.find((x) => slugify(x.name) === slug.toLowerCase()) : undefined
+}
+
+/** The main city a listing is in, when its place names mention one of its country's cities. */
+export function listingCity(p: ListingLike): AfricanCity | undefined {
+    const country = countryByCode(inferListingCountry(p))
+    if (!country) return undefined
+    const text = `${p.location ?? ''} ${p.title ?? ''}`.toLowerCase()
+    return country.cities.find((city) => text.includes(city.name.toLowerCase()))
+}
