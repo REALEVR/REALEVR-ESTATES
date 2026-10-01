@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Globe, Mic, Send, Sparkles, Volume2, VolumeX, X } from 'lucide-react'
+import { AudioLines, Globe, Mic, Send, Sparkles, Volume2, VolumeX, X } from 'lucide-react'
+import { useLocation } from 'wouter'
 import { useAuth } from '@/hooks/use-auth'
 import { apiRequest } from '@/lib/queryClient'
 import {
@@ -10,7 +11,11 @@ import {
   stringsFor,
   type KevinLanguage,
 } from './kevinLanguages'
-import { useKevinVoice } from './useKevinVoice'
+import { chime, useKevinVoice } from './useKevinVoice'
+import Orb from './Orb'
+import ResultCards from './ResultCards'
+import VoiceStage, { type VoicePhase } from './VoiceStage'
+import type { KevinAction, KevinCard } from './kevinTypes'
 import './kevin.css'
 
 /**
@@ -22,6 +27,13 @@ import './kevin.css'
  * and a typed language is passed straight to the AI. After that he chats, and
  * speaks his replies aloud when the device has a voice for the language
  * (see useKevinVoice for what that depends on), with a mic for talking back.
+ *
+ * Voice mode (the waveform button, or press-and-hold on the orb) turns him
+ * into a hands-free assistant in the manner of a phone's: you speak, the words
+ * appear as they are recognised, he answers in a sentence, does the thing you
+ * asked (shows homes, opens one, takes you to a page), and then listens again
+ * for a follow-up until you go quiet or say stop. Tap the orb while he talks to
+ * interrupt him.
  *
  * He talks to the same GENE backend as every other assistant here
  * (/api/gene/chat), asking for the Kevin persona; signed-in users also get a
@@ -76,6 +88,7 @@ type Message =
   | { id: number; kind: 'text'; role: 'kevin' | 'user'; text: string }
   | { id: number; kind: 'note'; text: string }
   | { id: number; kind: 'picker' }
+  | { id: number; kind: 'cards'; cards: KevinCard[] }
 
 // A message before it's been given an id (Omit distributed over the union, so
 // each variant keeps its own fields).
@@ -83,29 +96,6 @@ type NewMessage = Message extends infer M ? (M extends { id: number } ? Omit<M, 
 
 let messageId = 0
 const nextId = () => ++messageId
-
-function Orb({ speaking, listening, mini }: { speaking?: boolean; listening?: boolean; mini?: boolean }) {
-  return (
-    <span
-      className={`kevin ${mini ? 'kevin--mini' : ''} ${speaking ? 'is-speaking' : ''} ${listening ? 'is-listening' : ''}`}
-      aria-hidden="true"
-    >
-      <span className="kevin__ripple" />
-      <span className="kevin__ripple" />
-      <span className="kevin__ripple" />
-      <span className="kevin__floor" />
-      <span className="kevin__body">
-        <span className="kevin__core">
-          <span className="kevin__aurora" />
-          <span className="kevin__aurora kevin__aurora--b" />
-        </span>
-        <span className="kevin__shade" />
-        <span className="kevin__gloss" />
-        <span className="kevin__ring" />
-      </span>
-    </span>
-  )
-}
 
 function LanguagePicker({ onPick }: { onPick: (lang: KevinLanguage) => void }) {
   const [custom, setCustom] = useState('')
@@ -172,6 +162,14 @@ export default function KevinOrb() {
   const [busy, setBusy] = useState(false)
   const [muted, setMuted] = useState(() => readStore(MUTED_KEY) === '1')
   const [changingLanguage, setChangingLanguage] = useState(false)
+  const [, navigate] = useLocation()
+
+  // Voice mode
+  const [voiceMode, setVoiceMode] = useState(false)
+  const [phase, setPhase] = useState<VoicePhase>('idle')
+  const [heard, setHeard] = useState('')
+  const [lastReply, setLastReply] = useState('')
+  const [cards, setCards] = useState<KevinCard[]>([])
 
   // Async flows below outlive the render they started in; refs keep them
   // reading the CURRENT language and mute setting, not a stale copy.
@@ -184,6 +182,12 @@ export default function KevinOrb() {
   const endRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const noVoiceNotedFor = useRef<string | null>(null)
+  const voiceModeRef = useRef(false)
+  voiceModeRef.current = voiceMode
+  // Listings on screen, sent with each message so "open the second one" is understood.
+  const shownRef = useRef<{ id: number; title: string }[]>([])
+  const pressTimer = useRef<ReturnType<typeof setTimeout>>()
+  const longPressed = useRef(false)
 
   const voice = useKevinVoice(lang?.bcp47 ?? null)
   const strings = stringsFor(lang)
@@ -194,24 +198,27 @@ export default function KevinOrb() {
 
   // Say it aloud if that's wanted and possible; otherwise, once per language,
   // tell the visitor Kevin is text-only for this one instead of just going quiet.
+  // Returns whether he is actually speaking; `onDone` runs when he has finished.
   const say = useCallback(
-    (text: string, target: KevinLanguage | null) => {
-      if (mutedRef.current || !voice.canSpeak) return
+    (text: string, target: KevinLanguage | null, onDone?: () => void): boolean => {
+      if (mutedRef.current || !voice.canSpeak) return false
       const tag = target?.bcp47 ?? null
-      if (voice.speak(text, tag)) return
+      if (voice.speak(text, tag, onDone)) return true
       const key = target?.name ?? ''
       if (target && noVoiceNotedFor.current !== key && !voice.hasVoiceFor(tag)) {
         noVoiceNotedFor.current = key
         push({ kind: 'note', text: stringsFor(target).noVoice.replace('{lang}', target.native) })
       }
+      return false
     },
     [voice, push],
   )
 
   const kevinSays = useCallback(
-    (text: string, target: KevinLanguage | null = langRef.current) => {
+    (text: string, target: KevinLanguage | null = langRef.current, onDone?: () => void): boolean => {
       push({ kind: 'text', role: 'kevin', text })
-      say(text, target)
+      setLastReply(text)
+      return say(text, target, onDone)
     },
     [push, say],
   )
@@ -267,10 +274,36 @@ export default function KevinOrb() {
     return () => clearTimeout(t)
   }, [open])
 
-  const closePanel = () => {
+  const exitVoiceMode = () => {
     voice.stop()
     voice.stopListening()
+    setVoiceMode(false)
+    voiceModeRef.current = false
+    setPhase('idle')
+    setHeard('')
+  }
+
+  const closePanel = () => {
+    exitVoiceMode()
     setOpen(false)
+  }
+
+  // Go somewhere on the site. The panel steps aside so the page is visible, but
+  // whatever Kevin is still saying carries on.
+  const goTo = (path: string) => {
+    voice.stopListening()
+    setVoiceMode(false)
+    voiceModeRef.current = false
+    setPhase('idle')
+    setOpen(false)
+    navigate(path)
+  }
+  const openCard = (id: number) => goTo(`/property/${id}`)
+
+  const runAction = (action: KevinAction | null | undefined) => {
+    if (!action) return
+    if (action.type === 'open') goTo(`/property/${action.propertyId}`)
+    else if (action.type === 'go' && typeof action.path === 'string' && action.path.startsWith('/')) goTo(action.path)
   }
 
   const chooseLanguage = async (picked: KevinLanguage) => {
@@ -305,28 +338,125 @@ export default function KevinOrb() {
     kevinSays(intro, picked)
   }
 
-  const send = async (raw: string) => {
+  const send = async (raw: string, opts: { voice?: boolean } = {}) => {
     const message = raw.trim()
     if (!message || busy) return
     voice.stop()
     setInput('')
+    setLastReply('')
     setMessages((prev) => [...prev.filter((m) => m.kind !== 'picker'), { id: nextId(), kind: 'text', role: 'user', text: message }])
     setBusy(true)
+    if (opts.voice) setPhase('thinking')
     try {
       const current = langRef.current
       const res = await apiRequest('POST', '/api/gene/chat', {
         message,
         sessionId: sessionIdRef.current,
         persona: 'kevin',
+        voice: opts.voice === true,
+        shown: shownRef.current,
         ...(current ? { language: { code: current.code, name: current.name } } : {}),
       })
       const data = await res.json()
       if (typeof data.sessionId === 'string') sessionIdRef.current = data.sessionId
-      kevinSays(typeof data.reply === 'string' && data.reply ? data.reply : stringsFor(current).error)
+
+      const found: KevinCard[] = Array.isArray(data.results) ? data.results : []
+      if (data.action?.type === 'results') {
+        setCards(found)
+        shownRef.current = found.map((c) => ({ id: c.id, title: c.title }))
+        if (found.length) push({ kind: 'cards', cards: found })
+      }
+
+      const text = typeof data.reply === 'string' && data.reply ? data.reply : stringsFor(current).error
+      // In voice mode, once he has finished speaking he listens again: that is
+      // what makes it a conversation rather than a series of button presses.
+      const spoke = kevinSays(text, current, opts.voice ? () => actionsRef.current.beginListening(true) : undefined)
+      if (opts.voice) setPhase(spoke ? 'speaking' : 'idle')
+      runAction(data.action)
     } catch {
       kevinSays(stringsFor(langRef.current).error)
+      if (opts.voice) setPhase('idle')
     } finally {
       setBusy(false)
+    }
+  }
+
+  // ---- Voice mode ----------------------------------------------------------
+  // The functions the speech callbacks call live in a ref, because those
+  // callbacks fire seconds later from the engine, long after the render whose
+  // closures created them.
+  const actionsRef = useRef({ beginListening: (_followUp: boolean) => {} })
+
+  const beginListening = (followUp: boolean) => {
+    if (!voice.canListen || !voiceModeRef.current) return
+    setHeard('')
+    setPhase('listening')
+    const quiet = mutedRef.current
+    if (!quiet) chime('start')
+    // Start the microphone a beat after the chime so it doesn't hear it.
+    setTimeout(() => {
+      if (!voiceModeRef.current) return
+      voice.listen({
+        onInterim: (text) => setHeard(text),
+        onFinal: (text) => {
+          setHeard(text)
+          // The few words that mean "never mind" end the conversation quietly.
+          if (/^(stop|cancel|never ?mind|that'?s (all|it)|enough)[.!\s]*$/i.test(text)) {
+            chime('end')
+            setPhase('idle')
+            setHeard('')
+            return
+          }
+          void send(text, { voice: true })
+        },
+        onEnd: ({ heard: gotSomething, error }) => {
+          if (gotSomething) return
+          setPhase('idle')
+          if (error === 'not-allowed' || error === 'service-not-allowed') {
+            push({ kind: 'note', text: stringsFor(langRef.current).micBlocked })
+            exitVoiceMode()
+          } else if (!followUp && error !== 'aborted') {
+            // First attempt and nothing usable: say so, as a person would. After a
+            // follow-up prompt, silence just means the conversation is over.
+            const strings = stringsFor(langRef.current)
+            setLastReply(strings.didntCatch)
+            say(strings.didntCatch, langRef.current)
+          } else if (followUp) {
+            chime('end')
+          }
+        },
+      })
+    }, quiet ? 0 : 230)
+  }
+  actionsRef.current = { beginListening }
+
+  const startVoiceMode = () => {
+    setBubble(false)
+    setOpen(true)
+    if (!langRef.current) return // a language comes first; the picker is already showing
+    if (mutedRef.current) {
+      // Choosing to talk to him means wanting to hear him back.
+      setMuted(false)
+      mutedRef.current = false
+      writeStore(MUTED_KEY, '0')
+    }
+    setChangingLanguage(false)
+    setVoiceMode(true)
+    voiceModeRef.current = true
+    setLastReply('')
+    beginListening(false)
+  }
+
+  const onStageOrbTap = () => {
+    if (phase === 'thinking') return
+    if (phase === 'speaking') {
+      // Interrupting him, the way you talk over a phone assistant.
+      voice.stop()
+      beginListening(false)
+    } else if (phase === 'listening') {
+      voice.stopListening()
+    } else {
+      beginListening(false)
     }
   }
 
@@ -367,17 +497,36 @@ export default function KevinOrb() {
         <button
           type="button"
           onClick={() => {
+            if (longPressed.current) {
+              longPressed.current = false
+              return
+            }
             setBubble(false)
             setOpen(true)
           }}
+          // Press and hold to talk: the quick way into voice mode.
+          onPointerDown={() => {
+            longPressed.current = false
+            if (!voice.canListen || !lang) return
+            pressTimer.current = setTimeout(() => {
+              longPressed.current = true
+              startVoiceMode()
+            }, 450)
+          }}
+          onPointerUp={() => clearTimeout(pressTimer.current)}
+          onPointerCancel={() => clearTimeout(pressTimer.current)}
+          onContextMenu={(e) => e.preventDefault()}
           onPointerMove={tilt}
-          onPointerLeave={untilt}
-          aria-label="Chat with Kevin, your RealEVR concierge"
-          className="group fixed bottom-[var(--fab-row-1)] right-5 z-40 h-14 w-14 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f5c469] md:bottom-5 md:right-4 md:h-16 md:w-16"
+          onPointerLeave={(e) => {
+            clearTimeout(pressTimer.current)
+            untilt(e)
+          }}
+          aria-label="Chat with Kevin, your RealEVR concierge. Press and hold to talk."
+          className="group fixed select-none [-webkit-touch-callout:none] bottom-[var(--fab-row-1)] right-5 z-40 h-14 w-14 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f5c469] md:bottom-5 md:right-4 md:h-16 md:w-16"
         >
-          <Orb speaking={voice.speaking} listening={voice.listening} />
+          <Orb speaking={voice.speaking || phase === 'speaking'} listening={voice.listening} thinking={busy} />
           <span className="pointer-events-none absolute right-full top-1/2 mr-3 hidden -translate-y-1/2 whitespace-nowrap rounded-full border border-white/10 bg-[#0d1024]/90 px-3 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg backdrop-blur transition group-hover:opacity-100 md:block">
-            Ask Kevin
+            {voice.canListen && lang ? 'Ask Kevin · hold to talk' : 'Ask Kevin'}
           </span>
         </button>
       )}
@@ -422,7 +571,7 @@ export default function KevinOrb() {
         >
           <header className="flex items-center gap-2.5 border-b border-white/10 px-4 py-3">
             <span className="relative block h-10 w-10 shrink-0">
-              <Orb mini speaking={voice.speaking} listening={voice.listening} />
+              <Orb mini speaking={voice.speaking} listening={voice.listening} thinking={busy} />
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
@@ -433,6 +582,17 @@ export default function KevinOrb() {
               </div>
               <p className="truncate text-xs text-white/60">Your RealEVR concierge</p>
             </div>
+            {voice.canListen && lang && !voiceMode && (
+              <button
+                type="button"
+                onClick={startVoiceMode}
+                title={strings.talkToKevin}
+                aria-label={strings.talkToKevin}
+                className="rounded-full p-2 text-[#f5c469] transition hover:bg-white/10"
+              >
+                <AudioLines size={18} />
+              </button>
+            )}
             {user && (
               <button
                 type="button"
@@ -483,6 +643,22 @@ export default function KevinOrb() {
             </div>
           )}
 
+          {voiceMode ? (
+            <VoiceStage
+              phase={phase}
+              heard={heard}
+              reply={lastReply}
+              cards={cards}
+              strings={strings}
+              hint={lang?.code === 'en' ? 'Two bedroom homes in Kololo under three million' : null}
+              notice={voice.canSpeak && !voice.hasVoiceFor() ? strings.noVoice.replace('{lang}', lang?.native ?? '') : null}
+              dir={rtl ? 'rtl' : 'auto'}
+              onOrbTap={onStageOrbTap}
+              onOpenCard={openCard}
+              onType={exitVoiceMode}
+            />
+          ) : (
+            <>
           <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">
             {messages.map((m) => {
               if (m.kind === 'note') {
@@ -490,6 +666,13 @@ export default function KevinOrb() {
                   <p key={m.id} className="px-2 text-center text-xs italic text-white/50">
                     {m.text}
                   </p>
+                )
+              }
+              if (m.kind === 'cards') {
+                return (
+                  <div key={m.id} className="pl-9">
+                    <ResultCards cards={m.cards} onOpen={openCard} />
+                  </div>
                 )
               }
               if (m.kind === 'picker') {
@@ -548,7 +731,7 @@ export default function KevinOrb() {
             {voice.canListen && (
               <button
                 type="button"
-                onClick={() => (voice.listening ? voice.stopListening() : voice.listen((text) => send(text)))}
+                onClick={() => (voice.listening ? voice.stopListening() : voice.listen({ onFinal: (text) => send(text) }))}
                 aria-pressed={voice.listening}
                 aria-label={voice.listening ? 'Stop listening' : 'Speak to Kevin'}
                 title="Speak to Kevin"
@@ -578,6 +761,8 @@ export default function KevinOrb() {
               <Send size={18} />
             </button>
           </form>
+            </>
+          )}
         </div>
       )}
     </>

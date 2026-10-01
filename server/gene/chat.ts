@@ -28,6 +28,17 @@ import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
 import { notifyNewEscalation } from './slack-bridge'
 import { getAiReply } from './ai-provider'
+import {
+    ACTION_PROMPT,
+    GO_PAGES,
+    extractKevinAction,
+    findListing,
+    parseShown,
+    searchListings,
+    type KevinAction,
+    type KevinCard,
+    type RawAction,
+} from './kevin-actions'
 import { languageInstruction, chosenLanguageInstruction, parseChosenLanguage, type ChosenLanguage } from './locale'
 
 // ---------------------------------------------------------------------------
@@ -127,14 +138,15 @@ const CANNED_REPLIES: Record<GeneIntent, string> = {
         "I've flagged your request for a member of our team to reach out to you directly. In the meantime, is there anything else I can help you with?",
 }
 
-export function isLowConfidence(intent: GeneIntent, usedAi: boolean, reply: string): boolean {
+export function isLowConfidence(intent: GeneIntent, usedAi: boolean, reply: string, allowShort = false): boolean {
     if (intent === 'human_handoff_request') return true
     if (!usedAi && intent === 'general_question') return true
     const hedgeMarkers = ["i'm not sure", "i don't know", "i don't have", 'cannot help', "can't help", 'no information']
     const lowered = reply.toLowerCase()
     // Length is only a meaningful signal for scripts where 8 characters is
     // barely a word; a complete reply in Chinese or Japanese can be shorter.
-    if (reply.trim().length < 8 && /^[\x00-\x7F]*$/.test(reply)) return true
+    // (Spoken replies are allowed to be short: "Okay." is a complete answer.)
+    if (!allowShort && reply.trim().length < 8 && /^[\x00-\x7F]*$/.test(reply)) return true
     return hedgeMarkers.some((marker) => lowered.includes(marker))
 }
 
@@ -183,12 +195,33 @@ const KEVIN_PERSONA_PROMPT = [
     `If the visitor asks to speak to a person, an agent, a human or support (in any language), answer kindly and end your message with the exact token ${HUMAN_HANDOFF_TOKEN}.`,
 ]
 
+// Voice mode is the visitor talking to Kevin out loud, the way people use a phone
+// assistant. What makes those feel good is not the voice, it is the manner:
+// the answer comes first, it is one breath long, it does the thing instead of
+// describing it, and anything already on the screen is not read out.
+const KEVIN_VOICE_PROMPT = [
+    'The visitor is TALKING to you and will hear your answer spoken, like a phone assistant. Be brief:',
+    'one short sentence, two at the very most, under 30 words. Lead with the answer; do not repeat their question,',
+    'do not greet them again, and skip filler such as "Certainly!" or "Great question!".',
+    'When you do something for them, say it in a few words ("Sure, here you go." / "Okay, opening it.").',
+    'Ask at most one short question, and only when you cannot act without the answer.',
+    'Never read out a list or every detail: the screen shows the rest, so mention at most one thing.',
+    'Say numbers and prices the way a person speaks ("two and a half million shillings"), never "UGX 2,500,000".',
+    'If they thank you or say goodbye, answer in two or three words.',
+]
+
 const KEVIN_INTRO_INSTRUCTION =
     'The visitor has just chosen their language. Introduce yourself as Kevin in one warm sentence, then ask in one short sentence how you can help them find a home today. Say nothing else.'
 
 interface ReplyOptions {
     persona: GenePersona
     chosenLanguage: ChosenLanguage | null
+    /** The visitor is speaking to Kevin and will hear the answer. */
+    voice?: boolean
+    /** Listings currently on the visitor's screen, so "the second one" means something. */
+    shown?: { id: number; title: string }[]
+    /** Facts the model must base its answer on (the result of a search Kevin just ran). */
+    facts?: string
 }
 
 async function getReply(
@@ -200,6 +233,12 @@ async function getReply(
     const propertyContext = await buildPropertyContext()
     const systemPrompt = [
         ...(options.persona === 'kevin' ? KEVIN_PERSONA_PROMPT : GENE_PERSONA_PROMPT),
+        ...(options.persona === 'kevin' ? ACTION_PROMPT : []),
+        ...(options.persona === 'kevin' && options.voice ? KEVIN_VOICE_PROMPT : []),
+        options.persona === 'kevin' && options.shown?.length
+            ? `Homes on the visitor's screen right now: ${options.shown.map((s, i) => `${i + 1}. id ${s.id}, ${s.title}`).join('; ')}.`
+            : '',
+        options.facts ?? '',
         // An explicit choice beats the browser's guess.
         options.chosenLanguage ? chosenLanguageInstruction(options.chosenLanguage) : languageInstruction(acceptLanguage),
         propertyContext,
@@ -223,6 +262,50 @@ function extractHandoffToken(reply: string): { text: string; requested: boolean 
 function cannedReply(intent: GeneIntent, persona: GenePersona): string {
     const text = CANNED_REPLIES[intent]
     return persona === 'kevin' ? text.replace('Thanks for reaching out to GENE.', "Thanks for stopping by, I'm Kevin.") : text
+}
+
+/**
+ * Carry out the action Kevin asked for (if any) and settle what he says about
+ * it. A search is two steps on purpose: the first reply is written before the
+ * results exist, so a second short call has him describe what was really
+ * found - in the visitor's language, and honestly when it is nothing.
+ */
+async function runKevinAction(
+    raw: RawAction | null,
+    firstText: string,
+    history: GeneChatMessage[],
+    message: string,
+    acceptLanguage: string | string[] | undefined,
+    options: ReplyOptions
+): Promise<{ text: string; action: KevinAction | null; results: KevinCard[] }> {
+    if (!raw) return { text: firstText, action: null, results: [] }
+
+    if (raw.kind === 'go') {
+        return { text: firstText, action: { type: 'go', page: raw.page, path: GO_PAGES[raw.page] }, results: [] }
+    }
+
+    if (raw.kind === 'open') {
+        const listing = await findListing(raw.propertyId)
+        if (!listing) return { text: firstText, action: null, results: [] }
+        return { text: firstText, action: { type: 'open', propertyId: listing.id }, results: [listing] }
+    }
+
+    const { cards, total } = await searchListings(raw.query)
+    const lines = cards.map(
+        (c, i) => `${i + 1}. ${c.title}, ${c.location}, ${c.bedrooms} bedrooms, ${c.currency} ${c.price}`
+    )
+    const facts = total
+        ? `A search for the visitor just ran and found ${total} matching homes. The best ${cards.length} are now on their screen:\n${lines.join('\n')}\n` +
+          'Tell them what you found in one or two short sentences: the count, and only the first home (name, area, price). They can see the others, so do not read them out.'
+        : 'A search for the visitor just ran and found no matching homes. Say so in one short sentence and suggest widening the search (another area, a higher budget or fewer bedrooms).'
+    const second = await getReply(history, message, acceptLanguage, { ...options, facts, shown: undefined })
+    const secondText = second ? extractKevinAction(extractHandoffToken(second).text).text : ''
+    const fallback = total ? "Here's what I found." : "I couldn't find a match, but I can look again if you widen the search."
+    return {
+        text: secondText || firstText || fallback,
+        action: { type: 'results', query: raw.query, total },
+        results: cards,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -364,7 +447,7 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                     persona: 'kevin',
                     chosenLanguage: parseChosenLanguage(body.language),
                 })
-                return res.json({ reply: reply ? extractHandoffToken(reply).text : null })
+                return res.json({ reply: reply ? extractKevinAction(extractHandoffToken(reply).text).text : null })
             }
 
             const message = typeof body.message === 'string' ? body.message.trim() : ''
@@ -401,21 +484,45 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                 }
             }
 
-            const aiReply = await getReply(conversation.messages.slice(0, -1), message, req.headers['accept-language'], {
+            const replyOptions: ReplyOptions = {
                 persona,
                 chosenLanguage,
-            })
+                voice: persona === 'kevin' && body.voice === true,
+                shown: persona === 'kevin' ? parseShown(body.shown) : undefined,
+            }
+            const history = conversation.messages.slice(0, -1)
+            const aiReply = await getReply(history, message, req.headers['accept-language'], replyOptions)
             const usedAi = aiReply !== null
             let reply = aiReply ?? cannedReply(intent, persona)
 
             // Kevin flags "wants a human" in any language with a token (see
-            // KEVIN_PERSONA_PROMPT); strip it so it's never shown or spoken.
+            // KEVIN_PERSONA_PROMPT), and asks for an on-screen action with
+            // another (see kevin-actions.ts); strip both so neither is ever
+            // shown or spoken.
             let effectiveIntent: GeneIntent = intent
+            let action: KevinAction | null = null
+            let results: KevinCard[] = []
             if (persona === 'kevin' && aiReply) {
                 const extracted = extractHandoffToken(reply)
                 if (extracted.requested) {
                     effectiveIntent = 'human_handoff_request'
                     reply = extracted.text || cannedReply('human_handoff_request', persona)
+                }
+                const acted = extractKevinAction(reply)
+                if (acted.action && effectiveIntent !== 'human_handoff_request') {
+                    const done = await runKevinAction(
+                        acted.action,
+                        acted.text,
+                        history,
+                        message,
+                        req.headers['accept-language'],
+                        replyOptions
+                    )
+                    reply = done.text
+                    action = done.action
+                    results = done.results
+                } else {
+                    reply = acted.text || reply
                 }
             }
             // Deterministic, not dependent on the AI provider cooperating —
@@ -426,7 +533,7 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                 reply = `Thanks for sharing your contact details — a member of our team may follow up if you need anything specific. ${reply}`
             }
 
-            const escalated = isLowConfidence(effectiveIntent, usedAi, reply)
+            const escalated = isLowConfidence(effectiveIntent, usedAi, reply, replyOptions.voice === true)
             if (escalated) {
                 const reason = effectiveIntent === 'human_handoff_request' ? 'human_handoff_request' : 'low_confidence_reply'
                 writeEscalation(sessionId, message, reason)
@@ -435,7 +542,7 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             conversation.messages.push({ role: 'assistant', text: reply, intent: effectiveIntent, createdAt: nowIso() })
             saveConversation(conversation)
 
-            res.json({ sessionId, reply, intent: effectiveIntent, escalated, leadCaptured: justCapturedLead })
+            res.json({ sessionId, reply, intent: effectiveIntent, escalated, leadCaptured: justCapturedLead, action, results })
         } catch (err) {
             console.error('[gene/chat] POST /api/gene/chat failed:', err)
             res.status(500).json({ message: 'Failed to process chat message.' })
