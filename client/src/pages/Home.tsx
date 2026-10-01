@@ -4,6 +4,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Hero from '@/components/home/Hero'
+import ListFreeHero from '@/components/home/ListFreeHero'
+import { usePlace } from '@/lib/place'
 import MotionBackground from '@/components/motion/MotionBackground'
 import Reveal from '@/components/motion/Reveal'
 import FilterBar from '@/components/home/FilterBar'
@@ -36,6 +38,7 @@ export default function Home() {
     const [heroVideoUrl, setHeroVideoUrl] = useState('')
 
     const { data: properties, isLoading, error } = useProperties()
+    const { abroad } = usePlace()
 
     // Fetch video settings
     useEffect(() => {
@@ -117,7 +120,7 @@ export default function Home() {
                 container — see Hero.tsx's heroSlide state and
                 HeroNewsSlide.tsx. Used to be its own section rendered here,
                 below the hero. */}
-            <Hero videoUrl={heroVideoUrl} />
+            {abroad ? <ListFreeHero /> : <Hero videoUrl={heroVideoUrl} />}
 
             {/* Design-review fix (round 2): the agent/broker recruitment CTA
                 used to sit here, immediately after the hero — the very next

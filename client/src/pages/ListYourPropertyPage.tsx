@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearchParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,7 +64,13 @@ export default function ListYourPropertyPage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [step, setStep] = useState<Step>("details");
-  const [draft, setDraft] = useState<SelfServeDraftInput>(emptyDraft);
+  const [params] = useSearchParams();
+  // Links from the "list free" welcome pre-pick the kind of listing.
+  const wanted = params.get("category") ?? "";
+  const [draft, setDraft] = useState<SelfServeDraftInput>(() => ({
+    ...emptyDraft,
+    category: CATEGORY_OPTIONS.some((o) => o.value === wanted) ? wanted : "",
+  }));
   const [submissionId, setSubmissionId] = useState<number | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);

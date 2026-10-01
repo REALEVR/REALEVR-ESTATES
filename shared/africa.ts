@@ -117,6 +117,15 @@ export function countryForTimezone(zone: string | null | undefined): AfricanCoun
     return zone ? BY_ZONE.get(zone) : undefined
 }
 
+/**
+ * True when the browser's time zone is clearly outside Africa (Europe, the Americas, Asia, Oceania).
+ * An unknown or generic zone ("UTC", nothing) is not "outside": we only call someone abroad when we can tell.
+ */
+export function isOutsideAfrica(zone: string | null | undefined): boolean {
+    if (!zone || countryForTimezone(zone)) return false
+    return /^(America|Europe|Asia|Australia|Pacific|Antarctica|Arctic)\//.test(zone)
+}
+
 // ---------------------------------------------------------------------------
 // Distance and place
 // ---------------------------------------------------------------------------

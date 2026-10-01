@@ -5,6 +5,7 @@ import {
   placeFromCookieHeader,
   placeFromCoordinates,
   placeFromTimezone,
+  isOutsideAfrica,
   serializePlace,
   DEFAULT_COUNTRY,
   type Place,
@@ -27,6 +28,11 @@ import {
 
 interface PlaceApi {
   place: Place;
+  /**
+   * The visitor looks to be outside Africa (by time zone) and has not picked an African place
+   * or shared a position. They are shown the "list your property free" welcome, not the renter's.
+   */
+  abroad: boolean;
   /** Pick a country (and optionally a city) by hand. Stays until they use their location again. */
   choose: (country: string, city?: string) => void;
   /** Ask the browser for the current position. Resolves to how it went. */
@@ -136,7 +142,16 @@ export function PlaceProvider({ children }: { children: ReactNode }) {
     };
   }, [readPosition]);
 
-  const api = useMemo(() => ({ place, choose, shareLocation }), [place, choose, shareLocation]);
+  const abroad = useMemo(() => {
+    if (place.source === "chosen" || place.source === "geo") return false;
+    try {
+      return isOutsideAfrica(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    } catch {
+      return false;
+    }
+  }, [place.source]);
+
+  const api = useMemo(() => ({ place, abroad, choose, shareLocation }), [place, abroad, choose, shareLocation]);
   return <PlaceContext.Provider value={api}>{children}</PlaceContext.Provider>;
 }
 

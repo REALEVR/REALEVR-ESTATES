@@ -68,6 +68,8 @@ Facebook, X, Telegram and LinkedIn. Share the *specific* page, not just the home
 One real listing with a tour, posted to five groups that fit it, beats the home-page link posted
 to fifty that do not.
 
+Promoting across all African countries, and to owners abroad: see [AFRICA_PROMOTION.md](AFRICA_PROMOTION.md).
+
 ## Rough funnel (so the target is believable)
 
 To reach 1,000 users you need on the order of 10,000 visits at a typical
