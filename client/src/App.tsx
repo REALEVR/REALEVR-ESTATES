@@ -62,6 +62,7 @@ import AdminPayoutApprovals from '@/pages/AdminPayoutApprovals'
 import AdminRentRailPayouts from '@/pages/AdminRentRailPayouts'
 import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
 import AdminRoomCaptures from '@/pages/AdminRoomCaptures'
+import AdminKevinLeads from '@/pages/AdminKevinLeads'
 import AdminAnalytics from '@/pages/AdminAnalytics'
 import AdminBroadcast from '@/pages/AdminBroadcast'
 import AdminDashboardHome from '@/pages/AdminDashboardHome'
@@ -196,6 +197,8 @@ function Router() {
                 component={AdminRoomCaptures}
                 allowedRoles={['admin']}
             />
+            {/* Strictly admin-only — visitors' personal details, see server/gene/kevin-leads.ts. */}
+            <ProtectedAdminRoute path="/admin/kevin-leads" component={AdminKevinLeads} allowedRoles={['admin']} />
             {/* Strictly admin-only — platform-wide user PII / mass
                 messaging, same reasoning as payout-approvals above. */}
             <ProtectedAdminRoute path="/admin/analytics" component={AdminAnalytics} allowedRoles={['admin']} />

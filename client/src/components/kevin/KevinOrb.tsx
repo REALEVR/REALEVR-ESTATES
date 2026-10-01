@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AudioLines, Globe, Mic, Send, Sparkles, Volume2, VolumeX, X } from 'lucide-react'
-import { useLocation } from 'wouter'
+import { Link, useLocation } from 'wouter'
 import { useAuth } from '@/hooks/use-auth'
 import { apiRequest } from '@/lib/queryClient'
 import {
@@ -45,7 +45,7 @@ const LANG_KEY = 'realevr_kevin_lang'
 const GREETED_KEY = 'realevr_kevin_greeted'
 const MUTED_KEY = 'realevr_kevin_muted'
 const SESSION_KEY = 'realevr_gene_chat_session_id' // shared with the older widget so a thread survives
-const COOKIE_KEY = 'realevr_cookie_consent'
+const INTAKE_KEY = 'realevr_kevin_intake' // 'done' once he has what he needs from this visitor (or they said no)
 
 // Same rule the server applies before putting a language name into the AI's
 // instructions. Checked here too so a rejected name gets a visible message
@@ -162,6 +162,8 @@ export default function KevinOrb() {
   const [busy, setBusy] = useState(false)
   const [muted, setMuted] = useState(() => readStore(MUTED_KEY) === '1')
   const [changingLanguage, setChangingLanguage] = useState(false)
+  // The welcome conversation: name, what they need, how to reach them. Asked once.
+  const [intakeDone, setIntakeDone] = useState(() => readStore(INTAKE_KEY) === 'done')
   const [, navigate] = useLocation()
 
   // Voice mode
@@ -177,6 +179,8 @@ export default function KevinOrb() {
   langRef.current = lang
   const mutedRef = useRef(muted)
   mutedRef.current = muted
+  const intakeDoneRef = useRef(intakeDone)
+  intakeDoneRef.current = intakeDone
   const sessionIdRef = useRef<string>()
   if (!sessionIdRef.current) sessionIdRef.current = getSessionId()
   const endRef = useRef<HTMLDivElement>(null)
@@ -223,30 +227,17 @@ export default function KevinOrb() {
     [push, say],
   )
 
-  // ---- First-visit greeting: wait for the cookie notice to be dealt with ----
+  // ---- First-visit greeting ----
+  // As soon as someone arrives Kevin says hello, with a short beat for the page to
+  // appear first. (He used to wait for the cookie notice to be answered; the
+  // greeting now sits above it instead, so it is never held back.)
   useEffect(() => {
     if (readStore(GREETED_KEY)) return
-    let cancelled = false
-    let timer: ReturnType<typeof setTimeout>
-    const started = Date.now()
-    const tick = () => {
-      if (cancelled) return
-      const settled = !!readStore(COOKIE_KEY) || Date.now() - started > 20_000
-      if (settled) {
-        timer = setTimeout(() => {
-          if (cancelled) return
-          writeStore(GREETED_KEY, '1')
-          setBubble(true)
-        }, 1500)
-      } else {
-        timer = setTimeout(tick, 600)
-      }
-    }
-    timer = setTimeout(tick, 2500)
-    return () => {
-      cancelled = true
-      clearTimeout(timer)
-    }
+    const timer = setTimeout(() => {
+      writeStore(GREETED_KEY, '1')
+      setBubble(true)
+    }, 900)
+    return () => clearTimeout(timer)
   }, [])
 
   // An untouched greeting shouldn't hang over the page forever.
@@ -266,7 +257,8 @@ export default function KevinOrb() {
     setMessages((prev) => {
       if (prev.length > 0) return prev
       if (langRef.current) {
-        return [{ id: nextId(), kind: 'text', role: 'kevin', text: stringsFor(langRef.current).intro }]
+        const words = stringsFor(langRef.current)
+        return [{ id: nextId(), kind: 'text', role: 'kevin', text: intakeDoneRef.current ? words.intro : words.introIntake }]
       }
       return [{ id: nextId(), kind: 'picker' }]
     })
@@ -317,13 +309,14 @@ export default function KevinOrb() {
     setOpen(true)
     setMessages((prev) => prev.filter((m) => m.kind !== 'picker'))
 
-    let intro = stringsFor(picked).intro
+    let intro = intakeDoneRef.current ? stringsFor(picked).intro : stringsFor(picked).introIntake
     if (!hasBuiltInIntro(picked)) {
       // Languages we don't ship an introduction for: the AI writes it.
       setBusy(true)
       try {
         const res = await apiRequest('POST', '/api/gene/chat', {
           intro: true,
+          intake: !intakeDoneRef.current,
           persona: 'kevin',
           language: { code: picked.code, name: picked.name },
         })
@@ -355,10 +348,16 @@ export default function KevinOrb() {
         persona: 'kevin',
         voice: opts.voice === true,
         shown: shownRef.current,
+        intake: !intakeDoneRef.current,
         ...(current ? { language: { code: current.code, name: current.name } } : {}),
       })
       const data = await res.json()
       if (typeof data.sessionId === 'string') sessionIdRef.current = data.sessionId
+      // He has what he needed (or they said no): stop asking, for good.
+      if (data.lead && (data.lead.complete || data.lead.declined)) {
+        writeStore(INTAKE_KEY, 'done')
+        setIntakeDone(true)
+      }
 
       const found: KevinCard[] = Array.isArray(data.results) ? data.results : []
       if (data.action?.type === 'results') {
@@ -536,7 +535,7 @@ export default function KevinOrb() {
         <div
           role="dialog"
           aria-label="Kevin says hello"
-          className="kevin-pop fixed bottom-[calc(var(--fab-row-1)+4.25rem)] right-3 z-[45] w-[min(22rem,calc(100vw-1.5rem))] rounded-3xl border border-white/10 bg-[#0d1024]/95 p-4 text-white shadow-2xl backdrop-blur-xl md:bottom-[6.25rem] md:right-4"
+          className="kevin-pop fixed bottom-[calc(var(--fab-row-1)+4.25rem)] right-3 z-[60] w-[min(22rem,calc(100vw-1.5rem))] rounded-3xl border border-white/10 bg-[#0d1024]/95 p-4 text-white shadow-2xl backdrop-blur-xl md:bottom-[6.25rem] md:right-4"
         >
           <button
             type="button"
@@ -721,6 +720,14 @@ export default function KevinOrb() {
             <div ref={endRef} />
           </div>
 
+          {!intakeDone && (
+            <p className="border-t border-white/10 px-4 pt-2 text-center text-[11px] leading-snug text-white/50">
+              {strings.shareNote}{' '}
+              <Link href="/privacy" className="underline underline-offset-2 hover:text-white/80" onClick={() => setOpen(false)}>
+                {strings.privacy}
+              </Link>
+            </p>
+          )}
           <form
             onSubmit={(e) => {
               e.preventDefault()

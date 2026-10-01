@@ -26,8 +26,20 @@ import type { Express, RequestHandler } from 'express'
 import { randomUUID } from 'crypto'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
+import type { User } from '@shared/schema'
 import { notifyNewEscalation } from './slack-bridge'
 import { getAiReply } from './ai-provider'
+import { requireStrictAdmin } from './admin-guard'
+import {
+    describeLead,
+    detectContactUpdate,
+    extractLeadUpdate,
+    getLead,
+    isIntakeComplete,
+    listLeads,
+    recordLeadTurn,
+    type KevinLead,
+} from './kevin-leads'
 import {
     ACTION_PROMPT,
     GO_PAGES,
@@ -210,6 +222,22 @@ const KEVIN_VOICE_PROMPT = [
     'If they thank you or say goodbye, answer in two or three words.',
 ]
 
+// The welcome conversation (see kevin-leads.ts): learn the visitor's name, what
+// they need and how to reach them, one friendly question at a time, and hand
+// back what was learned in a token. Appended only while it is still needed.
+const KEVIN_INTAKE_PROMPT = [
+    'You are also welcoming this visitor and learning how to help them. Ask for ONE thing at a time, warmly, like a person, never like a form.',
+    'If they ask you something first, answer it briefly, then ask for the next thing.',
+    'When you ask for an email address or WhatsApp number, say once, in one short sentence, that you will share it with the RealEVR team so they can help, and that they are free to say no.',
+    'Never ask for passwords, ID numbers, card or mobile-money details.',
+    'Whenever the visitor tells you any of these, end your reply with [[LEAD {"name":"...","email":"...","phone":"...","need":"...","location":"...","budget":"..."}]] containing ONLY the fields they just gave, exactly as they said them (a short summary for need).',
+    'If they decline to share contact details, thank them kindly, carry on helping, and end your reply with [[LEAD {"declined":true}]].',
+    'Once you have what you need, thank them by name and carry on helping with their search; do not ask again. Never mention the token.',
+]
+
+const KEVIN_INTRO_INTAKE_INSTRUCTION =
+    'The visitor has just chosen their language. Introduce yourself as Kevin in one warm sentence, then ask for their first name so you can look after them properly. Say nothing else.'
+
 const KEVIN_INTRO_INSTRUCTION =
     'The visitor has just chosen their language. Introduce yourself as Kevin in one warm sentence, then ask in one short sentence how you can help them find a home today. Say nothing else.'
 
@@ -222,6 +250,8 @@ interface ReplyOptions {
     shown?: { id: number; title: string }[]
     /** Facts the model must base its answer on (the result of a search Kevin just ran). */
     facts?: string
+    /** The welcome conversation is still under way: what Kevin knows and should ask next. */
+    intake?: string
 }
 
 async function getReply(
@@ -239,6 +269,7 @@ async function getReply(
             ? `Homes on the visitor's screen right now: ${options.shown.map((s, i) => `${i + 1}. id ${s.id}, ${s.title}`).join('; ')}.`
             : '',
         options.facts ?? '',
+        ...(options.persona === 'kevin' && options.intake ? [...KEVIN_INTAKE_PROMPT, options.intake] : []),
         // An explicit choice beats the browser's guess.
         options.chosenLanguage ? chosenLanguageInstruction(options.chosenLanguage) : languageInstruction(acceptLanguage),
         propertyContext,
@@ -443,7 +474,7 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             // providers (Anthropic requires the first turn to be the user's).
             // A null reply tells the client to use its built-in intro line.
             if (body.intro === true && body.persona === 'kevin') {
-                const reply = await getReply([], KEVIN_INTRO_INSTRUCTION, req.headers['accept-language'], {
+                const reply = await getReply([], body.intake === true ? KEVIN_INTRO_INTAKE_INSTRUCTION : KEVIN_INTRO_INSTRUCTION, req.headers['accept-language'], {
                     persona: 'kevin',
                     chosenLanguage: parseChosenLanguage(body.language),
                 })
@@ -476,19 +507,30 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                 if (contact) {
                     conversation.capturedLead = { contact, capturedAt: nowIso() }
                     justCapturedLead = true
-                    // Fire-and-forget, same posture as writeEscalation's Slack
-                    // notify above — never let this slow down or fail the reply.
-                    notifyAdminsOfNewLead(sessionId, message, contact).catch((err) =>
-                        console.error('[gene/chat] lead notification failed:', err)
-                    )
+                    // Kevin's visitors are recorded (and the team told) by
+                    // kevin-leads.ts, with their name and need; telling the team
+                    // twice about the same person would only be noise.
+                    if (persona !== 'kevin') {
+                        // Fire-and-forget, same posture as writeEscalation's Slack
+                        // notify above — never let this slow down or fail the reply.
+                        notifyAdminsOfNewLead(sessionId, message, contact).catch((err) =>
+                            console.error('[gene/chat] lead notification failed:', err)
+                        )
+                    }
                 }
             }
 
+            // The welcome conversation: still under way unless this visitor has
+            // already told Kevin what he needs to know (or declined to).
+            const signedIn = persona === 'kevin' && req.isAuthenticated?.() ? (req.user as User) : null
+            const knownLead = persona === 'kevin' ? await getLead(sessionId) : null
+            const intaking = persona === 'kevin' && !isIntakeComplete(knownLead) && (body.intake === true || !!knownLead)
             const replyOptions: ReplyOptions = {
                 persona,
                 chosenLanguage,
                 voice: persona === 'kevin' && body.voice === true,
                 shown: persona === 'kevin' ? parseShown(body.shown) : undefined,
+                intake: intaking ? describeLead(knownLead, signedIn) : undefined,
             }
             const history = conversation.messages.slice(0, -1)
             const aiReply = await getReply(history, message, req.headers['accept-language'], replyOptions)
@@ -502,6 +544,12 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             let effectiveIntent: GeneIntent = intent
             let action: KevinAction | null = null
             let results: KevinCard[] = []
+            let leadUpdate = null as ReturnType<typeof extractLeadUpdate>['update']
+            if (persona === 'kevin' && aiReply) {
+                const learned = extractLeadUpdate(reply)
+                reply = learned.text
+                leadUpdate = learned.update
+            }
             if (persona === 'kevin' && aiReply) {
                 const extracted = extractHandoffToken(reply)
                 if (extracted.requested) {
@@ -529,7 +577,15 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             // guarantees every visitor who shares their details gets
             // acknowledged, matching this module's "never depend solely on
             // AI" posture elsewhere (see CANNED_REPLIES).
-            if (justCapturedLead) {
+            // Remember what Kevin learned (and keep any email or phone typed in, even if
+            // the model forgot to say so) and tie it to the visitor's account.
+            let lead: KevinLead | null = null
+            if (persona === 'kevin') {
+                const typed = detectContactUpdate(message)
+                const merged = leadUpdate || typed ? { ...(typed ?? {}), ...(leadUpdate ?? {}) } : null
+                lead = await recordLeadTurn({ sessionId, update: merged, signedIn, language: chosenLanguage?.name })
+            }
+            if (justCapturedLead && !(persona === 'kevin' && usedAi)) {
                 reply = `Thanks for sharing your contact details — a member of our team may follow up if you need anything specific. ${reply}`
             }
 
@@ -542,10 +598,31 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             conversation.messages.push({ role: 'assistant', text: reply, intent: effectiveIntent, createdAt: nowIso() })
             saveConversation(conversation)
 
-            res.json({ sessionId, reply, intent: effectiveIntent, escalated, leadCaptured: justCapturedLead, action, results })
+            res.json({
+                sessionId,
+                reply,
+                intent: effectiveIntent,
+                escalated,
+                leadCaptured: justCapturedLead,
+                action,
+                results,
+                // Lets the widget stop asking once the welcome conversation is over.
+                lead: lead ? { complete: isIntakeComplete(lead), declined: lead.declined === true, name: lead.name ?? null } : null,
+            })
         } catch (err) {
             console.error('[gene/chat] POST /api/gene/chat failed:', err)
             res.status(500).json({ message: 'Failed to process chat message.' })
+        }
+    })
+
+    // GET /api/admin/kevin-leads — platform owner only. Everyone who told Kevin who
+    // they are and what they need (see kevin-leads.ts), newest first.
+    app.get('/api/admin/kevin-leads', requireStrictAdmin, async (_req, res) => {
+        try {
+            res.json(await listLeads())
+        } catch (err) {
+            console.error('[gene/chat] GET /api/admin/kevin-leads failed:', err)
+            res.status(500).json({ message: 'Failed to load leads.' })
         }
     })
 
