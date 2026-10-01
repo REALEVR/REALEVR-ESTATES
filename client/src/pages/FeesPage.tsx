@@ -7,7 +7,7 @@ import { AUCTION_RULES } from "@shared/auction-rules";
 export default function FeesPage() {
   const { data } = useProgram();
   const [code, setCode] = useState("UG");
-  const mine = useMemo(() => data?.countries.find((c) => c.code === code), [data, code]);
+  const mine = useMemo(() => data?.countries?.find((c) => c.code === code), [data, code]);
 
   return (
     <LegalPage

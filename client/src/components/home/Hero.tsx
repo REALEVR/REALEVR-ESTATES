@@ -7,6 +7,7 @@ import houseImg from '../../assets/images/hero-house.jpg';
 import mansionBg from '../../assets/images/hero-mansion.jpg';
 import FilterBar from './FilterBar';
 import CountUp from '@/components/motion/CountUp';
+import BlurText from '@/components/fx/BlurText';
 import VRBadge from '@/components/property/VRBadge';
 import ExploreFiltersDialog from './ExploreFiltersDialog';
 import HeroNewsSlide from './HeroNewsSlide';
@@ -312,9 +313,11 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
               <i className="fas fa-vr-cardboard" aria-hidden="true" /> 360° tours · across Africa
             </span>
             <h1 className="font-display text-6xl font-bold leading-[1.02] tracking-tight text-white lg:text-[5.5rem]">
-              Walk in
+              <BlurText text="Walk in" />
               <br />
-              <span className="font-medium italic text-[hsl(var(--gold))]">before you arrive.</span>
+              <span className="font-medium italic text-[hsl(var(--gold))]">
+                <BlurText text="before you arrive." wordClassName="fx-shimmer" startAt={0.35} />
+              </span>
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/90 lg:text-xl">
               Tour real homes on your phone, tablet or headset, then message the owner on WhatsApp. Rentals, BnBs, homes for sale and bank
@@ -408,6 +411,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             ))}
           </select>
           <button
+            data-magnet
             className="shine rounded-full px-8 py-2.5 font-semibold text-lg hover:opacity-90 transition ml-2"
             onClick={handleSearch}
           >

@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import FxSwitch from "@/components/fx/FxSwitch";
 import { useQuery } from "@tanstack/react-query";
 import { WHATSAPP_NUMBERS, whatsAppLink, SOCIAL_LINKS } from "@/lib/siteLinks";
 import logoPath from '../../assets/logo.png';
@@ -169,6 +170,8 @@ export default function Footer() {
             <Link href="/auction-terms" className="hover:text-accent hover:underline">Auction Terms</Link>
             <span className="mx-2">·</span>
             <Link href="/bidder-vetting" className="hover:text-accent hover:underline">Bidder Vetting</Link>
+            <span className="mx-2">·</span>
+            <FxSwitch />
             <span className="mx-2">·</span>
             <Link href="/fees" className="hover:text-accent hover:underline">Fees</Link>
             <span className="mx-2">·</span>
