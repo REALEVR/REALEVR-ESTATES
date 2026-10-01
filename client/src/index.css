@@ -481,3 +481,12 @@ body {
 .property-card.tilt::after { display: none; }
 .property-card article { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
 @media (hover: hover) and (pointer: fine) { .property-card:hover article > div:first-child { box-shadow: 0 14px 30px -10px hsl(235 28% 12% / 0.35); } }
+
+/* A new top bid makes the price flash gold. */
+@keyframes bidflash {
+  0% { background-color: hsl(40 92% 62% / 0.55); transform: scale(1.03); }
+  100% { background-color: transparent; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [class*="bidflash"] { animation: none !important; }
+}

@@ -8,6 +8,7 @@ import OwnerContactDetails from './OwnerContactDetails'
 import ReviewsSection from './ReviewsSection'
 import BookingCalendarModal from './BookingCalendarModal'
 import VirtualTourModal from './VirtualTourModal'
+import AuctionPanel from '@/components/auction/AuctionPanel'
 import TourPaymentModal from './TourPaymentModal'
 import SharePropertyModal from './SharePropertyModal'
 import MessageAgentModal from './MessageAgentModal'
@@ -274,6 +275,9 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                 this, only the tour itself was gated; the rest of the page
                 was fully visible regardless, which undercut the point of
                 paying to view in the first place. */}
+            {/* A bank sale is a live auction: price so far, countdown, bids and the bank's provisions. */}
+            {property.category === 'bank_sales' && <AuctionPanel propertyId={property.id} />}
+
             {requiresTourPayment && !hasValidPayment ? (
                 <div className="border border-dashed border-border rounded-lg p-8 text-center my-6">
                     <h4 className="font-semibold mb-1">Full details are locked</h4>
