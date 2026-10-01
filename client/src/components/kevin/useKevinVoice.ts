@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 /**
- * Kevin's voice, built on the browser's own speech APIs: nothing to download
- * and no third-party service or key involved.
+ * Kevin's voice. Two sources, tried in this order:
+ *
+ *  1. His own voice, synthesised by the server (server/gene/kevin-voice.ts) when
+ *     a speech provider is configured there: the same recognisable voice on every
+ *     phone and tablet. Used for the languages that provider speaks well (see
+ *     SERVER_VOICE_LANGUAGES); if a request fails mid-answer the rest of it is
+ *     spoken with the device voice instead.
+ *  2. The browser's own speech APIs: nothing to download and no key involved.
  *
  * What that costs, honestly: which languages can be spoken depends on the
  * voices installed on the visitor's device. English, French, Spanish and most
@@ -11,6 +17,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
  * whether the current language can be spoken here, and the UI is expected to
  * fall back to text (and say so) when it cannot, rather than fail silently.
  */
+
+// Languages Kevin's server voice speaks naturally. Others (Luganda, Kinyarwanda,
+// typed-in languages) would be read with the wrong pronunciation, so they use a
+// device voice when there is one and otherwise stay text-only, as before.
+const SERVER_VOICE_LANGUAGES = new Set(['en', 'sw', 'fr', 'es', 'pt', 'de', 'ar', 'zh', 'hi'])
+const primaryLanguage = (tag: string | null | undefined) => (tag ? tag.replace(/_/g, '-').toLowerCase().split('-')[0] : '')
+
+// Asked once per page load, shared by every user of the hook.
+let serverVoiceStatus: Promise<boolean> | null = null
+function serverVoiceAvailable(): Promise<boolean> {
+  if (!serverVoiceStatus) {
+    serverVoiceStatus = fetch('/api/gene/speak/status')
+      .then((r) => (r.ok ? r.json() : { available: false }))
+      .then((j) => j?.available === true)
+      .catch(() => false)
+  }
+  return serverVoiceStatus
+}
+
+// A short silent clip, played inside the first tap so phones allow later playback.
+const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA='
 
 // Some engines return an empty voice list until they've loaded, then fire
 // `voiceschanged`; others never fire it and just have voices immediately.
@@ -75,6 +102,26 @@ export function chime(kind: 'start' | 'end') {
   }
 }
 
+/** How a spoken answer is cut up for the server: the first sentence on its own
+ * (so Kevin starts talking quickly), then the rest in at most two further pieces. */
+function serverPieces(text: string): string[] {
+  const parts = sentences(text)
+  if (parts.length <= 1) return parts
+  const [first, ...rest] = parts
+  const groups: string[] = [first]
+  let current = ''
+  for (const part of rest) {
+    if (current && (current + ' ' + part).length > 280 && groups.length < 2) {
+      groups.push(current)
+      current = part
+    } else {
+      current = current ? current + ' ' + part : part
+    }
+  }
+  if (current) groups.push(current)
+  return groups
+}
+
 /** Split into sentences so a long answer is spoken in pieces. Engines cut off long
  * utterances (Chrome stops after about fifteen seconds), and short pieces also
  * mean "stop" and "interrupt" take effect almost instantly. */
@@ -111,6 +158,42 @@ export function useKevinVoice(bcp47: string | null) {
   // Bumped by every speak() and stop(), so the callbacks of an utterance that
   // was cancelled or replaced can tell they are stale and stay quiet.
   const speechRun = useRef(0)
+  const [serverVoice, setServerVoice] = useState(false)
+  // One audio element for the page's lifetime: once a tap has let it play, it may
+  // keep playing later clips (phones refuse a brand-new element without a tap).
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const cancelClip = useRef<(() => void) | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    serverVoiceAvailable().then((ok) => alive && setServerVoice(ok))
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  // Unlock audio on the visitor's first touch or click anywhere on the page.
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const unlock = () => {
+      try {
+        const audio = audioRef.current ?? new Audio()
+        audioRef.current = audio
+        audio.src = SILENT_WAV
+        void audio.play().then(() => audio.pause()).catch(() => {})
+      } catch {
+        /* nothing to unlock on this browser */
+      }
+      document.removeEventListener('pointerdown', unlock, true)
+      document.removeEventListener('keydown', unlock, true)
+    }
+    document.addEventListener('pointerdown', unlock, true)
+    document.addEventListener('keydown', unlock, true)
+    return () => {
+      document.removeEventListener('pointerdown', unlock, true)
+      document.removeEventListener('keydown', unlock, true)
+    }
+  }, [])
 
   useEffect(() => {
     if (!synth) return
@@ -124,27 +207,28 @@ export function useKevinVoice(bcp47: string | null) {
 
   const stop = useCallback(() => {
     speechRun.current += 1
+    cancelClip.current?.()
     if (synth) synth.cancel()
     setSpeaking(false)
   }, [synth])
 
-  /** Can this device speak the given language (default: the current one)? */
-  const hasVoiceFor = useCallback(
-    (tag: string | null | undefined = bcp47) => !!synth && !!pickVoice(voicesRef.current, tag ?? null),
-    [synth, bcp47],
+  const usesServerVoice = useCallback(
+    (tag: string | null | undefined) => serverVoice && SERVER_VOICE_LANGUAGES.has(primaryLanguage(tag)),
+    [serverVoice],
   )
 
-  /** Returns false (and says nothing) when this device has no voice for the language.
-   * `onDone` fires when the whole answer has been spoken, not when it was cut off. */
-  const speak = useCallback(
-    (text: string, tag: string | null | undefined = bcp47, onDone?: () => void): boolean => {
+  /** Can Kevin speak the given language (default: the current one)? Either with his own voice or the device's. */
+  const hasVoiceFor = useCallback(
+    (tag: string | null | undefined = bcp47) => usesServerVoice(tag) || (!!synth && !!pickVoice(voicesRef.current, tag ?? null)),
+    [synth, bcp47, usesServerVoice],
+  )
+
+  /** The device's own voice. `run` is the speech run this belongs to. */
+  const speakWithDevice = useCallback(
+    (spoken: string, tag: string | null | undefined, onDone: (() => void) | undefined, run: number): boolean => {
       const chosen = synth ? pickVoice(voicesRef.current, tag ?? null) : null
       if (!synth || !chosen) return false
-      const spoken = cleanForSpeech(text)
-      if (!spoken) return false
       try {
-        synth.cancel() // never talk over ourselves
-        const run = ++speechRun.current
         const pieces = sentences(spoken)
         pieces.forEach((piece, i) => {
           const utterance = new SpeechSynthesisUtterance(piece)
@@ -176,7 +260,91 @@ export function useKevinVoice(bcp47: string | null) {
         return false
       }
     },
-    [synth, bcp47],
+    [synth],
+  )
+
+  /** Kevin's own voice: ask the server for each piece (all at once, so the next is
+   * ready when the last ends) and play them in turn on the shared audio element. */
+  const speakWithServer = useCallback(
+    async (spoken: string, tag: string | null | undefined, onDone: (() => void) | undefined, run: number) => {
+      const pieces = serverPieces(spoken)
+      const clips = pieces.map(
+        (piece): Promise<string | null> =>
+          fetch('/api/gene/speak', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: piece }),
+          })
+            .then((r) => (r.ok ? r.blob() : null))
+            .then((blob) => (blob ? URL.createObjectURL(blob) : null))
+            .catch(() => null),
+      )
+      const discard = (from: number) => clips.slice(from).forEach((c) => c.then((u) => u && URL.revokeObjectURL(u)))
+      const audio = audioRef.current ?? new Audio()
+      audioRef.current = audio
+
+      setSpeaking(true)
+      for (let i = 0; i < pieces.length; i++) {
+        const url = await clips[i]
+        if (speechRun.current !== run) return discard(i + (url ? 0 : 1))
+        let played = false
+        if (url) {
+          played = await new Promise<boolean>((resolve) => {
+            const finish = (ok: boolean) => {
+              audio.onended = null
+              audio.onerror = null
+              cancelClip.current = null
+              URL.revokeObjectURL(url)
+              resolve(ok)
+            }
+            cancelClip.current = () => {
+              try {
+                audio.pause()
+              } catch {
+                /* already stopped */
+              }
+              finish(false)
+            }
+            audio.onended = () => finish(true)
+            audio.onerror = () => finish(false)
+            audio.src = url
+            audio.play().catch(() => finish(false))
+          })
+        }
+        if (speechRun.current !== run) return discard(i + 1)
+        if (!played) {
+          // His voice isn't reachable (or the phone blocked it): finish the answer with the device's.
+          discard(i + 1)
+          setSpeaking(false)
+          const rest = pieces.slice(i).join(' ')
+          if (!speakWithDevice(rest, tag, onDone, run)) onDone?.()
+          return
+        }
+      }
+      setSpeaking(false)
+      onDone?.()
+    },
+    [speakWithDevice],
+  )
+
+  /** Returns false (and says nothing) when Kevin has no way to speak the language here.
+   * `onDone` fires when the whole answer has been spoken, not when it was cut off. */
+  const speak = useCallback(
+    (text: string, tag: string | null | undefined = bcp47, onDone?: () => void): boolean => {
+      const spoken = cleanForSpeech(text)
+      if (!spoken) return false
+      const server = usesServerVoice(tag)
+      if (!server && !(synth && pickVoice(voicesRef.current, tag ?? null))) return false
+      synth?.cancel() // never talk over ourselves
+      cancelClip.current?.()
+      const run = ++speechRun.current
+      if (server) {
+        void speakWithServer(spoken, tag, onDone, run)
+        return true
+      }
+      return speakWithDevice(spoken, tag, onDone, run)
+    },
+    [synth, bcp47, usesServerVoice, speakWithServer, speakWithDevice],
   )
 
   const stopListening = useCallback(() => {
@@ -247,6 +415,7 @@ export function useKevinVoice(bcp47: string | null) {
   // Leaving the page or unmounting must not leave Kevin talking to nobody.
   useEffect(() => () => {
     synth?.cancel()
+    cancelClip.current?.()
     try {
       recognitionRef.current?.abort()
     } catch {
@@ -255,8 +424,8 @@ export function useKevinVoice(bcp47: string | null) {
   }, [synth])
 
   return {
-    canSpeak: !!synth,
-    hasVoice: !!voice,
+    canSpeak: !!synth || serverVoice,
+    hasVoice: !!voice || serverVoice,
     hasVoiceFor,
     speaking,
     speak,
