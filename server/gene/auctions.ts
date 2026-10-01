@@ -34,6 +34,7 @@ import { createNotification } from '../models/Notification'
 import { storage } from '../storage'
 import { DynamoDBUtils, TABLES } from '../dynamodb'
 import { AUCTION_RULES, type BidderStatus, type FeeStatus } from '../../shared/auction-rules'
+import { paidEnough, payToText, referenceInText, registerPaymentMatcher, restorePaymentSettings, retryUnmatchedNotices } from './payment-settings'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -302,9 +303,7 @@ const money = (currency: string, n: number) => `${currency} ${n.toLocaleString()
 function feeInstructions(entry: AuctionEntry): { reference: string; payTo: string } {
     return {
         reference: `AUC-${entry.auctionId}-${entry.id}`,
-        payTo:
-            (process.env.AUCTION_FEE_PAY_TO || '').trim() ||
-            'Message RealEVR on WhatsApp (+256 771 891 323) from inside your account to receive the payment details. Never pay into any other account.',
+        payTo: payToText(),
     }
 }
 
@@ -624,6 +623,7 @@ export function registerAuctionRoutes(app: Express): void {
             whatsappMessage: `💳 Commitment fee to confirm\n${bidder.application.fullName}\nAuction: ${a.title}\nRef: ${ref}\nConfirm in Admin > Auctions once the money is seen.`,
             link: '/admin/auctions',
         }).catch(() => {})
+        retryUnmatchedNotices().catch(() => {})
         res.json(buildView(a, userId))
     })
 
@@ -859,6 +859,27 @@ export function registerAuctionRoutes(app: Express): void {
 
 /** Start-up: restore from the database if needed, close anything already due, and keep closing. */
 export function startAuctionService(): void {
+    // A receipt that names a submitted fee reference and shows about US$1,000 confirms that one fee, by itself.
+    registerPaymentMatcher('Auction fee', async (notice) => {
+        if (!paidEnough(notice.usd, AUCTION_RULES.commitmentFeeUsd)) return null
+        const hits = rowsOf.entries().filter((e) => e.feeStatus === 'submitted' && e.feeReference && referenceInText(notice.text, e.feeReference))
+        if (hits.length !== 1) return null
+        const e = hits[0]
+        e.feeStatus = 'confirmed'
+        e.feeConfirmedAt = nowIso()
+        e.feeConfirmedBy = 0
+        e.feeNote = `Confirmed automatically from payment notice #${notice.id}`
+        save(C_ENTRIES, e)
+        await tell(e.userId, 'Commitment fee confirmed', 'Your payment arrived and your fee is confirmed. You can bid when the auction is live.', '/bank-sales')
+        const auction = rowsOf.auctions().find((x) => x.id === e.auctionId)
+        notifyAdminsEverywhere({
+            title: 'Commitment fee confirmed automatically',
+            message: `The fee for "${auction?.title ?? 'an auction'}" (reference ${e.feeReference}) was matched to payment notice #${notice.id} and confirmed.`,
+            link: '/admin/auctions',
+        }).catch(() => {})
+        return `entry #${e.id}`
+    })
+    restorePaymentSettings().catch(() => {})
     restoreAuctionsFromDatabase()
         .then(() => finalizeDueAuctions())
         .catch((err) => console.error('[auctions] start-up failed:', err))
