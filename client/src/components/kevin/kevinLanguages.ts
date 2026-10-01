@@ -58,6 +58,11 @@ export interface KevinStrings {
   introIntake: string // the first-visit welcome that asks for a name
   shareNote: string // standing note about where shared details go
   privacy: string
+  handsFreeOffer: string // consent text: what turning it on means
+  handsFreeOn: string
+  handsFreeNotNow: string
+  handsFreeLabel: string // toolbar tooltip
+  handsFreeActive: string // shown while he is listening for you
 }
 
 const en: KevinStrings = {
@@ -75,6 +80,11 @@ const en: KevinStrings = {
   introIntake: "Hello, I'm Kevin, your guide to RealEVR Estates. May I know your name, so I can look after you properly?",
   shareNote: 'Details you share go to the RealEVR team so they can help you.',
   privacy: 'Privacy',
+  handsFreeOffer: "Prefer to just talk? Turn on hands-free and I'll wake up and answer whenever you speak while this page is open. Your browser's speech service turns your voice into text, and what you say to me is sent to RealEVR so I can reply. You can switch it off any time.",
+  handsFreeOn: 'Turn on hands-free',
+  handsFreeNotNow: 'Not now',
+  handsFreeLabel: 'Hands-free',
+  handsFreeActive: 'Listening: just talk',
 }
 
 // Written only for languages where the wording is straightforward and safe.
@@ -97,6 +107,11 @@ const BY_CODE: Record<string, KevinStrings> = {
   introIntake: 'Habari! Mimi ni Kevin, mwongozo wako wa RealEVR Estates. Naweza kujua jina lako ili nikuhudumie vizuri?',
   shareNote: 'Maelezo unayotoa huenda kwa timu ya RealEVR ili ikusaidie.',
   privacy: 'Faragha',
+  handsFreeOffer: 'Unapendelea kuzungumza tu? Washa hands-free nami nitaamka na kujibu kila unapozungumza ukiwa kwenye ukurasa huu. Huduma ya sauti ya kivinjari chako hubadilisha sauti yako kuwa maandishi, na unachoniambia hutumwa kwa RealEVR ili nikujibu. Unaweza kuizima wakati wowote.',
+  handsFreeOn: 'Washa hands-free',
+  handsFreeNotNow: 'Si sasa',
+  handsFreeLabel: 'Hands-free',
+  handsFreeActive: 'Nakusikiliza: zungumza tu',
   },
   fr: {
     placeholder: 'Posez une question à Kevin…',
@@ -113,6 +128,11 @@ const BY_CODE: Record<string, KevinStrings> = {
   introIntake: "Bonjour ! Je suis Kevin, votre guide chez RealEVR Estates. Puis-je connaître votre prénom pour mieux m'occuper de vous ?",
   shareNote: "Les informations que vous partagez sont transmises à l'équipe RealEVR pour vous aider.",
   privacy: 'Confidentialité',
+  handsFreeOffer: 'Vous préférez simplement parler ? Activez le mode mains libres et je me réveillerai pour vous répondre dès que vous parlerez, tant que cette page est ouverte. Le service vocal de votre navigateur transforme votre voix en texte, et ce que vous me dites est envoyé à RealEVR pour que je puisse répondre. Vous pouvez le désactiver à tout moment.',
+  handsFreeOn: 'Activer les mains libres',
+  handsFreeNotNow: 'Pas maintenant',
+  handsFreeLabel: 'Mains libres',
+  handsFreeActive: "À l'écoute : parlez simplement",
   },
   es: {
     placeholder: 'Pregúntale a Kevin lo que quieras…',
@@ -129,6 +149,11 @@ const BY_CODE: Record<string, KevinStrings> = {
   introIntake: '¡Hola! Soy Kevin, tu guía en RealEVR Estates. ¿Me dices tu nombre para atenderte mejor?',
   shareNote: 'Los datos que compartas llegan al equipo de RealEVR para poder ayudarte.',
   privacy: 'Privacidad',
+  handsFreeOffer: '¿Prefieres simplemente hablar? Activa el modo manos libres y despertaré y responderé cada vez que hables mientras esta página esté abierta. El servicio de voz de tu navegador convierte tu voz en texto y lo que me dices se envía a RealEVR para poder responderte. Puedes desactivarlo cuando quieras.',
+  handsFreeOn: 'Activar manos libres',
+  handsFreeNotNow: 'Ahora no',
+  handsFreeLabel: 'Manos libres',
+  handsFreeActive: 'Escuchando: solo habla',
   },
   pt: {
     placeholder: 'Pergunte qualquer coisa ao Kevin…',
@@ -145,6 +170,11 @@ const BY_CODE: Record<string, KevinStrings> = {
   introIntake: 'Olá! Eu sou o Kevin, seu guia na RealEVR Estates. Posso saber seu nome para atender você melhor?',
   shareNote: 'Os dados que você compartilha vão para a equipe da RealEVR para ajudar você.',
   privacy: 'Privacidade',
+  handsFreeOffer: 'Prefere apenas falar? Ative o modo mãos livres e eu acordo e respondo sempre que você falar enquanto esta página estiver aberta. O serviço de voz do seu navegador transforma sua voz em texto, e o que você me diz é enviado à RealEVR para que eu possa responder. Você pode desativar a qualquer momento.',
+  handsFreeOn: 'Ativar mãos livres',
+  handsFreeNotNow: 'Agora não',
+  handsFreeLabel: 'Mãos livres',
+  handsFreeActive: 'Ouvindo: é só falar',
   },
   de: {
     placeholder: 'Frag Kevin alles…',
@@ -161,6 +191,11 @@ const BY_CODE: Record<string, KevinStrings> = {
   introIntake: 'Hallo! Ich bin Kevin, Ihr Begleiter bei RealEVR Estates. Darf ich Ihren Namen erfahren, damit ich mich gut um Sie kümmern kann?',
   shareNote: 'Angaben, die Sie machen, gehen an das RealEVR-Team, damit es Ihnen helfen kann.',
   privacy: 'Datenschutz',
+  handsFreeOffer: 'Sie möchten einfach sprechen? Schalten Sie Freisprechen ein, dann werde ich wach und antworte, sobald Sie sprechen, solange diese Seite geöffnet ist. Der Sprachdienst Ihres Browsers wandelt Ihre Stimme in Text um, und was Sie mir sagen, wird an RealEVR gesendet, damit ich antworten kann. Sie können es jederzeit ausschalten.',
+  handsFreeOn: 'Freisprechen einschalten',
+  handsFreeNotNow: 'Nicht jetzt',
+  handsFreeLabel: 'Freisprechen',
+  handsFreeActive: 'Ich höre zu: sprechen Sie einfach',
   },
   ar: {
     placeholder: 'اسأل كيفن أي شيء…',
@@ -177,6 +212,11 @@ const BY_CODE: Record<string, KevinStrings> = {
   introIntake: 'مرحباً! أنا كيفن، دليلك في RealEVR Estates. هل يمكنني معرفة اسمك لأخدمك بشكل أفضل؟',
   shareNote: 'المعلومات التي تشاركها تصل إلى فريق RealEVR ليتمكن من مساعدتك.',
   privacy: 'الخصوصية',
+  handsFreeOffer: 'هل تفضّل أن تتحدث فقط؟ فعّل وضع التحدث بدون لمس وسأستيقظ وأجيبك كلما تحدثت أثناء فتح هذه الصفحة. تحوّل خدمة الكلام في متصفحك صوتك إلى نص، وما تقوله لي يُرسل إلى RealEVR لأتمكن من الرد. يمكنك إيقافه في أي وقت.',
+  handsFreeOn: 'تفعيل التحدث بدون لمس',
+  handsFreeNotNow: 'ليس الآن',
+  handsFreeLabel: 'بدون لمس',
+  handsFreeActive: 'أستمع: تحدّث فقط',
   },
   zh: {
     placeholder: '问问 Kevin 任何问题…',
@@ -193,6 +233,11 @@ const BY_CODE: Record<string, KevinStrings> = {
   introIntake: '你好！我是 Kevin，你在 RealEVR Estates 的向导。方便告诉我你的名字吗？这样我能更好地帮你。',
   shareNote: '你分享的信息会交给 RealEVR 团队，以便为你提供帮助。',
   privacy: '隐私',
+  handsFreeOffer: '想直接说话吗？开启免提后，只要这个页面打开，你一开口我就会醒来并回答。你的浏览器语音服务会把你的声音转成文字，你对我说的话会发送给 RealEVR 以便我回复。你可以随时关闭。',
+  handsFreeOn: '开启免提',
+  handsFreeNotNow: '暂时不要',
+  handsFreeLabel: '免提',
+  handsFreeActive: '正在聆听：直接说话',
   },
   hi: {
     placeholder: 'केविन से कुछ भी पूछें…',
@@ -209,6 +254,11 @@ const BY_CODE: Record<string, KevinStrings> = {
   introIntake: 'नमस्ते! मैं केविन हूँ, RealEVR Estates में आपका गाइड। क्या मैं आपका नाम जान सकता हूँ, ताकि आपकी बेहतर मदद कर सकूँ?',
   shareNote: 'आप जो जानकारी साझा करते हैं वह RealEVR टीम को जाती है ताकि वे आपकी मदद कर सकें।',
   privacy: 'गोपनीयता',
+  handsFreeOffer: 'बस बात करना पसंद है? हैंड्स-फ़्री चालू करें, और जब तक यह पेज खुला है, आप जब भी बोलेंगे मैं जागकर जवाब दूँगा। आपके ब्राउज़र की स्पीच सेवा आपकी आवाज़ को टेक्स्ट में बदलती है, और जो आप मुझसे कहते हैं वह जवाब देने के लिए RealEVR को भेजा जाता है। आप इसे कभी भी बंद कर सकते हैं।',
+  handsFreeOn: 'हैंड्स-फ़्री चालू करें',
+  handsFreeNotNow: 'अभी नहीं',
+  handsFreeLabel: 'हैंड्स-फ़्री',
+  handsFreeActive: 'सुन रहा हूँ: बस बोलिए',
   },
 }
 
