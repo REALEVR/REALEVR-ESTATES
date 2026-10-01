@@ -50,6 +50,11 @@ export interface KevinStrings {
   intro: string // used if the server can't write Kevin's introduction
   error: string
   noVoice: string // {lang} is replaced with the language's native name
+  didntCatch: string // spoken when nothing intelligible was heard
+  tapToSpeak: string
+  micBlocked: string
+  talkToKevin: string
+  typeInstead: string
 }
 
 const en: KevinStrings = {
@@ -59,6 +64,11 @@ const en: KevinStrings = {
   intro: "Hello, I'm Kevin, your guide to RealEVR Estates. How can I help you find a home today?",
   error: "I'm having trouble connecting right now. Please try again in a moment.",
   noVoice: "Kevin can't speak {lang} aloud on this device, so he'll reply in text.",
+  didntCatch: "Sorry, I didn't catch that.",
+  tapToSpeak: 'Tap to speak',
+  micBlocked: 'Kevin needs microphone access to hear you. You can allow it in your browser settings, or type instead.',
+  talkToKevin: 'Talk to Kevin',
+  typeInstead: 'Type instead',
 }
 
 // Written only for languages where the wording is straightforward and safe.
@@ -73,6 +83,11 @@ const BY_CODE: Record<string, KevinStrings> = {
     intro: 'Habari! Mimi ni Kevin, mwongozo wako wa RealEVR Estates. Nikusaidie vipi kupata makazi leo?',
     error: 'Nina tatizo la kuunganisha sasa hivi. Tafadhali jaribu tena baada ya muda mfupi.',
     noVoice: 'Kevin hawezi kuzungumza {lang} kwa sauti kwenye kifaa hiki, kwa hivyo atajibu kwa maandishi.',
+  didntCatch: 'Samahani, sikusikia vizuri.',
+  tapToSpeak: 'Gusa ili kuzungumza',
+  micBlocked: 'Kevin anahitaji ruhusa ya kipaza sauti ili kukusikia. Unaweza kuiruhusu kwenye mipangilio ya kivinjari, au uandike badala yake.',
+  talkToKevin: 'Zungumza na Kevin',
+  typeInstead: 'Andika badala yake',
   },
   fr: {
     placeholder: 'Posez une question à Kevin…',
@@ -81,6 +96,11 @@ const BY_CODE: Record<string, KevinStrings> = {
     intro: "Bonjour ! Je suis Kevin, votre guide chez RealEVR Estates. Comment puis-je vous aider à trouver un logement aujourd'hui ?",
     error: "J'ai du mal à me connecter pour le moment. Veuillez réessayer dans un instant.",
     noVoice: 'Kevin ne peut pas parler {lang} à voix haute sur cet appareil ; il répondra par écrit.',
+  didntCatch: "Désolé, je n'ai pas compris.",
+  tapToSpeak: 'Touchez pour parler',
+  micBlocked: "Kevin a besoin d'accéder au micro pour vous entendre. Autorisez-le dans les réglages du navigateur, ou écrivez à la place.",
+  talkToKevin: 'Parler à Kevin',
+  typeInstead: 'Écrire plutôt',
   },
   es: {
     placeholder: 'Pregúntale a Kevin lo que quieras…',
@@ -89,6 +109,11 @@ const BY_CODE: Record<string, KevinStrings> = {
     intro: '¡Hola! Soy Kevin, tu guía en RealEVR Estates. ¿Cómo puedo ayudarte a encontrar un hogar hoy?',
     error: 'Tengo problemas para conectarme ahora mismo. Inténtalo de nuevo en un momento.',
     noVoice: 'Kevin no puede hablar {lang} en voz alta en este dispositivo, así que responderá por escrito.',
+  didntCatch: 'Perdona, no te he entendido.',
+  tapToSpeak: 'Toca para hablar',
+  micBlocked: 'Kevin necesita acceso al micrófono para oírte. Puedes permitirlo en los ajustes del navegador o escribir en su lugar.',
+  talkToKevin: 'Hablar con Kevin',
+  typeInstead: 'Escribir en su lugar',
   },
   pt: {
     placeholder: 'Pergunte qualquer coisa ao Kevin…',
@@ -97,6 +122,11 @@ const BY_CODE: Record<string, KevinStrings> = {
     intro: 'Olá! Eu sou o Kevin, seu guia na RealEVR Estates. Como posso ajudar você a encontrar um lar hoje?',
     error: 'Estou com dificuldade para me conectar agora. Tente novamente em instantes.',
     noVoice: 'O Kevin não consegue falar {lang} em voz alta neste dispositivo, então vai responder por escrito.',
+  didntCatch: 'Desculpe, não entendi.',
+  tapToSpeak: 'Toque para falar',
+  micBlocked: 'O Kevin precisa de acesso ao microfone para ouvir você. Permita nas configurações do navegador ou escreva.',
+  talkToKevin: 'Falar com o Kevin',
+  typeInstead: 'Escrever',
   },
   de: {
     placeholder: 'Frag Kevin alles…',
@@ -105,6 +135,11 @@ const BY_CODE: Record<string, KevinStrings> = {
     intro: 'Hallo! Ich bin Kevin, Ihr Begleiter bei RealEVR Estates. Wie kann ich Ihnen heute helfen, ein Zuhause zu finden?',
     error: 'Ich habe gerade Verbindungsprobleme. Bitte versuchen Sie es gleich noch einmal.',
     noVoice: 'Kevin kann auf diesem Gerät kein {lang} sprechen und antwortet daher schriftlich.',
+  didntCatch: 'Entschuldigung, das habe ich nicht verstanden.',
+  tapToSpeak: 'Zum Sprechen tippen',
+  micBlocked: 'Kevin braucht Mikrofonzugriff, um Sie zu hören. Erlauben Sie ihn in den Browsereinstellungen oder tippen Sie stattdessen.',
+  talkToKevin: 'Mit Kevin sprechen',
+  typeInstead: 'Stattdessen tippen',
   },
   ar: {
     placeholder: 'اسأل كيفن أي شيء…',
@@ -113,6 +148,11 @@ const BY_CODE: Record<string, KevinStrings> = {
     intro: 'مرحباً! أنا كيفن، دليلك في RealEVR Estates. كيف يمكنني مساعدتك في العثور على منزل اليوم؟',
     error: 'أواجه مشكلة في الاتصال الآن. يرجى المحاولة مرة أخرى بعد قليل.',
     noVoice: 'لا يستطيع كيفن التحدث بهذه اللغة بصوت مسموع على هذا الجهاز، لذا سيرد كتابةً.',
+  didntCatch: 'عذراً، لم أفهم ذلك.',
+  tapToSpeak: 'اضغط للتحدث',
+  micBlocked: 'يحتاج كيفن إلى الوصول إلى الميكروفون ليسمعك. يمكنك السماح بذلك من إعدادات المتصفح، أو الكتابة بدلاً من ذلك.',
+  talkToKevin: 'تحدث مع كيفن',
+  typeInstead: 'اكتب بدلاً من ذلك',
   },
   zh: {
     placeholder: '问问 Kevin 任何问题…',
@@ -121,6 +161,11 @@ const BY_CODE: Record<string, KevinStrings> = {
     intro: '你好！我是 Kevin，你在 RealEVR Estates 的向导。今天我能怎样帮你找到理想的家？',
     error: '我现在连接遇到问题，请稍后再试。',
     noVoice: '此设备无法朗读{lang}，Kevin 将以文字回复。',
+  didntCatch: '抱歉，我没听清。',
+  tapToSpeak: '点按说话',
+  micBlocked: 'Kevin 需要使用麦克风才能听到你。你可以在浏览器设置中允许，或改为打字。',
+  talkToKevin: '和 Kevin 对话',
+  typeInstead: '改为打字',
   },
   hi: {
     placeholder: 'केविन से कुछ भी पूछें…',
@@ -129,6 +174,11 @@ const BY_CODE: Record<string, KevinStrings> = {
     intro: 'नमस्ते! मैं केविन हूँ, RealEVR Estates में आपका गाइड। आज घर ढूँढने में मैं आपकी कैसे मदद कर सकता हूँ?',
     error: 'अभी कनेक्ट करने में समस्या हो रही है। कृपया थोड़ी देर बाद फिर कोशिश करें।',
     noVoice: 'इस डिवाइस पर केविन {lang} में बोल नहीं सकता, इसलिए वह लिखकर जवाब देगा।',
+  didntCatch: 'माफ़ कीजिए, मैं समझ नहीं पाया।',
+  tapToSpeak: 'बोलने के लिए टैप करें',
+  micBlocked: 'केविन को आपकी बात सुनने के लिए माइक्रोफ़ोन की अनुमति चाहिए। आप ब्राउज़र सेटिंग में इसे अनुमति दे सकते हैं, या टाइप कर सकते हैं।',
+  talkToKevin: 'केविन से बात करें',
+  typeInstead: 'टाइप करें',
   },
 }
 

@@ -191,3 +191,8 @@
   }
   .kevin-dots span { opacity: 0.8; }
 }
+
+/* Thinking: the aurora turns faster and the ring spins up, a busy-but-calm cue. */
+.kevin.is-thinking .kevin__aurora { animation-duration: 2.6s; }
+.kevin.is-thinking .kevin__ring { animation-duration: 2.4s; }
+.kevin.is-thinking .kevin__core { animation: kevin-talk 1.6s ease-in-out infinite; }

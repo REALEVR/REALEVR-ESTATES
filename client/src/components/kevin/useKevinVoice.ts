@@ -23,15 +23,64 @@ function normalise(tag: string): string {
   return tag.replace(/_/g, '-').toLowerCase()
 }
 
+// Most devices ship several voices per language, and the default is often the
+// flattest one. The natural-sounding ones announce themselves in their names
+// (Apple's "Enhanced"/"Premium", Google's and Microsoft's "Natural"/"Online"),
+// so prefer those; it is the single biggest difference in whether Kevin sounds
+// like a person or a screen reader.
+const NATURAL_VOICE = /\b(premium|enhanced|natural|neural|online|siri|google)\b|samantha|daniel|karen|moira|serena/i
+
+function voiceScore(v: SpeechSynthesisVoice, wanted: string): number {
+  let score = 0
+  if (normalise(v.lang) === wanted) score += 4 // exact region beats same language
+  if (NATURAL_VOICE.test(v.name)) score += 3
+  if (!v.localService) score += 1 // cloud voices are usually the better ones
+  return score
+}
+
 export function pickVoice(voices: SpeechSynthesisVoice[], bcp47: string | null): SpeechSynthesisVoice | null {
   if (!bcp47 || voices.length === 0) return null
   const wanted = normalise(bcp47)
   const primary = wanted.split('-')[0]
-  return (
-    voices.find((v) => normalise(v.lang) === wanted) ||
-    voices.find((v) => normalise(v.lang).split('-')[0] === primary) ||
-    null
-  )
+  const candidates = voices.filter((v) => normalise(v.lang).split('-')[0] === primary)
+  if (candidates.length === 0) return null
+  return candidates.reduce((best, v) => (voiceScore(v, wanted) > voiceScore(best, wanted) ? v : best))
+}
+
+/** A soft two-note earcon, the way a phone assistant signals "I'm listening" / "got it". No audio files. */
+let audioContext: AudioContext | null = null
+export function chime(kind: 'start' | 'end') {
+  try {
+    const Ctx: typeof AudioContext | undefined = window.AudioContext || (window as any).webkitAudioContext
+    if (!Ctx) return
+    audioContext = audioContext ?? new Ctx()
+    if (audioContext.state === 'suspended') void audioContext.resume()
+    const notes = kind === 'start' ? [880, 1318.5] : [1318.5, 880]
+    const t0 = audioContext.currentTime
+    notes.forEach((freq, i) => {
+      const osc = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+      const at = t0 + i * 0.09
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0.0001, at)
+      gain.gain.exponentialRampToValueAtTime(0.07, at + 0.015)
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.2)
+      osc.connect(gain).connect(audioContext!.destination)
+      osc.start(at)
+      osc.stop(at + 0.22)
+    })
+  } catch {
+    /* sound is a nicety; never let it break the conversation */
+  }
+}
+
+/** Split into sentences so a long answer is spoken in pieces. Engines cut off long
+ * utterances (Chrome stops after about fifteen seconds), and short pieces also
+ * mean "stop" and "interrupt" take effect almost instantly. */
+function sentences(text: string): string[] {
+  const parts = text.match(/[^.!?。！？؟]+[.!?。！？؟]*/g)
+  return (parts ?? [text]).map((p) => p.trim()).filter(Boolean)
 }
 
 // What reads well on screen reads badly aloud: strip markdown symbols, and
@@ -39,6 +88,7 @@ export function pickVoice(voices: SpeechSynthesisVoice[], bcp47: string | null):
 export function cleanForSpeech(text: string): string {
   return text
     .replace(/https?:\/\/\S+/g, ' the link ')
+    .replace(/\bUGX\b/g, 'shillings')
     .replace(/[*_`#>~]+/g, '')
     .replace(/\s+/g, ' ')
     .trim()
@@ -58,6 +108,9 @@ export function useKevinVoice(bcp47: string | null) {
   const [speaking, setSpeaking] = useState(false)
   const [listening, setListening] = useState(false)
   const recognitionRef = useRef<any>(null)
+  // Bumped by every speak() and stop(), so the callbacks of an utterance that
+  // was cancelled or replaced can tell they are stale and stay quiet.
+  const speechRun = useRef(0)
 
   useEffect(() => {
     if (!synth) return
@@ -70,6 +123,7 @@ export function useKevinVoice(bcp47: string | null) {
   const voice = useMemo(() => pickVoice(voices, bcp47), [voices, bcp47])
 
   const stop = useCallback(() => {
+    speechRun.current += 1
     if (synth) synth.cancel()
     setSpeaking(false)
   }, [synth])
@@ -80,23 +134,39 @@ export function useKevinVoice(bcp47: string | null) {
     [synth, bcp47],
   )
 
-  /** Returns false (and says nothing) when this device has no voice for the language. */
+  /** Returns false (and says nothing) when this device has no voice for the language.
+   * `onDone` fires when the whole answer has been spoken, not when it was cut off. */
   const speak = useCallback(
-    (text: string, tag: string | null | undefined = bcp47): boolean => {
+    (text: string, tag: string | null | undefined = bcp47, onDone?: () => void): boolean => {
       const chosen = synth ? pickVoice(voicesRef.current, tag ?? null) : null
       if (!synth || !chosen) return false
       const spoken = cleanForSpeech(text)
       if (!spoken) return false
       try {
         synth.cancel() // never talk over ourselves
-        const utterance = new SpeechSynthesisUtterance(spoken)
-        utterance.voice = chosen
-        utterance.lang = chosen.lang
-        utterance.rate = 0.98
-        utterance.onstart = () => setSpeaking(true)
-        utterance.onend = () => setSpeaking(false)
-        utterance.onerror = () => setSpeaking(false)
-        synth.speak(utterance)
+        const run = ++speechRun.current
+        const pieces = sentences(spoken)
+        pieces.forEach((piece, i) => {
+          const utterance = new SpeechSynthesisUtterance(piece)
+          utterance.voice = chosen
+          utterance.lang = chosen.lang
+          utterance.rate = 1.03
+          utterance.onstart = () => {
+            if (speechRun.current === run) setSpeaking(true)
+          }
+          utterance.onend = () => {
+            if (speechRun.current !== run) return
+            if (i === pieces.length - 1) {
+              setSpeaking(false)
+              onDone?.()
+            }
+          }
+          utterance.onerror = () => {
+            if (speechRun.current !== run) return
+            setSpeaking(false)
+          }
+          synth.speak(utterance)
+        })
         return true
       } catch (err) {
         // Speech engines vary a lot between devices; if this one refuses,
@@ -118,27 +188,57 @@ export function useKevinVoice(bcp47: string | null) {
     setListening(false)
   }, [])
 
-  /** One utterance in, transcript out. Recognition needs the mic permission the first time. */
+  /**
+   * One utterance in. `onInterim` streams the words as they are recognised (so
+   * the screen can show what Kevin is hearing, live), `onFinal` delivers the
+   * finished sentence, and `onEnd` always fires last with whether anything was
+   * heard and the engine's error, if any ("not-allowed" = microphone blocked,
+   * "no-speech" = silence). Needs the mic permission the first time.
+   */
   const listen = useCallback(
-    (onTranscript: (text: string) => void) => {
+    (handlers: {
+      onInterim?: (text: string) => void
+      onFinal: (text: string) => void
+      onEnd?: (info: { heard: boolean; error: string | null }) => void
+    }) => {
       if (!Recognition) return
       stop() // don't listen to ourselves
       const recognition = new Recognition()
+      let heard = false
+      let error: string | null = null
       recognition.lang = bcp47 || navigator.language || 'en-GB'
-      recognition.interimResults = false
+      recognition.interimResults = true
       recognition.maxAlternatives = 1
       recognition.onresult = (event: any) => {
-        const transcript = event.results?.[0]?.[0]?.transcript
-        if (transcript) onTranscript(transcript)
+        let interim = ''
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i]
+          const text: string = result?.[0]?.transcript ?? ''
+          if (result.isFinal) {
+            if (text.trim() && !heard) {
+              heard = true
+              handlers.onFinal(text.trim())
+            }
+          } else {
+            interim += text
+          }
+        }
+        if (interim && !heard) handlers.onInterim?.(interim.trim())
       }
-      recognition.onend = () => setListening(false)
-      recognition.onerror = () => setListening(false)
+      recognition.onend = () => {
+        setListening(false)
+        handlers.onEnd?.({ heard, error })
+      }
+      recognition.onerror = (event: any) => {
+        error = event?.error ?? 'error'
+      }
       recognitionRef.current = recognition
       try {
         recognition.start()
         setListening(true)
       } catch {
         setListening(false)
+        handlers.onEnd?.({ heard: false, error: 'start-failed' })
       }
     },
     [Recognition, bcp47, stop],
