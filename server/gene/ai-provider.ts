@@ -45,7 +45,8 @@ async function callAnthropic(systemPrompt: string, history: AiChatMessage[], mes
                 'anthropic-version': '2023-06-01',
             },
             body: JSON.stringify({
-                model: 'claude-3-5-haiku-latest',
+                // Set ANTHROPIC_MODEL to change it (e.g. a larger model for richer answers).
+                model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
                 max_tokens: 500,
                 system: systemPrompt,
                 messages,

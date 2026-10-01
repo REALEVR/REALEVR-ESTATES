@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, MessageCircle, RefreshCw, Sparkles, Truck } from "lucide-react";
+import { CheckCircle2, Loader2, MessageCircle, RefreshCw, Sparkles, Truck, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 /**
@@ -79,6 +79,73 @@ const whatsappLink = (phone: string) => `https://wa.me/${phone.replace(/\D/g, ""
 
 type View = "all" | "movers" | "demand";
 
+interface KevinStatus {
+  ai: { keysSet: Record<string, boolean>; answeringNow: string | null; note: string };
+  voice: { provider: string | null };
+  whatsapp: { configured: boolean; endsWith: string | null };
+  platform: { liveListings: number; upcoming: number; areas: number } | null;
+}
+
+/** "Is Kevin working?": one live check of his AI, voice, WhatsApp number and what he can see. */
+function StatusCard() {
+  const [status, setStatus] = useState<KevinStatus | null>(null);
+  const [checking, setChecking] = useState(false);
+  const check = async () => {
+    setChecking(true);
+    try {
+      const res = await fetch("/api/admin/kevin-status", { credentials: "include" });
+      setStatus(res.ok ? await res.json() : null);
+    } catch {
+      setStatus(null);
+    } finally {
+      setChecking(false);
+    }
+  };
+  const row = (ok: boolean, label: string, detail: string) => (
+    <li className="flex items-start gap-2 text-sm">
+      {ok ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /> : <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />}
+      <span>
+        <span className="font-medium">{label}: </span>
+        <span className="text-muted-foreground">{detail}</span>
+      </span>
+    </li>
+  );
+  return (
+    <Card className="mb-5">
+      <CardContent className="p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-medium">Is Kevin working?</p>
+          <Button variant="outline" size="sm" onClick={check} disabled={checking}>
+            {checking && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+            {status ? "Check again" : "Run check"}
+          </Button>
+        </div>
+        {status && (
+          <ul className="mt-3 space-y-1.5">
+            {row(!!status.ai.answeringNow, "AI answers", status.ai.note)}
+            {row(
+              !!status.voice.provider,
+              "Kevin's voice",
+              status.voice.provider ? `${status.voice.provider} (his own voice)` : "none set: visitors hear their device's voice",
+            )}
+            {row(
+              status.whatsapp.configured,
+              "WhatsApp number",
+              status.whatsapp.configured ? `visitors reach the number ending ${status.whatsapp.endsWith}` : "not set",
+            )}
+            {status.platform &&
+              row(
+                status.platform.liveListings > 0,
+                "What he can see",
+                `${status.platform.liveListings} live listings, ${status.platform.areas} areas, ${status.platform.upcoming} coming up`,
+              )}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AdminKevinLeads() {
   const { toast } = useToast();
   const [rows, setRows] = useState<Lead[]>([]);
@@ -141,6 +208,8 @@ export default function AdminKevinLeads() {
           Refresh
         </Button>
       </div>
+
+      <StatusCard />
 
       <div className="mb-5 flex flex-wrap gap-2">
         {tab("all", "Everyone", rows.length)}
