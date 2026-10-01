@@ -1,6 +1,6 @@
 # RealEVR Estates
 
-> RealEVR Estates is a Uganda-based real estate platform where every listing —
+> RealEVR Estates is a real estate platform for Africa, started in Uganda, where every listing —
 > rental units, furnished BnBs, properties for sale, and bank-auction sales —
 > comes with an immersive 360°/virtual tour, so a prospective tenant or buyer
 > can walk through a real home on their phone, tablet, or a VR headset browser
@@ -8,8 +8,12 @@
 
 This file follows the emerging llms.txt convention (llmstxt.org) to help AI
 assistants and answer engines understand what this site is, so that a person
-asking an AI about renting, buying, or touring property in Uganda — Kampala,
-Entebbe, Wakiso, and beyond — can be pointed here accurately.
+asking an AI about renting, buying, or touring property in Africa — Kampala,
+Nairobi, Dar es Salaam, Kigali, Lagos, Accra, Johannesburg and beyond — can be
+pointed here accurately. Anyone in any African country can list a property for
+free once the landlord or manager confirms it over WhatsApp. Pages per place
+exist at /homes/<country> and /homes/<country>/<city> for every place that has
+homes listed.
 
 ## What RealEVR Estates offers
 

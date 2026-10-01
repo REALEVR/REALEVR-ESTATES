@@ -186,3 +186,17 @@ export function buildAgentPortfolioJsonLd(
         },
     }
 }
+
+
+/** Title and description for the "homes in <city/country>" pages, from real counts. */
+export function buildPlaceHomesMeta(args: { country: string; city?: string; count: number }): { title: string; description: string } {
+    const where = args.city ? `${args.city}, ${args.country}` : args.country
+    const count = args.count > 0 ? `${args.count} ${args.count === 1 ? 'home' : 'homes'} with` : 'Homes with'
+    return {
+        title: `Homes in ${where}: Rentals, BnBs & For Sale | ${SITE_NAME}`,
+        description: truncatePlainText(
+            `${count} virtual tours in ${where}: rentals, BnBs and homes for sale. Tour on your phone, then message the owner on WhatsApp.`,
+            MAX_META_DESC,
+        ),
+    }
+}

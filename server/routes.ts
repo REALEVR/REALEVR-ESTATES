@@ -8,6 +8,7 @@ import path from 'path'
 import { getTourConfig } from './tour-config'
 import { inferListingCountry, isAfricanCountry } from '../shared/africa'
 import { presentListings } from './place-listings'
+import { placePagePaths, populatedPlaces } from './place-pages'
 import * as dropboxStorage from './dropbox-storage'
 import { request as request7 } from 'undici'
 
@@ -227,6 +228,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Setup authentication routes
     setupAuth(app)
 
+    // GET /api/places: the countries and cities with homes listed, with counts (footer links, "homes in ..." pages).
+    app.get('/api/places', async (_req, res) => {
+        try {
+            const properties = (await storage.getAllProperties()).filter(isPubliclyVisibleProperty)
+            res.set('Cache-Control', 'public, max-age=300').json(populatedPlaces(properties))
+        } catch {
+            res.status(500).json({ message: 'Failed to load places' })
+        }
+    })
+
     app.get('/sitemap.xml', async (_req, res) => {
         try {
             const base = getCanonicalBaseUrl()
@@ -239,7 +250,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     imageUrl: p.imageUrl || '',
                 })
             )
-            const xml = buildSitemapXml([...staticEntries, ...propertyEntries])
+            // One page per country and city that really has homes (populatedPlaces leaves empty ones out).
+            const placeEntries = placePagePaths(populatedPlaces(properties.filter(isPubliclyVisibleProperty))).map((path) => ({
+                loc: `${base}${path}`,
+                changefreq: 'daily',
+                priority: '0.8',
+            }))
+            const xml = buildSitemapXml([...staticEntries, ...placeEntries, ...propertyEntries])
             res.setHeader('Content-Type', 'application/xml; charset=utf-8')
             res.setHeader('Cache-Control', 'public, max-age=600')
             res.send(xml)

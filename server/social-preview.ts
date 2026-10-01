@@ -36,7 +36,9 @@ import {
     buildAgentPortfolioDescription,
     buildAgentPortfolioJsonLd,
     absoluteAgentImageUrl,
+    buildPlaceHomesMeta,
 } from '../shared/seo'
+import { cityBySlug, countryBySlug, inferListingCountry, listingCity } from '../shared/africa'
 import { getCanonicalBaseUrl } from './sitemap'
 import { getPublicAgentPortfolio } from './gene/agent-portfolio'
 
@@ -168,6 +170,36 @@ export function registerSocialPreviewRoutes(app: Express, storage: typeof storag
                     url: `${b}${propertyPath}`,
                     image: absolutePropertyImageUrl(b, property) || defaultOgImageUrl(b),
                     jsonLd: buildPropertyJsonLd(b, property, propertyPath),
+                })
+            )
+        })
+    )
+
+    // "Homes in Kenya / Nairobi": the pages search engines and link previews land on for a place.
+    app.get(
+        ['/homes/:country', '/homes/:country/:city'],
+        guard(async (req, res, next) => {
+            const country = countryBySlug(req.params.country)
+            if (!country) return next()
+            const city = req.params.city ? cityBySlug(country, req.params.city) : undefined
+            if (req.params.city && !city) return next()
+            const listings = (await storage.getAllProperties()).filter((p: any) => p.isAvailable !== false)
+            const here = listings.filter((p: any) => inferListingCountry(p) === country.code && (!city || listingCity(p)?.name === city.name))
+            const meta = buildPlaceHomesMeta({ country: country.name, city: city?.name, count: here.length })
+            const b = base()
+            const path = `/homes/${req.params.country}${req.params.city ? `/${req.params.city}` : ''}`
+            res.type('html').send(
+                renderMetaHtml({
+                    ...meta,
+                    url: `${b}${path}`,
+                    image: here[0] ? absolutePropertyImageUrl(b, here[0] as any) || defaultOgImageUrl(b) : defaultOgImageUrl(b),
+                    jsonLd: {
+                        '@context': 'https://schema.org',
+                        '@type': 'CollectionPage',
+                        name: meta.title,
+                        description: meta.description,
+                        url: `${b}${path}`,
+                    },
                 })
             )
         })
