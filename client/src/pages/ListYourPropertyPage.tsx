@@ -19,6 +19,7 @@ import {
   fetchSelfServeStatus,
   type SelfServeDraftInput,
 } from "@/hooks/useSelfServeListing";
+import { AFRICAN_COUNTRIES, countryByCode, currenciesForCountry, currencyForCountry, placeFromTimezone } from "@shared/africa";
 import { CheckCircle2, Loader2, Smartphone, Upload, PartyPopper, Wallet } from "lucide-react";
 
 type Step = "details" | "photo" | "verify" | "success";
@@ -31,9 +32,20 @@ const CATEGORY_OPTIONS = [
 ];
 const PROPERTY_TYPES = ["Apartment", "House", "Villa", "Land", "Commercial"];
 
+// Start on the visitor's own country when the browser's time zone says which it is (no permission needed).
+const startCountry = (() => {
+  try {
+    return placeFromTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone)?.country ?? "UG";
+  } catch {
+    return "UG";
+  }
+})();
+
 const emptyDraft: SelfServeDraftInput = {
   title: "",
   location: "",
+  country: startCountry,
+  currency: currencyForCountry(startCountry),
   price: 0,
   description: "",
   bedrooms: 1,
@@ -185,7 +197,7 @@ export default function ListYourPropertyPage() {
     <>
       <PageSeo
         title="List a Property — RealEVR Estates"
-        description="List a property on RealEVR Estates once the landlord or manager confirms it over WhatsApp. Free to list — live in minutes."
+        description="List a property anywhere in Africa on RealEVR Estates once the landlord or manager confirms it over WhatsApp. Free to list — live in minutes."
         canonicalPath="/list-your-property"
       />
       <section className="relative -mx-4 sm:-mx-6 lg:-mx-8 py-14 overflow-hidden">
@@ -197,7 +209,7 @@ export default function ListYourPropertyPage() {
                 List a property
               </h1>
               <p className="text-muted-foreground">
-                Submit a property, have the landlord or manager confirm it's real over a quick WhatsApp code, and it
+                Submit a property from any African country, have the landlord or manager confirm it's real over a quick WhatsApp code, and it
                 goes live. Free to submit — no fee, ever, to list a property. Live in a building that is not on
                 RealEVR yet? Tell us about it from the Rewards tab and earn points.
               </p>
@@ -252,7 +264,32 @@ export default function ListYourPropertyPage() {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="price">Price (UGX)</Label>
+                    <Label>Country</Label>
+                    <Select
+                      value={draft.country}
+                      onValueChange={(code) => setDraft((d) => ({ ...d, country: code, currency: currencyForCountry(code) }))}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent className="max-h-72">
+                        {AFRICAN_COUNTRIES.map((c) => (
+                          <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Price in</Label>
+                    <Select value={draft.currency} onValueChange={(v) => set("currency", v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {currenciesForCountry(draft.country).map((cur) => (
+                          <SelectItem key={cur} value={cur}>{cur}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="price">Price ({draft.currency})</Label>
                     <Input id="price" type="number" min={0} value={draft.price || ""} onChange={(e) => set("price", Number(e.target.value))} />
                   </div>
                   <div>
@@ -287,7 +324,7 @@ export default function ListYourPropertyPage() {
                     </div>
                     <div>
                       <Label htmlFor="agentPhone">Your WhatsApp number</Label>
-                      <Input id="agentPhone" value={draft.agentPhone} onChange={(e) => set("agentPhone", e.target.value)} placeholder="0770000000" />
+                      <Input id="agentPhone" value={draft.agentPhone} onChange={(e) => set("agentPhone", e.target.value)} placeholder={`0770000000 or +${countryByCode(draft.country)?.dial ?? "256"}…`} />
                     </div>
                     <div className="md:col-span-2">
                       <Label htmlFor="agentEmail">Email (optional)</Label>
@@ -311,7 +348,7 @@ export default function ListYourPropertyPage() {
                     </div>
                     <div>
                       <Label htmlFor="landlordPhone">Their WhatsApp number</Label>
-                      <Input id="landlordPhone" value={draft.landlordPhone} onChange={(e) => set("landlordPhone", e.target.value)} placeholder="0770000000" />
+                      <Input id="landlordPhone" value={draft.landlordPhone} onChange={(e) => set("landlordPhone", e.target.value)} placeholder={`0770000000 or +${countryByCode(draft.country)?.dial ?? "256"}…`} />
                     </div>
                   </div>
                 </div>
