@@ -3,6 +3,8 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import logoPath from '../../assets/logo.png';
+import logoIconPath from '../../assets/logo-icon.png';
+import { Search } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
   DropdownMenu,
@@ -23,10 +25,11 @@ export default function Header() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const { user, logoutMutation } = useAuth();
 
+  // Search goes to the property list, which filters by the words typed (title, place, type).
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would redirect to search results
-    console.log("Searching for:", searchQuery);
+    const q = searchQuery.trim();
+    setLocation(q ? `/properties?q=${encodeURIComponent(q)}` : "/properties");
   };
 
   const handleLogout = () => {
@@ -48,30 +51,37 @@ export default function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
-      <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center">
-          <img src={logoPath} alt="RealEVR Estates Logo" className="h-14 mr-2" />
-          {/* <span className="text-black text-2xl font-bold">RealEVR Estates</span> */}
+    <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80">
+      <div className="mx-auto flex h-16 max-w-[1500px] items-center gap-3 px-4 md:h-20 md:gap-6 md:px-8">
+        {/* Logo: the mark alone on a phone (the search needs the room), the full lockup from tablet up. */}
+        <Link href="/" className="flex shrink-0 items-center" aria-label="RealEVR Estates home">
+          <img src={logoIconPath} alt="" className="h-9 w-9 object-contain md:hidden" />
+          <img src={logoPath} alt="RealEVR Estates" className="hidden h-12 md:block" />
         </Link>
 
-        {/* Search Bar */}
-        <div className="hidden md:flex flex-1 max-w-xl mx-8">
-          <form className="relative w-full" onSubmit={handleSearch}>
+        {/* Search: one pill, on every screen size. */}
+        <form className="min-w-0 flex-1 md:mx-auto md:max-w-2xl" onSubmit={handleSearch} role="search">
+          <label className="group flex h-11 items-center gap-2 rounded-full border border-border bg-card pl-4 pr-1.5 shadow-sm transition hover:shadow-md focus-within:border-foreground/40 focus-within:shadow-md md:h-12 md:pl-5">
+            <span className="sr-only">Search homes</span>
             <Input
               type="text"
-              placeholder="Search for virtual tours by location or property type"
-              className="w-full py-2 pl-10 pr-4 border border-border bg-card rounded-full text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+              placeholder="Search homes or areas"
+              className="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-[15px] text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-            <i className="fas fa-search absolute left-3 top-3 text-muted-foreground"></i>
-          </form>
-        </div>
+            <button
+              type="submit"
+              aria-label="Search"
+              className="shine grid h-8 w-8 shrink-0 place-items-center rounded-full md:h-9 md:w-9"
+            >
+              <Search className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </label>
+        </form>
 
         {/* Navigation Menu */}
-        <nav className="flex items-center space-x-4">
+        <nav className="flex shrink-0 items-center gap-1 md:gap-3">
           {/* TEMP: Setup DynamoDB Button */}
           {/* <Button variant="outline" onClick={triggerDynamoDBSetup} className="bg-yellow-200 text-black font-bold mr-2">
             Setup DynamoDB
@@ -113,9 +123,15 @@ export default function Header() {
           {/* RentRail — pay any landlord's momo number directly, not tied to
               a RealEVR listing. Always visible: this isn't gated by having
               an account, since paying rent shouldn't require signing up first. */}
+          <Link
+            href="/list-your-property"
+            className="hidden rounded-full px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-secondary lg:block"
+          >
+            List a property
+          </Link>
           <Link href="/rentrail" className="hidden md:block">
-            <Button variant="outline" className="pay-rent-glow rounded-full gap-2 border-accent/40 text-accent hover:bg-accent/10 hover:text-accent">
-              <Receipt className="h-4 w-4" />
+            <Button variant="outline" className="rounded-full gap-2 border-border font-semibold text-foreground hover:bg-secondary">
+              <Receipt className="h-4 w-4 text-accent" />
               Pay Rent
             </Button>
           </Link>
@@ -126,9 +142,9 @@ export default function Header() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex items-center border border-border rounded-full p-2 hover:shadow-md hover:border-accent/40 transition-colors">
-                <i className="fas fa-bars text-foreground mx-2"></i>
-                <i className="fas fa-user-circle text-muted-foreground text-2xl"></i>
+              <Button variant="outline" aria-label="Menu" className="flex h-11 items-center gap-1 rounded-full border border-border bg-card p-1.5 shadow-sm transition hover:shadow-md md:h-12 md:gap-2 md:px-3">
+                <i className="fas fa-bars mx-1.5 text-foreground"></i>
+                <i className="fas fa-user-circle text-2xl text-muted-foreground md:text-[1.75rem]"></i>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -242,19 +258,6 @@ export default function Header() {
 
       <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
 
-      {/* Mobile Search (Only visible on mobile) */}
-      <div className="md:hidden px-6 pb-4">
-        <form className="relative w-full" onSubmit={handleSearch}>
-          <Input
-            type="text"
-            placeholder="Search properties"
-            className="w-full py-2 pl-10 pr-4 border border-border bg-card rounded-full text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <i className="fas fa-search absolute left-3 top-3 text-muted-foreground"></i>
-        </form>
-      </div>
     </header>
   );
 }

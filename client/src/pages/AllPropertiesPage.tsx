@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Link, useSearchParams } from 'wouter'
 import { Property } from '@shared/schema'
 import PropertyCard from '@/components/home/PropertyCard'
 import { Loader2 } from 'lucide-react'
@@ -18,6 +19,9 @@ import PropertyLocationMap from '@/components/property/PropertyLocationMap'
  */
 export default function AllPropertiesPage() {
     const [activeTab, setActiveTab] = useState('all')
+    // The header's search box sends people here as /properties?q=...; every word must appear in the title, place or type.
+    const [searchParams] = useSearchParams()
+    const query = (searchParams.get('q') ?? '').trim()
     const [mapLocation, setMapLocation] = useState<string | null>(null)
     const { data: properties, isLoading, error } = useQuery<Property[]>({
         queryKey: ['/api/properties'],
@@ -34,7 +38,14 @@ export default function AllPropertiesPage() {
         }
     }, [])
 
-    const liveAll = (properties ?? []).filter((p) => p.title && p.title.trim() !== '')
+    const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+    const liveAll = (properties ?? [])
+        .filter((p) => p.title && p.title.trim() !== '')
+        .filter((p) => {
+            if (!words.length) return true
+            const haystack = `${p.title} ${p.location} ${p.propertyType} ${p.category}`.toLowerCase()
+            return words.every((w) => haystack.includes(w))
+        })
     const live = mapLocation
         ? liveAll.filter((p) => p.location?.toLowerCase().includes(mapLocation.toLowerCase()))
         : liveAll
@@ -83,7 +94,15 @@ export default function AllPropertiesPage() {
                 canonicalPath={CATEGORY_PAGE_META.allProperties.path}
                 jsonLd={allJsonLd}
             />
-            <h1 className="text-3xl font-bold mb-6">All Properties</h1>
+            <h1 className="section-title mb-2 text-3xl md:text-4xl">{query ? `Homes matching “${query}”` : 'All Properties'}</h1>
+            {query && (
+                <p className="mb-5 text-sm text-muted-foreground">
+                    {liveAll.length} {liveAll.length === 1 ? 'home' : 'homes'} ·{' '}
+                    <Link href="/properties" className="text-accent underline-offset-2 hover:underline">
+                        Clear search
+                    </Link>
+                </p>
+            )}
 
             <PropertyLocationMap
                 properties={liveAll}

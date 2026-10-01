@@ -104,6 +104,12 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
     // OwnerContactDetails). For-sale and bank-sales remain always free.
     const requiresTourPayment = property.category === 'rental_units' && !isBnB
 
+    // Tells the floating buttons (Kevin, sound) to sit above the phone booking bar below.
+    useEffect(() => {
+        document.body.classList.add('has-bottom-bar')
+        return () => document.body.classList.remove('has-bottom-bar')
+    }, [])
+
     // Fetch property owner details
     useEffect(() => {
         const fetchPropertyOwner = async () => {
@@ -543,7 +549,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                         to match the same price-hierarchy fix applied to
                         PropertyCard — the price is the most-scanned number on
                         this page and should read as a headline. */}
-                    <span className="text-3xl font-display font-bold text-foreground">
+                    <span className="whitespace-nowrap text-3xl font-display font-bold text-foreground">
                         {property.price !== undefined && property.price !== null
                             ? property.price.toLocaleString()
                             : 'N/A'}{' '}
@@ -563,7 +569,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                             </p>
                         )}
                 </div>
-                <div className="flex space-x-3">
+                <div className="hidden space-x-3 md:flex">
                     {property.ownerId && user?.id !== property.ownerId && (
                         <Button variant="outline" className="border-foreground/30" onClick={() => setIsMessageAgentModalOpen(true)}>
                             Message Agent
@@ -577,6 +583,34 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                     </Button>
                 </div>
             </div>
+
+            {/* Phone: the price and the two things you do here stay under your thumb, above the tab
+                bar, like a booking bar in a travel app. The desktop buttons above are hidden here. */}
+            <div
+                className="fixed inset-x-0 z-30 flex items-center gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-xl md:hidden"
+                style={{ bottom: 'var(--mobile-tabbar-h)' }}
+            >
+                <div className="min-w-0 flex-1 leading-tight">
+                    <div className="truncate font-display text-base font-bold text-foreground">
+                        {property.currency || 'UGX'} {property.price != null ? property.price.toLocaleString() : 'N/A'}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                        {property.category === 'rental_units' ? 'per month' : isBnB ? 'per night' : 'asking price'}
+                    </div>
+                </div>
+                {property.ownerId && user?.id !== property.ownerId && (
+                    <Button variant="outline" size="icon" className="h-11 w-11 shrink-0 rounded-full border-foreground/30" onClick={() => setIsMessageAgentModalOpen(true)} aria-label="Message the agent">
+                        <i className="far fa-comment-dots" aria-hidden="true"></i>
+                    </Button>
+                )}
+                <Button variant="outline" className="h-11 shrink-0 rounded-full border-foreground/30 px-4" onClick={handleScheduleVisit}>
+                    {isBnB ? 'Book' : 'Visit'}
+                </Button>
+                <Button className="h-11 shrink-0 rounded-full bg-accent px-5 font-semibold hover:bg-accent/90" onClick={handleViewTour}>
+                    Tour
+                </Button>
+            </div>
+            <div className="h-16 md:hidden" aria-hidden="true" />
 
             {property.ownerId && (
                 <MessageAgentModal

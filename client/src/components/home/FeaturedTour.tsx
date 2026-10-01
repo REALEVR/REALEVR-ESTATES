@@ -133,7 +133,7 @@ export default function FeaturedTour() {
     return (
       <section id="featured" className="py-10 bg-secondary -mx-4 sm:-mx-6 lg:-mx-8">
         <div className="container mx-auto px-4">
-          <h2 className="text-2xl md:text-3xl font-display font-medium mb-6">Featured Virtual Tour</h2>
+          <h2 className="section-title mb-6">Featured Virtual Tour</h2>
           <div className="h-[400px] bg-muted animate-pulse rounded-xl"></div>
         </div>
       </section>
@@ -144,7 +144,7 @@ export default function FeaturedTour() {
     return (
       <section id="featured" className="py-10 bg-secondary -mx-4 sm:-mx-6 lg:-mx-8">
         <div className="container mx-auto px-4">
-          <h2 className="text-2xl md:text-3xl font-display font-medium mb-6">Featured Virtual Tour</h2>
+          <h2 className="section-title mb-6">Featured Virtual Tour</h2>
           <div className="bg-card rounded-xl p-8 text-center">
             <p>Unable to load featured tour. Please try again later.</p>
           </div>
@@ -157,7 +157,7 @@ export default function FeaturedTour() {
     <section id="featured" className="py-10 bg-secondary -mx-4 sm:-mx-6 lg:-mx-8">
       <div className="container mx-auto px-4">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-2xl md:text-3xl font-display font-medium">Featured Virtual Tour</h2>
+          <h2 className="section-title">Featured Virtual Tour</h2>
           {rotationPool.length > 1 && (
             <div className="flex gap-1.5">
               {rotationPool.map((p, i) => (

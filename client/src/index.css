@@ -53,8 +53,14 @@
   --primary-foreground: 60 20% 98%;
   --secondary: 48 22% 93%;
   --secondary-foreground: 235 21% 21%;
-  --accent: 217 5% 52%;          /* flat Shiny Silver base #7D828A — the one "confident" tone */
-  --accent-foreground: 235 21% 21%;
+  /* Golden hour: the one confident tone is a deep gold (#935E10), 5.1:1 on the
+     alabaster page for text and 5.3:1 behind white text, so it can carry
+     links, active states and buttons. --gold is its bright sibling for dark
+     surfaces and the "360 tour" signature, always with ink text on it. */
+  --accent: 36 80% 32%;
+  --accent-foreground: 0 0% 100%;
+  --gold: 40 92% 62%;
+  --gold-foreground: 235 28% 12%;
   --destructive: 4 66% 48%;      /* semantic-only exception, see above */
   --destructive-foreground: 0 0% 98%;
   --ring: 235 21% 21%;
@@ -87,6 +93,15 @@
   --mobile-tabbar-h: calc(4rem + env(safe-area-inset-bottom, 0px));
   --fab-row-1: calc(var(--mobile-tabbar-h) + 16px);
   --fab-row-2: calc(var(--fab-row-1) + 72px);
+}
+
+/* Pages with their own sticky phone action bar (the property page) lift the floating buttons clear
+   of it. Both rows are redeclared because --fab-row-2 was computed from --fab-row-1 on :root. */
+@media (max-width: 767px) {
+  body.has-bottom-bar {
+    --fab-row-1: calc(var(--mobile-tabbar-h) + 16px + 68px);
+    --fab-row-2: calc(var(--fab-row-1) + 72px);
+  }
 }
 
 /* v2's dark palette, preserved for a future real dark-mode toggle — not
@@ -132,8 +147,8 @@
   --border: 235 10% 22%;
   --muted: 235 10% 16%;
   --muted-foreground: 60 8% 66%;
-  --accent: 220 10% 88%;
-  --accent-foreground: 235 21% 15%;
+  --accent: 40 92% 64%;
+  --accent-foreground: 235 28% 12%;
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
 }
@@ -149,21 +164,17 @@
   100% { background-position: 200% 50%; }
 }
 .shine {
-  /* Design-review fix (round 1): the lightest stops were near-white
-     (96%/94% lightness), which a static screenshot can catch mid-sweep and
-     make the button read as washed-out/disabled rather than a confident
-     metallic CTA. Floors raised to ~88% so no frame of the sweep gets that
-     pale, and text/border weight bumped slightly so the label stays legible
-     at every point in the animation, not just the darker frames. */
+  /* Golden-hour metal: bright and deep gold stops that never go pale, with ink
+     text (about 9:1 on the lightest stop, 6:1 on the darkest). */
   background: linear-gradient(120deg,
-    hsl(213 9% 78%) 0%, hsl(220 14% 88%) 22%, hsl(220 6% 60%) 45%,
-    hsl(220 10% 86%) 68%, hsl(218 7% 66%) 100%);
+    hsl(41 93% 66%) 0%, hsl(38 90% 58%) 30%, hsl(34 84% 50%) 55%,
+    hsl(40 92% 64%) 80%, hsl(38 88% 56%) 100%);
   background-size: 250% 250%;
   animation: shine-sweep 4.5s ease-in-out infinite;
-  color: hsl(var(--foreground));
+  color: hsl(var(--gold-foreground));
   font-weight: 600;
-  border: 1px solid hsla(0, 0%, 100%, 0.5);
-  box-shadow: inset 0 1px 0 hsla(0, 0%, 100%, 0.65), 0 2px 8px hsl(var(--foreground) / 0.14);
+  border: 1px solid hsla(0, 0%, 100%, 0.45);
+  box-shadow: inset 0 1px 0 hsla(0, 0%, 100%, 0.55), 0 2px 10px hsl(34 84% 40% / 0.28);
 }
 @media (prefers-reduced-motion: reduce) {
   .shine { animation: none; }
@@ -410,3 +421,63 @@ body {
 #google_translate_element .goog-te-gadget-icon {
   display: none;
 }
+
+/*
+ * Design system, round 5: golden hour.
+ * Ink + alabaster surfaces, a deep gold for interaction and a bright gold that
+ * is reserved for one thing - the 360 tour - so "can I walk through it?" is
+ * answered the same way on every card, badge and button.
+ */
+
+/* The signature: a bright gold pill with ink text. */
+.tour-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 9999px;
+  background: hsl(var(--gold));
+  color: hsl(var(--gold-foreground));
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  padding: 0.38rem 0.6rem;
+  box-shadow: 0 1px 2px hsl(235 28% 12% / 0.25), 0 4px 10px hsl(235 28% 12% / 0.18);
+}
+
+/* Phone feed: sections that were grids become swipeable rails (Airbnb's pattern),
+   cards ~72% wide so the next one always peeks. From md up they are the grids they were. */
+.rail {
+  display: flex;
+  gap: 0.875rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  margin-inline: -1rem;
+  padding-inline: 1rem;
+  padding-bottom: 0.25rem;
+}
+.rail::-webkit-scrollbar { display: none; }
+.rail > * { flex: 0 0 74%; max-width: 20rem; scroll-snap-align: start; }
+@media (min-width: 640px) {
+  .rail { display: grid; overflow: visible; margin-inline: 0; padding-inline: 0; scroll-snap-type: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
+  .rail > * { flex: none; max-width: none; }
+}
+@media (min-width: 1024px) { .rail { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1280px) { .rail { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* Category chips: icon over label, underline on the active one. */
+.chip-nav { display: flex; gap: 0.25rem; overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(to right, #000 88%, transparent); mask-image: linear-gradient(to right, #000 88%, transparent); }
+@media (min-width: 768px) { .chip-nav { -webkit-mask-image: none; mask-image: none; } }
+.chip-nav::-webkit-scrollbar { display: none; }
+
+/* Section titles share one rhythm everywhere. */
+.section-title { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.01em; font-size: 1.375rem; line-height: 1.2; }
+@media (min-width: 768px) { .section-title { font-size: 1.75rem; } }
+
+/* A listing card is its photo plus three lines of text: no box around it, no glare over the words. */
+.property-card.tilt,
+.property-card.tilt:hover { box-shadow: none; }
+.property-card.tilt::after { display: none; }
+.property-card article { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
+@media (hover: hover) and (pointer: fine) { .property-card:hover article > div:first-child { box-shadow: 0 14px 30px -10px hsl(235 28% 12% / 0.35); } }

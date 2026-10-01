@@ -129,7 +129,6 @@ export default function Home() {
                 search bar, and agent recruitment reaches the audience it's
                 actually for without blocking everyone else's path first. */}
 
-            <Reveal><FeaturedTour /></Reveal>
             <Reveal><FeaturedProperties /></Reveal>
             <Reveal><RecentProperties /></Reveal>
 
@@ -139,8 +138,8 @@ export default function Home() {
                 here too, but that's the same "most viewed" idea this
                 section's own "Newest" sort option already covers — removed
                 as redundant rather than kept as a 4th thing to maintain. */}
-            <Reveal><section className="py-10">
-                <div className="container mx-auto px-6">
+            <Reveal><section className="py-8 md:py-12">
+                <div className="mx-auto max-w-[1500px] px-0 md:px-8">
                     {/* Design pass: a small uppercase "kicker" label above each
                         major homepage heading — a section now visually
                         announces itself before the headline lands, the same
@@ -149,25 +148,9 @@ export default function Home() {
                         presentation change — FeaturedTour/FeaturedProperties/
                         RecentProperties and every other shared component are
                         untouched, so nothing outside the front page moves. */}
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 mb-6">
-                        <div>
-                            <p className="text-xs font-semibold tracking-[0.2em] text-accent uppercase mb-2">Explore</p>
-                            <h2 className="text-2xl md:text-3xl font-display font-medium text-foreground">Browse Properties</h2>
-                        </div>
-                        <div className="flex items-center">
-                            <span className="text-muted-foreground mr-2 text-sm">Sort by:</span>
-                            <Select defaultValue="recommended">
-                                <SelectTrigger className="border border-border rounded-lg px-3 py-2 bg-card focus:outline-none focus:ring-2 focus:ring-accent">
-                                    <SelectValue placeholder="Sort by" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="recommended">Recommended</SelectItem>
-                                    <SelectItem value="price_asc">Price: Low to High</SelectItem>
-                                    <SelectItem value="price_desc">Price: High to Low</SelectItem>
-                                    <SelectItem value="newest">Newest</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                    <div className="mb-4 md:mb-6">
+                        <h2 className="section-title">Homes near you</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">Ordered by where you are, closest first.</p>
                     </div>
 
                     {isLoading ? (
@@ -221,7 +204,7 @@ export default function Home() {
                                                 <p className="text-muted-foreground">No properties found in this category.</p>
                                             </div>
                                         ) : (
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                            <div className="rail">
                                                 {categoryProperties.map((property) => (
                                                     <PropertyCard key={property.id} property={property} />
                                                 ))}
@@ -231,12 +214,9 @@ export default function Home() {
                                 ))}
                             </Tabs>
 
-                            <div className="mt-12 text-center">
-                                <Button
-                                    variant="outline"
-                                    className="px-8 py-3 rounded-full font-medium hover:shadow-md hover:border-accent transition-all"
-                                >
-                                    Load More Properties
+                            <div className="mt-8 text-center md:mt-12">
+                                <Button asChild variant="outline" className="h-12 rounded-full px-8 font-semibold hover:shadow-md">
+                                    <Link href="/properties">Show all homes</Link>
                                 </Button>
                             </div>
                         </>
@@ -277,6 +257,8 @@ export default function Home() {
                 </div>
             </section></Reveal>
 
+            {/* The long-form featured tour sits after the feed: on a phone the homes come first. */}
+            <Reveal><FeaturedTour /></Reveal>
             <Reveal><AmenitiesHighlight /></Reveal>
             <Reveal><HowItWorks /></Reveal>
             <Reveal><DownloadApp /></Reveal>
