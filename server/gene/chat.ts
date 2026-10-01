@@ -46,6 +46,7 @@ import {
 import { toCard } from './kevin-actions'
 import { converse, describeNeed, getSnapshot, knowledgeContext, parseSignals, wantsFrom, type BrainResult } from './kevin-brain'
 import { getAdminWhatsappNumbers } from './admin-notify'
+import { configuredProvider } from './kevin-voice'
 import {
     appendAgentMessage,
     buildRecommendations,
@@ -739,6 +740,39 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
         } catch (err) {
             console.error('[gene/chat] GET /api/admin/kevin-demand failed:', err)
             res.status(500).json({ message: 'Failed to load demand.' })
+        }
+    })
+
+    // GET /api/admin/kevin-status — platform owner only. One call that says whether Kevin's parts are
+    // really working: which AI keys are set and whether one actually answers right now, the voice
+    // provider, the WhatsApp number visitors reach, and what he can see on the platform.
+    app.get('/api/admin/kevin-status', requireStrictAdmin, async (_req, res) => {
+        try {
+            const started = Date.now()
+            const ai = await getAiReply('Reply with the single word OK.', 'ping').catch(() => null)
+            const snap = await getSnapshot().catch(() => null)
+            const wa = (process.env.KEVIN_WHATSAPP_NUMBER || process.env.WHATSAPP_DISPLAY_NUMBER || getAdminWhatsappNumbers()[0] || '').replace(/\D/g, '')
+            res.json({
+                ai: {
+                    keysSet: {
+                        anthropic: !!process.env.ANTHROPIC_API_KEY,
+                        openai: !!process.env.OPENAI_API_KEY,
+                        gemini: !!process.env.GEMINI_API_KEY,
+                    },
+                    answeringNow: ai ? ai.provider : null,
+                    note: ai
+                        ? `Kevin's free-form answers come from ${ai.provider} (${Date.now() - started} ms).`
+                        : 'No AI provider answered. Kevin still works from the listings (English only); check the key and the server log for "[gene/ai-provider]".',
+                },
+                voice: { provider: configuredProvider() },
+                whatsapp: { configured: !!wa, endsWith: wa ? wa.slice(-4) : null },
+                platform: snap
+                    ? { liveListings: snap.total, upcoming: snap.upcoming.filter((u) => u.kind !== 'taken').length, areas: snap.locations.length }
+                    : null,
+            })
+        } catch (err) {
+            console.error('[gene/chat] GET /api/admin/kevin-status failed:', err)
+            res.status(500).json({ message: 'Failed to check Kevin.' })
         }
     })
 
