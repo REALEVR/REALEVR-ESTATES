@@ -2,6 +2,21 @@ export type RoomCaptureKind = 'equirect_photo' | 'equirect_video' | 'photo_sweep
 
 export type RoomStatus = 'qualified' | 'needs_retake';
 
+/**
+ * A doorway (or arrow) inside one 360 room that leads to another, stored in the
+ * published tour.json (see server/tour-links.ts). Angles are degrees: yaw 0 is
+ * the middle of the panorama and grows to the right; pitch 0 is the horizon.
+ */
+export interface TourRoomLink {
+  to: string; // destination room slug
+  yaw: number;
+  pitch: number;
+  /** Which way to face on arriving in the destination (derived on save). */
+  arrivalYaw?: number;
+  /** Small preview of the destination, relative to the tour folder (derived on save). */
+  thumb?: string;
+}
+
 export interface RoomAsset {
   /** Path relative to the draft directory, e.g. "rooms/living-room/photo_01.jpg" */
   relPath: string;

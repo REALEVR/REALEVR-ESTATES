@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import RoomCaptureGuide from './RoomCaptureGuide'
+import ConnectRoomsButton from './ConnectRoomsButton'
 import DirectS3TourUpload from './DirectS3TourUpload'
 import {
     AlertCircle,
@@ -181,6 +182,10 @@ export default function VirtualTourManager() {
                                                         <Check className="mr-2 h-4 w-4" />
                                                         <span>Virtual tour available</span>
                                                     </div>
+                                                    {/* Only a phone-captured tour has rooms to connect with doors. */}
+                                                    {property.tourQuality && (
+                                                        <ConnectRoomsButton propertyId={property.id} tourUrl={property.tourUrl} />
+                                                    )}
                                                     <div className="bg-green-50 border border-green-200 rounded-md p-2">
                                                         <p className="text-xs font-medium text-green-800 mb-1">
                                                             Tour URL:
@@ -213,7 +218,7 @@ export default function VirtualTourManager() {
                                                 setUploadSuccess(true)
                                                 setTourPreviewUrl(url)
                                                 queryClient.invalidateQueries({ queryKey: ['/api/properties', property.id] })
-                                                toast({ title: 'Success', description: 'Virtual tour built and published successfully' })
+                                                toast({ title: 'Success', description: 'Virtual tour built and published. Next: use Connect rooms to add doors between the rooms.' })
                                             }}
                                         />
                                     </TabsContent>

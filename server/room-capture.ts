@@ -28,6 +28,7 @@ import {
 import { scoreImageQuality, qualityFailureReasons } from './tour-quality-checks';
 import { extractCandidateFrames, pickPrimaryFrame, probeVideoDuration } from './video-frame-extractor';
 import { generateTourFromManifest } from './tour-generator';
+import { getTourLinks, saveTourLinks } from './tour-links';
 import {
   DraftManifest,
   RoomEntry,
@@ -477,6 +478,9 @@ export function registerRoomCaptureRoutes(
   app.get('/api/upload/room-capture/:propertyId/manifest', guard, getRoomCaptureManifest);
   app.delete('/api/upload/room-capture/:propertyId/:roomSlug', guard, deleteRoomCapture);
   app.post('/api/upload/room-capture/:propertyId/finalize', guard, finalizeRoomCapture);
+  // Connect the rooms of a published phone-captured tour with doors (see tour-links.ts).
+  app.get('/api/upload/tour-links/:propertyId', guard, getTourLinks);
+  app.put('/api/upload/tour-links/:propertyId', guard, saveTourLinks);
   // Admin-only cross-property overview - see listRoomCaptureDrafts' own doc comment.
   app.get('/api/admin/room-capture-drafts', strictAdminGuard, listRoomCaptureDrafts);
   // Normally unnecessary - the same pass runs in the background on every

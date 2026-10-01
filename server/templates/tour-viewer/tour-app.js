@@ -40,6 +40,13 @@
   var galleryIndex = 0;
   var currentRoom = null;
   var rooms = [];
+  var roomsBySlug = {};
+  // ?edit=1 turns the tour into the door editor shown by the platform when an
+  // agent connects the rooms (see client TourLinkEditor); nothing is saved from
+  // here, the changes are posted to the page that embeds it.
+  var editMode = /[?&]edit=1(&|$)/.test(window.location.search);
+  var editLinks = {};
+  var pendingArrival = null;
   var firstReveal = true;
   var userTookControl = false;
 
@@ -114,7 +121,7 @@
   function stopDrift() { drifting = false; }
   function takeControl() { userTookControl = true; stopDrift(); }
   function startDrift() {
-    if (reducedMotion || userTookControl || drifting || !psvInstance) return;
+    if (editMode || reducedMotion || userTookControl || drifting || !psvInstance) return;
     drifting = true;
     lastFrame = performance.now();
     requestAnimationFrame(driftStep);
@@ -200,6 +207,179 @@
     };
   }
 
+
+  // ---- Doors: blinking hotspots that lead to the next room ----------------
+  // A link is { to, yaw, pitch, arrivalYaw, thumb } in degrees (see
+  // server/tour-links.ts). Each one is drawn as an HTML button laid over the
+  // panorama and re-positioned from the viewer's own projection whenever the
+  // view moves, so it stays glued to its doorway. Tapping (or hovering, with a
+  // mouse) opens a small preview of the room behind it; "Walk in" goes there.
+  var hotspotLayer = null;
+  var hotspots = [];
+  var hotspotFrame = 0;
+  var RAD = Math.PI / 180;
+
+  function linksFor(room) {
+    return editMode ? (editLinks[room.slug] || []) : (room.links || []);
+  }
+  function normYaw(deg) { return ((((deg + 180) % 360) + 360) % 360) - 180; }
+
+  function svgIcon(kind) {
+    return kind === 'arrow'
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 15l7-7 7 7"/><path d="M5 21l7-7 7 7" opacity=".55"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21V4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21"/><path d="M3 21h18"/><circle cx="14.5" cy="12.5" r=".9" fill="currentColor"/></svg>';
+  }
+
+  function clearHotspots() {
+    hotspots = [];
+    if (hotspotLayer) hotspotLayer.innerHTML = '';
+  }
+
+  function closeCards(except) {
+    hotspots.forEach(function (h) { if (h.el !== except) h.el.classList.remove('open'); });
+  }
+
+  function renderHotspots(room) {
+    clearHotspots();
+    if (!psvInstance || !room || room.mode !== 'panorama') return;
+    if (!hotspotLayer) {
+      hotspotLayer = document.createElement('div');
+      hotspotLayer.id = 'hotspots';
+      rootEl.appendChild(hotspotLayer);
+    }
+    linksFor(room).forEach(function (link) {
+      var target = roomsBySlug[link.to];
+      if (!target) return;
+      var el = document.createElement('div');
+      el.className = 'hs';
+
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'hs-btn';
+      btn.setAttribute('aria-label', (editMode ? 'Door to ' : 'Go to ') + target.name);
+      btn.innerHTML = svgIcon(link.pitch < -25 ? 'arrow' : 'door');
+      el.appendChild(btn);
+
+      var label = document.createElement('span');
+      label.className = 'hs-label';
+      label.textContent = target.name;
+      el.appendChild(label);
+
+      if (!editMode) {
+        var card = document.createElement('div');
+        card.className = 'hs-card';
+        card.setAttribute('role', 'dialog');
+        card.setAttribute('aria-label', 'Preview of ' + target.name);
+        if (link.thumb) {
+          var img = document.createElement('img');
+          img.alt = '';
+          img.loading = 'lazy';
+          img.src = link.thumb;
+          card.appendChild(img);
+        }
+        var meta = document.createElement('div');
+        meta.className = 'hs-meta';
+        var name = document.createElement('div');
+        name.className = 'hs-name';
+        name.textContent = target.name;
+        var go = document.createElement('button');
+        go.type = 'button';
+        go.className = 'hs-go';
+        go.textContent = 'Walk in →';
+        go.onclick = function (e) { e.stopPropagation(); walkThrough(link); };
+        meta.appendChild(name);
+        meta.appendChild(go);
+        card.appendChild(meta);
+        el.appendChild(card);
+
+        // A mouse previews on hover and walks in on click; a finger taps once to
+        // preview and again (or on "Walk in") to go, so a stray touch never moves you.
+        el.addEventListener('pointerenter', function (e) {
+          if (e.pointerType === 'mouse') { closeCards(el); el.classList.add('open'); scheduleHotspots(); }
+        });
+        el.addEventListener('pointerleave', function (e) {
+          if (e.pointerType === 'mouse') el.classList.remove('open');
+        });
+        // Whether the preview was already open BEFORE this press decides what it does:
+        // a mouse has hovered it open (so a click walks in), a finger has not (so the
+        // first tap only previews). Taps also move focus to the button, so focus
+        // must not open the card for pointer users, only for keyboard users.
+        btn.addEventListener('pointerdown', function () {
+          el.dataset.wasOpen = el.classList.contains('open') ? '1' : '0';
+        });
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          var wasOpen = el.dataset.wasOpen !== undefined ? el.dataset.wasOpen === '1' : el.classList.contains('open');
+          delete el.dataset.wasOpen;
+          if (wasOpen) { walkThrough(link); return; }
+          closeCards(el);
+          el.classList.add('open');
+          scheduleHotspots();
+        });
+        btn.addEventListener('focus', function () {
+          var keyboard = false;
+          try { keyboard = btn.matches(':focus-visible'); } catch (err) { /* old browser: stay closed */ }
+          if (keyboard) { closeCards(el); el.classList.add('open'); scheduleHotspots(); }
+        });
+      }
+
+      hotspotLayer.appendChild(el);
+      hotspots.push({ el: el, link: link });
+    });
+    updateHotspots();
+  }
+
+  function scheduleHotspots() {
+    if (hotspotFrame) return;
+    hotspotFrame = requestAnimationFrame(function () { hotspotFrame = 0; updateHotspots(); });
+  }
+
+  function updateHotspots() {
+    if (!psvInstance || hotspots.length === 0) return;
+    var pos, size;
+    try { pos = psvInstance.getPosition(); size = psvInstance.getSize(); } catch (err) { return; }
+    hotspots.forEach(function (h) {
+      var yaw = h.link.yaw * RAD;
+      var pitch = h.link.pitch * RAD;
+      // Angle between where the viewer is looking and the door; past ~75° it is beside or behind us.
+      var cos = Math.sin(pos.pitch) * Math.sin(pitch) + Math.cos(pos.pitch) * Math.cos(pitch) * Math.cos(pos.yaw - yaw);
+      var at = null;
+      if (cos > 0.25) {
+        try { at = psvInstance.dataHelper.sphericalCoordsToViewerCoords({ yaw: yaw, pitch: pitch }); } catch (err) { at = null; }
+      }
+      var visible = !!at && at.x > -30 && at.y > -30 && at.x < size.width + 30 && at.y < size.height + 30;
+      h.el.classList.toggle('off', !visible);
+      if (!visible) return;
+      h.el.style.transform = 'translate3d(' + at.x + 'px,' + at.y + 'px,0)';
+      // Keep an open preview on screen: flip it below the door near the top, and nudge it sideways at the edges.
+      h.el.classList.toggle('below', at.y < 270);
+      var half = 118;
+      var shift = at.x < half + 8 ? half + 8 - at.x : (at.x > size.width - half - 8 ? size.width - half - 8 - at.x : 0);
+      h.el.style.setProperty('--hs-shift', shift + 'px');
+    });
+  }
+
+  // Walk through a door: lean in toward it, dip to black, and arrive in the
+  // next room facing away from the door you came through.
+  function walkThrough(link) {
+    var target = roomsBySlug[link.to];
+    if (!target || target === currentRoom) return;
+    closeCards();
+    stopDrift();
+    userTookControl = true;
+    function go() { switchRoom(target, { arrivalYaw: link.arrivalYaw || 0 }); }
+    if (psvInstance && !reducedMotion) {
+      try {
+        var lean = psvInstance.animate({ yaw: link.yaw * RAD, pitch: link.pitch * RAD, zoom: 45, speed: 650 });
+        if (lean && lean.then) { lean.then(go, go); return; }
+      } catch (err) { /* just go */ }
+    }
+    go();
+  }
+
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeCards(); });
+  viewerEl.addEventListener('pointerdown', function () { closeCards(); }, { passive: true });
+
   function renderPanorama(room) {
     hideNotice();
 
@@ -209,6 +389,12 @@
     }
 
     showOnly('viewer');
+
+    // Set when we got here through a door (see walkThrough); consumed now so a
+    // later pick from the dock starts from the room's own default view instead.
+    var arrival = pendingArrival;
+    pendingArrival = null;
+    var startYaw = arrival ? arrival.yaw * RAD : 0;
 
     function fallBack(err) {
       if (err) console.error('[tour] panorama failed:', err);
@@ -224,7 +410,15 @@
       if (currentRoom !== room) return;
       roomIsVisible(function () {
         if (currentRoom !== room || !psvInstance) return;
-        if (firstReveal && !reducedMotion) {
+        renderHotspots(room);
+        if (arrival && !reducedMotion) {
+          // Came through a door: settle from the tight view we arrived with.
+          try {
+            var settle = psvInstance.animate({ zoom: 0, speed: 1100 });
+            if (settle && settle.then) { settle.then(startDrift, startDrift); return; }
+          } catch (err) { /* fall through */ }
+        }
+        if (firstReveal && !reducedMotion && !editMode) {
           firstReveal = false;
           try {
             var glide = psvInstance.animate({ yaw: psvInstance.getPosition().yaw + 0.5, pitch: 0, zoom: 0, speed: 2600 });
@@ -239,7 +433,11 @@
     try {
       if (psvInstance) {
         stopDrift();
-        var pending = psvInstance.setPanorama(room.panoUrl);
+        var pending = psvInstance.setPanorama(room.panoUrl, {
+          position: { yaw: startYaw, pitch: 0 },
+          zoom: arrival && !reducedMotion ? 40 : 0,
+          transition: false,
+        });
         if (pending && pending.then) pending.then(arrived, fallBack);
         return;
       }
@@ -252,11 +450,16 @@
         // advertises a button that can't work. Gyroscope must come first:
         // stereo depends on it.
         navbar: stereoAvailable ? ['zoom', 'gyroscope', 'stereo', 'fullscreen'] : ['zoom', 'fullscreen'],
-        defaultZoomLvl: reducedMotion ? 0 : 55,
+        defaultYaw: startYaw,
+        defaultZoomLvl: reducedMotion ? 0 : (arrival ? 40 : (editMode ? 0 : 55)),
         plugins: stereoAvailable ? [PSV.GyroscopePlugin, PSV.StereoPlugin] : [],
       });
       psvInstance.addEventListener('panorama-error', function (e) { fallBack(e && e.error); });
       psvInstance.addEventListener('panorama-loaded', arrived);
+      // Keep the doors glued to their places as the view moves.
+      psvInstance.addEventListener('position-updated', scheduleHotspots);
+      psvInstance.addEventListener('zoom-updated', scheduleHotspots);
+      psvInstance.addEventListener('size-updated', scheduleHotspots);
     } catch (err) {
       fallBack(err);
     }
@@ -281,8 +484,9 @@
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
 
   // Go to a room, dipping through the curtain when one is already showing.
-  function switchRoom(room) {
+  function switchRoom(room, opts) {
     if (room === currentRoom) return;
+    pendingArrival = opts && typeof opts.arrivalYaw === 'number' ? { yaw: opts.arrivalYaw } : null;
     if (firstReveal && introEl) { selectRoom(room); return; }
     showCurtain(function () { selectRoom(room); });
   }
@@ -294,6 +498,8 @@
 
   function selectRoom(room) {
     currentRoom = room;
+    clearHotspots();
+    closeCards();
     var index = rooms.indexOf(room);
     subtitleEl.textContent = room.name + ' · ' + (room.mode === 'panorama' ? '360°' : (room.photos.length + ' photos'));
     if (pagerCount) pagerCount.innerHTML = '<b>' + pad(index + 1) + '</b> / ' + pad(rooms.length);
@@ -307,6 +513,88 @@
     } else {
       renderGallery(room);
     }
+    renderEditor();
+  }
+
+
+  // ---- Door editor (?edit=1) ---------------------------------------------
+  var editorEl = null;
+  function el(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text) node.textContent = text;
+    return node;
+  }
+  function postToParent(message) {
+    try {
+      if (window.parent && window.parent !== window) {
+        message.source = 'realevr-tour';
+        window.parent.postMessage(message, '*');
+      }
+    } catch (err) { /* standalone */ }
+  }
+  function linksChanged() {
+    renderHotspots(currentRoom);
+    renderEditor();
+    postToParent({ action: 'links-changed', links: editLinks });
+  }
+  function placeDoor(target) {
+    if (!psvInstance || !currentRoom) return;
+    var pos = psvInstance.getPosition();
+    var mine = (editLinks[currentRoom.slug] || []).filter(function (l) { return l.to !== target.slug; });
+    mine.push({
+      to: target.slug,
+      yaw: Math.round(normYaw(pos.yaw / RAD) * 10) / 10,
+      pitch: Math.round((pos.pitch / RAD) * 10) / 10,
+    });
+    editLinks[currentRoom.slug] = mine;
+    linksChanged();
+  }
+  function removeDoor(target) {
+    editLinks[currentRoom.slug] = (editLinks[currentRoom.slug] || []).filter(function (l) { return l.to !== target.slug; });
+    if (editLinks[currentRoom.slug].length === 0) delete editLinks[currentRoom.slug];
+    linksChanged();
+  }
+  function buildEditor() {
+    var cross = el('div', null);
+    cross.id = 'crosshair';
+    cross.setAttribute('aria-hidden', 'true');
+    rootEl.appendChild(cross);
+    editorEl = el('div', null);
+    editorEl.id = 'editor';
+    rootEl.appendChild(editorEl);
+  }
+  function renderEditor() {
+    if (!editMode || !editorEl || !currentRoom) return;
+    editorEl.innerHTML = '';
+    editorEl.appendChild(el('div', 'ed-title', 'Doors in ' + currentRoom.name));
+    if (currentRoom.mode !== 'panorama') {
+      editorEl.appendChild(el('p', 'ed-help', 'This room is a photo set, not a 360 view, so it has no doors. Pick a 360 room below.'));
+      return;
+    }
+    editorEl.appendChild(el('p', 'ed-help', 'Turn until the + sits on the doorway, then tap the room it leads to.'));
+    var mine = editLinks[currentRoom.slug] || [];
+    var others = rooms.filter(function (r) { return r !== currentRoom && r.mode === 'panorama'; });
+    if (others.length === 0) editorEl.appendChild(el('p', 'ed-help', 'There are no other 360 rooms to connect to yet.'));
+    others.forEach(function (target) {
+      var placed = mine.some(function (l) { return l.to === target.slug; });
+      var row = el('div', 'ed-row');
+      row.appendChild(el('span', 'ed-name', target.name));
+      var place = el('button', 'ed-place' + (placed ? ' is-placed' : ''), placed ? 'Move here' : 'Place here');
+      place.type = 'button';
+      place.onclick = function () { placeDoor(target); };
+      row.appendChild(place);
+      if (placed) {
+        var remove = el('button', 'ed-remove', '✕');
+        remove.type = 'button';
+        remove.setAttribute('aria-label', 'Remove the door to ' + target.name);
+        remove.onclick = function () { removeDoor(target); };
+        row.appendChild(remove);
+      }
+      editorEl.appendChild(row);
+      var hasBack = (editLinks[target.slug] || []).some(function (l) { return l.to === currentRoom.slug; });
+      if (placed && !hasBack) editorEl.appendChild(el('p', 'ed-hint', 'Tip: open ' + target.name + ' and add the door back to ' + currentRoom.name + '.'));
+    });
   }
 
   // Title-bar polish, the room pager and the entrance card.
@@ -338,7 +626,7 @@
         else if (e.key === 'ArrowRight') stepRoom(1);
       });
     }
-    buildIntro(title);
+    if (editMode) buildEditor(); else buildIntro(title);
   }
 
   fetch('./tour.json')
@@ -353,6 +641,11 @@
         emptyEl.style.display = 'flex';
         return;
       }
+      rooms.forEach(function (room) {
+        roomsBySlug[room.slug] = room;
+        if (room.links && room.links.length) editLinks[room.slug] = room.links.map(function (l) { return { to: l.to, yaw: l.yaw, pitch: l.pitch }; });
+      });
+      if (editMode) document.body.classList.add('edit');
       var tourTitle = data.title || document.title;
       document.getElementById('tour-title').textContent = tourTitle;
       buildChrome(tourTitle);
