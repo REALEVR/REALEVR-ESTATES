@@ -109,6 +109,16 @@ html, body { margin: 0; height: 100%; background: var(--ink); font-family: -appl
   transition: transform .25s var(--ease), background .25s var(--ease), color .25s var(--ease);
 }
 .hs-btn svg { width: 27px; height: 27px; }
+/* A second ring that keeps spreading out of the door: the "walk this way" pulse. */
+.hs-btn::after {
+  content: ""; position: absolute; inset: -5px; border-radius: 50%; pointer-events: none;
+  border: 1.5px solid rgba(216,180,106,.85); animation: hs-ring 1.9s ease-out infinite;
+}
+@keyframes hs-ring { 0% { transform: scale(.9); opacity: .95; } 100% { transform: scale(1.7); opacity: 0; } }
+/* Walking through: the chosen door swells and glows, every other door fades. */
+#hotspots.walking .hs:not(.go) { opacity: 0; transition: opacity .35s ease; }
+.hs.go .hs-btn { transform: scale(1.35); background: var(--gold); color: var(--ink); border-color: var(--gold); animation: none; box-shadow: 0 0 0 10px rgba(216,180,106,.25), 0 0 40px rgba(216,180,106,.8); }
+.hs.go .hs-btn::after, .hs.go .hs-label, .hs.go .hs-card { display: none; }
 .hs-btn:hover, .hs.open .hs-btn { background: var(--gold); color: var(--ink); border-color: var(--gold); transform: scale(1.1); }
 .hs-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 @keyframes hs-blink {
@@ -169,5 +179,6 @@ body.edit #viewer .psv-navbar { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .hs-btn { animation: none; transition: none; }
+  .hs-btn::after { animation: none; display: none; }
   .hs-card { transition: none; }
 }

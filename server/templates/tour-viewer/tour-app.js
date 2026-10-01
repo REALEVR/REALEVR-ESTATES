@@ -47,6 +47,9 @@
   var editMode = /[?&]edit=1(&|$)/.test(window.location.search);
   var editLinks = {};
   var pendingArrival = null;
+  // Milliseconds of dissolve for the next panorama switch (0 = hard cut). Set by switchRoom, consumed by renderPanorama.
+  var pendingFade = 0;
+  var preloaded = {};
   var firstReveal = true;
   var userTookControl = false;
 
@@ -232,7 +235,29 @@
 
   function clearHotspots() {
     hotspots = [];
-    if (hotspotLayer) hotspotLayer.innerHTML = '';
+    if (hotspotLayer) { hotspotLayer.innerHTML = ''; hotspotLayer.classList.remove('walking'); }
+  }
+
+  // Quietly fetch the rooms behind this room's doors, so walking through one is a dissolve
+  // into an image that is already here rather than a wait. Skipped on data-saver connections.
+  function preloadNeighbours(room) {
+    if (editMode || !room) return;
+    try { if (navigator.connection && navigator.connection.saveData) return; } catch (err) { /* fine */ }
+    var run = function () {
+      linksFor(room).forEach(function (l) {
+        var t = roomsBySlug[l.to];
+        if (!t || t.mode !== 'panorama' || !t.panoUrl || preloaded[t.panoUrl]) return;
+        preloaded[t.panoUrl] = 1;
+        // Prefer the viewer's own preload (it keeps the decoded image, which is what makes the
+        // dissolve start at once); a plain fetch at least warms the browser cache.
+        try {
+          var loader = psvInstance && psvInstance.textureLoader;
+          var pending = loader && loader.preloadPanorama ? loader.preloadPanorama(t.panoUrl) : fetch(t.panoUrl, { credentials: 'omit' });
+          if (pending && pending.catch) pending.catch(function () { delete preloaded[t.panoUrl]; });
+        } catch (err) { delete preloaded[t.panoUrl]; }
+      });
+    };
+    (window.requestIdleCallback || function (f) { setTimeout(f, 300); })(run);
   }
 
   function closeCards(except) {
@@ -292,29 +317,17 @@
         card.appendChild(meta);
         el.appendChild(card);
 
-        // A mouse previews on hover and walks in on click; a finger taps once to
-        // preview and again (or on "Walk in") to go, so a stray touch never moves you.
+        // A mouse previews the room on hover; any click or tap on the door walks straight in,
+        // the way a professional tour does (no second tap to confirm).
         el.addEventListener('pointerenter', function (e) {
           if (e.pointerType === 'mouse') { closeCards(el); el.classList.add('open'); scheduleHotspots(); }
         });
         el.addEventListener('pointerleave', function (e) {
           if (e.pointerType === 'mouse') el.classList.remove('open');
         });
-        // Whether the preview was already open BEFORE this press decides what it does:
-        // a mouse has hovered it open (so a click walks in), a finger has not (so the
-        // first tap only previews). Taps also move focus to the button, so focus
-        // must not open the card for pointer users, only for keyboard users.
-        btn.addEventListener('pointerdown', function () {
-          el.dataset.wasOpen = el.classList.contains('open') ? '1' : '0';
-        });
         btn.addEventListener('click', function (e) {
           e.stopPropagation();
-          var wasOpen = el.dataset.wasOpen !== undefined ? el.dataset.wasOpen === '1' : el.classList.contains('open');
-          delete el.dataset.wasOpen;
-          if (wasOpen) { walkThrough(link); return; }
-          closeCards(el);
-          el.classList.add('open');
-          scheduleHotspots();
+          walkThrough(link, el);
         });
         btn.addEventListener('focus', function () {
           var keyboard = false;
@@ -359,19 +372,31 @@
     });
   }
 
-  // Walk through a door: lean in toward it, dip to black, and arrive in the
-  // next room facing away from the door you came through.
-  function walkThrough(link) {
+  // Walk through a door, as one continuous move: the camera turns to the door and pushes toward
+  // it while the other doors fade away; before that push ends the next room dissolves in from a
+  // tight view and opens out, facing away from the door you came through. No black frame between.
+  var walking = false;
+  function walkThrough(link, doorEl) {
     var target = roomsBySlug[link.to];
-    if (!target || target === currentRoom) return;
+    if (!target || target === currentRoom || walking) return;
     closeCards();
     stopDrift();
     userTookControl = true;
-    function go() { switchRoom(target, { arrivalYaw: link.arrivalYaw || 0 }); }
-    if (psvInstance && !reducedMotion) {
+    walking = true;
+    if (hotspotLayer) hotspotLayer.classList.add('walking');
+    if (doorEl) doorEl.classList.add('go');
+    var gone = false;
+    function go() {
+      if (gone) return;
+      gone = true;
+      walking = false;
+      switchRoom(target, { arrivalYaw: link.arrivalYaw || 0, fade: 900 });
+    }
+    if (psvInstance && !reducedMotion && currentRoom && currentRoom.mode === 'panorama' && target.mode === 'panorama') {
       try {
-        var lean = psvInstance.animate({ yaw: link.yaw * RAD, pitch: link.pitch * RAD, zoom: 45, speed: 650 });
-        if (lean && lean.then) { lean.then(go, go); return; }
+        psvInstance.animate({ yaw: link.yaw * RAD, pitch: link.pitch * RAD, zoom: 78, speed: 1000 });
+        setTimeout(go, 480);
+        return;
       } catch (err) { /* just go */ }
     }
     go();
@@ -394,6 +419,8 @@
     // later pick from the dock starts from the room's own default view instead.
     var arrival = pendingArrival;
     pendingArrival = null;
+    var fadeMs = pendingFade;
+    pendingFade = 0;
     var startYaw = arrival ? arrival.yaw * RAD : 0;
 
     function fallBack(err) {
@@ -411,10 +438,11 @@
       roomIsVisible(function () {
         if (currentRoom !== room || !psvInstance) return;
         renderHotspots(room);
+        preloadNeighbours(room);
         if (arrival && !reducedMotion) {
           // Came through a door: settle from the tight view we arrived with.
           try {
-            var settle = psvInstance.animate({ zoom: 0, speed: 1100 });
+            var settle = psvInstance.animate({ zoom: 0, speed: 900 });
             if (settle && settle.then) { settle.then(startDrift, startDrift); return; }
           } catch (err) { /* fall through */ }
         }
@@ -436,7 +464,9 @@
         var pending = psvInstance.setPanorama(room.panoUrl, {
           position: { yaw: startYaw, pitch: 0 },
           zoom: arrival && !reducedMotion ? 40 : 0,
-          transition: false,
+          // A dissolve straight from the old room into the new one: nothing goes black in between.
+          transition: fadeMs && !reducedMotion ? { effect: 'fade', speed: fadeMs, rotation: false } : false,
+          showLoader: false,
         });
         if (pending && pending.then) pending.then(arrived, fallBack);
         return;
@@ -483,11 +513,18 @@
 
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
 
-  // Go to a room, dipping through the curtain when one is already showing.
+  // Go to a room. Between two 360 rooms the old view dissolves into the new one in place; the
+  // dark curtain is only for the rarer jumps that involve a photo-set room (a different viewer).
   function switchRoom(room, opts) {
     if (room === currentRoom) return;
     pendingArrival = opts && typeof opts.arrivalYaw === 'number' ? { yaw: opts.arrivalYaw } : null;
     if (firstReveal && introEl) { selectRoom(room); return; }
+    var seamless = psvInstance && currentRoom && currentRoom.mode === 'panorama' && room.mode === 'panorama' && !reducedMotion;
+    if (seamless) {
+      pendingFade = opts && opts.fade ? opts.fade : 800;
+      selectRoom(room);
+      return;
+    }
     showCurtain(function () { selectRoom(room); });
   }
   function stepRoom(delta) {
