@@ -20,14 +20,14 @@ const ANY_CITY = "__any__";
  */
 export default function PlaceBar() {
   const [path] = useLocation();
-  const { place, choose, shareLocation } = usePlace();
+  const { place, abroad, choose, shareLocation } = usePlace();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [country, setCountry] = useState(place.country);
   const [city, setCity] = useState(place.city ?? ANY_CITY);
   const [busy, setBusy] = useState(false);
 
-  if (!LISTING_PATHS.includes(path)) return null;
+  if (!LISTING_PATHS.includes(path) || (abroad && path === "/")) return null;
 
   const cities = countryByCode(country)?.cities ?? [];
 
