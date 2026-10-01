@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { format, isPast, parseISO } from "date-fns";
@@ -13,6 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import { PageSeo } from "@/components/seo/PageSeo";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { CATEGORY_PAGE_META } from "@shared/seo";
+import { useAuctionList, type AuctionSummary } from "@/hooks/useAuction";
+import { formatLeft, money as auctionMoney } from "@/lib/auctionApi";
 
 export default function BankSalesPage() {
   const [activeBankTab, setActiveBankTab] = useState<string>("all");
@@ -43,19 +45,8 @@ export default function BankSalesPage() {
     return acc;
   }, {} as Record<string, Property[]>);
 
-  // Handle placing a bid
-  const handlePlaceBid = (property: Property) => {
-    if (!property.currentBid || !property.bidIncrement) {
-      return;
-    }
-
-    const newBid = property.currentBid + property.bidIncrement;
-
-    toast({
-      title: "Bid Placed",
-      description: `Your bid of UGX ${newBid.toLocaleString()} has been placed for ${property.title}`,
-    });
-  };
+  // Real auctions (price, countdown, bids) come from the live auction service; a card links to its page to bid.
+  const { data: auctions } = useAuctionList();
 
   const bankSalesJsonLd = useMemo(() => {
     const site = getSiteUrl();
@@ -135,7 +126,7 @@ export default function BankSalesPage() {
                 <AuctionPropertyCard
                   key={property.id}
                   property={property}
-                  onPlaceBid={handlePlaceBid}
+                  auction={auctions?.find((a) => a.propertyId === property.id && a.phase !== 'cancelled')}
                 />
               ))}
             </div>
@@ -155,7 +146,7 @@ export default function BankSalesPage() {
                   <AuctionPropertyCard
                     key={property.id}
                     property={property}
-                    onPlaceBid={handlePlaceBid}
+                    auction={auctions?.find((a) => a.propertyId === property.id && a.phase !== 'cancelled')}
                   />
                 ))}
               </div>
@@ -169,14 +160,22 @@ export default function BankSalesPage() {
 
 interface AuctionPropertyCardProps {
   property: Property;
-  onPlaceBid: (property: Property) => void;
+  /** The live auction for this property, when the lister has scheduled one. */
+  auction?: AuctionSummary;
 }
 
-function AuctionPropertyCard({ property, onPlaceBid }: AuctionPropertyCardProps) {
-  const auctionDate = property.auctionDate ? parseISO(property.auctionDate) : null;
-  const isAuctionActive = auctionDate && !isPast(auctionDate) && property.auctionStatus === "active";
-  const isAuctionUpcoming = auctionDate && !isPast(auctionDate);
-  const isAuctionEnded = auctionDate && isPast(auctionDate) && property.auctionStatus !== "active";
+function AuctionPropertyCard({ property, auction }: AuctionPropertyCardProps) {
+  const [tick, setTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (!auction || auction.phase === "ended") return;
+    const id = setInterval(() => setTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [auction?.id, auction?.phase]);
+  const skew = auction ? Date.parse(auction.serverTime) - Date.now() : 0;
+  const leftMs = auction ? Date.parse(auction.currentEndsAt) - (tick + skew) : 0;
+  const isAuctionActive = auction?.phase === "live";
+  const isAuctionUpcoming = auction?.phase === "scheduled";
+  const isAuctionEnded = auction?.phase === "ended";
 
   return (
     <Card className="overflow-hidden transition-all hover:shadow-lg">
@@ -266,29 +265,37 @@ function AuctionPropertyCard({ property, onPlaceBid }: AuctionPropertyCardProps)
           </div>
         </div>
 
-        <div className="mt-4 p-3 bg-gray-50 rounded-md">
-          <div className="flex justify-between mb-2">
-            <div className="text-sm text-gray-600">Starting Bid</div>
-            <div className="font-semibold">UGX {property.startingBid?.toLocaleString()}</div>
+        {auction ? (
+          <div className="mt-4 p-3 bg-gray-50 rounded-md">
+            <div className="flex justify-between mb-2">
+              <div className="text-sm text-gray-600">Starting price</div>
+              <div className="font-semibold">{auctionMoney(auction.currency, auction.startingPrice)}</div>
+            </div>
+            <div className="flex justify-between">
+              <div className="text-sm text-gray-600">{isAuctionEnded ? "Final bid" : "Current bid"}</div>
+              <div className="font-bold text-green-600">{auction.currentBid ? auctionMoney(auction.currency, auction.currentBid) : "No bids yet"}</div>
+            </div>
+            {isAuctionActive && (
+              <div className="mt-2 flex justify-between border-t pt-2 text-sm">
+                <span className="text-gray-600">Time left</span>
+                <span className="font-mono font-bold tabular-nums">{formatLeft(leftMs)}</span>
+              </div>
+            )}
+            <div className="mt-1 text-xs text-gray-500">{auction.bidCount} bid{auction.bidCount === 1 ? "" : "s"} from {auction.bidderCount} bidder{auction.bidderCount === 1 ? "" : "s"}</div>
           </div>
-          <div className="flex justify-between">
-            <div className="text-sm text-gray-600">Current Bid</div>
-            <div className="font-bold text-green-600">UGX {property.currentBid?.toLocaleString()}</div>
+        ) : (
+          <div className="mt-4 p-3 bg-gray-50 rounded-md text-sm text-gray-600">
+            {property.startingBid ? `Starting price UGX ${property.startingBid.toLocaleString()}. ` : ""}Live bidding has not been scheduled for this property yet.
           </div>
-        </div>
+        )}
       </CardContent>
 
       <CardFooter className="pt-0 flex justify-between">
         <Link href={`/property/${property.id}`}>
           <Button variant="outline" size="sm">View Details</Button>
         </Link>
-        <Button
-          onClick={() => onPlaceBid(property)}
-          disabled={!isAuctionActive}
-          className="bg-amber-600 hover:bg-amber-700 text-white"
-          size="sm"
-        >
-          Place Bid
+        <Button asChild disabled={!auction || isAuctionEnded} className="bg-amber-600 hover:bg-amber-700 text-white" size="sm">
+          <Link href={`/property/${property.id}`}>{isAuctionActive ? "Bid now" : isAuctionUpcoming ? "View auction" : isAuctionEnded ? "Results" : "View"}</Link>
         </Button>
       </CardFooter>
     </Card>

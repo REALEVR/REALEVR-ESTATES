@@ -64,6 +64,8 @@ import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
 import AdminRoomCaptures from '@/pages/AdminRoomCaptures'
 import AdminKevinLeads from '@/pages/AdminKevinLeads'
 import AdminTourHealth from '@/pages/AdminTourHealth'
+import AdminAuctions from '@/pages/AdminAuctions'
+import AuctionApplyPage from '@/pages/AuctionApplyPage'
 import AuctionTerms from '@/pages/AuctionTerms'
 import BidderVetting from '@/pages/BidderVetting'
 import LegalCenter from '@/pages/LegalCenter'
@@ -110,6 +112,7 @@ function Router() {
             <Route path="/bidder-vetting" component={BidderVetting} />
             <Route path="/legal" component={LegalCenter} />
             <Route path="/partners" component={PartnersPage} />
+            <Route path="/auctions/apply" component={AuctionApplyPage} />
             {/* Footer previously linked these three at "#" — no real content
                 exists for them yet (no job listings, investor materials, or
                 news articles to show honestly), so each gets a real,
@@ -215,6 +218,7 @@ function Router() {
             {/* Strictly admin-only — visitors' personal details, see server/gene/kevin-leads.ts. */}
             <ProtectedAdminRoute path="/admin/kevin-leads" component={AdminKevinLeads} allowedRoles={['admin']} />
             <ProtectedAdminRoute path="/admin/tour-health" component={AdminTourHealth} allowedRoles={['admin']} />
+            <ProtectedAdminRoute path="/admin/auctions" component={AdminAuctions} allowedRoles={['admin', 'agent']} />
             {/* Strictly admin-only — phone numbers and point redemptions, see server/gene/building-recommendations.ts. */}
             <ProtectedAdminRoute path="/admin/recommendations" component={AdminRecommendations} allowedRoles={['admin']} />
             {/* Strictly admin-only — platform-wide user PII / mass
