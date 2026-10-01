@@ -136,7 +136,7 @@ function LanguagePicker({ onPick }: { onPick: (lang: KevinLanguage) => void }) {
           }}
           placeholder="Another language… (e.g. Runyankole)"
           aria-label="Type another language"
-          className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.06] px-3.5 py-1.5 text-sm text-white placeholder:text-white/45 focus:border-[#f5c469]/70 focus:outline-none"
+          className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.06] px-3.5 py-2 text-base text-white placeholder:text-white/45 focus:border-[#f5c469]/70 focus:outline-none"
         />
         <button
           type="submit"
@@ -226,6 +226,41 @@ export default function KevinOrb() {
     },
     [push, say],
   )
+
+  // While the panel is open, track the part of the screen that is really visible
+  // (the on-screen keyboard shrinks it) and stop the page behind from scrolling
+  // when the panel is a full-screen sheet.
+  useEffect(() => {
+    if (!open) return
+    const vv = window.visualViewport
+    const root = document.documentElement
+    const apply = () => {
+      root.style.setProperty('--kevin-vh', `${vv ? vv.height : window.innerHeight}px`)
+      root.style.setProperty('--kevin-top', `${vv ? vv.offsetTop : 0}px`)
+      // Follow the visible width too: a page a few pixels wider than the screen
+      // makes the layout viewport wider than what the phone actually shows.
+      root.style.setProperty('--kevin-vw', `${vv ? vv.width : window.innerWidth}px`)
+      root.style.setProperty('--kevin-left', `${vv ? vv.offsetLeft : 0}px`)
+      endRef.current?.scrollIntoView({ block: 'end' })
+    }
+    apply()
+    vv?.addEventListener('resize', apply)
+    vv?.addEventListener('scroll', apply)
+    window.addEventListener('resize', apply)
+    const asSheet = window.matchMedia('(max-width: 767px), (max-height: 520px)').matches
+    const before = document.body.style.overflow
+    if (asSheet) document.body.style.overflow = 'hidden'
+    return () => {
+      vv?.removeEventListener('resize', apply)
+      vv?.removeEventListener('scroll', apply)
+      window.removeEventListener('resize', apply)
+      root.style.removeProperty('--kevin-vh')
+      root.style.removeProperty('--kevin-top')
+      root.style.removeProperty('--kevin-vw')
+      root.style.removeProperty('--kevin-left')
+      document.body.style.overflow = before
+    }
+  }, [open])
 
   // ---- First-visit greeting ----
   // As soon as someone arrives Kevin says hello, with a short beat for the page to
@@ -566,20 +601,22 @@ export default function KevinOrb() {
           role="dialog"
           aria-label="Kevin, your RealEVR concierge"
           onKeyDown={(e) => e.key === 'Escape' && closePanel()}
-          className="kevin-pop fixed inset-x-3 bottom-[calc(var(--mobile-tabbar-h)+0.75rem)] z-[55] flex h-[min(76vh,640px)] flex-col overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(120%_80%_at_0%_0%,rgba(79,70,229,0.28),transparent_55%),radial-gradient(90%_70%_at_100%_100%,rgba(45,212,191,0.18),transparent_55%)] bg-[#0b0d1c]/95 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl md:inset-x-auto md:bottom-5 md:right-4 md:h-[min(640px,calc(100vh-2.5rem))] md:w-[400px]"
+          className="kevin-panel kevin-pop bg-[radial-gradient(120%_80%_at_0%_0%,rgba(79,70,229,0.28),transparent_55%),radial-gradient(90%_70%_at_100%_100%,rgba(45,212,191,0.18),transparent_55%)] bg-[#0b0d1c]/95 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl"
         >
-          <header className="flex items-center gap-2.5 border-b border-white/10 px-4 py-3">
+          <header className="kevin-head flex items-center gap-3 border-b border-white/10 px-4 py-3">
             <span className="relative block h-10 w-10 shrink-0">
               <Orb mini speaking={voice.speaking} listening={voice.listening} thinking={busy} />
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="font-display text-base font-semibold tracking-wide">Kevin</span>
-                <span className={`kevin-bars ${voice.speaking ? 'is-on' : ''}`} aria-hidden="true">
-                  <span /><span /><span /><span /><span />
-                </span>
+                {voice.speaking && (
+                  <span className="kevin-bars is-on" aria-hidden="true">
+                    <span /><span /><span /><span /><span />
+                  </span>
+                )}
               </div>
-              <p className="truncate text-xs text-white/60">Your RealEVR concierge</p>
+              <p className="kevin-sub truncate text-xs text-white/60">Your RealEVR concierge</p>
             </div>
             {voice.canListen && lang && !voiceMode && (
               <button
@@ -587,20 +624,43 @@ export default function KevinOrb() {
                 onClick={startVoiceMode}
                 title={strings.talkToKevin}
                 aria-label={strings.talkToKevin}
-                className="rounded-full p-2 text-[#f5c469] transition hover:bg-white/10"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[#f5c469] transition hover:bg-white/10"
               >
-                <AudioLines size={18} />
+                <AudioLines size={20} />
               </button>
             )}
+            <button
+              type="button"
+              onClick={closePanel}
+              aria-label="Close"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+          </header>
+
+          {/* Language, picks and sound live on their own row, so the title is never squeezed. */}
+          <div className="kevin-tools flex items-center gap-2 border-b border-white/10 px-4 py-2">
+            <button
+              type="button"
+              onClick={() => setChangingLanguage((v) => !v)}
+              aria-expanded={showPicker}
+              title="Change language"
+              className="flex h-10 min-w-0 max-w-[60%] items-center gap-2 rounded-full border border-white/15 px-3.5 text-sm text-white/90 transition hover:border-[#f5c469]/70 hover:text-white"
+            >
+              <Globe size={16} className="shrink-0" />
+              <span className="truncate" lang={lang?.code ?? undefined}>{lang?.native ?? 'Language'}</span>
+            </button>
+            <span className="flex-1" />
             {user && (
               <button
                 type="button"
                 onClick={openMyAgent}
                 title="My picks and alerts"
                 aria-label="Open my picks and alerts"
-                className="rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-[#f5c469]"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/75 transition hover:bg-white/10 hover:text-[#f5c469]"
               >
-                <Sparkles size={18} />
+                <Sparkles size={19} />
               </button>
             )}
             {voice.canSpeak && (
@@ -610,30 +670,12 @@ export default function KevinOrb() {
                 aria-pressed={muted}
                 aria-label={muted ? 'Let Kevin speak aloud' : 'Mute Kevin'}
                 title={muted ? 'Let Kevin speak aloud' : 'Mute Kevin'}
-                className="rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/75 transition hover:bg-white/10 hover:text-white"
               >
-                {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setChangingLanguage((v) => !v)}
-              aria-expanded={showPicker}
-              title="Change language"
-              className="flex max-w-[6.5rem] items-center gap-1.5 rounded-full border border-white/15 px-2.5 py-1.5 text-xs text-white/85 transition hover:border-[#f5c469]/70 hover:text-white"
-            >
-              <Globe size={14} className="shrink-0" />
-              <span className="truncate" lang={lang?.code ?? undefined}>{lang?.native ?? 'Language'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={closePanel}
-              aria-label="Close"
-              className="rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white"
-            >
-              <X size={18} />
-            </button>
-          </header>
+          </div>
 
           {showPicker && (
             <div className="kevin-rise border-b border-white/10 bg-white/[0.03] px-4 py-3">
@@ -757,7 +799,7 @@ export default function KevinOrb() {
               onChange={(e) => setInput(e.target.value)}
               placeholder={voice.listening ? strings.listening : strings.placeholder}
               dir={rtl ? 'rtl' : 'auto'}
-              className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.06] px-4 py-2.5 text-sm text-white placeholder:text-white/45 focus:border-[#f5c469]/70 focus:outline-none"
+              className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.06] px-4 py-2.5 text-base text-white placeholder:text-white/45 focus:border-[#f5c469]/70 focus:outline-none"
             />
             <button
               type="submit"
