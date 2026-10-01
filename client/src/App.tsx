@@ -74,7 +74,6 @@ import AdminDashboardHome from '@/pages/AdminDashboardHome'
 import AdminBrokerApplications from '@/pages/AdminBrokerApplications'
 import AdminMessages from '@/pages/AdminMessages'
 import WhatsAppFab from '@/components/whatsapp/WhatsAppFab'
-import BrokerOnlinePresence from '@/components/broker/BrokerOnlinePresence'
 import MobileTabBar from '@/components/layout/MobileTabBar'
 import AmbientSoundToggle from '@/components/AmbientSoundToggle'
 
@@ -303,7 +302,6 @@ function AppShell() {
             <AgentLauncher />
             <KevinOrb />
             <WhatsAppFab />
-            <BrokerOnlinePresence />
             <ScrollToTop />
             <WhatsAppNumberPrompt />
             <SignupNudgeGate />

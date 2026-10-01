@@ -46,6 +46,8 @@ import './kevin.css'
 
 const LANG_KEY = 'realevr_kevin_lang'
 const GREETED_KEY = 'realevr_kevin_greeted'
+const ASKED_KEY = 'realevr_kevin_asked_language' // per browser session: has he asked which language yet?
+const LANGUAGE_QUESTION = 'Hello, I’m Kevin, your guide to RealEVR Estates. Which language would you like to speak?'
 const MUTED_KEY = 'realevr_kevin_muted'
 const SESSION_KEY = 'realevr_gene_chat_session_id' // shared with the older widget so a thread survives
 const HANDSFREE_KEY = 'realevr_kevin_handsfree' // '0' once the visitor switched hands-free off; otherwise it starts on arrival
@@ -296,14 +298,39 @@ export default function KevinOrb() {
   // As soon as someone arrives Kevin says hello, with a short beat for the page to
   // appear first. (He used to wait for the cookie notice to be answered; the
   // greeting now sits above it instead, so it is never held back.)
+  // He asks again at the start of every visit until a language has been chosen; once chosen, never.
   useEffect(() => {
-    if (readStore(GREETED_KEY)) return
+    if (langRef.current) return
+    try {
+      if (sessionStorage.getItem(ASKED_KEY) === '1') return
+    } catch {
+      /* storage blocked: ask on every page load rather than never */
+    }
     const timer = setTimeout(() => {
+      if (langRef.current) return
+      try {
+        sessionStorage.setItem(ASKED_KEY, '1')
+      } catch {
+        /* see above */
+      }
       writeStore(GREETED_KEY, '1')
       setBubble(true)
     }, 900)
     return () => clearTimeout(timer)
   }, [])
+
+  // ...and says the question aloud, in his own voice. Browsers keep a page silent until the first
+  // tap, so on arrival it is spoken at that tap (see pendingSpeech); never after the bubble is gone.
+  const askedAloud = useRef(false)
+  useEffect(() => {
+    if (!bubble) {
+      if (pendingSpeech.current?.text === LANGUAGE_QUESTION) pendingSpeech.current = null
+      return
+    }
+    if (langRef.current || askedAloud.current || !voice.canSpeak) return
+    askedAloud.current = true
+    say(LANGUAGE_QUESTION, KEVIN_LANGUAGES[0])
+  }, [bubble, say, voice.canSpeak])
 
   // An untouched greeting shouldn't hang over the page forever.
   useEffect(() => {
@@ -708,20 +735,6 @@ export default function KevinOrb() {
     window.dispatchEvent(new Event('realevr:open-agent'))
   }
 
-  // Pointer tilt: the orb leans toward the cursor (mouse only, so touch stays still).
-  const tilt = (e: React.PointerEvent<HTMLButtonElement>) => {
-    if (e.pointerType !== 'mouse') return
-    const r = e.currentTarget.getBoundingClientRect()
-    const x = (e.clientX - r.left) / r.width - 0.5
-    const y = (e.clientY - r.top) / r.height - 0.5
-    e.currentTarget.style.setProperty('--kevin-tilt-x', `${(-y * 24).toFixed(1)}deg`)
-    e.currentTarget.style.setProperty('--kevin-tilt-y', `${(x * 24).toFixed(1)}deg`)
-  }
-  const untilt = (e: React.PointerEvent<HTMLButtonElement>) => {
-    e.currentTarget.style.setProperty('--kevin-tilt-x', '0deg')
-    e.currentTarget.style.setProperty('--kevin-tilt-y', '0deg')
-  }
-
   const showPicker = changingLanguage
   const rtl = isRtl(lang)
 
@@ -752,25 +765,27 @@ export default function KevinOrb() {
           onPointerUp={() => clearTimeout(pressTimer.current)}
           onPointerCancel={() => clearTimeout(pressTimer.current)}
           onContextMenu={(e) => e.preventDefault()}
-          onPointerMove={tilt}
-          onPointerLeave={(e) => {
-            clearTimeout(pressTimer.current)
-            untilt(e)
-          }}
+          onPointerLeave={() => clearTimeout(pressTimer.current)}
           aria-label="Chat with Kevin, your RealEVR concierge. Press and hold to talk."
-          className="group fixed select-none [-webkit-touch-callout:none] bottom-[var(--fab-row-1)] right-5 z-40 h-14 w-14 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f5c469] md:bottom-5 md:right-4 md:h-16 md:w-16"
+          className="group fixed select-none [-webkit-touch-callout:none] bottom-[var(--fab-row-1)] right-3 z-40 flex w-16 flex-col items-center gap-1.5 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f5c469] md:bottom-5 md:right-4"
         >
-          <Orb speaking={voice.speaking || phase === 'speaking'} listening={voice.listening} thinking={busy} />
+          <span className="relative block h-11 w-11 md:h-12 md:w-12">
+            <Orb speaking={voice.speaking || phase === 'speaking'} listening={voice.listening} thinking={busy} />
+          </span>
+          {/* His name floats under the dot. The dark pill keeps it readable over light and dark pages alike. */}
+          <span className="rounded-full bg-[#0d1024]/85 px-2.5 py-0.5 font-display text-[11px] font-semibold tracking-wide text-white shadow-md backdrop-blur">
+            Kevin
+          </span>
           {ambient.active && (
             <span
-              className="pointer-events-none absolute -left-0.5 -top-0.5 grid h-5 w-5 place-items-center rounded-full bg-[#f5c469] text-[#1b1305] shadow"
+              className="pointer-events-none absolute left-2 top-0 grid h-5 w-5 place-items-center rounded-full bg-[#f5c469] text-[#1b1305] shadow"
               title={strings.handsFreeActive}
             >
               <Mic size={11} />
               <span className="sr-only">{strings.handsFreeActive}</span>
             </span>
           )}
-          <span className="pointer-events-none absolute right-full top-1/2 mr-3 hidden -translate-y-1/2 whitespace-nowrap rounded-full border border-white/10 bg-[#0d1024]/90 px-3 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg backdrop-blur transition group-hover:opacity-100 md:block">
+          <span className="pointer-events-none absolute right-full top-5 mr-3 hidden -translate-y-1/2 whitespace-nowrap rounded-full border border-white/10 bg-[#0d1024]/90 px-3 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg backdrop-blur transition group-hover:opacity-100 md:block">
             {voice.canListen && lang ? 'Ask Kevin · hold to talk' : 'Ask Kevin'}
           </span>
         </button>

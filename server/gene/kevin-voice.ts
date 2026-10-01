@@ -6,7 +6,8 @@
  * This gives Kevin ONE recognisable voice everywhere by synthesising it on the
  * server with whichever speech provider is configured, in this order:
  *
- *   1. ElevenLabs  (ELEVENLABS_API_KEY)  - the most flexible: set
+ *   1. ElevenLabs  (ELEVENLABS_API_KEY)  - the most flexible. Kevin is a man with an
+ *      African accent: by default a male West African library voice. Set
  *      KEVIN_ELEVENLABS_VOICE_ID to any voice in your account, including one you
  *      designed or cloned, and Kevin sounds like that.
  *   2. OpenAI      (OPENAI_API_KEY)      - gpt-4o-mini-tts, which takes a written
@@ -35,8 +36,9 @@ const REQUEST_TIMEOUT_MS = 20_000
 
 // How Kevin should sound, for providers that accept a written direction.
 const KEVIN_DELIVERY =
-    'Speak as Kevin, a warm, calm, well-travelled concierge. Natural, unhurried and friendly, like a trusted guide talking to one person. ' +
-    'Clear diction, a smile in the voice, never salesy or robotic. Say prices and numbers the way a person would.'
+    'Speak as Kevin, a man: a warm, calm African concierge with a natural East or West African English accent, the way a friendly, ' +
+    'well-educated professional from Kampala, Nairobi or Accra speaks. Mid-to-low male voice, unhurried and friendly, like a trusted ' +
+    'guide talking to one person. Clear diction, a smile in the voice, never salesy or robotic. Say prices and numbers the way a person would.'
 
 export function configuredProvider(): VoiceProvider | null {
     const wanted = (process.env.KEVIN_VOICE_PROVIDER || '').toLowerCase()
@@ -99,8 +101,13 @@ async function fetchWithTimeout(url: string, init: RequestInit): Promise<globalT
     }
 }
 
-async function viaElevenLabs(text: string): Promise<Audio> {
-    const voiceId = process.env.KEVIN_ELEVENLABS_VOICE_ID || 'onwK4e9ZLuTAKqWW03F9' // "Daniel": calm, warm, articulate
+// Male African voices from the ElevenLabs library, tried in order when KEVIN_ELEVENLABS_VOICE_ID is not set:
+// "Bright" (warm, confident, Ghanaian English), "Moyo" (warm baritone, Nigerian English), then "Daniel" (calm, warm, articulate).
+// A library voice can be refused on some plans; the next one is tried, so Kevin always has a male voice.
+const ELEVENLABS_DEFAULT_VOICES = ['bDFumwYri07axD9161yA', 'ilWiv7gEzrCtQ2zDJsRl', 'onwK4e9ZLuTAKqWW03F9']
+let workingElevenLabsVoice: string | null = null
+
+async function elevenLabsOnce(voiceId: string, text: string): Promise<Audio> {
     const res = await fetchWithTimeout(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_64`, {
         method: 'POST',
         headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY as string, 'content-type': 'application/json', accept: 'audio/mpeg' },
@@ -110,8 +117,31 @@ async function viaElevenLabs(text: string): Promise<Audio> {
             voice_settings: { stability: 0.5, similarity_boost: 0.8, style: 0.2, use_speaker_boost: true },
         }),
     })
-    if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 200)}`)
+    if (!res.ok) throw Object.assign(new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 200)}`), { status: res.status })
     return { data: Buffer.from(await res.arrayBuffer()), type: 'audio/mpeg' }
+}
+
+async function viaElevenLabs(text: string): Promise<Audio> {
+    const chosen = (process.env.KEVIN_ELEVENLABS_VOICE_ID || '').trim()
+    if (chosen) return elevenLabsOnce(chosen, text)
+    const order = workingElevenLabsVoice
+        ? [workingElevenLabsVoice, ...ELEVENLABS_DEFAULT_VOICES.filter((v) => v !== workingElevenLabsVoice)]
+        : ELEVENLABS_DEFAULT_VOICES
+    let lastError: unknown
+    for (const voiceId of order) {
+        try {
+            const audio = await elevenLabsOnce(voiceId, text)
+            workingElevenLabsVoice = voiceId
+            return audio
+        } catch (err) {
+            lastError = err
+            const status = (err as { status?: number }).status
+            // Only a refused voice (not found / needs a paid plan / bad request) moves on to the next; an outage or bad key does not.
+            if (status !== 400 && status !== 402 && status !== 404 && status !== 422) throw err
+            if (workingElevenLabsVoice === voiceId) workingElevenLabsVoice = null
+        }
+    }
+    throw lastError
 }
 
 async function viaOpenAi(text: string): Promise<Audio> {
