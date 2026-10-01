@@ -60,7 +60,7 @@ export default function ListYourPropertyPage() {
   const [otpRequested, setOtpRequested] = useState(false);
   const [devOtpCode, setDevOtpCode] = useState<string | null>(null);
   const [landlordPhoneMasked, setLandlordPhoneMasked] = useState<string | null>(null);
-  const [payoutAmount, setPayoutAmount] = useState(1000);
+  const [payoutAmount, setPayoutAmount] = useState(0);
   const [dashboardUrl, setDashboardUrl] = useState<string | null>(null);
   const [propertyId, setPropertyId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -110,7 +110,7 @@ export default function ListYourPropertyPage() {
       return;
     }
     if (!draft.agentName || !draft.agentPhone) {
-      toast({ title: "Your name and phone are required", description: "This is where your payout confirmation and dashboard link go.", variant: "destructive" });
+      toast({ title: "Your name and phone are required", description: "This is where your dashboard link goes.", variant: "destructive" });
       return;
     }
     if (!draft.landlordName || !draft.landlordPhone) {
@@ -184,8 +184,8 @@ export default function ListYourPropertyPage() {
   return (
     <>
       <PageSeo
-        title="List a Property, Earn 1,000 UGX — RealEVR Estates"
-        description="List a property on RealEVR Estates and earn a 1,000 UGX referral fee once the landlord confirms it over WhatsApp. Free to list — live in minutes."
+        title="List a Property — RealEVR Estates"
+        description="List a property on RealEVR Estates once the landlord or manager confirms it over WhatsApp. Free to list — live in minutes."
         canonicalPath="/list-your-property"
       />
       <section className="relative -mx-4 sm:-mx-6 lg:-mx-8 py-14 overflow-hidden">
@@ -194,12 +194,12 @@ export default function ListYourPropertyPage() {
           <Reveal>
             <div className="text-center mb-10">
               <h1 className="text-3xl md:text-4xl font-display font-medium text-foreground mb-3">
-                List a property, earn 1,000 UGX
+                List a property
               </h1>
               <p className="text-muted-foreground">
-                Submit any property, have the landlord or manager confirm it's real over a quick WhatsApp code, and
-                we'll pay you a 1,000 UGX referral fee once our team approves it. Free to submit — no fee, ever, to
-                list a property.
+                Submit a property, have the landlord or manager confirm it's real over a quick WhatsApp code, and it
+                goes live. Free to submit — no fee, ever, to list a property. Live in a building that is not on
+                RealEVR yet? Tell us about it from the Rewards tab and earn points.
               </p>
             </div>
           </Reveal>
@@ -275,11 +275,10 @@ export default function ListYourPropertyPage() {
 
                 <div className="border-t border-border pt-5">
                   <h3 className="font-display text-lg text-foreground mb-3 flex items-center gap-2">
-                    <Wallet className="h-4 w-4 text-accent" /> Your details (this is who gets paid)
+                    <Wallet className="h-4 w-4 text-accent" /> Your details
                   </h3>
                   <p className="text-xs text-muted-foreground mb-3">
-                    We'll send your 1,000 UGX referral fee confirmation and your new dashboard link to this WhatsApp
-                    number once the property is live and approved.
+                    We'll send your new dashboard link to this WhatsApp number once the property is live.
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -411,8 +410,9 @@ export default function ListYourPropertyPage() {
                 <PartyPopper className="h-12 w-12 text-accent mx-auto" />
                 <h2 className="font-display text-2xl text-foreground">You're live!</h2>
                 <p className="text-muted-foreground">
-                  The property is published and a dashboard has been set up for you. Your {payoutAmount} UGX referral
-                  fee is pending review by our team — you'll get a WhatsApp message the moment it's approved.
+                  The property is published and a dashboard has been set up for you.
+                  {payoutAmount > 0 &&
+                    ` Your ${payoutAmount} UGX referral fee is pending review by our team — you'll get a WhatsApp message the moment it's approved.`}
                 </p>
                 {dashboardUrl ? (
                   <Button className="w-full" size="lg" asChild>

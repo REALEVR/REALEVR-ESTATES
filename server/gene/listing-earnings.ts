@@ -31,6 +31,7 @@ import type { Express, Request, Response, NextFunction, RequestHandler } from 'e
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { createNotification } from '../models/Notification'
 import { notifyAdminsEverywhere } from './admin-notify'
+import { paidUploadsEnabled } from './paid-uploads'
 
 const EARNING_COLLECTION = 'gene_listing_earnings'
 const PAYOUT_COLLECTION = 'gene_listing_payout_requests'
@@ -115,6 +116,8 @@ function computeBalance(userId: number) {
  * to at/above it, same threshold-crossing pattern as referral-rewards.ts.
  */
 export async function recordListingEarning(userId: number, propertyId: number, propertyTitle: string): Promise<void> {
+    // Uploads no longer earn money (see paid-uploads.ts); balances already earned stay claimable.
+    if (!paidUploadsEnabled()) return
     try {
         if (!Number.isFinite(userId) || !Number.isFinite(propertyId)) return
         const rows = readCollection<ListingEarning>(EARNING_COLLECTION)
@@ -150,7 +153,7 @@ export function registerListingEarningsRoutes(app: Express, adminMiddleware: Req
     // GET /api/gene/listing-earnings/balance — [AUTH]
     app.get('/api/gene/listing-earnings/balance', requireUser, (req, res) => {
         const userId = (req.user as any).id
-        res.json(computeBalance(userId))
+        res.json({ ...computeBalance(userId), accruing: paidUploadsEnabled() })
     })
 
     // GET /api/gene/listing-earnings/history — [AUTH]
