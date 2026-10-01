@@ -69,6 +69,7 @@ import { registerAfricaMediaFeedRoutes } from './gene/africa-media-feed'
 import { registerAiWorkforceRoutes } from './gene/ai-workforce'
 import { registerReferralRewardsRoutes } from './gene/referral-rewards'
 import { registerListingEarningsRoutes, recordListingEarning } from './gene/listing-earnings'
+import { registerBuildingRecommendationRoutes } from './gene/building-recommendations'
 import { registerBnbBookingRoutes, recordBnbBooking } from './gene/bnb-bookings'
 import { registerWhatsappConciergeRoutes } from './gene/whatsapp-concierge'
 import { registerMessagingRoutes } from './gene/messaging'
@@ -2810,6 +2811,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerPersonalAgentRoutes(app)
     registerReferralRewardsRoutes(app, adminMiddleware)
     registerListingEarningsRoutes(app, adminMiddleware)
+    registerBuildingRecommendationRoutes(app)
     registerBnbBookingRoutes(app)
     registerWhatsappConciergeRoutes(app)
     registerMessagingRoutes(app, requireStrictAdmin)

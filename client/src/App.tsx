@@ -63,6 +63,8 @@ import AdminRentRailPayouts from '@/pages/AdminRentRailPayouts'
 import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
 import AdminRoomCaptures from '@/pages/AdminRoomCaptures'
 import AdminKevinLeads from '@/pages/AdminKevinLeads'
+import AdminRecommendations from '@/pages/AdminRecommendations'
+import RecommendPlacePage from '@/pages/RecommendPlacePage'
 import AdminAnalytics from '@/pages/AdminAnalytics'
 import AdminBroadcast from '@/pages/AdminBroadcast'
 import AdminDashboardHome from '@/pages/AdminDashboardHome'
@@ -145,6 +147,7 @@ function Router() {
                 "register"/"dashboard" as a :username value. */}
             <Route path="/agent/:username" component={AgentPortfolioPage} />
             <Route path="/list-your-property" component={ListYourPropertyPage} />
+            <Route path="/recommend-a-place" component={RecommendPlacePage} />
 
             <Route path="/dashboard" component={UserDashboard} />
 
@@ -199,6 +202,8 @@ function Router() {
             />
             {/* Strictly admin-only — visitors' personal details, see server/gene/kevin-leads.ts. */}
             <ProtectedAdminRoute path="/admin/kevin-leads" component={AdminKevinLeads} allowedRoles={['admin']} />
+            {/* Strictly admin-only — phone numbers and point redemptions, see server/gene/building-recommendations.ts. */}
+            <ProtectedAdminRoute path="/admin/recommendations" component={AdminRecommendations} allowedRoles={['admin']} />
             {/* Strictly admin-only — platform-wide user PII / mass
                 messaging, same reasoning as payout-approvals above. */}
             <ProtectedAdminRoute path="/admin/analytics" component={AdminAnalytics} allowedRoles={['admin']} />

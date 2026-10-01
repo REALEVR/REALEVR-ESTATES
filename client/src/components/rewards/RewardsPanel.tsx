@@ -16,7 +16,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
+import { Link } from 'wouter'
 import { Loader2, Gift, Building2 } from 'lucide-react'
+import { useMyRecommendations } from '@/hooks/useRecommendations'
 import { useToast } from '@/hooks/use-toast'
 import {
     useRewardsBalance,
@@ -203,10 +205,42 @@ function ListingEarningsCard() {
     )
 }
 
+function RecommendationPointsCard() {
+    const mine = useMyRecommendations(true)
+    const points = mine.data?.points
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Building2 className="h-5 w-5 text-primary" /> Recommend your building
+                </CardTitle>
+                <CardDescription>
+                    Live in a building that is not on RealEVR yet? Each approved recommendation is a point. 100 points = 10,000 UGX.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                {points && (
+                    <>
+                        <Progress value={Math.min(100, (points.available / points.pointsPerBlock) * 100)} />
+                        <p className="text-sm text-muted-foreground">
+                            {points.available} of {points.pointsPerBlock} points
+                            {points.pending > 0 ? `, ${points.pending} being checked` : ''}
+                        </p>
+                    </>
+                )}
+                <Button asChild>
+                    <Link href="/recommend-a-place">{points?.canRedeem ? 'Redeem your points' : 'Recommend a building'}</Link>
+                </Button>
+            </CardContent>
+        </Card>
+    )
+}
+
 export default function RewardsPanel() {
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <SharePointsCard />
+            <RecommendationPointsCard />
             <ListingEarningsCard />
         </div>
     )

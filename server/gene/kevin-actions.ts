@@ -86,6 +86,7 @@ export const GO_PAGES: Record<string, string> = {
     contact: '/contact',
     list: '/list-your-property',
     safety: '/trust-safety',
+    recommend: '/recommend-a-place',
 }
 
 const ACTION_TOKEN = /\[\[\s*(SEARCH|OPEN|GO)\b([^\]]*)\]\]/gi
