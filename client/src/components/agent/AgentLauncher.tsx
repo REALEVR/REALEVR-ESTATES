@@ -5,8 +5,9 @@ import AgentPanel from "./AgentPanel";
 import { useNearbyPropertyAlerts } from "@/hooks/useNearbyPropertyAlerts";
 
 /**
- * The signed-in "My Agent" slide-over — chat / recommendations / market
- * insight / news / rewards. Mounted once, globally, in App.tsx.
+ * The signed-in "My picks" slide-over — recommendations / the shared Kevin
+ * thread / market insight / rewards / news. The chat itself is Kevin's now
+ * (one assistant; he fills the same profile as he talks). Mounted once, globally, in App.tsx.
  *
  * It used to have its own floating pill in the bottom-right corner. Kevin
  * (components/kevin) now owns that corner as the one AI presence for
@@ -38,8 +39,8 @@ export default function AgentLauncher() {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
           <SheetHeader className="text-left">
-            <SheetTitle className="font-display">Your RealEVR Agent</SheetTitle>
-            <SheetDescription>Personalized picks, market insight, and news — just for you.</SheetDescription>
+            <SheetTitle className="font-display">Your picks &amp; alerts</SheetTitle>
+            <SheetDescription>Kevin is your agent. Your matches, market insight, rewards and news live here.</SheetDescription>
           </SheetHeader>
           <div className="mt-2 flex-1 overflow-hidden">
             <AgentPanel onClose={() => setOpen(false)} nearbyAlerts={nearbyAlerts} />
