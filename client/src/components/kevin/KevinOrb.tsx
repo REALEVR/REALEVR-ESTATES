@@ -13,6 +13,8 @@ import {
   type KevinLanguage,
 } from './kevinLanguages'
 import { chime, useKevinVoice } from './useKevinVoice'
+import { regionalTag } from './propertyTalk'
+import { usePlace } from '@/lib/place'
 import { useAmbientListening } from './useAmbientListening'
 import { interestText, recordInterest, useKevinWhatsapp, whatsappHref } from './useKevinWhatsapp'
 import Orb from './Orb'
@@ -220,7 +222,13 @@ export default function KevinOrb() {
   const pressTimer = useRef<ReturnType<typeof setTimeout>>()
   const longPressed = useRef(false)
 
-  const voice = useKevinVoice(lang?.bcp47 ?? null)
+  // The accent the speech engine should expect, from where the visitor is (Kenyan English around Kampala, etc.).
+  const { place, abroad } = usePlace()
+  // A guess from nothing (the platform's home country) is not a reason to expect an accent.
+  const placeRef = useRef({ country: place.source === 'default' ? null : place.country, abroad })
+  placeRef.current = { country: place.source === 'default' ? null : place.country, abroad }
+  const tagFor = (l: KevinLanguage | null | undefined) => regionalTag(l?.bcp47 ?? null, placeRef.current.country, placeRef.current.abroad)
+  const voice = useKevinVoice(tagFor(lang))
   const strings = stringsFor(lang)
 
   const push = useCallback((message: NewMessage) => {
@@ -238,7 +246,7 @@ export default function KevinOrb() {
         setNeedsTap(true)
         return false
       }
-      const tag = target?.bcp47 ?? null
+      const tag = tagFor(target)
       if (voice.speak(text, tag, onDone)) return true
       const key = target?.name ?? ''
       if (target && noVoiceNotedFor.current !== key && !voice.hasVoiceFor(tag)) {
@@ -565,28 +573,25 @@ export default function KevinOrb() {
   }
 
   // ---- Hands-free ----------------------------------------------------------
-  // Listening starts the moment someone arrives, unless they switched it off
-  // before or their browser has the microphone blocked. The browser asks for
-  // permission itself the first time (that prompt is the consent and cannot be
-  // skipped); the orb's badge shows whenever the microphone is open, and the
+  // Quiet by design. Listening starts by itself only when the browser has ALREADY given this site the
+  // microphone (so arriving never raises a permission prompt, on this visit or any other), and it reacts
+  // only to talk about property or to his name (see useAmbientListening). Someone who has not allowed the
+  // microphone is never asked; they can switch it on from the mic button in his panel, which is where the
+  // browser's one-time question appears. The orb's badge shows whenever the microphone is open, and the
   // toggle turns it off for good.
   useEffect(() => {
     if (readStore(HANDSFREE_KEY) === '0') return
     if (!voice.canListen) return
     let cancelled = false
     const permissions = (navigator as any).permissions
-    if (!permissions?.query) {
-      setHandsFreeOn(true)
-      return
-    }
+    if (!permissions?.query) return // cannot tell without asking: leave the mic alone
     permissions
       .query({ name: 'microphone' })
       .then((status: PermissionStatus) => {
-        if (!cancelled && status.state !== 'denied') setHandsFreeOn(true)
+        if (!cancelled && status.state === 'granted') setHandsFreeOn(true)
       })
       .catch(() => {
-        // Some browsers cannot be asked: try anyway, the recogniser reports a refusal.
-        if (!cancelled) setHandsFreeOn(true)
+        /* cannot be asked: stay quiet */
       })
     return () => {
       cancelled = true
@@ -667,7 +672,7 @@ export default function KevinOrb() {
     enabled: handsFreeOn && voice.canListen,
     // Kevin is already in the middle of something (hearing you, thinking, talking): the mic is his.
     paused: busy || voice.speaking || voice.listening || phase !== 'idle',
-    bcp47: (lang ?? languageFromBrowser()).bcp47,
+    bcp47: tagFor(lang ?? languageFromBrowser()),
     onWake: (interim) => {
       adoptBrowserLanguage()
       ensureVoiceMode()
