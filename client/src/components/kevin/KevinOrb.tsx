@@ -199,8 +199,9 @@ export default function KevinOrb() {
   langRef.current = lang
   const mutedRef = useRef(muted)
   mutedRef.current = muted
+  // A signed-in visitor's account already says who they are and how to reach them: no welcome questions.
   const intakeDoneRef = useRef(intakeDone)
-  intakeDoneRef.current = intakeDone
+  intakeDoneRef.current = intakeDone || !!user
   const touchedRef = useRef(touched)
   touchedRef.current = touched
   const pendingSpeech = useRef<{ text: string; target: KevinLanguage | null } | null>(null)
@@ -691,6 +692,16 @@ export default function KevinOrb() {
     writeStore(MUTED_KEY, next ? '1' : '0')
     if (next) voice.stop()
   }
+
+  // Other parts of the site (the My Agent panel) hand the conversation to Kevin with this event.
+  useEffect(() => {
+    const openKevin = () => {
+      setBubble(false)
+      setOpen(true)
+    }
+    window.addEventListener('realevr:open-kevin', openKevin)
+    return () => window.removeEventListener('realevr:open-kevin', openKevin)
+  }, [])
 
   const openMyAgent = () => {
     closePanel()

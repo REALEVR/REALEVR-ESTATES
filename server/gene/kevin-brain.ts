@@ -60,6 +60,8 @@ export interface PlatformSnapshot {
     featured: KevinCard[]
     newest: KevinCard[]
     upcoming: Upcoming[]
+    /** The listing rows this was built from, so callers (personal picks) need not scan the database again. Never sent to a client. */
+    raw: any[]
 }
 
 const CATEGORIES: SearchCategory[] = ['rental_units', 'for_sale', 'furnished_houses', 'bank_sales']
@@ -121,6 +123,7 @@ export function buildSnapshot(all: any[], now = new Date()): PlatformSnapshot {
         featured,
         newest,
         upcoming,
+        raw: all,
     }
 }
 
@@ -245,6 +248,9 @@ export interface Signals {
     wantsUpcoming?: boolean
     wantsSearch?: boolean
     wantsHuman?: boolean
+    /** "recommend something for me" / "my picks": answered from the saved profile when there is one. */
+    wantsPicks?: boolean
+    invest?: boolean
     ordinal?: number
     page?: keyof typeof GO_PAGES
     greeting?: boolean
@@ -302,8 +308,10 @@ export function parseBudget(text: string, plainNumber = false): { min?: number; 
 function parseCategory(t: string): SearchCategory | undefined {
     if (/\b(bank ?sales?|auctions?|foreclos\w+|repossess\w+)\b/i.test(t)) return 'bank_sales'
     if (/\b(bnb|airbnb|short ?stay|holiday|per night|a night|vacation|furnished)\b/i.test(t)) return 'furnished_houses'
-    if (/\b(buy|buying|purchase|purchasing|for sale|to own|invest\w*)\b/i.test(t)) return 'for_sale'
+    if (/\b(buy|buying|purchase|purchasing|for sale|to own)\b/i.test(t)) return 'for_sale'
     if (/\b(rent|renting|rental|rentals|lease|tenant|to let)\b/i.test(t)) return 'rental_units'
+    // "I may invest too" next to "rent" is still a rental; investing alone points at buying.
+    if (/\binvest\w*\b/i.test(t)) return 'for_sale'
     return undefined
 }
 
@@ -385,6 +393,8 @@ export function parseSignals(message: string, knownPlaces: string[], expecting?:
     }
 
     if (/\b(whats ?app|text you|text me|message you|chat with (?:you|the owner|someone)|reach (?:you|the owner)|call you|contact (?:you|the owner)|speak to the owner|talk to the owner|the owner)\b/i.test(t)) s.wantsWhatsapp = true
+    if (/\b(for me|my (?:picks|matches|recommendations|agent)|suits? me|fits? me|good for me|best for me|surprise me|recommend (?:me )?(?:something|anything)|what would you (?:pick|recommend|suggest))\b/i.test(t)) s.wantsPicks = true
+    if (/\b(invest\w*|buy[- ]to[- ]let|returns?|roi|yield|rental income|capital gains?)\b/i.test(t)) s.invest = true
     if (/\b(human|real person|an? agent|support|someone from|speak to (?:a|someone)|talk to (?:a|someone))\b/i.test(t) && !s.wantsWhatsapp) s.wantsHuman = true
     if (/\b(coming soon|coming up|come up|upcoming|available later|later on|will be available|be available|next month|going to be|new listings? soon|in the future|after)\b/i.test(t) && /\b(available|coming|upcoming|soon|later|listing|propert|house|home)\b/i.test(t) && !MOVING.test(t)) s.wantsUpcoming = true
     if (/\b(what (?:do you|have you|properties|homes|houses|listings|else)|everything|all (?:the )?(?:properties|homes|listings|houses)|what'?s (?:available|on|there)|what is (?:available|on there)|what can you|what are you offering|categories|types of)\b/i.test(t)) s.wantsOverview = true
@@ -481,6 +491,10 @@ export interface BrainInput {
     shown: { id: number; title: string }[]
     /** How many replies Kevin has already given in this chat, to vary wording. */
     turn: number
+    /** For a signed-in visitor: their saved preferences (from "My Agent"), so he does not ask what is known. */
+    hints?: { category?: string; location?: string; minBudget?: number; maxBudget?: number }
+    /** For a signed-in visitor: the homes that best fit their saved profile, with why. */
+    picks?: Array<{ card: KevinCard; reason?: string }>
 }
 
 export interface BrainResult {
@@ -582,7 +596,7 @@ function upcomingNote(snap: PlatformSnapshot, want?: { category?: string; locati
 }
 
 export async function converse(input: BrainInput): Promise<BrainResult> {
-    const { message, lead, account, intaking, shown, turn } = input
+    const { message, lead, account, intaking, shown, turn, hints, picks } = input
     const snap = await getSnapshot()
     const expecting = (lead?.lastAsk as Slot | undefined) ?? undefined
     const needsName = !lead?.name && !account?.fullName
@@ -635,6 +649,13 @@ export async function converse(input: BrainInput): Promise<BrainResult> {
                 `Thank you${first ? `, ${first}` : ''}. I have marked you as moving soon${update.moveTiming ? ` (${update.moveTiming})` : ''}, so the team gives you priority.`,
             )
         }
+    } else if (sig.wantsPicks && picks?.length && !hasCriteria) {
+        const best = picks[0]
+        result.results = picks.map((p) => p.card)
+        result.action = { type: 'results', query: {}, total: picks.length }
+        lines.push(
+            `${first ? `${first}, based` : 'Based'} on what you have told me, I would start with ${describeCard(best.card)}.${best.reason ? ` ${best.reason.replace(/\.$/, '')}.` : ''}`,
+        )
     } else if (sig.ordinal && shown.length) {
         const index = sig.ordinal === -1 ? shown.length - 1 : sig.ordinal - 1
         const target = shown[index]
@@ -719,7 +740,12 @@ export async function converse(input: BrainInput): Promise<BrainResult> {
     }
 
     // ---- the one follow-up question ----
+    // What their saved profile already says counts as known, so the questions skip it.
+    const known: Partial<KevinLead> = { ...(hints?.category ? { category: hints.category } : {}), ...(hints?.location ? { location: hints.location } : {}), ...(hints?.maxBudget ? { maxBudget: hints.maxBudget } : {}), ...(hints?.minBudget ? { minBudget: hints.minBudget } : {}) }
     const leadAfter: Partial<KevinLead> = { ...merged, movingSoon: update.movingSoon ?? lead?.movingSoon, declined: update.declined ?? lead?.declined }
+    for (const key of Object.keys(known) as Array<keyof typeof known>) {
+        if (leadAfter[key] === undefined) (leadAfter as Record<string, unknown>)[key] = known[key]
+    }
     const closing = sig.bye || sig.thanks || sig.ordinal || sig.page || sig.wantsHuman
     const ask = closing ? null : nextQuestion(leadAfter, account, intaking, asked, turn)
     if (ask) {

@@ -43,8 +43,19 @@ import {
     type KevinLead,
     type LeadUpdate,
 } from './kevin-leads'
+import { toCard } from './kevin-actions'
 import { converse, describeNeed, getSnapshot, knowledgeContext, parseSignals, wantsFrom, type BrainResult } from './kevin-brain'
 import { getAdminWhatsappNumbers } from './admin-notify'
+import {
+    appendAgentMessage,
+    buildRecommendations,
+    loadProfile,
+    loadSignals,
+    profileSummaryForPrompt,
+    profileWants,
+    recordAgentSignal,
+    syncProfileFromKevin,
+} from './personal-agent'
 import {
     ACTION_PROMPT,
     GO_PAGES,
@@ -534,13 +545,33 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             const knownLead = persona === 'kevin' ? await getLead(sessionId) : null
             const intaking = persona === 'kevin' && !isIntakeComplete(knownLead) && (body.intake === true || !!knownLead)
             const snapshot = persona === 'kevin' ? await getSnapshot().catch(() => null) : null
+
+            // A signed-in visitor has a "My Agent" profile and picks: Kevin is that agent now, so he
+            // starts from what it already knows and his answers feed it back (see syncProfileFromKevin).
+            const agentProfile = persona === 'kevin' && signedIn ? loadProfile(signedIn.id) : null
+            const picks =
+                agentProfile && snapshot
+                    ? buildRecommendations(agentProfile, loadSignals(signedIn!.id), snapshot.raw, 3).map((t) => ({
+                          card: toCard(t.property),
+                          reason: t.reasons[0],
+                      }))
+                    : []
+            const agentKnowledge = agentProfile
+                ? [
+                      `This visitor is signed in. What they saved with their personal agent:\n${profileSummaryForPrompt(agentProfile)}`,
+                      picks.length ? `Their best matches right now: ${picks.map((p) => `${p.card.title} in ${p.card.location}`).join('; ')}.` : '',
+                      'Use this instead of asking again; when they ask what suits them, recommend from these matches.',
+                  ]
+                      .filter(Boolean)
+                      .join('\n')
+                : ''
             const replyOptions: ReplyOptions = {
                 persona,
                 chosenLanguage,
                 voice: persona === 'kevin' && body.voice === true,
                 shown: persona === 'kevin' ? parseShown(body.shown) : undefined,
                 intake: intaking ? describeLead(knownLead, signedIn) : undefined,
-                knowledge: snapshot ? knowledgeContext(snapshot) : undefined,
+                knowledge: snapshot ? [knowledgeContext(snapshot), agentKnowledge].filter(Boolean).join('\n') : undefined,
             }
             const history = conversation.messages.slice(0, -1)
             const aiReply = await getReply(history, message, req.headers['accept-language'], replyOptions)
@@ -556,6 +587,8 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                         intaking,
                         shown: replyOptions.shown ?? [],
                         turn: conversation.messages.filter((m) => m.role === 'assistant').length,
+                        hints: agentProfile ? profileWants(agentProfile) : undefined,
+                        picks,
                     })
                 } catch (err) {
                     console.error('[gene/chat] Kevin brain failed, using the canned reply:', err)
@@ -631,6 +664,19 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                 const typed = detectContactUpdate(message)
                 const merged = leadUpdate || typed ? { ...(typed ?? {}), ...(leadUpdate ?? {}) } : null
                 lead = await recordLeadTurn({ sessionId, update: merged, signedIn, language: chosenLanguage?.name, search: search ? { query: search.query as Record<string, unknown>, total: search.total } : undefined })
+                if (signedIn && lead) {
+                    try {
+                        syncProfileFromKevin(signedIn.id, {
+                            category: lead.category,
+                            location: lead.location,
+                            minBudget: lead.minBudget,
+                            maxBudget: lead.maxBudget,
+                            invest: parseSignals(message, snapshot?.locations ?? []).invest,
+                        })
+                    } catch (err) {
+                        console.error('[gene/chat] could not sync the agent profile:', err)
+                    }
+                }
             }
             if (justCapturedLead && !(persona === 'kevin' && usedAi)) {
                 reply = `Thanks for sharing your contact details — a member of our team may follow up if you need anything specific. ${reply}`
@@ -644,6 +690,15 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
 
             conversation.messages.push({ role: 'assistant', text: reply, intent: effectiveIntent, createdAt: nowIso() })
             saveConversation(conversation)
+            // One thread for a signed-in visitor across Kevin, the My Agent panel and WhatsApp.
+            if (persona === 'kevin' && signedIn) {
+                try {
+                    appendAgentMessage(signedIn.id, 'user', message)
+                    appendAgentMessage(signedIn.id, 'assistant', reply)
+                } catch (err) {
+                    console.error('[gene/chat] could not mirror the conversation to the agent history:', err)
+                }
+            }
 
             res.json({
                 sessionId,
@@ -713,6 +768,13 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             if (!property || property.isAvailable === false) return res.status(404).json({ message: 'Property not found.' })
             const signedIn = req.isAuthenticated?.() ? (req.user as User) : null
             const ok = await recordInterest({ sessionId, signedIn, property: { id: property.id, title: property.title, location: property.location } })
+            if (signedIn) {
+                try {
+                    recordAgentSignal(signedIn.id, property.id, 'inquired')
+                } catch (err) {
+                    console.error('[gene/chat] could not log the agent signal:', err)
+                }
+            }
             res.json({ ok })
         } catch (err) {
             console.error('[gene/chat] POST /api/gene/kevin/interest failed:', err)

@@ -31,7 +31,8 @@ import { storage } from '../storage'
 import type { Property } from '@shared/schema'
 import { getAiReply } from './ai-provider'
 import { languageInstruction } from './locale'
-import { classifyIntent, isLowConfidence, writeEscalation } from './chat'
+// ./chat is imported lazily inside the chat route: chat.ts (Kevin) now reads this module's
+// profile and signals, and a top-level import both ways would be a cycle.
 
 const PROFILE_COLLECTION = 'gene_agent_profiles'
 const SIGNAL_COLLECTION = 'gene_agent_signals'
@@ -172,6 +173,86 @@ function parseProfileInput(userId: number, body: any, existing: AgentProfile | n
 }
 
 // ---------------------------------------------------------------------------
+// Shared with Kevin (the site's one assistant). What he learns about a signed-in
+// visitor lands in this same profile, so the picks, the market insight and the
+// WhatsApp concierge all work from one set of preferences instead of asking again.
+// ---------------------------------------------------------------------------
+
+export interface KevinWants {
+    category?: string
+    location?: string
+    minBudget?: number
+    maxBudget?: number
+    /** They talked about investing (buy-to-let, returns) rather than only living in the place. */
+    invest?: boolean
+}
+
+const KNOWN_INTERESTS = ['rental_units', 'for_sale', 'furnished_houses', 'bank_sales']
+
+/**
+ * Fold what Kevin learned into the user's agent profile. Only adds or fills: it never
+ * clears a preference the user set themselves in the form. Creates the profile the
+ * first time there is something worth keeping. Returns null when nothing changed.
+ */
+export function syncProfileFromKevin(userId: number, wants: KevinWants): AgentProfile | null {
+    const has = wants.category || wants.location || wants.maxBudget || wants.minBudget || wants.invest
+    if (!has) return null
+    const existing = loadProfile(userId)
+    const next: AgentProfile = existing
+        ? { ...existing, interests: [...existing.interests], preferredLocations: [...existing.preferredLocations] }
+        : parseProfileInput(userId, {}, null)
+    let changed = !existing
+    if (wants.category && KNOWN_INTERESTS.includes(wants.category) && !next.interests.includes(wants.category)) {
+        next.interests.push(wants.category)
+        next.interests = next.interests.slice(-6)
+        changed = true
+    }
+    if (wants.location) {
+        const place = wants.location.trim().slice(0, 60)
+        if (place && !next.preferredLocations.some((l) => l.toLowerCase() === place.toLowerCase())) {
+            next.preferredLocations.push(place)
+            next.preferredLocations = next.preferredLocations.slice(-6)
+            changed = true
+        }
+    }
+    if (wants.maxBudget && next.budgetMax !== wants.maxBudget) {
+        next.budgetMax = wants.maxBudget
+        changed = true
+    }
+    if (wants.minBudget && next.budgetMin !== wants.minBudget) {
+        next.budgetMin = wants.minBudget
+        changed = true
+    }
+    if (wants.invest && next.purpose === 'live_in') {
+        next.purpose = 'both'
+        changed = true
+    } else if (wants.invest && !existing) {
+        next.purpose = 'invest'
+    }
+    if (!changed) return null
+    saveProfile(next)
+    return next
+}
+
+/** The profile as the plain wants Kevin works with (so he does not ask what is already known). */
+export function profileWants(profile: AgentProfile | null): KevinWants {
+    if (!profile) return {}
+    const wants: KevinWants = {}
+    if (profile.interests[0]) wants.category = profile.interests[profile.interests.length - 1]
+    if (profile.preferredLocations[0]) wants.location = profile.preferredLocations[profile.preferredLocations.length - 1]
+    if (profile.budgetMax) wants.maxBudget = profile.budgetMax
+    if (profile.budgetMin) wants.minBudget = profile.budgetMin
+    return wants
+}
+
+/** Log that a signed-in user showed interest in a property (feeds the recommendation scoring). */
+export function recordAgentSignal(userId: number, propertyId: number, action: AgentSignalAction): void {
+    const rows = readCollection<AgentSignal>(SIGNAL_COLLECTION)
+    rows.push({ id: nextId(rows), userId, propertyId, action, createdAt: nowIso() })
+    writeCollection(SIGNAL_COLLECTION, rows)
+}
+
+// ---------------------------------------------------------------------------
 // Signals
 // ---------------------------------------------------------------------------
 
@@ -248,7 +329,7 @@ function scoreProperty(property: Property, profile: AgentProfile, signals: Agent
 
 export function buildRecommendations(profile: AgentProfile, signals: AgentSignal[], allProperties: Property[], limit: number): ScoredProperty[] {
     return allProperties
-        .filter((p) => p.title && p.title.trim() !== '')
+        .filter((p) => p.title && p.title.trim() !== '' && p.isAvailable !== false) // never recommend a home that is taken
         .map((p) => scoreProperty(p, profile, signals))
         .sort((a, b) => b.score - a.score)
         .slice(0, limit)
@@ -697,6 +778,7 @@ export function registerPersonalAgentRoutes(app: Express): void {
             // handling already use, so "My Agent" needing a human reaches
             // the admin identically (in-app + email + WhatsApp + Slack) no
             // matter which of the three surfaces the user actually reached.
+            const { classifyIntent, isLowConfidence, writeEscalation } = await import('./chat')
             const intent = classifyIntent(message)
             if (isLowConfidence(intent, usedAi, reply)) {
                 const reason = intent === 'human_handoff_request' ? 'my_agent_human_handoff_request' : 'my_agent_low_confidence_reply'
