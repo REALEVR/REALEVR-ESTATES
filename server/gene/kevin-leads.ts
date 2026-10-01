@@ -48,6 +48,8 @@ export interface KevinLead {
     category?: string
     propertyType?: string
     bedrooms?: number
+    /** ISO code of the country they were in when they talked to Kevin. */
+    country?: string
     minBudget?: number // shillings
     maxBudget?: number
     // The "shifting soon" category: people about to move are the most valuable
@@ -81,6 +83,7 @@ export interface LeadUpdate {
     category?: string
     propertyType?: string
     bedrooms?: number
+    country?: string
     minBudget?: number
     maxBudget?: number
     movingSoon?: boolean
@@ -134,6 +137,8 @@ export function sanitizeLeadUpdate(raw: unknown): LeadUpdate {
     if (category && CATEGORY_VALUES.includes(category)) update.category = category
     const propertyType = clean(input.propertyType, 30)?.toLowerCase()
     if (propertyType) update.propertyType = propertyType
+    const country = clean(input.country, 2)?.toUpperCase()
+    if (country && /^[A-Z]{2}$/.test(country)) update.country = country
     const bedrooms = Number(input.bedrooms)
     if (Number.isInteger(bedrooms) && bedrooms >= 1 && bedrooms <= 20) update.bedrooms = bedrooms
     for (const key of ['minBudget', 'maxBudget'] as const) {
@@ -204,7 +209,7 @@ export function mergeLead(existing: KevinLead, update: LeadUpdate): KevinLead {
         delete next.propertyType
         delete next.budget
     }
-    for (const key of ['name', 'email', 'phone', 'need', 'location', 'budget', 'category', 'propertyType', 'bedrooms', 'minBudget', 'maxBudget', 'moveTiming'] as const) {
+    for (const key of ['name', 'email', 'phone', 'need', 'location', 'budget', 'category', 'propertyType', 'bedrooms', 'country', 'minBudget', 'maxBudget', 'moveTiming'] as const) {
         if (update[key]) (next as unknown as Record<string, unknown>)[key] = update[key]
     }
     if (typeof update.movingSoon === 'boolean') next.movingSoon = update.movingSoon
@@ -458,6 +463,7 @@ export async function recordInterest(args: { sessionId: string; signedIn: User |
 // ---------------------------------------------------------------------------
 
 export interface DemandRow {
+    country: string | null
     category: string
     location: string
     bedrooms: number | null
@@ -479,6 +485,7 @@ export function summarizeDemand(leads: KevinLead[]) {
     for (const lead of leads) {
         if (!lead.category && !lead.location && !lead.bedrooms && !lead.maxBudget && !lead.propertyType) continue
         const row: DemandRow = {
+            country: lead.country ?? null,
             category: lead.category ?? 'any',
             location: lead.location ?? 'any area',
             bedrooms: lead.bedrooms ?? null,
@@ -487,7 +494,7 @@ export function summarizeDemand(leads: KevinLead[]) {
             unmet: lead.searches?.some((x) => x.total === 0) ? 1 : 0,
             lastAt: lead.updatedAt,
         }
-        const key = `${row.category}|${row.location.toLowerCase()}|${row.bedrooms}|${row.maxBudget}`
+        const key = `${row.country}|${row.category}|${row.location.toLowerCase()}|${row.bedrooms}|${row.maxBudget}`
         const have = rows.get(key)
         if (have) {
             have.people++

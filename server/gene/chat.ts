@@ -47,6 +47,7 @@ import { toCard } from './kevin-actions'
 import { converse, describeNeed, getSnapshot, knowledgeContext, parseSignals, wantsFrom, type BrainResult } from './kevin-brain'
 import { getAdminWhatsappNumbers } from './admin-notify'
 import { configuredProvider } from './kevin-voice'
+import { currencyForCountry, placeFromCookieHeader, type Place } from '../../shared/africa'
 import {
     appendAgentMessage,
     buildRecommendations,
@@ -272,6 +273,8 @@ interface ReplyOptions {
     intake?: string
     /** What the platform really holds (kevin-brain.ts knowledgeContext), so Kevin can recommend from it. */
     knowledge?: string
+    /** Where the visitor is, so homes near them come first and prices are in their currency. */
+    place?: Place | null
 }
 
 async function getReply(
@@ -341,7 +344,8 @@ async function runKevinAction(
         return { text: firstText, action: { type: 'open', propertyId: listing.id }, results: [listing] }
     }
 
-    const { cards, total } = await searchListings(raw.query)
+    const query = options.place ? { ...raw.query, currency: raw.query.currency ?? currencyForCountry(options.place.country) } : raw.query
+    const { cards, total } = await searchListings(query, 3, options.place)
     const lines = cards.map(
         (c, i) => `${i + 1}. ${c.title}, ${c.location}, ${c.bedrooms} bedrooms, ${c.currency} ${c.price}`
     )
@@ -546,6 +550,8 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             const knownLead = persona === 'kevin' ? await getLead(sessionId) : null
             const intaking = persona === 'kevin' && !isIntakeComplete(knownLead) && (body.intake === true || !!knownLead)
             const snapshot = persona === 'kevin' ? await getSnapshot().catch(() => null) : null
+            // Where the visitor is (their time zone, a place they chose, or a location they shared), from the cookie the site sets.
+            const place = persona === 'kevin' ? placeFromCookieHeader(req.headers.cookie) : null
 
             // A signed-in visitor has a "My Agent" profile and picks: Kevin is that agent now, so he
             // starts from what it already knows and his answers feed it back (see syncProfileFromKevin).
@@ -572,7 +578,8 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                 voice: persona === 'kevin' && body.voice === true,
                 shown: persona === 'kevin' ? parseShown(body.shown) : undefined,
                 intake: intaking ? describeLead(knownLead, signedIn) : undefined,
-                knowledge: snapshot ? [knowledgeContext(snapshot), agentKnowledge].filter(Boolean).join('\n') : undefined,
+                knowledge: snapshot ? [knowledgeContext(snapshot, place ? currencyForCountry(place.country) : 'UGX', place), agentKnowledge].filter(Boolean).join('\n') : undefined,
+                place,
             }
             const history = conversation.messages.slice(0, -1)
             const aiReply = await getReply(history, message, req.headers['accept-language'], replyOptions)
@@ -589,6 +596,7 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                         shown: replyOptions.shown ?? [],
                         turn: conversation.messages.filter((m) => m.role === 'assistant').length,
                         hints: agentProfile ? profileWants(agentProfile) : undefined,
+                        place,
                         picks,
                     })
                 } catch (err) {
@@ -627,7 +635,7 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                     delete picked.name
                     const want = { ...knownLead, ...picked, ...(leadUpdate ?? {}) }
                     const need = describeNeed(want)
-                    leadUpdate = { ...picked, ...(need && !knownLead?.need ? { need } : {}), ...(leadUpdate ?? {}) }
+                    leadUpdate = { ...picked, ...(need && !knownLead?.need ? { need } : {}), ...(place && !knownLead?.country ? { country: place.country } : {}), ...(leadUpdate ?? {}) }
                     if (Object.keys(leadUpdate).length === 0) leadUpdate = null
                 }
             }

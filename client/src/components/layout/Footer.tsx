@@ -19,7 +19,7 @@ export default function Footer() {
             <img src={logoPath} alt="RealEVR Estates Logo" className="h-12 mb-4 brightness-0 invert" />
             <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
               Immersive virtual tours for rentals, BnBs, homes for sale, and bank auction
-              properties across Uganda.
+              properties across Africa.
             </p>
           </div>
 
@@ -45,7 +45,7 @@ export default function Footer() {
             <h3 className="font-display text-base mb-4 mt-6 text-foreground">Hosting</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link href="/admin/properties" className="hover:text-accent transition-colors">Add Your Property</Link></li>
-              <li><Link href="/list-your-property" className="hover:text-accent transition-colors">List a Property, Earn 1,000 UGX</Link></li>
+              <li><Link href="/list-your-property" className="hover:text-accent transition-colors">List a Property</Link></li>
               <li><Link href="/resources" className="hover:text-accent transition-colors">Resources</Link></li>
               <li><Link href="/host-responsibly" className="hover:text-accent transition-colors">Host Responsibly</Link></li>
               <li><Link href="/virtual-tour-creation" className="hover:text-accent transition-colors">Virtual Tour Creation</Link></li>

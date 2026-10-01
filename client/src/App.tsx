@@ -64,6 +64,8 @@ import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
 import AdminRoomCaptures from '@/pages/AdminRoomCaptures'
 import AdminKevinLeads from '@/pages/AdminKevinLeads'
 import AdminRecommendations from '@/pages/AdminRecommendations'
+import PlaceBar from '@/components/PlaceBar'
+import { PlaceProvider } from '@/lib/place'
 import RecommendPlacePage from '@/pages/RecommendPlacePage'
 import AdminAnalytics from '@/pages/AdminAnalytics'
 import AdminBroadcast from '@/pages/AdminBroadcast'
@@ -266,6 +268,7 @@ function AppShell() {
         <>
             <div className="flex flex-col min-h-screen">
                 <Header />
+                <PlaceBar />
                 {/* pb-28 (112px), not pb-20: the tab bar itself is only 64px
                     (h-16) but adds env(safe-area-inset-bottom) on top of that
                     for the home-indicator area on notched phones (~34px) -
@@ -318,14 +321,16 @@ function App() {
                 with the OS "reduce motion" setting on — one place to get this
                 right instead of every component checking it individually. */}
             <MotionConfig reducedMotion="user">
-                <AuthProvider>
-                    <PaymentProvider>
-                        <TooltipProvider>
-                            <AppShell />
-                            <Toaster />
-                        </TooltipProvider>
-                    </PaymentProvider>
-                </AuthProvider>
+                <PlaceProvider>
+                    <AuthProvider>
+                        <PaymentProvider>
+                            <TooltipProvider>
+                                <AppShell />
+                                <Toaster />
+                            </TooltipProvider>
+                        </PaymentProvider>
+                    </AuthProvider>
+                </PlaceProvider>
             </MotionConfig>
         </QueryClientProvider>
     )

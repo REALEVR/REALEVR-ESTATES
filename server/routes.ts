@@ -7,6 +7,7 @@ import fetch from 'node-fetch'
 import path from 'path'
 import { getTourConfig } from './tour-config'
 import { inferListingCountry, isAfricanCountry } from '../shared/africa'
+import { presentListings } from './place-listings'
 import * as dropboxStorage from './dropbox-storage'
 import { request as request7 } from 'undici'
 
@@ -600,7 +601,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
                 Pragma: 'no-cache',
                 Expires: '0',
-            }).json(properties)
+            }).json(presentListings(req, properties))
         } catch (error) {
             res.status(500).json({ message: 'Failed to fetch properties' })
         }
@@ -625,7 +626,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
                 Pragma: 'no-cache',
                 Expires: '0',
-            }).json(featuredProperties)
+            }).json(presentListings(req, featuredProperties))
         } catch (error) {
             res.status(500).json({ message: 'Failed to fetch featured properties' })
         }
@@ -641,7 +642,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
                 Pragma: 'no-cache',
                 Expires: '0',
-            }).json(popularProperties)
+            }).json(presentListings(req, popularProperties))
         } catch (error) {
             res.status(500).json({ message: 'Failed to fetch popular properties' })
         }
@@ -812,7 +813,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
                 Pragma: 'no-cache',
                 Expires: '0',
-            }).json(properties)
+            }).json(presentListings(req, properties))
         } catch (error) {
             res.status(500).json({ message: 'Failed to fetch properties by category' })
         }
@@ -829,7 +830,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
                 Pragma: 'no-cache',
                 Expires: '0',
-            }).json(properties)
+            }).json(presentListings(req, properties))
         } catch (error) {
             res.status(500).json({ message: 'Failed to search properties' })
         }

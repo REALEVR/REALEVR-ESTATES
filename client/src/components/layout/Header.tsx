@@ -227,7 +227,7 @@ export default function Header() {
                     <Link href="/agent/register">Become an Agent</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/list-your-property">List a Property, Earn 1,000 UGX</Link>
+                    <Link href="/list-your-property">List a Property</Link>
                   </DropdownMenuItem>
                   {/* Popup sign-in (GENE v1.8) — the plain /auth page still
                       exists as a fallback for anywhere else that links to

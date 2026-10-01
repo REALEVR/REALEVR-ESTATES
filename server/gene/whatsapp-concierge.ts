@@ -110,7 +110,7 @@ const MENU_HUMAN_RE = /^3\s*$/
 const GREETING_TEXT = (name: string) =>
     `👋 Hello${name ? ` ${name}` : ''}! I'm ${CONCIERGE_NAME}, your RealEVR Estates assistant.\n\n` +
     `✅ Verified listings only\n⚡ Instant replies\n🏠 Move-in ready homes\n\n` +
-    `How can I help?\n1️⃣ Find a property\n2️⃣ List your property (earn 1,000 UGX)\n3️⃣ Talk to a human broker\n\n` +
+    `How can I help?\n1️⃣ Find a property\n2️⃣ List your property\n3️⃣ Talk to a human broker\n\n` +
     `Reply with a number, or just tell me what you're looking for.`
 
 /**

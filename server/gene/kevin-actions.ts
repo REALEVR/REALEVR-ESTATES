@@ -19,6 +19,7 @@
  * the pages that already guard them.
  */
 import { storage } from '../storage'
+import { rankByPlace, type Place } from '../../shared/africa'
 
 export type SearchCategory = 'rental_units' | 'for_sale' | 'furnished_houses' | 'bank_sales'
 
@@ -30,6 +31,8 @@ export interface SearchQuery {
     category?: SearchCategory
     /** apartment, house, land, commercial or hostel: a plain word, matched loosely against the listing's type and title. */
     propertyType?: string
+    /** The currency the prices in this query are in (default UGX); only listings priced in it are compared. */
+    currency?: string
 }
 
 export interface KevinCard {
@@ -169,7 +172,7 @@ export function toCard(p: any): KevinCard {
     }
 }
 
-export async function searchListings(query: SearchQuery, limit = 3): Promise<{ cards: KevinCard[]; total: number }> {
+export async function searchListings(query: SearchQuery, limit = 3, near?: Place | null): Promise<{ cards: KevinCard[]; total: number }> {
     const all = await storage.getAllProperties()
     const words = (query.location ?? '').toLowerCase().split(/\s+/).filter(Boolean)
     const matches = all.filter((p: any) => {
@@ -179,10 +182,12 @@ export async function searchListings(query: SearchQuery, limit = 3): Promise<{ c
             const haystack = `${p.location ?? ''} ${p.title ?? ''}`.toLowerCase()
             if (!words.every((w) => haystack.includes(w))) return false
         }
-        // Budgets are in shillings, so only compare listings priced in them.
-        const inShillings = !p.currency || p.currency === 'UGX'
-        if (inShillings && query.maxPrice && p.price > query.maxPrice) return false
-        if (inShillings && query.minPrice && p.price < query.minPrice) return false
+        // A budget is in one currency, so only compare listings priced in that currency.
+        const sameCurrency = (p.currency || 'UGX') === (query.currency || 'UGX')
+        // A price in another currency cannot be judged against this budget, so it is not offered as a match.
+        if ((query.maxPrice || query.minPrice) && !sameCurrency) return false
+        if (query.maxPrice && p.price > query.maxPrice) return false
+        if (query.minPrice && p.price < query.minPrice) return false
         if (query.bedrooms && (Number(p.bedrooms) || 0) < query.bedrooms) return false
         if (query.propertyType) {
             const synonyms = TYPE_SYNONYMS[query.propertyType] ?? [query.propertyType]
@@ -192,7 +197,9 @@ export async function searchListings(query: SearchQuery, limit = 3): Promise<{ c
         return true
     })
     matches.sort((a: any, b: any) => Number(!!b.isFeatured) - Number(!!a.isFeatured) || Number(b.id) - Number(a.id))
-    return { cards: matches.slice(0, limit).map(toCard), total: matches.length }
+    // Homes near the visitor first (their city, then their country), whatever else the order was.
+    const ordered = rankByPlace(matches, near)
+    return { cards: ordered.slice(0, limit).map(toCard), total: matches.length }
 }
 
 export async function findListing(id: number): Promise<KevinCard | null> {
