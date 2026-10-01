@@ -46,7 +46,9 @@ import {
 } from './kevin-leads'
 import { toCard } from './kevin-actions'
 import { converse, describeNeed, getSnapshot, knowledgeContext, parseSignals, wantsFrom, type BrainResult } from './kevin-brain'
-import { getAdminWhatsappNumbers } from './admin-notify'
+import { getAdminWhatsappNumbers, notifyAdminsEverywhere } from './admin-notify'
+import { detectUrgent, urgentReply } from '../../shared/urgent'
+import { audienceReply, AUDIENCES } from '../../shared/kevin-audience'
 import { configuredProvider } from './kevin-voice'
 import { currencyForCountry, placeFromCookieHeader, type Place } from '../../shared/africa'
 import {
@@ -102,6 +104,11 @@ export interface GeneConversation {
     capturedLead?: { contact: string; capturedAt: string }
     /** Set once the conversation is about property; from then on its follow-ups ("the second one", "2 million") are kept too. */
     propertyRelated?: boolean
+    /** When the team was last alerted to an urgent message in this conversation (no more than once per ten minutes). */
+    urgentAt?: string
+    /** Which kinds of interest (company, sponsor) the team has already been told about. */
+    told_company?: boolean
+    told_sponsor?: boolean
     createdAt: string
     updatedAt: string
 }
@@ -407,7 +414,7 @@ function saveConversation(conversation: GeneConversation): void {
  * phone number on file), lets whatsapp.ts's resolve route text a
  * confirmation back automatically once handled.
  */
-export function writeEscalation(sessionId: string, message: string, reason: string, customerPhone?: string): void {
+export function writeEscalation(sessionId: string, message: string, reason: string, customerPhone?: string, quiet = false): void {
     const rows = readCollection<GeneEscalation>(ESCALATIONS_COLLECTION)
     const escalation: GeneEscalation = {
         id: nextId(rows),
@@ -421,6 +428,7 @@ export function writeEscalation(sessionId: string, message: string, reason: stri
     rows.push(escalation)
     writeCollection(ESCALATIONS_COLLECTION, rows)
     // Both best-effort — never let a notification failure affect the chat response.
+    if (quiet) return // the caller has already told the team in its own words
     notifyNewEscalation(escalation).catch((err) => console.error('[gene/chat] Slack notify failed:', err))
     import('./admin-notify')
         .then(({ notifyAdminsEverywhere }) =>
@@ -528,6 +536,51 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             const intent = classifyIntent(message)
             conversation.messages.push({ role: 'user', text: message, intent, createdAt: nowIso() })
 
+            // Sign-up and welcome: the visitor says what brings them here (tenant, landlord, company, sponsor) and Kevin
+            // answers with the right next steps. No AI needed, and the team hears about companies and sponsors.
+            if (persona === 'kevin' && typeof body.choice === 'string' && (AUDIENCES as string[]).includes(body.choice)) {
+                const guided = audienceReply(body.choice, chosenLanguage?.name)!
+                conversation.propertyRelated = true
+                conversation.messages.push({ role: 'assistant', text: guided.reply, intent: 'general_question', createdAt: nowIso() })
+                saveConversation(conversation)
+                if ((body.choice === 'company' || body.choice === 'sponsor') && !(conversation as Record<string, any>)[`told_${body.choice}`]) {
+                    ;(conversation as Record<string, any>)[`told_${body.choice}`] = true
+                    saveConversation(conversation)
+                    const who = req.isAuthenticated?.() ? (req.user as User) : null
+                    notifyAdminsEverywhere({
+                        title: `New ${body.choice} interest via Kevin`,
+                        message: `A visitor${who ? ` (${who.fullName || who.username}, ${who.email ?? 'no email'}${who.phoneNumber ? `, ${who.phoneNumber}` : ''})` : ''} said they are a ${body.choice}${body.context === 'signup' ? ' while signing up' : ''}. Session ${sessionId}.`,
+                        whatsappMessage: `🤝 New ${body.choice} interest (Kevin)${who ? `\n${who.fullName || who.username} ${who.phoneNumber ?? who.email ?? ''}` : ''}`,
+                        link: '/admin/kevin-leads',
+                    }).catch(() => {})
+                }
+                return res.json({ sessionId, reply: guided.reply, intent: 'general_question', escalated: false, leadCaptured: false, action: null, results: [], whatsapp: guided.whatsapp, links: guided.links, lead: null })
+            }
+
+            // Urgent talk (a break-in, a flood, a scam, "locked out", "I need a place tonight"): the team is told
+            // at once on every channel, and the visitor gets a direct WhatsApp button. Only once per ten minutes
+            // per conversation, so a distressed visitor typing five messages does not bury the owner's phone.
+            const urgent = persona === 'kevin' ? detectUrgent(message) : null
+            if (urgent) {
+                const last = conversation.urgentAt ? Date.parse(conversation.urgentAt) : 0
+                if (Date.now() - last > 10 * 60 * 1000) {
+                    ;conversation.urgentAt = nowIso()
+                    const who = req.isAuthenticated?.() ? (req.user as User) : null
+                    const known = who ? `${who.fullName || who.username}${who.phoneNumber ? `, ${who.phoneNumber}` : ''}${who.email ? `, ${who.email}` : ''}` : (conversation.capturedLead?.contact ?? 'no contact shared yet')
+                    const label = urgent.level === 'emergency' ? 'EMERGENCY' : 'URGENT'
+                    const snippet = message.length > 300 ? `${message.slice(0, 300)}…` : message
+                    notifyAdminsEverywhere({
+                        title: `${label} message via Kevin`,
+                        message: `${label} (${urgent.matched}) from ${known}${body.context === 'signup' ? ' [on the sign-up screen]' : ''}: "${snippet}". Session ${sessionId}.`,
+                        whatsappMessage: `🚨 ${label} via Kevin\n${known}\n"${snippet}"\nThey were sent your WhatsApp button; reply to them as soon as you can.`,
+                        link: '/admin',
+                        data: { sessionId, level: urgent.level },
+                    }).catch((err) => console.error('[gene/chat] urgent alert failed:', err))
+                    writeEscalation(sessionId, message, `urgent_${urgent.level}`, undefined, true)
+                }
+                conversation.propertyRelated = true
+            }
+
             // Lead capture — only the first time per conversation, so
             // mentioning a number twice doesn't double-notify admins.
             let justCapturedLead = false
@@ -583,7 +636,17 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                 voice: persona === 'kevin' && body.voice === true,
                 shown: persona === 'kevin' ? parseShown(body.shown) : undefined,
                 intake: intaking ? describeLead(knownLead, signedIn) : undefined,
-                knowledge: snapshot ? [knowledgeContext(snapshot, place ? currencyForCountry(place.country) : 'UGX', place), agentKnowledge].filter(Boolean).join('\n') : undefined,
+                knowledge: snapshot
+                    ? [
+                          knowledgeContext(snapshot, place ? currencyForCountry(place.country) : 'UGX', place),
+                          agentKnowledge,
+                          body.context === 'signup'
+                              ? 'The visitor is on the sign-up screen. Act as their personal assistant: help them choose how to sign up, explain why we ask for a WhatsApp number (so agents and the team can reach them about viewings and bookings), say signing up is free, and never ask for a password. They may be a tenant, a landlord, a company or a sponsor; find out which and help them all the way.'
+                              : '',
+                      ]
+                          .filter(Boolean)
+                          .join('\n')
+                    : undefined,
                 place,
             }
             const history = conversation.messages.slice(0, -1)
@@ -709,6 +772,11 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             }
             const keep = conversation.propertyRelated === true
 
+            if (urgent) {
+                // A real emergency gets only the safety message; urgent-but-ordinary keeps Kevin's answer to what they asked.
+                reply = urgent.level === 'emergency' ? urgentReply('emergency', chosenLanguage?.name) : `${reply} ${urgentReply('urgent', chosenLanguage?.name)}`
+                whatsapp = true
+            }
             const escalated = isLowConfidence(effectiveIntent, usedAi, reply, replyOptions.voice === true || brain !== null)
             if (escalated && keep) {
                 const reason = effectiveIntent === 'human_handoff_request' ? 'human_handoff_request' : 'low_confidence_reply'
@@ -739,6 +807,8 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                 results,
                 // Offer the visitor the "message us on WhatsApp" button.
                 whatsapp,
+                // Set when the message looked urgent: the widget makes the button prominent and prefills "URGENT".
+                urgent: urgent ? { level: urgent.level } : null,
                 // Lets the widget stop asking once the welcome conversation is over.
                 lead: lead ? { complete: isIntakeComplete(lead), declined: lead.declined === true, name: lead.name ?? null } : null,
             })

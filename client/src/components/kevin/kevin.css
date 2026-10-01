@@ -190,3 +190,8 @@
 @media (prefers-reduced-motion: reduce) {
   .kevin-wall__row { animation: none !important; }
 }
+
+/* While the sign-up card covers the page, Kevin stays on top of it so he can help with the form. */
+body.kevin-over-auth .kevin-fab { z-index: 112; }
+body.kevin-over-auth .kevin-bubble { z-index: 113; }
+body.kevin-over-auth .kevin-panel { z-index: 120; }

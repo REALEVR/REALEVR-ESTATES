@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Loader2, X } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -13,6 +13,8 @@ import { COUNTRY_CODES, DEFAULT_COUNTRY_CODE } from "@/lib/country-codes";
 import type { User } from "@shared/schema";
 import GoogleSignInButton from "./GoogleSignInButton";
 import { attemptWelcomeAmbient } from "@/lib/ambientSound";
+import KevinSignupHelper from "@/components/kevin/KevinSignupHelper";
+import { openKevin } from "@/components/kevin/kevinEvents";
 
 /**
  * The sign-in/sign-up card - a single, plain form modeled directly on
@@ -53,6 +55,12 @@ export default function AuthGate({ onDismiss }: { onDismiss?: () => void } = {})
     const [isSigningUp, setIsSigningUp] = useState(false);
     const [signupError, setSignupError] = useState<string | null>(null);
 
+    // While this card covers the page, Kevin stays on top of it so he can help with the form.
+    useEffect(() => {
+        document.body.classList.add("kevin-over-auth");
+        return () => document.body.classList.remove("kevin-over-auth");
+    }, []);
+
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
         loginMutation.mutate({ username: loginId, password: loginPassword });
@@ -92,6 +100,7 @@ export default function AuthGate({ onDismiss }: { onDismiss?: () => void } = {})
             // form is still a fresh-enough user gesture for the browser to
             // allow audio to start right now (see ambientSound.ts).
             attemptWelcomeAmbient();
+            openKevin({ context: "welcome", name: data.user?.fullName || fullName });
         } catch (error: any) {
             setSignupError(error.message || "Failed to create your account. Please try again.");
         } finally {
@@ -103,6 +112,7 @@ export default function AuthGate({ onDismiss }: { onDismiss?: () => void } = {})
         toast({ title: "Signed in with Google", description: `Welcome, ${user.fullName || user.username}!` });
         // No page reload on this path either — same reasoning as handleSignup above.
         attemptWelcomeAmbient();
+        openKevin({ context: "welcome", name: user.fullName || user.username });
     };
 
     const handleGoogleError = (message: string) => {
@@ -127,7 +137,9 @@ export default function AuthGate({ onDismiss }: { onDismiss?: () => void } = {})
                     </button>
                 )}
                 <h1 className="text-center font-display text-2xl font-semibold text-gray-900">Log in or sign up</h1>
-                <p className="mt-1 text-center text-sm text-gray-500">Welcome to RealEVR Estates</p>
+                <p className="mt-1 mb-5 text-center text-sm text-gray-500">Welcome to RealEVR Estates</p>
+
+                <KevinSignupHelper />
 
                 <GoogleSignInButton
                     onSignedIn={handleGoogleSignedIn}
