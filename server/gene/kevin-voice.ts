@@ -24,6 +24,7 @@
 import type { Express, Request, Response } from 'express'
 import { createHash } from 'crypto'
 import { getGeminiClient } from '../lib/gemini'
+import { hasCredits, noteSpent } from './elevenlabs'
 
 export type VoiceProvider = 'elevenlabs' | 'openai' | 'gemini'
 
@@ -107,30 +108,60 @@ async function fetchWithTimeout(url: string, init: RequestInit): Promise<globalT
 const ELEVENLABS_DEFAULT_VOICES = ['bDFumwYri07axD9161yA', 'ilWiv7gEzrCtQ2zDJsRl', 'onwK4e9ZLuTAKqWW03F9']
 let workingElevenLabsVoice: string | null = null
 
-async function elevenLabsOnce(voiceId: string, text: string): Promise<Audio> {
+// Models. Flash v2.5 is the everyday choice: natural, quick, and half the price per character, which is what keeps a free
+// plan going. Languages it does not cover (Kiswahili and other African languages) use Eleven v3, the most expressive model,
+// which does. KEVIN_ELEVENLABS_MODEL replaces the everyday model; KEVIN_ELEVENLABS_V3_LANGUAGES the list of languages that need v3.
+const EVERYDAY_MODEL = () => process.env.KEVIN_ELEVENLABS_MODEL || 'eleven_flash_v2_5'
+const V3_LANGUAGES = () => new Set((process.env.KEVIN_ELEVENLABS_V3_LANGUAGES || 'sw,am,ha,yo,ig,zu,so,af,rw,lg,sn,ti').split(',').map((x) => x.trim()))
+export function modelFor(lang: string | undefined): string {
+    return lang && V3_LANGUAGES().has(lang.toLowerCase()) ? 'eleven_v3' : EVERYDAY_MODEL()
+}
+/** Credits one character costs: Flash is half price. */
+const costPerChar = (model: string) => (model.includes('flash') || model.includes('turbo') ? 0.5 : 1)
+
+async function elevenLabsOnce(voiceId: string, text: string, model: string): Promise<Audio> {
     const res = await fetchWithTimeout(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_64`, {
         method: 'POST',
         headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY as string, 'content-type': 'application/json', accept: 'audio/mpeg' },
         body: JSON.stringify({
             text,
-            model_id: process.env.KEVIN_ELEVENLABS_MODEL || 'eleven_multilingual_v2',
-            voice_settings: { stability: 0.5, similarity_boost: 0.8, style: 0.2, use_speaker_boost: true },
+            model_id: model,
+            // A touch less stable than the default, with some style: that is what makes it sound like a person talking
+            // rather than a person reading. (Eleven v3 takes its own stability steps and ignores the rest.)
+            voice_settings: model === 'eleven_v3' ? { stability: 0.5 } : { stability: 0.45, similarity_boost: 0.8, style: 0.25, use_speaker_boost: true },
         }),
     })
     if (!res.ok) throw Object.assign(new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 200)}`), { status: res.status })
     return { data: Buffer.from(await res.arrayBuffer()), type: 'audio/mpeg' }
 }
 
-async function viaElevenLabs(text: string): Promise<Audio> {
+async function viaElevenLabs(text: string, lang?: string): Promise<Audio> {
+    const model = modelFor(lang)
+    try {
+        const audio = await viaElevenLabsWith(text, model)
+        noteSpent(Math.ceil(text.length * costPerChar(model)))
+        return audio
+    } catch (err) {
+        // The expressive model refused (plan, region, language): the everyday one still speaks.
+        if (model !== EVERYDAY_MODEL()) {
+            const audio = await viaElevenLabsWith(text, EVERYDAY_MODEL())
+            noteSpent(Math.ceil(text.length * costPerChar(EVERYDAY_MODEL())))
+            return audio
+        }
+        throw err
+    }
+}
+
+async function viaElevenLabsWith(text: string, model: string): Promise<Audio> {
     const chosen = (process.env.KEVIN_ELEVENLABS_VOICE_ID || '').trim()
-    if (chosen) return elevenLabsOnce(chosen, text)
+    if (chosen) return elevenLabsOnce(chosen, text, model)
     const order = workingElevenLabsVoice
         ? [workingElevenLabsVoice, ...ELEVENLABS_DEFAULT_VOICES.filter((v) => v !== workingElevenLabsVoice)]
         : ELEVENLABS_DEFAULT_VOICES
     let lastError: unknown
     for (const voiceId of order) {
         try {
-            const audio = await elevenLabsOnce(voiceId, text)
+            const audio = await elevenLabsOnce(voiceId, text, model)
             workingElevenLabsVoice = voiceId
             return audio
         } catch (err) {
@@ -176,8 +207,8 @@ async function viaGemini(text: string): Promise<Audio> {
     return { data: pcmToWav(Buffer.from(data, 'base64')), type: 'audio/wav' }
 }
 
-export async function synthesize(provider: VoiceProvider, text: string): Promise<Audio> {
-    if (provider === 'elevenlabs') return viaElevenLabs(text)
+export async function synthesize(provider: VoiceProvider, text: string, lang?: string): Promise<Audio> {
+    if (provider === 'elevenlabs') return viaElevenLabs(text, lang)
     if (provider === 'openai') return viaOpenAi(text)
     return viaGemini(text)
 }
@@ -234,7 +265,8 @@ export function registerKevinVoiceRoutes(app: Express): void {
         const text = speechText(req.body?.text)
         if (!text) return res.status(400).json({ message: 'Field "text" is required.' })
 
-        const key = createHash('sha1').update(`${provider}|${text}`).digest('hex')
+        const lang = typeof req.body?.lang === 'string' && /^[a-z]{2,3}$/i.test(req.body.lang) ? req.body.lang.toLowerCase() : undefined
+        const key = createHash('sha1').update(`${provider}|${modelFor(lang)}|${text}`).digest('hex')
         const hit = cache.get(key)
         if (hit) {
             res.set({ 'Content-Type': hit.type, 'Cache-Control': 'private, max-age=86400', 'X-Kevin-Voice': 'cache' })
@@ -243,10 +275,12 @@ export function registerKevinVoiceRoutes(app: Express): void {
 
         if (!allowVisitor(req.ip || 'unknown')) return res.status(429).json({ message: 'Slow down a little.' })
         if (!withinDailyBudget()) return res.status(429).json({ message: 'Voice is resting for today.' })
+        // A free ElevenLabs plan has a small monthly allowance: when it is used up the widget quietly uses the device's voice.
+        if (provider === 'elevenlabs' && !(await hasCredits(Math.ceil(text.length * costPerChar(modelFor(lang)))))) return res.status(429).json({ message: 'Voice is resting for now.' })
 
         try {
             today++
-            const audio = await synthesize(provider, text)
+            const audio = await synthesize(provider, text, lang)
             remember(key, audio)
             res.set({ 'Content-Type': audio.type, 'Cache-Control': 'private, max-age=86400', 'X-Kevin-Voice': provider })
             return res.send(audio.data)

@@ -44,7 +44,7 @@ export default function PrivacyPolicy() {
         <li><strong>Transactions:</strong> bookings, viewing passes, fees paid, payment references and amounts, and the "money received" messages that confirm them. We do not store card numbers, expiry dates or security codes.</li>
         <li><strong>Auction bidder verification (sensitive):</strong> identity document and number, date of birth, nationality, address, proof of address, proof of funds, source-of-funds and politically-exposed-person declarations, and your bids. Kept privately, seen only by administrators who vet bidders. See the <Link href="/bidder-vetting">Bidder Vetting Policy</Link>.</li>
         <li><strong>Partner data:</strong> business name, registration details, the contact person, and authority documents for a bank or developer.</li>
-        <li><strong>Kevin conversations:</strong> what you type or say to Kevin, kept only where it is about properties; chit-chat is not saved. Voice is processed in your browser or by a speech provider only while you have listening switched on.</li>
+        <li><strong>Kevin conversations:</strong> what you type or say to Kevin, kept only where it is about properties; chit-chat is not saved. When you switch on listening or tap the microphone, a short clip of what you say (never while the room is quiet) is sent to a speech provider, ElevenLabs or your browser's own service, to be turned into text, and Kevin's spoken replies are made by a voice provider from the text of his answer. We do not keep the audio; the provider handles it under its own terms.</li>
         <li><strong>Technical data:</strong> IP address, device and browser type, pages viewed, approximate location from your time zone, and precise location only if you allow it.</li>
         <li><strong>Data you send us:</strong> support messages, data requests, complaints.</li>
       </ul>
@@ -64,7 +64,7 @@ export default function PrivacyPolicy() {
       <h2>4. Who we share it with</h2>
       <ul>
         <li><strong>Other users, as you intend:</strong> a seller or agent sees your enquiry and contact details when you contact them. In auctions other people see only an anonymous bidder alias and bid amounts, never your name.</li>
-        <li><strong>Service providers (processors)</strong> who work for us under contract: cloud hosting and storage (including Amazon Web Services), email and messaging (including WhatsApp), speech and AI providers used by Kevin, mapping, analytics we run ourselves, and payment or mobile-money providers.</li>
+        <li><strong>Service providers (processors)</strong> who work for us under contract: cloud hosting and storage (including Amazon Web Services), email and messaging (including WhatsApp), speech and AI providers used by Kevin (for example ElevenLabs for turning speech into text and text into a voice), mapping, analytics we run ourselves, and payment or mobile-money providers.</li>
         <li><strong>Authorities and advisers</strong> where the law requires or allows: courts, tax, the Financial Intelligence Authority, law enforcement, our lawyers and auditors.</li>
         <li><strong>A successor</strong> if the business is sold or merged, bound to this policy.</li>
       </ul>
