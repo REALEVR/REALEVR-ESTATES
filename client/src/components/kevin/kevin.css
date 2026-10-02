@@ -195,3 +195,23 @@
 body.kevin-over-auth .kevin-fab { z-index: 112; }
 body.kevin-over-auth .kevin-bubble { z-index: 113; }
 body.kevin-over-auth .kevin-panel { z-index: 120; }
+
+/* ---- The chat panel, calm: graphite glass, one warm glow, hairlines instead of boxes ---------------------- */
+.kevin-calm {
+  background:
+    radial-gradient(120% 55% at 50% -12%, rgba(245, 196, 105, 0.07), transparent 62%),
+    rgba(10, 11, 16, 0.94);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+  backdrop-filter: blur(28px) saturate(1.4);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55);
+}
+@media (min-width: 768px) and (min-height: 521px) {
+  .kevin-calm { border: 1px solid rgba(255, 255, 255, 0.08) !important; }
+}
+/* Messages fade out at the top and bottom edge instead of being cut by a line. */
+.kevin-scroll {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  scrollbar-width: none;
+}
+.kevin-scroll::-webkit-scrollbar { display: none; }
