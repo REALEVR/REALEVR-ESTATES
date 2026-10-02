@@ -12,7 +12,7 @@ import {
   stringsFor,
   type KevinLanguage,
 } from './kevinLanguages'
-import { chime, useKevinVoice } from './useKevinVoice'
+import { useKevinVoice } from './useKevinVoice'
 import { regionalTag } from './propertyTalk'
 import { usePlace } from '@/lib/place'
 import { useAmbientListening } from './useAmbientListening'
@@ -527,7 +527,6 @@ export default function KevinOrb() {
     setHeard(text)
     // The few words that mean "never mind" end the conversation quietly.
     if (/^(stop|cancel|never ?mind|that'?s (all|it)|enough)[.!\s]*$/i.test(text)) {
-      chime('end')
       setPhase('idle')
       setHeard('')
       return
@@ -539,32 +538,25 @@ export default function KevinOrb() {
     if (!voice.canListen || !voiceModeRef.current) return
     setHeard('')
     setPhase('listening')
-    const quiet = mutedRef.current
-    if (!quiet) chime('start')
-    // Start the microphone a beat after the chime so it doesn't hear it.
-    setTimeout(() => {
-      if (!voiceModeRef.current) return
-      voice.listen({
-        onInterim: (text) => setHeard(text),
-        onFinal: (text) => handleUtterance(text),
-        onEnd: ({ heard: gotSomething, error }) => {
-          if (gotSomething) return
-          setPhase('idle')
-          if (error === 'not-allowed' || error === 'service-not-allowed') {
-            push({ kind: 'note', text: stringsFor(langRef.current).micBlocked })
-            exitVoiceMode()
-          } else if (!followUp && error !== 'aborted') {
-            // First attempt and nothing usable: say so, as a person would. After a
-            // follow-up prompt, silence just means the conversation is over.
-            const strings = stringsFor(langRef.current)
-            setLastReply(strings.didntCatch)
-            say(strings.didntCatch, langRef.current)
-          } else if (followUp) {
-            chime('end')
-          }
-        },
-      })
-    }, quiet ? 0 : 230)
+    // No chimes: the microphone opens and closes without any sound of ours.
+    voice.listen({
+      onInterim: (text) => setHeard(text),
+      onFinal: (text) => handleUtterance(text),
+      onEnd: ({ heard: gotSomething, error }) => {
+        if (gotSomething) return
+        setPhase('idle')
+        if (error === 'not-allowed' || error === 'service-not-allowed') {
+          push({ kind: 'note', text: stringsFor(langRef.current).micBlocked })
+          exitVoiceMode()
+        } else if (!followUp && error !== 'aborted') {
+          // First attempt and nothing usable: say so, as a person would. After a
+          // follow-up prompt, silence just means the conversation is over.
+          const strings = stringsFor(langRef.current)
+          setLastReply(strings.didntCatch)
+          say(strings.didntCatch, langRef.current)
+        }
+      },
+    })
   }
   actionsRef.current = { beginListening }
 

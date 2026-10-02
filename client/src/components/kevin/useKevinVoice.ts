@@ -86,34 +86,6 @@ export function pickVoice(voices: SpeechSynthesisVoice[], bcp47: string | null):
   return candidates.reduce((best, v) => (voiceScore(v, wanted) > voiceScore(best, wanted) ? v : best))
 }
 
-/** A soft two-note earcon, the way a phone assistant signals "I'm listening" / "got it". No audio files. */
-let audioContext: AudioContext | null = null
-export function chime(kind: 'start' | 'end') {
-  try {
-    const Ctx: typeof AudioContext | undefined = window.AudioContext || (window as any).webkitAudioContext
-    if (!Ctx) return
-    audioContext = audioContext ?? new Ctx()
-    if (audioContext.state === 'suspended') void audioContext.resume()
-    const notes = kind === 'start' ? [880, 1318.5] : [1318.5, 880]
-    const t0 = audioContext.currentTime
-    notes.forEach((freq, i) => {
-      const osc = audioContext!.createOscillator()
-      const gain = audioContext!.createGain()
-      const at = t0 + i * 0.09
-      osc.type = 'sine'
-      osc.frequency.value = freq
-      gain.gain.setValueAtTime(0.0001, at)
-      gain.gain.exponentialRampToValueAtTime(0.07, at + 0.015)
-      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.2)
-      osc.connect(gain).connect(audioContext!.destination)
-      osc.start(at)
-      osc.stop(at + 0.22)
-    })
-  } catch {
-    /* sound is a nicety; never let it break the conversation */
-  }
-}
-
 /** How a spoken answer is cut up for the server: the first sentence on its own
  * (so Kevin starts talking quickly), then the rest in at most two further pieces. */
 function serverPieces(text: string): string[] {

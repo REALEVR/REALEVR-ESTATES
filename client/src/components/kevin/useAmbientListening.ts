@@ -22,8 +22,12 @@ import { isAboutProperties } from './propertyTalk'
  *    phrase that wakes him is passed on, and only to be answered.
  *  - Short noises and single words ("uh", a cough) do not wake him.
  *
- * Browsers end continuous recognition on their own every so often (silence,
- * time limits), so it is restarted, with a growing pause if it keeps failing.
+ * No clicking sounds: phones play a small tone every time the browser's speech recogniser starts or stops, and
+ * a recogniser that keeps reopening in a quiet room would chirp over and over. So while nothing is being said the
+ * recogniser is NOT running at all; a plain microphone level meter watches instead (no sound, nothing sent
+ * anywhere, nothing recorded). Only when someone actually starts speaking is the meter released and the
+ * recogniser opened to hear the sentence. If the room is noisy but nobody is talking to Kevin, it waits longer
+ * and longer before listening again. If a device cannot run the meter, the old restart loop is used, slowly.
  */
 
 export type AmbientProblem = 'blocked' | 'unsupported'
@@ -77,14 +81,34 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
 
     let stopped = false
     let recognition: any = null
-    let restart: ReturnType<typeof setTimeout> | undefined
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let meterTimer: ReturnType<typeof setInterval> | undefined
+    let stream: MediaStream | null = null
+    let audio: AudioContext | null = null
     let failures = 0
-    let quiet = 0 // consecutive rounds that ended with nothing said: each one waits longer before reopening
+    let quiet = 0 // consecutive rounds that ended with nothing said to Kevin: each waits longer before listening again
 
-    const start = () => {
+    const releaseMeter = () => {
+      clearInterval(meterTimer)
+      meterTimer = undefined
+      stream?.getTracks().forEach((t) => t.stop())
+      stream = null
+      void audio?.close().catch(() => {})
+      audio = null
+    }
+
+    /** One round with the recogniser: hear one sentence, then stop. Calls `done(heardSomething)` when it ends. */
+    const listenOnce = (done: (consumed: boolean) => void) => {
       if (stopped) return
       let woke = false
       let consumed = false
+      let finished = false
+      const finish = () => {
+        if (finished) return
+        finished = true
+        setActive(false)
+        done(consumed)
+      }
       recognition = new Recognition()
       recognition.continuous = true
       recognition.interimResults = true
@@ -97,7 +121,6 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
       }
       recognition.onresult = (event: any) => {
         if (consumed || stopped) return
-        quiet = 0
         let interim = ''
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const result = event.results[i]
@@ -109,7 +132,13 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
               continue
             }
             consumed = true
+            quiet = 0
             handlers.current.onUtterance(text.trim())
+            try {
+              recognition.stop()
+            } catch {
+              /* already stopped */
+            }
             return
           }
           interim += text
@@ -128,27 +157,105 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
           failures++
         }
       }
-      recognition.onend = () => {
-        setActive(false)
-        if (stopped) return
-        // Every reopening can make a phone chirp or flash its microphone indicator, so a quiet room is
-        // revisited ever more slowly (a quarter second at first, up to 12 seconds), and speech resets that.
-        quiet = Math.min(quiet + 1, 8)
-        const wait = Math.min(250 * Math.pow(2, quiet - 1), 12_000)
-        restart = setTimeout(start, Math.max(wait, Math.min(250 + failures * 900, 6000)))
-      }
+      recognition.onend = finish
       try {
         recognition.start()
+        // Safety: a round never lasts more than half a minute.
+        timer = setTimeout(() => {
+          try {
+            recognition.stop()
+          } catch {
+            /* already stopped */
+          }
+        }, 30_000)
       } catch {
         failures++
-        restart = setTimeout(start, Math.min(500 + failures * 900, 6000))
+        finish()
       }
     }
-    start()
+
+    const wait = (ms: number, then: () => void) => {
+      clearTimeout(timer)
+      timer = setTimeout(then, ms)
+    }
+
+    /** The old way, for devices that cannot run the level meter: reopen the recogniser, slowly. */
+    const legacyLoop = () => {
+      if (stopped) return
+      listenOnce((consumed) => {
+        if (stopped) return
+        quiet = consumed ? 0 : Math.min(quiet + 1, 8)
+        const pause = Math.min(1000 * Math.pow(2, quiet), 30_000)
+        wait(Math.max(pause, Math.min(250 + failures * 900, 6000)), legacyLoop)
+      })
+    }
+
+    /** Watch the microphone level, silently. When someone starts to speak, let go of it and open the recogniser. */
+    const watch = async () => {
+      if (stopped) return
+      const AudioCtx: typeof AudioContext | undefined = window.AudioContext || (window as any).webkitAudioContext
+      if (!navigator.mediaDevices?.getUserMedia || !AudioCtx) {
+        legacyLoop()
+        return
+      }
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+      } catch (err: any) {
+        if (stopped) return
+        if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') {
+          stopped = true
+          handlers.current.onProblem('blocked')
+        } else {
+          legacyLoop()
+        }
+        return
+      }
+      if (stopped) {
+        releaseMeter()
+        return
+      }
+      try {
+        audio = new AudioCtx()
+        const source = audio.createMediaStreamSource(stream)
+        const analyser = audio.createAnalyser()
+        analyser.fftSize = 1024
+        source.connect(analyser) // never connected to the speakers: nothing is played
+        const samples = new Float32Array(analyser.fftSize)
+        let floor = 0.004
+        let loud = 0
+        setActive(true)
+        meterTimer = setInterval(() => {
+          analyser.getFloatTimeDomainData(samples)
+          let sum = 0
+          for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i]
+          const rms = Math.sqrt(sum / samples.length)
+          // The room's own hum sets the floor; speech has to stand clearly above it.
+          if (rms < floor * 2) floor = floor * 0.97 + rms * 0.03
+          const threshold = Math.max(0.02, floor * 4)
+          loud = rms > threshold ? loud + 1 : Math.max(0, loud - 1)
+          if (loud >= 4) {
+            // About a fifth of a second of real speech.
+            releaseMeter()
+            setActive(false)
+            listenOnce((consumed) => {
+              if (stopped) return
+              quiet = consumed ? 0 : Math.min(quiet + 1, 6)
+              // Nothing for Kevin was said: be deaf for a while (3s, 6s, ... up to 60s) so a noisy room cannot make it chirp.
+              wait(consumed ? 1500 : Math.min(3000 * Math.pow(2, quiet - 1), 60_000), () => void watch())
+            })
+          }
+        }, 50)
+      } catch {
+        releaseMeter()
+        legacyLoop()
+      }
+    }
+    void watch()
 
     return () => {
       stopped = true
-      clearTimeout(restart)
+      clearTimeout(timer)
+      releaseMeter()
       try {
         recognition?.abort()
       } catch {
