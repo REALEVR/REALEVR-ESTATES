@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AudioLines, Globe, MessageCircle, Mic, Send, Sparkles, Volume2, VolumeX, X } from 'lucide-react'
+import { ArrowUp, AudioLines, Globe, MessageCircle, Mic, MoreHorizontal, Sparkles, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react'
 import { Link, useLocation } from 'wouter'
 import { useAuth } from '@/hooks/use-auth'
 import { apiRequest } from '@/lib/queryClient'
@@ -137,7 +137,7 @@ function LanguagePicker({ onPick }: { onPick: (lang: KevinLanguage) => void }) {
             type="button"
             lang={l.code ?? undefined}
             onClick={() => onPick(l)}
-            className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5 text-sm text-white/90 transition hover:border-[#f5c469]/70 hover:bg-[#f5c469]/15 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f5c469]"
+            className="rounded-full border border-white/10 px-3.5 py-1.5 text-[13px] text-white/80 transition hover:border-white/30 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f5c469]"
           >
             {l.native}
           </button>
@@ -152,18 +152,39 @@ function LanguagePicker({ onPick }: { onPick: (lang: KevinLanguage) => void }) {
           }}
           placeholder="Another language… (e.g. Runyankole)"
           aria-label="Type another language"
-          className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.06] px-3.5 py-2 text-base text-white placeholder:text-white/45 focus:border-[#f5c469]/70 focus:outline-none"
+          className="min-w-0 flex-1 rounded-full border border-white/10 bg-transparent px-4 py-2 text-base text-white placeholder:text-white/35 focus:border-white/30 focus:outline-none"
         />
         <button
           type="submit"
           disabled={!custom.trim()}
-          className="rounded-full bg-[#f5c469] px-3.5 py-1.5 text-sm font-medium text-[#1b1305] transition enabled:hover:brightness-110 disabled:opacity-40"
+          className="rounded-full bg-white/90 px-4 py-1.5 text-sm font-medium text-black transition enabled:hover:bg-white disabled:opacity-30"
         >
           Go
         </button>
       </form>
       {problem && <p className="mt-1.5 text-xs text-[#ffb4a8]">Just type the name of the language, like “Runyankole”.</p>}
     </div>
+  )
+}
+
+/** One quiet row in Kevin's menu: an icon, a label, and (for switches) whether it is on. */
+function MenuRow({ icon: Icon, label, state, onClick, href, onTap, tone }: { icon: LucideIcon; label: string; state?: string; onClick?: () => void; href?: string; onTap?: () => void; tone?: 'green' }) {
+  const cls = `flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] transition hover:bg-white/[0.07] ${tone === 'green' ? 'text-[#7ae6a0]' : 'text-white/90'}`
+  const inner = (
+    <>
+      <Icon size={18} className="shrink-0 opacity-80" aria-hidden="true" />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {state && <span className="text-xs text-white/45">{state}</span>}
+    </>
+  )
+  return href ? (
+    <a role="menuitem" href={href} target="_blank" rel="noopener noreferrer" onClick={onTap} className={cls}>
+      {inner}
+    </a>
+  ) : (
+    <button role="menuitem" type="button" onClick={onClick} className={cls}>
+      {inner}
+    </button>
   )
 }
 
@@ -200,6 +221,7 @@ export default function KevinOrb() {
   const contextRef = useRef<'signup' | 'welcome' | null>(null)
   const greetedRef = useRef(false)
   const [nudge, setNudge] = useState<string | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   // Voice mode
   const [voiceMode, setVoiceMode] = useState(false)
@@ -389,7 +411,10 @@ export default function KevinOrb() {
   const closePanel = () => {
     exitVoiceMode()
     setOpen(false)
+    setMenuOpen(false)
   }
+  const closePanelRef = useRef(closePanel)
+  closePanelRef.current = closePanel
 
   // Go somewhere on the site. The panel steps aside so the page is visible, but
   // whatever Kevin is still saying carries on.
@@ -504,6 +529,8 @@ export default function KevinOrb() {
         push({ kind: 'urgent', level: data.urgent.level, text: message })
       } else if (data.whatsapp === true) {
         setOfferWhatsapp(true)
+        // One WhatsApp button at a time: the newest replaces the older ones.
+        setMessages((prev) => prev.filter((m) => m.kind !== 'whatsapp'))
         push({ kind: 'whatsapp' })
       }
       runAction(data.action)
@@ -589,6 +616,18 @@ export default function KevinOrb() {
       beginListening(false)
     }
   }
+
+  // Escape closes the menu first, then the panel, wherever the focus happens to be.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (menuOpen) setMenuOpen(false)
+      else closePanelRef.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, menuOpen])
 
   // Other screens (the sign-up card) can ask Kevin to open, so he is there while someone signs up.
   useEffect(() => {
@@ -916,23 +955,18 @@ export default function KevinOrb() {
         <div
           role="dialog"
           aria-label="Kevin, your RealEVR concierge"
-          onKeyDown={(e) => e.key === 'Escape' && closePanel()}
-          className="kevin-panel kevin-pop bg-[radial-gradient(120%_80%_at_0%_0%,rgba(79,70,229,0.28),transparent_55%),radial-gradient(90%_70%_at_100%_100%,rgba(45,212,191,0.18),transparent_55%)] bg-[#0b0d1c]/95 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl"
+          className="kevin-panel kevin-pop kevin-calm text-white"
         >
-          <header className="kevin-head flex items-center gap-3 border-b border-white/10 px-4 py-3">
-            <span className="relative block h-10 w-10 shrink-0">
+          <header className="kevin-head flex items-center gap-3 px-5 pb-3 pt-4">
+            <span className="relative block h-9 w-9 shrink-0">
               <Orb mini speaking={voice.speaking} listening={voice.listening} thinking={busy} />
             </span>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="font-display text-base font-semibold tracking-wide">Kevin</span>
-                {voice.speaking && (
-                  <span className="kevin-bars is-on" aria-hidden="true">
-                    <span /><span /><span /><span /><span />
-                  </span>
-                )}
-              </div>
-              <p className="kevin-sub truncate text-xs text-white/60">Your RealEVR concierge</p>
+              <div className="font-display text-[17px] font-semibold leading-tight tracking-tight">Kevin</div>
+              <p className="kevin-sub flex items-center gap-1.5 truncate text-[12px] text-white/45" aria-live="polite">
+                {handsFreeOn && ambient.active && <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[#f5c469]" aria-hidden="true" />}
+                {voice.speaking ? '…' : busy ? strings.thinking : voice.listening ? strings.listening : handsFreeOn && ambient.active ? strings.handsFreeActive : 'Your RealEVR concierge'}
+              </p>
             </div>
             {voice.canListen && lang && !voiceMode && (
               <button
@@ -940,113 +974,107 @@ export default function KevinOrb() {
                 onClick={startVoiceMode}
                 title={strings.talkToKevin}
                 aria-label={strings.talkToKevin}
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[#f5c469] transition hover:bg-white/10"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#f5c469] transition hover:bg-white/10"
               >
                 <AudioLines size={20} />
               </button>
             )}
             <button
               type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-label="More"
+              className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white"
+            >
+              <MoreHorizontal size={20} />
+            </button>
+            <button
+              type="button"
               onClick={closePanel}
               aria-label="Close"
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white"
             >
               <X size={20} />
             </button>
           </header>
 
-          {/* Language, picks and sound live on their own row, so the title is never squeezed. */}
-          <div className="kevin-tools flex items-center gap-2 border-b border-white/10 px-4 py-2">
-            <button
-              type="button"
-              onClick={() => setChangingLanguage((v) => !v)}
-              aria-expanded={showPicker}
-              title="Change language"
-              className="flex h-10 min-w-0 max-w-[60%] items-center gap-2 rounded-full border border-white/15 px-3.5 text-sm text-white/90 transition hover:border-[#f5c469]/70 hover:text-white"
-            >
-              <Globe size={16} className="shrink-0" />
-              <span className="truncate" lang={lang?.code ?? undefined}>{lang?.native ?? 'Language'}</span>
-            </button>
-            <span className="flex-1" />
-            {voice.canListen && lang && (
-              <button
-                type="button"
-                onClick={() => (handsFreeOn ? turnOffHandsFree() : setConsentOpen((v) => !v))}
-                aria-pressed={handsFreeOn}
-                aria-label={strings.handsFreeLabel}
-                title={handsFreeOn ? strings.handsFreeActive : strings.handsFreeLabel}
-                className={`relative grid h-10 w-10 shrink-0 place-items-center rounded-full transition hover:bg-white/10 ${
-                  handsFreeOn ? 'bg-[#f5c469]/15 text-[#f5c469]' : 'text-white/75 hover:text-white'
-                }`}
-              >
-                <Mic size={19} />
-                {ambient.active && <span className="absolute right-1.5 top-1.5 h-2 w-2 animate-pulse rounded-full bg-[#f5c469]" />}
-              </button>
-            )}
-            {user && (
-              <button
-                type="button"
-                onClick={openMyAgent}
-                title="My picks and alerts"
-                aria-label="Open my picks and alerts"
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/75 transition hover:bg-white/10 hover:text-[#f5c469]"
-              >
-                <Sparkles size={19} />
-              </button>
-            )}
-            {waNumber && (
-              <a
-                href={generalWhatsapp()}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={tapGeneralWhatsapp}
-                title={strings.whatsapp}
-                aria-label={strings.whatsapp}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#25D366]/85 transition hover:bg-white/10 hover:text-[#25D366]"
-              >
-                <MessageCircle size={19} />
-              </a>
-            )}
-            {voice.canSpeak && (
-              <button
-                type="button"
-                onClick={toggleMute}
-                aria-pressed={muted}
-                aria-label={muted ? 'Let Kevin speak aloud' : 'Mute Kevin'}
-                title={muted ? 'Let Kevin speak aloud' : 'Mute Kevin'}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/75 transition hover:bg-white/10 hover:text-white"
-              >
-                {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
-              </button>
-            )}
-          </div>
+          {menuOpen && (
+            <>
+              <button type="button" aria-hidden="true" tabIndex={-1} className="absolute inset-0 z-[1] cursor-default" onClick={() => setMenuOpen(false)} />
+              <div role="menu" className="kevin-rise absolute right-4 top-[68px] z-[2] w-[17rem] rounded-2xl border border-white/10 bg-[#15161d]/95 p-1.5 shadow-[0_20px_60px_rgba(0,0,0,0.6)] backdrop-blur-2xl">
+                <MenuRow
+                  icon={Globe}
+                  label={lang?.native ?? 'Language'}
+                  state="Language"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    setChangingLanguage((v) => !v)
+                  }}
+                />
+                {voice.canListen && lang && (
+                  <MenuRow
+                    icon={Mic}
+                    label={strings.handsFreeLabel}
+                    state={handsFreeOn ? 'On' : 'Off'}
+                    onClick={() => {
+                      setMenuOpen(false)
+                      if (handsFreeOn) turnOffHandsFree()
+                      else setConsentOpen(true)
+                    }}
+                  />
+                )}
+                {voice.canSpeak && (
+                  <MenuRow
+                    icon={muted ? VolumeX : Volume2}
+                    label={muted ? 'Sound off' : 'Sound on'}
+                    onClick={() => {
+                      toggleMute()
+                      setMenuOpen(false)
+                    }}
+                  />
+                )}
+                {user && (
+                  <MenuRow
+                    icon={Sparkles}
+                    label="My picks and alerts"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      openMyAgent()
+                    }}
+                  />
+                )}
+                {waNumber && <MenuRow icon={MessageCircle} label={strings.whatsapp} href={generalWhatsapp()} onTap={tapGeneralWhatsapp} tone="green" />}
+              </div>
+            </>
+          )}
 
           {needsTap && (
             <button
               type="button"
               onClick={() => setTouched(true)}
-              className="kevin-rise flex min-h-11 w-full items-center justify-center gap-2 border-b border-white/10 bg-[#f5c469]/10 px-4 py-2 text-sm font-medium text-[#f5c469]"
+              className="kevin-rise mx-5 mb-2 flex min-h-10 items-center justify-center gap-2 rounded-full bg-white/[0.06] px-4 text-[13px] text-white/80"
             >
-              <Volume2 size={16} aria-hidden="true" />
+              <Volume2 size={15} aria-hidden="true" />
               {strings.tapToHear}
             </button>
           )}
 
           {consentOpen && !handsFreeOn && (
-            <div className="kevin-rise border-b border-white/10 bg-white/[0.04] px-4 py-3">
-              <p className="text-sm leading-relaxed text-white/85">{strings.handsFreeOffer}</p>
+            <div className="kevin-rise mx-5 mb-2 rounded-2xl bg-white/[0.05] p-4">
+              <p className="text-[13px] leading-relaxed text-white/70">{strings.handsFreeOffer}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={confirmHandsFree}
-                  className="min-h-11 rounded-full bg-[#f5c469] px-4 text-sm font-semibold text-[#1b1305] transition hover:brightness-110"
+                  className="min-h-10 rounded-full bg-[#f5c469] px-4 text-[13px] font-semibold text-[#1b1305] transition hover:brightness-110"
                 >
                   {strings.handsFreeOn}
                 </button>
                 <button
                   type="button"
                   onClick={() => setConsentOpen(false)}
-                  className="min-h-11 rounded-full border border-white/15 px-4 text-sm text-white/80 transition hover:text-white"
+                  className="min-h-10 rounded-full px-4 text-[13px] text-white/60 transition hover:text-white"
                 >
                   {strings.handsFreeNotNow}
                 </button>
@@ -1055,8 +1083,7 @@ export default function KevinOrb() {
           )}
 
           {showPicker && (
-            <div className="kevin-rise border-b border-white/10 bg-white/[0.03] px-4 py-3">
-              <p className="mb-2 text-xs uppercase tracking-wider text-white/50">Choose a language</p>
+            <div className="kevin-rise mx-5 mb-2 rounded-2xl bg-white/[0.05] p-4">
               <LanguagePicker onPick={chooseLanguage} />
             </div>
           )}
@@ -1080,31 +1107,31 @@ export default function KevinOrb() {
             />
           ) : (
             <>
-          <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">
+          <div className="kevin-scroll flex-1 space-y-5 overflow-y-auto px-5 py-4" aria-live="polite">
             {messages.map((m) => {
               if (m.kind === 'note') {
                 return (
-                  <p key={m.id} className="px-2 text-center text-xs italic text-white/50">
+                  <p key={m.id} className="text-center text-[12px] text-white/40">
                     {m.text}
                   </p>
                 )
               }
               if (m.kind === 'cards') {
                 return (
-                  <div key={m.id} className="pl-9">
+                  <div key={m.id} className="-mx-5 px-5">
                     <ResultCards cards={m.cards} onOpen={openCard} whatsapp={cardWhatsapp} />
                   </div>
                 )
               }
               if (m.kind === 'whatsapp') {
                 return waNumber ? (
-                  <div key={m.id} className="pl-9">
+                  <div key={m.id}>
                     <a
                       href={generalWhatsapp()}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={tapGeneralWhatsapp}
-                      className="kevin-rise inline-flex min-h-11 items-center gap-2 rounded-full bg-[#25D366] px-5 text-sm font-semibold text-[#06260f] shadow-lg transition hover:brightness-110"
+                      className="kevin-rise inline-flex min-h-11 items-center gap-2 rounded-full border border-[#25D366]/35 bg-[#25D366]/12 px-5 text-sm font-medium text-[#7ae6a0] transition hover:bg-[#25D366]/20"
                     >
                       <MessageCircle size={16} aria-hidden="true" />
                       {strings.whatsapp}
@@ -1115,36 +1142,35 @@ export default function KevinOrb() {
               if (m.kind === 'audience') {
                 const words = assistantFor(lang)
                 return (
-                  <div key={m.id} className="kevin-rise flex gap-2.5">
-                    <span className="mt-0.5 block h-7 w-7 shrink-0"><Orb mini /></span>
-                    <div className="max-w-[90%] rounded-2xl rounded-tl-md border border-white/10 bg-white/[0.07] px-3.5 py-3 text-sm">
-                      <p className="mb-2.5 leading-relaxed text-white/90">{words.audienceQuestion}</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {AUDIENCES.map((a) => (
-                          <button
-                            key={a}
-                            type="button"
-                            disabled={busy}
-                            onClick={() => void send(audienceLabel(a, lang), { choice: a })}
-                            className="min-h-10 rounded-full border border-white/20 px-3.5 text-sm text-white/90 transition hover:border-[#f5c469] hover:text-[#f5c469] disabled:opacity-50"
-                          >
-                            {audienceLabel(a, lang)}
-                          </button>
-                        ))}
-                      </div>
+                  <div key={m.id} className="kevin-rise">
+                    <p className="mb-3 text-[15.5px] leading-[1.6] text-white/90">{words.audienceQuestion}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {AUDIENCES.map((a) => (
+                        <button
+                          key={a}
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void send(audienceLabel(a, lang), { choice: a })}
+                          className="min-h-10 rounded-full border border-white/12 px-4 text-sm text-white/85 transition hover:border-[#f5c469]/70 hover:text-[#f5c469] disabled:opacity-40"
+                        >
+                          {audienceLabel(a, lang)}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )
               }
               if (m.kind === 'links') {
                 return (
-                  <div key={m.id} className="flex flex-wrap gap-2 pl-9">
-                    {m.links.map((l) => (
+                  <div key={m.id} className="flex flex-wrap gap-2">
+                    {m.links.map((l, i) => (
                       <Link
                         key={l.path}
                         href={l.path}
                         onClick={() => setOpen(false)}
-                        className="kevin-rise inline-flex min-h-10 items-center rounded-full bg-[#f5c469] px-4 text-sm font-semibold text-[#1b1305] transition hover:brightness-110"
+                        className={`kevin-rise inline-flex min-h-10 items-center rounded-full px-4 text-sm font-medium transition ${
+                          i === 0 ? 'bg-[#f5c469] text-[#1b1305] hover:brightness-110' : 'border border-white/12 text-white/85 hover:border-white/30'
+                        }`}
                       >
                         {l.label}
                       </Link>
@@ -1157,15 +1183,15 @@ export default function KevinOrb() {
                 const who = leadName ? `I'm ${leadName}. ` : ''
                 const href = waNumber ? whatsappHref(waNumber, `URGENT${m.level === 'emergency' ? ' (emergency)' : ''}: ${m.text}\n${who}Sent through Kevin on RealEVR Estates.`) : null
                 return (
-                  <div key={m.id} className="kevin-rise ml-9 rounded-2xl border border-red-400/40 bg-red-500/10 p-3 text-sm" role="alert">
-                    <p className="font-semibold text-red-100">{words.urgentBanner}</p>
-                    {m.level === 'emergency' && <p className="mt-1 leading-relaxed text-white/85">{words.callFirst}</p>}
+                  <div key={m.id} className="kevin-rise rounded-2xl border border-red-400/30 bg-red-500/[0.07] p-4 text-sm" role="alert">
+                    <p className="font-medium text-red-100">{words.urgentBanner}</p>
+                    {m.level === 'emergency' && <p className="mt-1.5 leading-relaxed text-white/75">{words.callFirst}</p>}
                     {href && (
                       <a
                         href={href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-3 inline-flex min-h-12 items-center gap-2 rounded-full bg-[#25D366] px-5 text-sm font-bold text-[#06260f] shadow-lg transition hover:brightness-110"
+                        className="mt-3 inline-flex min-h-12 items-center gap-2 rounded-full bg-[#25D366] px-5 text-sm font-bold text-[#06260f] transition hover:brightness-110"
                       >
                         <MessageCircle size={18} aria-hidden="true" />
                         {words.urgentButton}
@@ -1176,98 +1202,80 @@ export default function KevinOrb() {
               }
               if (m.kind === 'picker') {
                 return (
-                  <div key={m.id} className="kevin-rise flex gap-2.5">
-                    <span className="mt-0.5 block h-7 w-7 shrink-0"><Orb mini /></span>
-                    <div className="max-w-[88%] rounded-2xl rounded-tl-md border border-white/10 bg-white/[0.07] px-3.5 py-3 text-sm">
-                      <p className="mb-3 leading-relaxed text-white/90">
-                        <span className="font-display font-semibold text-white">Hello, I’m Kevin</span>, your guide to RealEVR
-                        Estates. Which language would you like to speak?
-                      </p>
-                      <LanguagePicker onPick={chooseLanguage} />
-                    </div>
+                  <div key={m.id} className="kevin-rise">
+                    <p className="mb-3 text-[15.5px] leading-[1.6] text-white/90">
+                      <span className="font-display font-semibold text-white">Hello, I’m Kevin</span>, your guide to RealEVR Estates. Which language would you like to speak?
+                    </p>
+                    <LanguagePicker onPick={chooseLanguage} />
                   </div>
                 )
               }
               return m.role === 'kevin' ? (
-                <div key={m.id} className="kevin-rise flex gap-2.5">
-                  <span className="mt-0.5 block h-7 w-7 shrink-0"><Orb mini /></span>
-                  <div
-                    dir="auto"
-                    className="max-w-[86%] rounded-2xl rounded-tl-md border border-white/10 bg-white/[0.07] px-3.5 py-2.5 text-sm leading-relaxed text-white/90"
-                  >
-                    {m.text}
-                  </div>
-                </div>
+                <p key={m.id} dir="auto" className="kevin-rise max-w-[94%] text-[15.5px] leading-[1.65] text-white/90">
+                  {m.text}
+                </p>
               ) : (
                 <div key={m.id} className="kevin-rise flex justify-end">
-                  <div
-                    dir="auto"
-                    className="max-w-[86%] rounded-2xl rounded-tr-md bg-gradient-to-br from-[#f5c469] to-[#e39a34] px-3.5 py-2.5 text-sm leading-relaxed text-[#1b1305] shadow-md"
-                  >
+                  <p dir="auto" className="max-w-[82%] rounded-[20px] bg-white/[0.09] px-4 py-2.5 text-[15px] leading-relaxed text-white">
                     {m.text}
-                  </div>
+                  </p>
                 </div>
               )
             })}
             {busy && (
-              <div className="flex gap-2.5" role="status" aria-label={strings.thinking}>
-                <span className="mt-0.5 block h-7 w-7 shrink-0"><Orb mini speaking /></span>
-                <div className="rounded-2xl rounded-tl-md border border-white/10 bg-white/[0.07] px-3.5 py-3">
-                  <span className="kevin-dots"><span /><span /><span /></span>
-                </div>
+              <div role="status" aria-label={strings.thinking} className="py-1">
+                <span className="kevin-dots"><span /><span /><span /></span>
               </div>
             )}
             <div ref={endRef} />
           </div>
 
-          {!intakeDone && (
-            <p className="border-t border-white/10 px-4 pt-2 text-center text-[11px] leading-snug text-white/50">
-              {strings.shareNote}{' '}
-              <Link href="/privacy" className="underline underline-offset-2 hover:text-white/80" onClick={() => setOpen(false)}>
-                {strings.privacy}
-              </Link>
-            </p>
-          )}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              send(input)
-            }}
-            className="flex items-center gap-2 border-t border-white/10 p-3"
-          >
-            {voice.canListen && (
-              <button
-                type="button"
-                onClick={() => (voice.listening ? voice.stopListening() : voice.listen({ onFinal: (text) => send(text) }))}
-                aria-pressed={voice.listening}
-                aria-label={voice.listening ? 'Stop listening' : 'Speak to Kevin'}
-                title="Speak to Kevin"
-                className={`shrink-0 rounded-full p-2.5 transition ${
-                  voice.listening
-                    ? 'bg-[#f5c469] text-[#1b1305]'
-                    : 'border border-white/15 text-white/80 hover:border-[#f5c469]/70 hover:text-white'
-                }`}
-              >
-                <Mic size={18} />
-              </button>
+          <div className="px-4 pb-4 pt-1">
+            {!intakeDone && (
+              <p className="mb-2 text-center text-[11px] leading-snug text-white/35">
+                {strings.shareNote}{' '}
+                <Link href="/privacy" className="underline underline-offset-2 hover:text-white/70" onClick={() => setOpen(false)}>
+                  {strings.privacy}
+                </Link>
+              </p>
             )}
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={voice.listening ? strings.listening : strings.placeholder}
-              dir={rtl ? 'rtl' : 'auto'}
-              className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.06] px-4 py-2.5 text-base text-white placeholder:text-white/45 focus:border-[#f5c469]/70 focus:outline-none"
-            />
-            <button
-              type="submit"
-              disabled={busy || !input.trim()}
-              aria-label="Send"
-              className="shrink-0 rounded-full bg-[#f5c469] p-2.5 text-[#1b1305] transition enabled:hover:brightness-110 disabled:opacity-40"
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                send(input)
+              }}
+              className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.06] p-1.5 transition focus-within:border-white/25"
             >
-              <Send size={18} />
-            </button>
-          </form>
+              {voice.canListen && (
+                <button
+                  type="button"
+                  onClick={() => (voice.listening ? voice.stopListening() : voice.listen({ onFinal: (text) => send(text) }))}
+                  aria-pressed={voice.listening}
+                  aria-label={voice.listening ? 'Stop listening' : 'Speak to Kevin'}
+                  title="Speak to Kevin"
+                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition ${voice.listening ? 'bg-[#f5c469] text-[#1b1305]' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}
+                >
+                  <Mic size={19} />
+                </button>
+              )}
+              <input
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={voice.listening ? strings.listening : strings.placeholder}
+                dir={rtl ? 'rtl' : 'auto'}
+                className="min-w-0 flex-1 bg-transparent px-2 py-2 text-base text-white placeholder:text-white/35 focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={busy || !input.trim()}
+                aria-label="Send"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#f5c469] text-[#1b1305] transition enabled:hover:brightness-110 disabled:bg-white/10 disabled:text-white/30"
+              >
+                <ArrowUp size={19} strokeWidth={2.25} />
+              </button>
+            </form>
+          </div>
             </>
           )}
         </div>

@@ -14,15 +14,15 @@ export default function ResultCards({
 }) {
   if (cards.length === 0) return null
   return (
-    <ul className="flex gap-2.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Homes Kevin found">
+    <ul className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Homes Kevin found">
       {cards.map((card) => (
-        <li key={card.id} className="w-44 shrink-0">
+        <li key={card.id} className="w-48 shrink-0">
           <button
             type="button"
             onClick={() => onOpen(card.id)}
-            className="kevin-rise group block w-full overflow-hidden rounded-2xl border border-white/10 bg-white/[0.07] text-left transition hover:border-[#f5c469]/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f5c469]"
+            className="kevin-rise group block w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f5c469]"
           >
-            <span className="block h-24 w-full overflow-hidden bg-white/5">
+            <span className="block aspect-[4/3] w-full overflow-hidden rounded-2xl bg-white/5">
               {card.imageUrl && (
                 <img
                   src={card.imageUrl}
@@ -33,9 +33,9 @@ export default function ResultCards({
                 />
               )}
             </span>
-            <span className="block space-y-0.5 px-3 py-2">
-              <span className="block truncate text-sm font-medium text-white">{card.title}</span>
-              <span className="flex items-center gap-1 truncate text-xs text-white/60">
+            <span className="block space-y-0.5 px-0.5 pt-2.5">
+              <span className="block truncate text-[14px] font-medium text-white">{card.title}</span>
+              <span className="flex items-center gap-1 truncate text-[12px] text-white/50">
                 <MapPin size={11} className="shrink-0" />
                 <span className="truncate">{card.location}</span>
                 {card.bedrooms > 0 && (
@@ -45,7 +45,7 @@ export default function ResultCards({
                   </>
                 )}
               </span>
-              <span className="block truncate text-xs font-semibold text-[#f5c469]">{formatPrice(card)}</span>
+              <span className="block truncate pt-0.5 text-[13px] font-medium text-white/90">{formatPrice(card)}</span>
             </span>
           </button>
           {whatsapp && (
@@ -54,7 +54,7 @@ export default function ResultCards({
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => whatsapp.onTap(card)}
-              className="mt-1.5 flex min-h-9 items-center justify-center gap-1.5 rounded-full bg-[#25D366]/15 px-3 text-xs font-medium text-[#6ee79a] transition hover:bg-[#25D366]/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#25D366]"
+              className="mt-2 flex min-h-9 items-center gap-1.5 px-0.5 text-[12px] font-medium text-[#7ae6a0] transition hover:text-[#a5f2c1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#25D366]"
             >
               <MessageCircle size={13} aria-hidden="true" />
               <span className="truncate">{whatsapp.label}</span>
