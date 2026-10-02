@@ -72,9 +72,9 @@ html:not([data-fx="off"]) { --mobile-tabbar-h: calc(4rem + 8px + env(safe-area-i
 /* ---------- ambient liquid light behind everything ------------------------------------------------- */
 .fx-ambient { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
 .fx-ambient i { position: absolute; border-radius: 50%; will-change: transform; }
-.fx-ambient i:nth-child(1) { width: 62vmax; height: 62vmax; left: -18vmax; top: -22vmax; background: radial-gradient(closest-side, hsl(158 64% 52% / 0.30), transparent); animation: fx-drift-a 38s ease-in-out infinite alternate; }
-.fx-ambient i:nth-child(2) { width: 56vmax; height: 56vmax; right: -20vmax; top: 18vh; background: radial-gradient(closest-side, hsl(240 6% 60% / 0.20), transparent); animation: fx-drift-b 46s ease-in-out infinite alternate; }
-.fx-ambient i:nth-child(3) { width: 50vmax; height: 50vmax; left: 10vw; bottom: -26vmax; background: radial-gradient(closest-side, hsl(160 50% 45% / 0.18), transparent); animation: fx-drift-c 52s ease-in-out infinite alternate; }
+.fx-ambient i:nth-child(1) { width: 62vmax; height: 62vmax; left: -18vmax; top: -22vmax; background: radial-gradient(closest-side, hsl(158 64% 52% / 0.12), transparent); animation: fx-drift-a 38s ease-in-out infinite alternate; }
+.fx-ambient i:nth-child(2) { width: 56vmax; height: 56vmax; right: -20vmax; top: 18vh; background: radial-gradient(closest-side, hsl(240 6% 60% / 0.10), transparent); animation: fx-drift-b 46s ease-in-out infinite alternate; }
+.fx-ambient i:nth-child(3) { width: 50vmax; height: 50vmax; left: 10vw; bottom: -26vmax; background: radial-gradient(closest-side, hsl(160 50% 45% / 0.08), transparent); animation: fx-drift-c 52s ease-in-out infinite alternate; }
 @keyframes fx-drift-a { to { transform: translate3d(14vw, 10vh, 0) scale(1.15); } }
 @keyframes fx-drift-b { to { transform: translate3d(-16vw, -8vh, 0) scale(1.1); } }
 @keyframes fx-drift-c { to { transform: translate3d(12vw, -14vh, 0) scale(1.2); } }
