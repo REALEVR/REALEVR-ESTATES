@@ -1,4 +1,4 @@
-# Railway build config (Nixpacks — Railway's default builder).
+# Railway build config for the Nixpacks builder. Railpack (Railway's newer default) ignores this file; see railpack.json, which installs the same ffmpeg package.
 #
 # The guided room-capture -> virtual tour feature (server/video-frame-extractor.ts,
 # see docs/GUIDED_360_UPLOAD.md) shells out to the `ffmpeg`/`ffprobe` binaries at
