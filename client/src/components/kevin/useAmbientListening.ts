@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { isAboutProperties } from './propertyTalk'
+import { canCaptureSpeech, startCapture, type CaptureSession } from './speechCapture'
+import { pauseServerStt, serverSttAvailable, transcribeClip } from './serverStt'
 
 /**
  * Hands-free: keep the microphone open while the page is on screen, and when
@@ -21,6 +23,11 @@ import { isAboutProperties } from './propertyTalk'
  *    their own speech services); nothing is recorded or kept here. Only the
  *    phrase that wakes him is passed on, and only to be answered.
  *  - Short noises and single words ("uh", a cough) do not wake him.
+ *
+ * The better ear first: when the server can transcribe (ElevenLabs Scribe, see serverStt.ts) the microphone is watched and
+ * each spoken sentence is cut out and sent to be turned into text. That hears more accents and languages, makes no
+ * sound at all on a phone, and keeps every word, because a moment from before the first word is kept. It is limited
+ * to 40 sentences an hour; past that, or if the server cannot be used, the browser's own recogniser takes over as below.
  *
  * No clicking sounds: phones play a small tone every time the browser's speech recogniser starts or stops, and
  * a recogniser that keeps reopening in a quiet room would chirp over and over. So while nothing is being said the
@@ -73,7 +80,7 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
   useEffect(() => {
     if (!enabled) return
     const Recognition = recognitionConstructor()
-    if (!Recognition) {
+    if (!Recognition && !canCaptureSpeech()) {
       handlers.current.onProblem('unsupported')
       return
     }
@@ -100,6 +107,10 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
     /** One round with the recogniser: hear one sentence, then stop. Calls `done(heardSomething)` when it ends. */
     const listenOnce = (done: (consumed: boolean) => void) => {
       if (stopped) return
+      if (!Recognition) {
+        handlers.current.onProblem('unsupported')
+        return
+      }
       let woke = false
       let consumed = false
       let finished = false
@@ -250,10 +261,66 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
         legacyLoop()
       }
     }
-    void watch()
+    let session: CaptureSession | null = null
+    let sentThisHour: number[] = []
+
+    /** Hand over to the browser's recogniser (the meter-gated way) when the server cannot be used. */
+    const fallBack = () => {
+      session?.stop()
+      session = null
+      setActive(false)
+      if (!stopped) void watch()
+    }
+
+    const serverSession = () => {
+      setActive(true)
+      session = startCapture({
+        continuous: true,
+        silenceMs: 1000,
+        maxMs: 12_000,
+        preRollMs: 700,
+        onError: (reason) => {
+          if (reason === 'blocked') {
+            stopped = true
+            setActive(false)
+            handlers.current.onProblem('blocked')
+          } else fallBack()
+        },
+        onClip: (wav) => {
+          const now = Date.now()
+          sentThisHour = sentThisHour.filter((t) => now - t < 3_600_000)
+          if (sentThisHour.length >= 40) {
+            pauseServerStt(30)
+            fallBack()
+            return
+          }
+          sentThisHour.push(now)
+          void transcribeClip(wav, bcp47).then((text) => {
+            if (stopped) return
+            if (text === null) {
+              fallBack()
+              return
+            }
+            // Said, but not about property and not to him: let it pass, as a person in the room would.
+            if (!isMeaningfulSpeech(text) || !handlers.current.relevant(text)) return
+            handlers.current.onWake(text)
+            handlers.current.onUtterance(text)
+          })
+        },
+      })
+    }
+
+    void (async () => {
+      if (canCaptureSpeech() && (await serverSttAvailable())) {
+        if (!stopped) serverSession()
+      } else {
+        void watch()
+      }
+    })()
 
     return () => {
       stopped = true
+      session?.stop()
       clearTimeout(timer)
       releaseMeter()
       try {

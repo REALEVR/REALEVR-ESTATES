@@ -50,6 +50,7 @@ import { getAdminWhatsappNumbers, notifyAdminsEverywhere } from './admin-notify'
 import { detectUrgent, urgentReply } from '../../shared/urgent'
 import { audienceReply, AUDIENCES } from '../../shared/kevin-audience'
 import { configuredProvider } from './kevin-voice'
+import { elevenLabsConfigured, elevenLabsCredits } from './elevenlabs'
 import { currencyForCountry, placeFromCookieHeader, type Place } from '../../shared/africa'
 import {
     appendAgentMessage,
@@ -863,6 +864,13 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                         : 'No AI provider answered. Kevin still works from the listings (English only); check the key and the server log for "[gene/ai-provider]".',
                 },
                 voice: { provider: configuredProvider() },
+                elevenlabs: await (async () => {
+                    if (!elevenLabsConfigured()) return { configured: false, note: 'Set ELEVENLABS_API_KEY (a free account works) to give Kevin a human voice and better speech recognition.' }
+                    const c = await elevenLabsCredits(true)
+                    return c
+                        ? { configured: true, plan: c.tier, creditsLeft: c.remaining, creditsTotal: c.limit, note: c.remaining < 1000 ? 'Almost out of credits this month: Kevin quietly uses the device voice and the browser recogniser until they renew.' : 'Speech recognition (Scribe) and his voice are running on ElevenLabs.' }
+                        : { configured: true, note: 'The key is set but the account could not be read; check that it is valid.' }
+                })(),
                 whatsapp: { configured: !!wa, endsWith: wa ? wa.slice(-4) : null },
                 platform: snap
                     ? { liveListings: snap.total, upcoming: snap.upcoming.filter((u) => u.kind !== 'taken').length, areas: snap.locations.length }

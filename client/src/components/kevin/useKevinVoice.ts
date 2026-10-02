@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { canCaptureSpeech, startCapture, type CaptureSession } from './speechCapture'
+import { transcribeClip, useServerStt } from './serverStt'
 
 /**
  * Kevin's voice. Two sources, tried in this order:
@@ -139,6 +141,9 @@ export function useKevinVoice(bcp47: string | null) {
   const [speaking, setSpeaking] = useState(false)
   const [listening, setListening] = useState(false)
   const recognitionRef = useRef<any>(null)
+  const captureRef = useRef<CaptureSession | null>(null)
+  const captureEndRef = useRef<((info: { heard: boolean; error: string | null }) => void) | null>(null)
+  const serverStt = useServerStt() && canCaptureSpeech()
   // Bumped by every speak() and stop(), so the callbacks of an utterance that
   // was cancelled or replaced can tell they are stale and stay quiet.
   const speechRun = useRef(0)
@@ -257,7 +262,7 @@ export function useKevinVoice(bcp47: string | null) {
           fetch('/api/gene/speak', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: piece }),
+            body: JSON.stringify({ text: piece, lang: primaryLanguage(tag) }),
           })
             .then((r) => (r.ok ? r.blob() : null))
             .then((blob) => (blob ? URL.createObjectURL(blob) : null))
@@ -337,6 +342,10 @@ export function useKevinVoice(bcp47: string | null) {
     } catch {
       /* already stopped */
     }
+    if (captureRef.current) {
+      captureRef.current.stop()
+      captureEndRef.current?.({ heard: false, error: 'aborted' })
+    }
     setListening(false)
   }, [])
 
@@ -353,8 +362,41 @@ export function useKevinVoice(bcp47: string | null) {
       onFinal: (text: string) => void
       onEnd?: (info: { heard: boolean; error: string | null }) => void
     }) => {
-      if (!Recognition) return
+      if (!Recognition && !serverStt) return
       stop() // don't listen to ourselves
+      if (serverStt) {
+        // The better ear: cut out one sentence, send it to be transcribed. No tone from the phone, no interim words.
+        captureRef.current?.stop()
+        let finished = false
+        const end = (info: { heard: boolean; error: string | null }) => {
+          if (finished) return
+          finished = true
+          captureRef.current = null
+          captureEndRef.current = null
+          setListening(false)
+          handlers.onEnd?.(info)
+        }
+        captureEndRef.current = end
+        setListening(true)
+        captureRef.current = startCapture({
+          continuous: false,
+          noSpeechMs: 7000,
+          maxMs: 15000,
+          silenceMs: 1100,
+          onSpeechStart: () => handlers.onInterim?.('…'),
+          onClip: (wav) => {
+            void transcribeClip(wav, bcp47).then((text) => {
+              if (text) {
+                handlers.onFinal(text)
+                end({ heard: true, error: null })
+              } else end({ heard: false, error: text === null ? 'network' : 'no-speech' })
+            })
+          },
+          onNothing: () => end({ heard: false, error: 'no-speech' }),
+          onError: (reason) => end({ heard: false, error: reason === 'blocked' ? 'not-allowed' : 'audio-capture' }),
+        })
+        return
+      }
       const recognition = new Recognition()
       let heard = false
       let error: string | null = null
@@ -393,11 +435,12 @@ export function useKevinVoice(bcp47: string | null) {
         handlers.onEnd?.({ heard: false, error: 'start-failed' })
       }
     },
-    [Recognition, bcp47, stop],
+    [Recognition, bcp47, stop, serverStt],
   )
 
   // Leaving the page or unmounting must not leave Kevin talking to nobody.
   useEffect(() => () => {
+    captureRef.current?.stop()
     synth?.cancel()
     cancelClip.current?.()
     try {
@@ -414,7 +457,7 @@ export function useKevinVoice(bcp47: string | null) {
     speaking,
     speak,
     stop,
-    canListen: !!Recognition,
+    canListen: !!Recognition || serverStt,
     listening,
     listen,
     stopListening,
