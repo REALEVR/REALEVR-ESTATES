@@ -51,6 +51,7 @@ import { detectUrgent, urgentReply } from '../../shared/urgent'
 import { audienceReply, AUDIENCES } from '../../shared/kevin-audience'
 import { configuredProvider } from './kevin-voice'
 import { elevenLabsConfigured, elevenLabsCredits } from './elevenlabs'
+import { speechStatus } from './speech-providers'
 import { currencyForCountry, placeFromCookieHeader, type Place } from '../../shared/africa'
 import {
     appendAgentMessage,
@@ -864,6 +865,7 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                         : 'No AI provider answered. Kevin still works from the listings (English only); check the key and the server log for "[gene/ai-provider]".',
                 },
                 voice: { provider: configuredProvider() },
+                speech: speechStatus(),
                 elevenlabs: await (async () => {
                     if (!elevenLabsConfigured()) return { configured: false, note: 'Set ELEVENLABS_API_KEY (a free account works) to give Kevin a human voice and better speech recognition.' }
                     const c = await elevenLabsCredits(true)

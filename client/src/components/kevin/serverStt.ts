@@ -57,7 +57,7 @@ export function useServerStt(): boolean {
 /** The words in a clip: '' if nothing intelligible was said, null if the server could not be used. */
 export async function transcribeClip(wav: Blob, bcp47: string | null): Promise<string | null> {
   try {
-    const res = await fetch(`/api/gene/transcribe?lang=${encodeURIComponent((bcp47 || '').split('-')[0])}`, { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: wav })
+    const res = await fetch(`/api/gene/transcribe?lang=${encodeURIComponent(bcp47 || '')}`, { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: wav })
     if (!res.ok) {
       if (res.status === 429 || res.status === 501 || res.status >= 500) pauseServerStt()
       return null
