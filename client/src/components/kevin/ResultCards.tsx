@@ -20,7 +20,7 @@ export default function ResultCards({
           <button
             type="button"
             onClick={() => onOpen(card.id)}
-            className="kevin-rise group block w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ff9a4d]"
+            className="kevin-rise group block w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#36d399]"
           >
             <span className="block aspect-[4/3] w-full overflow-hidden rounded-2xl bg-white/5">
               {card.imageUrl && (

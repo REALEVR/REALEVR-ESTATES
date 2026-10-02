@@ -42,20 +42,8 @@ export default {
         },
         accent: {
           DEFAULT: "hsl(var(--accent))",
+          light: "hsl(var(--accent-light))",
           foreground: "hsl(var(--accent-foreground))",
-        },
-        sunrise: {
-          DEFAULT: "hsl(var(--gold))",
-          foreground: "hsl(var(--gold-foreground))",
-        },
-        lagoon: {
-          DEFAULT: "hsl(var(--lagoon))",
-          bright: "hsl(var(--lagoon-bright))",
-          foreground: "hsl(var(--lagoon-foreground))",
-        },
-        hibiscus: {
-          DEFAULT: "hsl(var(--hibiscus))",
-          foreground: "hsl(var(--hibiscus-foreground))",
         },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",

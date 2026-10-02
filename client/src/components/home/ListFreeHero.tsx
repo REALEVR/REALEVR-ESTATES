@@ -22,15 +22,15 @@ const bankSaleLink = whatsAppLink(
 export default function ListFreeHero() {
   const { choose } = usePlace();
   return (
-    <section className="relative -mx-4 overflow-hidden bg-[hsl(256_45%_9%)] text-white sm:-mx-6 lg:-mx-8">
-      <div className="absolute inset-0 bg-[radial-gradient(60%_80%_at_85%_0%,hsl(24_100%_58%/0.28),transparent_60%),radial-gradient(50%_60%_at_0%_100%,hsl(258_76%_46%/0.35),transparent_65%)]" />
+    <section className="relative -mx-4 overflow-hidden bg-[hsl(240_6%_8%)] text-white sm:-mx-6 lg:-mx-8">
+      <div className="absolute inset-0 bg-[radial-gradient(60%_80%_at_85%_0%,hsl(158_64%_52%/0.28),transparent_60%),radial-gradient(50%_60%_at_0%_100%,hsl(160_72%_26%/0.35),transparent_65%)]" />
       <div className="relative mx-auto max-w-[1500px] px-4 py-14 md:px-8 md:py-24">
-        <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-[hsl(24_100%_58%)] px-3 py-1 text-xs font-bold text-[hsl(256_45%_12%)]">
+        <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-[hsl(158_64%_52%)] px-3 py-1 text-xs font-bold text-[hsl(240_6%_10%)]">
           Free to list · no fee, ever
         </p>
         <h1 className="font-display text-4xl font-bold leading-[1.05] md:text-6xl lg:text-7xl">
           List your property in Africa.
-          <span className="block italic text-[hsl(24_100%_58%)]">Free, with a 360° tour.</span>
+          <span className="block italic text-[hsl(158_64%_52%)]">Free, with a 360° tour.</span>
         </h1>
         <p className="mt-5 max-w-2xl text-base text-white/80 md:text-lg">
           Own, manage or sell a property in any of 54 African countries? List it on RealEVR Estates at no cost. The owner confirms it
@@ -44,10 +44,10 @@ export default function ListFreeHero() {
               href={href}
               data-magnet className="group rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur transition hover:bg-white/15"
             >
-              <Icon className="mb-3 h-6 w-6 text-[hsl(24_100%_58%)]" aria-hidden="true" />
+              <Icon className="mb-3 h-6 w-6 text-[hsl(158_64%_52%)]" aria-hidden="true" />
               <div className="font-semibold">{label}</div>
               <div className="text-sm text-white/70">{note}</div>
-              <div className="mt-3 text-sm font-semibold text-[hsl(24_100%_58%)] group-hover:underline">List free →</div>
+              <div className="mt-3 text-sm font-semibold text-[hsl(158_64%_52%)] group-hover:underline">List free →</div>
             </Link>
           ))}
           <a
@@ -56,10 +56,10 @@ export default function ListFreeHero() {
             rel="noopener noreferrer"
             data-magnet className="group rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur transition hover:bg-white/15"
           >
-            <Gavel className="mb-3 h-6 w-6 text-[hsl(24_100%_58%)]" aria-hidden="true" />
+            <Gavel className="mb-3 h-6 w-6 text-[hsl(158_64%_52%)]" aria-hidden="true" />
             <div className="font-semibold">Bank sales &amp; auctions</div>
             <div className="text-sm text-white/70">Our team sets these up with you</div>
-            <div className="mt-3 text-sm font-semibold text-[hsl(24_100%_58%)] group-hover:underline">Message us →</div>
+            <div className="mt-3 text-sm font-semibold text-[hsl(158_64%_52%)] group-hover:underline">Message us →</div>
           </a>
         </div>
 

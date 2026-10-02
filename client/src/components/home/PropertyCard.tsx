@@ -59,7 +59,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                 }}
             >
                 <article aria-label={property.title}>
-                    <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-muted shadow-[0_1px_2px_hsl(256_45%_12%/0.08)]">
+                    <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-muted shadow-[0_1px_2px_hsl(240_6%_10%/0.08)]">
                         <FadeIn className="h-full w-full">
                             {/* Lazy: a grid of these used to fetch every photo at once, a real cost on mobile data. */}
                             <img
@@ -110,7 +110,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                                 aria-pressed={isFavorite}
                             >
                                 <Heart
-                                    className={`h-4 w-4 ${isFavorite ? 'fill-hibiscus text-hibiscus' : ''}`}
+                                    className={`h-4 w-4 ${isFavorite ? 'fill-foreground text-foreground' : ''}`}
                                     aria-hidden="true"
                                 />
                             </button>

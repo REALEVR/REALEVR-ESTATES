@@ -60,9 +60,9 @@ export default function AuctionPanel({ propertyId }: { propertyId: number }) {
 
   return (
     <section className="mb-8 overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-label="Live auction">
-      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-[hsl(256_45%_9%)] px-4 py-3 text-white sm:px-5">
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-[hsl(240_6%_8%)] px-4 py-3 text-white sm:px-5">
         <div className="flex items-center gap-2.5">
-          <Gavel className="h-5 w-5 text-[hsl(24_100%_58%)]" aria-hidden="true" />
+          <Gavel className="h-5 w-5 text-[hsl(158_64%_52%)]" aria-hidden="true" />
           <span className="whitespace-nowrap font-display text-sm font-bold uppercase tracking-[0.14em]">Live auction</span>
           {phase === "live" && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-bold">
@@ -75,7 +75,7 @@ export default function AuctionPanel({ propertyId }: { propertyId: number }) {
         <div className="flex items-center gap-2 text-sm" aria-live="off">
           <Clock className="h-4 w-4 opacity-80" aria-hidden="true" />
           {phase === "live" && (
-            <span className={`font-mono text-lg font-bold tabular-nums ${urgent ? "text-red-300" : "text-[hsl(24_100%_58%)]"}`} role="timer" aria-label={`Time left ${formatLeft(left)}`}>
+            <span className={`font-mono text-lg font-bold tabular-nums ${urgent ? "text-red-300" : "text-[hsl(158_64%_52%)]"}`} role="timer" aria-label={`Time left ${formatLeft(left)}`}>
               {formatLeft(left)}
             </span>
           )}

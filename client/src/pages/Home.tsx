@@ -252,7 +252,7 @@ export default function Home() {
                             <Button
                                 asChild
                                 variant="outline"
-                                className="h-auto rounded-full border-white/60 bg-transparent px-8 py-3 text-lg font-semibold text-white hover:bg-white hover:text-[hsl(256_45%_13%)]"
+                                className="h-auto rounded-full border-foreground/50 bg-transparent px-8 py-3 text-lg font-semibold text-foreground hover:bg-foreground hover:text-background"
                             >
                                 <Link href="/list-your-property">List a Property</Link>
                             </Button>

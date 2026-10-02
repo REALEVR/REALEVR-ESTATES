@@ -308,8 +308,8 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             animate="show"
             variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.05 } } }}
           >
-            <motion.div variants={riseIn} className="mb-6 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[hsl(var(--lagoon))]">
-              <span className="h-2.5 w-2.5 rounded-full bg-[hsl(var(--lagoon))]" aria-hidden="true" />
+            <motion.div variants={riseIn} className="mb-6 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
+              <span className="h-2.5 w-2.5 rounded-full bg-primary" aria-hidden="true" />
               360° tours · across Africa
             </motion.div>
             <motion.h1 variants={riseIn} className="font-display text-6xl font-bold leading-[1.02] tracking-[-0.035em] text-foreground lg:text-[4.25rem]">
@@ -355,7 +355,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           </motion.div>
 
           <motion.div
-            className="relative h-[560px] overflow-hidden rounded-[2.75rem] bg-[hsl(256_45%_9%)] shadow-[var(--elev-3)] lg:h-[620px]"
+            className="relative h-[560px] overflow-hidden rounded-[2.75rem] bg-[hsl(240_6%_8%)] shadow-[var(--elev-3)] lg:h-[620px]"
             initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.7, ease: EASE_OUT }}
@@ -368,11 +368,11 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
               style={{ y: bgY, scale: 1.12, ['--depth' as string]: '-8px' }}
             />
             {/* Ink rising from the bottom so the card and the pill always read, whatever the photo is. */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[hsl(256_45%_8%/0.82)] via-[hsl(256_45%_10%/0.12)] to-[hsl(256_45%_10%/0.28)]" />
-            <div className="absolute left-7 top-7 flex items-center gap-2 rounded-full bg-white/95 py-2 pl-3.5 pr-4 text-sm font-semibold text-foreground shadow-sm">
+            <div className="absolute inset-0 bg-gradient-to-t from-[hsl(240_6%_6%/0.82)] via-[hsl(240_6%_10%/0.12)] to-[hsl(240_6%_10%/0.28)]" />
+            <div className="absolute left-7 top-7 flex items-center gap-2 rounded-full bg-card/95 py-2 pl-3.5 pr-4 text-sm font-semibold text-foreground shadow-sm">
               <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-[hsl(var(--lagoon-bright))] opacity-70 motion-safe:animate-ping" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[hsl(var(--lagoon-bright))]" />
+                <span className="absolute inline-flex h-full w-full rounded-full bg-[hsl(var(--accent-light))] opacity-70 motion-safe:animate-ping" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[hsl(var(--accent-light))]" />
               </span>
               Tour live now
             </div>
@@ -496,12 +496,12 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
         onMouseLeave={() => setIsSlidePaused(false)}
       >
         {heroSlide === 'news' ? (
-          <div className="relative w-full aspect-[4/3] md:aspect-auto md:h-[520px] lg:h-[600px] rounded-3xl shadow-[0_8px_30px_-8px_rgba(26,18,48,0.35)] overflow-hidden bg-muted">
+          <div className="relative w-full aspect-[4/3] md:aspect-auto md:h-[520px] lg:h-[600px] rounded-3xl shadow-[0_8px_30px_-8px_rgba(24, 24, 27,0.35)] overflow-hidden bg-muted">
             <HeroNewsSlide active={heroSlide === 'news'} />
           </div>
         ) : videoUrl && !showImage ? (
           // Video content - full width and height
-          <div className="relative w-full aspect-[4/3] md:aspect-auto md:h-[520px] lg:h-[600px] rounded-3xl shadow-[0_8px_30px_-8px_rgba(26,18,48,0.35)] overflow-hidden">
+          <div className="relative w-full aspect-[4/3] md:aspect-auto md:h-[520px] lg:h-[600px] rounded-3xl shadow-[0_8px_30px_-8px_rgba(24, 24, 27,0.35)] overflow-hidden">
             {/* Loading spinner — suppressed while the tap-to-play facade is
                 showing, since nothing is actually loading yet at that point. */}
             {isVideoLoading && !showYoutubeFacade && (
@@ -586,7 +586,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           // flat, uncomposited photo — a small thing, but it's what most of
           // this page's visitors actually see before any admin-configured
           // video is set.
-          <div className="relative w-full aspect-[4/3] md:aspect-auto md:h-[520px] lg:h-[600px] rounded-3xl shadow-[0_8px_30px_-8px_rgba(26,18,48,0.35)] overflow-hidden">
+          <div className="relative w-full aspect-[4/3] md:aspect-auto md:h-[520px] lg:h-[600px] rounded-3xl shadow-[0_8px_30px_-8px_rgba(24, 24, 27,0.35)] overflow-hidden">
             <motion.img
               src={houseImg}
               alt="Modern house"

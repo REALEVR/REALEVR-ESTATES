@@ -39,57 +39,48 @@
  * warning color, not just a palette-matched tone.
  */
 :root {
-  /* v5 "Jacaranda & Sunrise" (colour refresh). The structure above is unchanged — only the hues moved,
-     so every component on semantic tokens re-themes for free.
-       Violet  (--primary / --accent)  brand, navigation, links, active states. White text: 7.4:1.
-       Sunrise (--gold)                the highest-intent actions (Search, Pay Rent, 360 tour chip). Ink text: 7.2:1.
-       Lagoon  (--lagoon)              "verified / virtual tour ready" signals. White text: 4.6:1 on the deep tone.
-       Hibiscus(--hibiscus)            favourites and "hot" moments. White text: 5.2:1.
-     Each hue has ONE job; --destructive stays a true red for warnings. Ink is a violet-tinted near-black. */
-  --background: 262 60% 98%;     /* faint lavender white #F9F7FD */
-  --foreground: 256 45% 13%;     /* violet ink #1A1230 — 16.8:1 on the page */
-  --muted: 258 40% 95%;
-  --muted-foreground: 256 14% 38%;
-  --popover: 60 100% 100%;
-  --popover-foreground: 256 45% 13%;
-  --card: 60 100% 100%;          /* near-pure white — pops slightly off the alabaster page bg */
-  --card-foreground: 256 45% 13%;
-  --border: 258 30% 89%;
-  --input: 258 30% 89%;
-  --primary: 258 80% 52%;        /* jacaranda violet */
-  --primary-foreground: 0 0% 100%;
-  --secondary: 258 45% 95%;
-  --secondary-foreground: 256 45% 13%;
-  /* Golden hour: the one confident tone is a deep gold (#935E10), 5.1:1 on the
-     alabaster page for text and 5.3:1 behind white text, so it can carry
-     links, active states and buttons. --gold is its bright sibling for dark
-     surfaces and the "360 tour" signature, always with ink text on it. */
-  --accent: 258 76% 46%;         /* deeper violet for links and text-weight accents (8.6:1 on the page) */
-  --accent-foreground: 0 0% 100%;
-  --gold: 24 100% 58%;           /* sunrise orange (name kept for compatibility) */
-  --gold-foreground: 256 45% 12%;
-  --lagoon: 174 85% 28%;         /* deep teal: text and fills with white on top */
-  --lagoon-bright: 172 70% 48%;  /* bright teal for dark surfaces, ink text on top */
-  --lagoon-foreground: 0 0% 100%;
-  --hibiscus: 332 78% 46%;       /* favourites, hot */
-  --hibiscus-foreground: 0 0% 100%;
-  --destructive: 4 66% 48%;      /* semantic-only exception, see above */
+  /* v6 "Zinc & Emerald" (colour refresh, following the taste skill's colour rules).
+     One neutral family (cool zinc), ONE accent (deep emerald, saturation under 80%), no purple, no warm paper/brass.
+     The accent does every job: brand, links, active states, prices, primary actions, the 360 tour chip.
+     Distinction between actions comes from weight and size, never from a second hue. --destructive stays a true
+     red for warnings. No pure black and no pure white: ink is #18181B, surfaces top out at #FCFCFD.
+     Contrast: off-white on accent 5.7:1, accent text on page 5.5:1, ink on page 16.5:1, muted text on page 6.6:1. */
+  --background: 240 5% 97%;      /* zinc paper #F7F7F8 */
+  --foreground: 240 6% 10%;      /* off-black #18181B */
+  --muted: 240 5% 94%;
+  --muted-foreground: 240 4% 36%;
+  --popover: 240 10% 99%;
+  --popover-foreground: 240 6% 10%;
+  --card: 240 10% 99%;           /* #FCFCFD, lifts off the page without pure white */
+  --card-foreground: 240 6% 10%;
+  --border: 240 6% 88%;
+  --input: 240 6% 88%;
+  --primary: 160 72% 26%;        /* deep emerald #137252, the one accent */
+  --primary-foreground: 0 0% 98%;
+  --secondary: 240 5% 94%;
+  --secondary-foreground: 240 6% 10%;
+  --accent: 160 72% 26%;         /* same accent for links and text-weight uses */
+  --accent-foreground: 0 0% 98%;
+  --accent-light: 158 64% 52%;   /* the same accent lifted for dark surfaces and the live dot, ink text on top */
+  --gold: 160 72% 26%;           /* legacy name: the signature accent (tour chip, shine CTA). Same hue as --accent. */
+  --gold-foreground: 0 0% 98%;
+  --destructive: 4 66% 48%;      /* semantic-only exception */
   --destructive-foreground: 0 0% 98%;
-  --ring: 258 80% 52%;
+  --ring: 160 72% 26%;
   --radius: 0.6rem;
-  --chart-1: 258 80% 52%;
-  --chart-2: 24 100% 58%;
-  --chart-3: 174 85% 36%;
-  --chart-4: 332 78% 52%;
-  --chart-5: 258 30% 72%;
-  --sidebar-background: 60 100% 100%;
-  --sidebar-foreground: 256 45% 13%;
-  --sidebar-primary: 258 80% 52%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 258 45% 95%;
-  --sidebar-accent-foreground: 256 45% 13%;
-  --sidebar-border: 258 30% 89%;
-  --sidebar-ring: 258 80% 52%;
+  --chart-1: 160 72% 26%;
+  --chart-2: 240 5% 46%;
+  --chart-3: 240 5% 62%;
+  --chart-4: 160 40% 55%;
+  --chart-5: 240 6% 80%;
+  --sidebar-background: 240 10% 99%;
+  --sidebar-foreground: 240 6% 10%;
+  --sidebar-primary: 160 72% 26%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent: 240 5% 94%;
+  --sidebar-accent-foreground: 240 6% 10%;
+  --sidebar-border: 240 6% 88%;
+  --sidebar-ring: 160 72% 26%;
 
   /* Motion tokens (Emil Kowalski): strong curves, short durations. UI under 300ms; only transform and opacity animate. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -157,15 +148,17 @@
    used inside an element with this class automatically resolves to these
    scoped values instead of the page-level `:root` ones. */
 .surface-invert {
-  --background: 256 45% 9%;
-  --foreground: 262 40% 97%;
-  --card: 256 45% 9%;
-  --card-foreground: 262 40% 97%;
-  --border: 256 25% 22%;
-  --muted: 256 28% 15%;
-  --muted-foreground: 258 20% 72%;
-  --accent: 24 100% 62%;
-  --accent-foreground: 256 45% 12%;
+  --background: 240 6% 8%;
+  --foreground: 240 10% 96%;
+  --card: 240 6% 8%;
+  --card-foreground: 240 10% 96%;
+  --border: 240 4% 20%;
+  --muted: 240 5% 14%;
+  --muted-foreground: 240 5% 70%;
+  --accent: 158 64% 52%;
+  --accent-foreground: 240 6% 8%;
+  --gold: 158 64% 52%;
+  --gold-foreground: 240 6% 8%;
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
 }
@@ -181,18 +174,17 @@
   100% { background-position: 200% 50%; }
 }
 .shine {
-  /* Sunrise metal: bright and deep orange stops that never go pale, with ink
-     text (about 9:1 on the lightest stop, 5.6:1 on the darkest). */
+  /* The accent with a slight vertical sheen. Text is off-white at 4.6:1 or better on every stop. */
   background: linear-gradient(120deg,
-    hsl(32 100% 66%) 0%, hsl(26 100% 60%) 30%, hsl(20 98% 55%) 55%,
-    hsl(30 100% 63%) 80%, hsl(24 100% 58%) 100%);
+    hsl(160 70% 30%) 0%, hsl(160 72% 26%) 35%, hsl(160 74% 23%) 65%,
+    hsl(160 70% 29%) 100%);
   background-size: 250% 250%;
   /* Still at rest; the sweep plays only while pointing at it. A permanent shimmer on a button seen all day is noise. */
   transition: transform 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
   color: hsl(var(--gold-foreground));
   font-weight: 600;
-  border: 1px solid hsla(0, 0%, 100%, 0.45);
-  box-shadow: inset 0 1px 0 hsla(0, 0%, 100%, 0.55), 0 4px 16px hsl(20 98% 45% / 0.35);
+  border: 1px solid hsla(0, 0%, 100%, 0.22);
+  box-shadow: inset 0 1px 0 hsla(0, 0%, 100%, 0.22), 0 4px 14px hsl(160 72% 20% / 0.28);
 }
 @media (hover: hover) and (pointer: fine) {
   .shine:hover { animation: shine-sweep 1.8s var(--ease-in-out) infinite; }
@@ -302,10 +294,10 @@
  * rather than black so shadows sit naturally on the alabaster background.
  */
 :root {
-  --elev-1: 0 1px 2px hsl(256 45% 13% / 0.07), 0 2px 6px hsl(256 45% 13% / 0.05);
-  --elev-2: 0 2px 4px hsl(256 45% 13% / 0.06), 0 8px 18px hsl(256 45% 13% / 0.09);
-  --elev-3: 0 4px 8px hsl(256 45% 13% / 0.07), 0 16px 32px hsl(256 45% 13% / 0.14), 0 32px 60px -12px hsl(256 45% 13% / 0.16);
-  --elev-4: 0 8px 14px hsl(256 45% 13% / 0.08), 0 28px 52px hsl(256 45% 13% / 0.2), 0 52px 90px -16px hsl(256 45% 13% / 0.24);
+  --elev-1: 0 1px 2px hsl(240 6% 10% / 0.07), 0 2px 6px hsl(240 6% 10% / 0.05);
+  --elev-2: 0 2px 4px hsl(240 6% 10% / 0.06), 0 8px 18px hsl(240 6% 10% / 0.09);
+  --elev-3: 0 4px 8px hsl(240 6% 10% / 0.07), 0 16px 32px hsl(240 6% 10% / 0.14), 0 32px 60px -12px hsl(240 6% 10% / 0.16);
+  --elev-4: 0 8px 14px hsl(240 6% 10% / 0.08), 0 28px 52px hsl(240 6% 10% / 0.2), 0 52px 90px -16px hsl(240 6% 10% / 0.24);
 }
 .elev-1 { box-shadow: var(--elev-1); }
 .elev-2 { box-shadow: var(--elev-2); }
@@ -463,7 +455,7 @@ body {
   line-height: 1;
   letter-spacing: 0.02em;
   padding: 0.38rem 0.6rem;
-  box-shadow: 0 1px 2px hsl(256 45% 12% / 0.25), 0 4px 10px hsl(256 45% 12% / 0.18);
+  box-shadow: 0 1px 2px hsl(240 6% 10% / 0.25), 0 4px 10px hsl(240 6% 10% / 0.18);
 }
 
 /* Phone feed: sections that were grids become swipeable rails (Airbnb's pattern),
@@ -497,7 +489,7 @@ body {
   font-family: var(--font-display); font-weight: 600; letter-spacing: -0.01em; font-size: 1.375rem; line-height: 1.2;
   /* a sunrise highlighter stroke under the words: colour on every section, no extra element */
   display: inline-block; padding: 0 0.15em; margin-left: -0.15em;
-  background: linear-gradient(transparent 64%, hsl(24 100% 58% / 0.38) 64%, hsl(24 100% 58% / 0.38) 90%, transparent 90%);
+  background: linear-gradient(transparent 64%, hsl(158 64% 52% / 0.38) 64%, hsl(158 64% 52% / 0.38) 90%, transparent 90%);
 }
 @media (min-width: 768px) { .section-title { font-size: 1.75rem; } }
 
@@ -506,11 +498,11 @@ body {
 .property-card.tilt:hover { box-shadow: none; }
 .property-card.tilt::after { display: none; }
 .property-card article { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
-@media (hover: hover) and (pointer: fine) { .property-card:hover article > div:first-child { box-shadow: 0 14px 30px -10px hsl(256 45% 12% / 0.35); } }
+@media (hover: hover) and (pointer: fine) { .property-card:hover article > div:first-child { box-shadow: 0 14px 30px -10px hsl(240 6% 10% / 0.35); } }
 
 /* A new top bid makes the price flash gold. */
 @keyframes bidflash {
-  0% { background-color: hsl(24 100% 58% / 0.55); transform: scale(1.03); }
+  0% { background-color: hsl(158 64% 52% / 0.55); transform: scale(1.03); }
   100% { background-color: transparent; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {

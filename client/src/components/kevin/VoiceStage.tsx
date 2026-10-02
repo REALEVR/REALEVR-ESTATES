@@ -50,12 +50,12 @@ export default function VoiceStage({ phase, heard, reply, cards, strings, hint, 
           type="button"
           onClick={onOrbTap}
           aria-label={label}
-          className="relative block h-28 w-28 shrink-0 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff9a4d] md:h-32 md:w-32 [@media(max-height:520px)]:h-16 [@media(max-height:520px)]:w-16"
+          className="relative block h-28 w-28 shrink-0 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#36d399] md:h-32 md:w-32 [@media(max-height:520px)]:h-16 [@media(max-height:520px)]:w-16"
         >
           <Orb speaking={phase === 'speaking'} listening={phase === 'listening'} thinking={phase === 'thinking'} />
         </button>
 
-        <p className="h-5 text-xs uppercase tracking-[0.22em] text-[#ff9a4d]" role="status">
+        <p className="h-5 text-xs uppercase tracking-[0.22em] text-[#36d399]" role="status">
           {status}
         </p>
 
@@ -102,7 +102,7 @@ export default function VoiceStage({ phase, heard, reply, cards, strings, hint, 
         <button
           type="button"
           onClick={onType}
-          className="flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-sm text-white/80 transition hover:border-[#ff9a4d]/70 hover:text-white"
+          className="flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-sm text-white/80 transition hover:border-[#36d399]/70 hover:text-white"
         >
           <Keyboard size={16} />
           {strings.typeInstead}
