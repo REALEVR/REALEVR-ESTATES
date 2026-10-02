@@ -468,6 +468,13 @@ export function registerWhatsappConciergeRoutes(app: Express): void {
             const messages = value?.messages
             if (!Array.isArray(messages) || messages.length === 0) return
 
+            // One line per delivery so a "no reply" report can be traced: who (last 4 digits only), which
+            // WhatsApp number it reached, and whether it matches the number replies are sent from.
+            console.log(
+                `[gene/whatsapp] inbound ${messages.length} message(s) from ...${String(messages[0]?.from ?? '').slice(-4)} ` +
+                    `to number id ${value?.metadata?.phone_number_id ?? '?'} (replies use ${(process.env.WHATSAPP_PHONE_NUMBER_ID || '').trim() || 'none'}), signed=${verified}`
+            )
+
             for (const msg of messages) {
                 const phone = normalizePhone(msg?.from ?? '')
                 if (!phone) continue

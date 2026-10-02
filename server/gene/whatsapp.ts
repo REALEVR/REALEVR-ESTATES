@@ -130,7 +130,7 @@ async function sendViaMetaText(to: string, body: string): Promise<{ sent: boolea
                 const viaTemplate = await sendViaMetaTemplate(to, body)
                 if (viaTemplate) return viaTemplate
             }
-            console.error(`[gene/whatsapp] send failed (${response.status}): ${errText}`)
+            console.error(`[gene/whatsapp] send failed (${response.status}) from number id "${phoneNumberId}": ${errText}`)
             return { sent: false, reason: isOutsideWindow(errText) ? 'More than 24 hours since this person last messaged the number, and no WHATSAPP_ALERT_TEMPLATE is set' : `WhatsApp API returned ${response.status}` }
         }
 
