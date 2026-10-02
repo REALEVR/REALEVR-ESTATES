@@ -29,6 +29,7 @@ money, deleting anything. The assistant tells you when one is waiting and sends 
    accepted at all, and the owner assistant listens. **Without it the assistant stays off**, because anyone could pretend to be you.
    Using Infobip instead: set `INFOBIP_WEBHOOK_SECRET` to a long random string and add `?key=<that string>` to the Infobip webhook
    address, `https://<your site>/api/gene/whatsapp/webhook/infobip?key=...`.
+   If Infobip variables are also present, set `WHATSAPP_PROVIDER=meta` so replies and alerts go out through Meta.
 2. Meta webhook: callback URL `https://<your site>/api/gene/whatsapp/webhook`, verify token = `WHATSAPP_VERIFY_TOKEN`, subscribe to `messages`.
 3. Optional: `OWNER_WHATSAPP_PIN` (a number only you know).
 4. Optional but recommended: **`WHATSAPP_ALERT_TEMPLATE`**, see below.
