@@ -298,8 +298,10 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           style={{ y: bgY, scale: 1.12, ['--depth' as string]: '-10px' }}
         />
         {/* Dusk: ink rising from the left and the bottom, so white type has 7:1 or better wherever it sits. */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[hsl(235_30%_8%/0.88)] via-[hsl(235_30%_8%/0.55)] to-[hsl(235_30%_8%/0.1)]" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[hsl(235_30%_8%/0.75)] via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[hsl(262_70%_12%/0.9)] via-[hsl(262_60%_20%/0.55)] to-[hsl(262_60%_30%/0.08)]" />
+        {/* a low sunrise glow behind the headline so the hero has colour even over a grey photo */}
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_70%_at_8%_105%,hsl(24_100%_58%/0.42),transparent_70%),radial-gradient(45%_55%_at_95%_0%,hsl(258_85%_62%/0.35),transparent_70%)]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[hsl(256_45%_7%/0.75)] via-transparent to-transparent" />
 
         <div className="relative z-10 mx-auto flex min-h-[640px] max-w-[1500px] flex-col justify-end gap-10 px-8 pb-14 pt-24 lg:min-h-[700px]">
           <motion.div
@@ -444,12 +446,12 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
         onMouseLeave={() => setIsSlidePaused(false)}
       >
         {heroSlide === 'news' ? (
-          <div className="relative w-full aspect-[4/3] md:aspect-auto md:h-[520px] lg:h-[600px] rounded-3xl shadow-[0_8px_30px_-8px_rgba(31,32,55,0.35)] overflow-hidden bg-muted">
+          <div className="relative w-full aspect-[4/3] md:aspect-auto md:h-[520px] lg:h-[600px] rounded-3xl shadow-[0_8px_30px_-8px_rgba(26,18,48,0.35)] overflow-hidden bg-muted">
             <HeroNewsSlide active={heroSlide === 'news'} />
           </div>
         ) : videoUrl && !showImage ? (
           // Video content - full width and height
-          <div className="relative w-full aspect-[4/3] md:aspect-auto md:h-[520px] lg:h-[600px] rounded-3xl shadow-[0_8px_30px_-8px_rgba(31,32,55,0.35)] overflow-hidden">
+          <div className="relative w-full aspect-[4/3] md:aspect-auto md:h-[520px] lg:h-[600px] rounded-3xl shadow-[0_8px_30px_-8px_rgba(26,18,48,0.35)] overflow-hidden">
             {/* Loading spinner — suppressed while the tap-to-play facade is
                 showing, since nothing is actually loading yet at that point. */}
             {isVideoLoading && !showYoutubeFacade && (
@@ -534,7 +536,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           // flat, uncomposited photo — a small thing, but it's what most of
           // this page's visitors actually see before any admin-configured
           // video is set.
-          <div className="relative w-full aspect-[4/3] md:aspect-auto md:h-[520px] lg:h-[600px] rounded-3xl shadow-[0_8px_30px_-8px_rgba(31,32,55,0.35)] overflow-hidden">
+          <div className="relative w-full aspect-[4/3] md:aspect-auto md:h-[520px] lg:h-[600px] rounded-3xl shadow-[0_8px_30px_-8px_rgba(26,18,48,0.35)] overflow-hidden">
             <motion.img
               src={houseImg}
               alt="Modern house"

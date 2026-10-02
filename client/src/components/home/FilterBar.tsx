@@ -36,8 +36,8 @@ export default function FilterBar() {
                 aria-current={active ? "page" : undefined}
                 className={`group flex min-h-[64px] min-w-[72px] shrink-0 flex-col items-center justify-center gap-1.5 border-b-2 px-3 pb-2 pt-3 text-[13px] font-medium transition-colors ${
                   active
-                    ? "border-foreground text-foreground"
-                    : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:border-primary/40 hover:text-foreground"
                 }`}
               >
                 <Icon className="h-6 w-6" strokeWidth={active ? 2.25 : 1.75} aria-hidden="true" />

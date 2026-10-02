@@ -39,45 +39,57 @@
  * warning color, not just a palette-matched tone.
  */
 :root {
-  --background: 60 20% 98%;      /* Soft Alabaster White #FBFBF9 — 60% */
-  --foreground: 235 21% 21%;     /* Deep Charcoal/Onyx #2B2D42 — 30% */
-  --muted: 48 22% 93%;
-  --muted-foreground: 100 5% 37%;
+  /* v5 "Jacaranda & Sunrise" (colour refresh). The structure above is unchanged — only the hues moved,
+     so every component on semantic tokens re-themes for free.
+       Violet  (--primary / --accent)  brand, navigation, links, active states. White text: 7.4:1.
+       Sunrise (--gold)                the highest-intent actions (Search, Pay Rent, 360 tour chip). Ink text: 7.2:1.
+       Lagoon  (--lagoon)              "verified / virtual tour ready" signals. White text: 4.6:1 on the deep tone.
+       Hibiscus(--hibiscus)            favourites and "hot" moments. White text: 5.2:1.
+     Each hue has ONE job; --destructive stays a true red for warnings. Ink is a violet-tinted near-black. */
+  --background: 262 60% 98%;     /* faint lavender white #F9F7FD */
+  --foreground: 256 45% 13%;     /* violet ink #1A1230 — 16.8:1 on the page */
+  --muted: 258 40% 95%;
+  --muted-foreground: 256 14% 38%;
   --popover: 60 100% 100%;
-  --popover-foreground: 235 21% 21%;
+  --popover-foreground: 256 45% 13%;
   --card: 60 100% 100%;          /* near-pure white — pops slightly off the alabaster page bg */
-  --card-foreground: 235 21% 21%;
-  --border: 46 23% 85%;
-  --input: 46 23% 85%;
-  --primary: 235 21% 21%;        /* charcoal */
-  --primary-foreground: 60 20% 98%;
-  --secondary: 48 22% 93%;
-  --secondary-foreground: 235 21% 21%;
+  --card-foreground: 256 45% 13%;
+  --border: 258 30% 89%;
+  --input: 258 30% 89%;
+  --primary: 258 80% 52%;        /* jacaranda violet */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 258 45% 95%;
+  --secondary-foreground: 256 45% 13%;
   /* Golden hour: the one confident tone is a deep gold (#935E10), 5.1:1 on the
      alabaster page for text and 5.3:1 behind white text, so it can carry
      links, active states and buttons. --gold is its bright sibling for dark
      surfaces and the "360 tour" signature, always with ink text on it. */
-  --accent: 36 80% 32%;
+  --accent: 258 76% 46%;         /* deeper violet for links and text-weight accents (8.6:1 on the page) */
   --accent-foreground: 0 0% 100%;
-  --gold: 40 92% 62%;
-  --gold-foreground: 235 28% 12%;
+  --gold: 24 100% 58%;           /* sunrise orange (name kept for compatibility) */
+  --gold-foreground: 256 45% 12%;
+  --lagoon: 174 85% 28%;         /* deep teal: text and fills with white on top */
+  --lagoon-bright: 172 70% 48%;  /* bright teal for dark surfaces, ink text on top */
+  --lagoon-foreground: 0 0% 100%;
+  --hibiscus: 332 78% 46%;       /* favourites, hot */
+  --hibiscus-foreground: 0 0% 100%;
   --destructive: 4 66% 48%;      /* semantic-only exception, see above */
   --destructive-foreground: 0 0% 98%;
-  --ring: 235 21% 21%;
+  --ring: 258 80% 52%;
   --radius: 0.6rem;
-  --chart-1: 235 20% 20%;
-  --chart-2: 235 15% 38%;
-  --chart-3: 235 10% 55%;
-  --chart-4: 235 8% 70%;
-  --chart-5: 235 6% 85%;
+  --chart-1: 258 80% 52%;
+  --chart-2: 24 100% 58%;
+  --chart-3: 174 85% 36%;
+  --chart-4: 332 78% 52%;
+  --chart-5: 258 30% 72%;
   --sidebar-background: 60 100% 100%;
-  --sidebar-foreground: 235 21% 21%;
-  --sidebar-primary: 235 21% 21%;
-  --sidebar-primary-foreground: 60 20% 98%;
-  --sidebar-accent: 48 22% 93%;
-  --sidebar-accent-foreground: 235 21% 21%;
-  --sidebar-border: 46 23% 85%;
-  --sidebar-ring: 235 21% 21%;
+  --sidebar-foreground: 256 45% 13%;
+  --sidebar-primary: 258 80% 52%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 258 45% 95%;
+  --sidebar-accent-foreground: 256 45% 13%;
+  --sidebar-border: 258 30% 89%;
+  --sidebar-ring: 258 80% 52%;
 
   --font-display: "Space Grotesk", "Montserrat", ui-sans-serif, sans-serif;
 
@@ -140,15 +152,15 @@
    used inside an element with this class automatically resolves to these
    scoped values instead of the page-level `:root` ones. */
 .surface-invert {
-  --background: 235 15% 10%;
-  --foreground: 60 20% 96%;
-  --card: 235 15% 10%;
-  --card-foreground: 60 20% 96%;
-  --border: 235 10% 22%;
-  --muted: 235 10% 16%;
-  --muted-foreground: 60 8% 66%;
-  --accent: 40 92% 64%;
-  --accent-foreground: 235 28% 12%;
+  --background: 256 45% 9%;
+  --foreground: 262 40% 97%;
+  --card: 256 45% 9%;
+  --card-foreground: 262 40% 97%;
+  --border: 256 25% 22%;
+  --muted: 256 28% 15%;
+  --muted-foreground: 258 20% 72%;
+  --accent: 24 100% 62%;
+  --accent-foreground: 256 45% 12%;
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
 }
@@ -164,17 +176,17 @@
   100% { background-position: 200% 50%; }
 }
 .shine {
-  /* Golden-hour metal: bright and deep gold stops that never go pale, with ink
-     text (about 9:1 on the lightest stop, 6:1 on the darkest). */
+  /* Sunrise metal: bright and deep orange stops that never go pale, with ink
+     text (about 9:1 on the lightest stop, 5.6:1 on the darkest). */
   background: linear-gradient(120deg,
-    hsl(41 93% 66%) 0%, hsl(38 90% 58%) 30%, hsl(34 84% 50%) 55%,
-    hsl(40 92% 64%) 80%, hsl(38 88% 56%) 100%);
+    hsl(32 100% 66%) 0%, hsl(26 100% 60%) 30%, hsl(20 98% 55%) 55%,
+    hsl(30 100% 63%) 80%, hsl(24 100% 58%) 100%);
   background-size: 250% 250%;
   animation: shine-sweep 4.5s ease-in-out infinite;
   color: hsl(var(--gold-foreground));
   font-weight: 600;
   border: 1px solid hsla(0, 0%, 100%, 0.45);
-  box-shadow: inset 0 1px 0 hsla(0, 0%, 100%, 0.55), 0 2px 10px hsl(34 84% 40% / 0.28);
+  box-shadow: inset 0 1px 0 hsla(0, 0%, 100%, 0.55), 0 4px 16px hsl(20 98% 45% / 0.35);
 }
 @media (prefers-reduced-motion: reduce) {
   .shine { animation: none; }
@@ -240,17 +252,17 @@
  */
 .vr-grid-bg {
   background-image:
-    linear-gradient(hsla(235, 21%, 21%, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, hsla(235, 21%, 21%, 0.06) 1px, transparent 1px);
+    linear-gradient(hsla(256, 45%, 13%, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, hsla(256, 45%, 13%, 0.06) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
 .vr-glow-ring {
-  box-shadow: 0 0 0 1px hsla(235, 21%, 21%, 0.12), 0 0 32px hsla(235, 21%, 21%, 0.10);
+  box-shadow: 0 0 0 1px hsla(256, 45%, 13%, 0.12), 0 0 32px hsla(256, 45%, 13%, 0.10);
 }
 
 .vr-glow-text {
-  text-shadow: 0 0 20px hsla(235, 21%, 21%, 0.22);
+  text-shadow: 0 0 20px hsla(256, 45%, 13%, 0.22);
 }
 
 .vr-badge {
@@ -281,10 +293,10 @@
  * rather than black so shadows sit naturally on the alabaster background.
  */
 :root {
-  --elev-1: 0 1px 2px hsl(235 21% 21% / 0.07), 0 2px 6px hsl(235 21% 21% / 0.05);
-  --elev-2: 0 2px 4px hsl(235 21% 21% / 0.06), 0 8px 18px hsl(235 21% 21% / 0.09);
-  --elev-3: 0 4px 8px hsl(235 21% 21% / 0.07), 0 16px 32px hsl(235 21% 21% / 0.14), 0 32px 60px -12px hsl(235 21% 21% / 0.16);
-  --elev-4: 0 8px 14px hsl(235 21% 21% / 0.08), 0 28px 52px hsl(235 21% 21% / 0.2), 0 52px 90px -16px hsl(235 21% 21% / 0.24);
+  --elev-1: 0 1px 2px hsl(256 45% 13% / 0.07), 0 2px 6px hsl(256 45% 13% / 0.05);
+  --elev-2: 0 2px 4px hsl(256 45% 13% / 0.06), 0 8px 18px hsl(256 45% 13% / 0.09);
+  --elev-3: 0 4px 8px hsl(256 45% 13% / 0.07), 0 16px 32px hsl(256 45% 13% / 0.14), 0 32px 60px -12px hsl(256 45% 13% / 0.16);
+  --elev-4: 0 8px 14px hsl(256 45% 13% / 0.08), 0 28px 52px hsl(256 45% 13% / 0.2), 0 52px 90px -16px hsl(256 45% 13% / 0.24);
 }
 .elev-1 { box-shadow: var(--elev-1); }
 .elev-2 { box-shadow: var(--elev-2); }
@@ -442,7 +454,7 @@ body {
   line-height: 1;
   letter-spacing: 0.02em;
   padding: 0.38rem 0.6rem;
-  box-shadow: 0 1px 2px hsl(235 28% 12% / 0.25), 0 4px 10px hsl(235 28% 12% / 0.18);
+  box-shadow: 0 1px 2px hsl(256 45% 12% / 0.25), 0 4px 10px hsl(256 45% 12% / 0.18);
 }
 
 /* Phone feed: sections that were grids become swipeable rails (Airbnb's pattern),
@@ -472,7 +484,12 @@ body {
 .chip-nav::-webkit-scrollbar { display: none; }
 
 /* Section titles share one rhythm everywhere. */
-.section-title { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.01em; font-size: 1.375rem; line-height: 1.2; }
+.section-title {
+  font-family: var(--font-display); font-weight: 600; letter-spacing: -0.01em; font-size: 1.375rem; line-height: 1.2;
+  /* a sunrise highlighter stroke under the words: colour on every section, no extra element */
+  display: inline-block; padding: 0 0.15em; margin-left: -0.15em;
+  background: linear-gradient(transparent 64%, hsl(24 100% 58% / 0.38) 64%, hsl(24 100% 58% / 0.38) 90%, transparent 90%);
+}
 @media (min-width: 768px) { .section-title { font-size: 1.75rem; } }
 
 /* A listing card is its photo plus three lines of text: no box around it, no glare over the words. */
@@ -480,11 +497,11 @@ body {
 .property-card.tilt:hover { box-shadow: none; }
 .property-card.tilt::after { display: none; }
 .property-card article { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
-@media (hover: hover) and (pointer: fine) { .property-card:hover article > div:first-child { box-shadow: 0 14px 30px -10px hsl(235 28% 12% / 0.35); } }
+@media (hover: hover) and (pointer: fine) { .property-card:hover article > div:first-child { box-shadow: 0 14px 30px -10px hsl(256 45% 12% / 0.35); } }
 
 /* A new top bid makes the price flash gold. */
 @keyframes bidflash {
-  0% { background-color: hsl(40 92% 62% / 0.55); transform: scale(1.03); }
+  0% { background-color: hsl(24 100% 58% / 0.55); transform: scale(1.03); }
   100% { background-color: transparent; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
