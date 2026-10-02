@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { MapPin, Crosshair, Loader2, X } from 'lucide-react'
+import GoogleMapView from '@/components/maps/GoogleMapView'
+import { useGoogleMapsKey } from '@/lib/googleMaps'
 import { useToast } from '@/hooks/use-toast'
 
 /**
@@ -96,6 +98,10 @@ export default function LocationPinPicker({ latitude, longitude, onChange }: Loc
     const [mapsLink, setMapsLink] = useState('')
     const [resolving, setResolving] = useState(false)
     const [locating, setLocating] = useState(false)
+    // Google Maps when the site has a key (and Google accepts it); the basic map otherwise.
+    const { data: googleKey } = useGoogleMapsKey()
+    const [googleFailed, setGoogleFailed] = useState(false)
+    const useGoogle = !!googleKey && !googleFailed
 
     const hasPin = typeof latitude === 'number' && typeof longitude === 'number' && !Number.isNaN(latitude) && !Number.isNaN(longitude)
     const center: [number, number] = hasPin ? [latitude as number, longitude as number] : DEFAULT_CENTER
@@ -192,6 +198,17 @@ export default function LocationPinPicker({ latitude, longitude, onChange }: Loc
             </div>
 
             <div className="rounded-lg overflow-hidden border border-border" style={{ height: 280 }}>
+                {useGoogle ? (
+                    <GoogleMapView
+                        apiKey={googleKey as string}
+                        center={{ lat: center[0], lng: center[1] }}
+                        zoom={hasPin ? 15 : 12}
+                        recenterKey={hasPin ? `${latitude},${longitude}` : 'none'}
+                        onMapClick={(lat, lng) => onChange(lat, lng)}
+                        onError={() => setGoogleFailed(true)}
+                        markers={hasPin ? [{ id: 'pin', lat: center[0], lng: center[1], draggable: true, onDragEnd: (lat, lng) => onChange(lat, lng) }] : []}
+                    />
+                ) : (
                 <MapContainer center={center} zoom={hasPin ? 15 : 12} style={{ height: '100%', width: '100%' }}>
                     <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -213,6 +230,7 @@ export default function LocationPinPicker({ latitude, longitude, onChange }: Loc
                         />
                     )}
                 </MapContainer>
+                )}
             </div>
 
             {hasPin ? (

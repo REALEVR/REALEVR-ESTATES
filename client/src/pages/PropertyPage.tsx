@@ -2,7 +2,9 @@ import { useState, useEffect, useMemo } from "react";
 import { useRoute } from "wouter";
 import VirtualTour from "@/components/property/VirtualTour";
 import VRBadge from "@/components/property/VRBadge";
-import { Headset } from "lucide-react";
+import { Headset, MapPin, Orbit } from "lucide-react";
+import GoogleMapFrame from "@/components/maps/GoogleMapFrame";
+import { directionsUrl, hasPin, openUrl } from "@/lib/googleMaps";
 import PropertyDetails from "@/components/property/PropertyDetails";
 import { Button } from "@/components/ui/button";
 import { useProperty, trackPropertyView } from "@/hooks/usePropertyData";
@@ -22,6 +24,9 @@ export default function PropertyPage() {
   const [, params] = useRoute<{ id: string }>("/property/:id");
   const propertyId = params?.id ? parseInt(params.id) : 0;
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // The pin button swaps the tour window for the property's place on Google Maps (the tour stays loaded underneath).
+  const [showMap, setShowMap] = useState(false);
+  useEffect(() => setShowMap(false), [propertyId]);
   const { user } = useAuth();
 
   // Force refetch on mount to ensure fresh data
@@ -106,6 +111,11 @@ export default function PropertyPage() {
     };
   }, [property, propertyPath]);
 
+  const mapTarget = useMemo(() => {
+    const p = property as Property | undefined;
+    return { latitude: p?.latitude, longitude: p?.longitude, query: p ? [p.title, p.location].filter(Boolean).join(', ') : null };
+  }, [property]);
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-6 py-8">
@@ -180,23 +190,66 @@ export default function PropertyPage() {
                 showVrButton
               />
 
-              <div className="absolute bottom-4 right-4 bg-card/80 backdrop-blur-sm rounded-lg p-2 shadow-lg">
-                <div className="flex space-x-3">
-                  <button className="p-2 hover:bg-card rounded-full" title="Zoom in">
-                    <i className="fas fa-plus"></i>
-                  </button>
-                  <button className="p-2 hover:bg-card rounded-full" title="Zoom out">
-                    <i className="fas fa-minus"></i>
-                  </button>
-                  <button 
-                    className="p-2 hover:bg-card rounded-full" 
-                    title="Fullscreen"
-                    onClick={() => setIsFullscreen(!isFullscreen)}
+              {showMap && (
+                <div className="absolute inset-0 z-20 bg-background">
+                  <GoogleMapFrame
+                    target={mapTarget}
+                    title={`${(property as Property).title} on Google Maps`}
+                    zoom={hasPin(mapTarget) ? 17 : 14}
+                  />
+                  <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+                    <a
+                      href={openUrl(mapTarget) ?? undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-foreground shadow-md backdrop-blur hover:bg-white"
+                    >
+                      Open in Google Maps
+                    </a>
+                    <a
+                      href={directionsUrl(mapTarget) ?? undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-foreground shadow-md backdrop-blur hover:bg-white"
+                    >
+                      Directions
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              <div className="absolute bottom-4 right-4 z-30 bg-card/80 backdrop-blur-sm rounded-lg p-2 shadow-lg">
+                <div className="flex items-center space-x-3">
+                  {!showMap && (
+                    <>
+                      <button className="p-2 hover:bg-card rounded-full" title="Zoom in">
+                        <i className="fas fa-plus"></i>
+                      </button>
+                      <button className="p-2 hover:bg-card rounded-full" title="Zoom out">
+                        <i className="fas fa-minus"></i>
+                      </button>
+                      <button
+                        className="p-2 hover:bg-card rounded-full"
+                        title="Fullscreen"
+                        onClick={() => setIsFullscreen(!isFullscreen)}
+                      >
+                        <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
+                      </button>
+                      <button className="p-2 hover:bg-card rounded-full" title="Floor plan">
+                        <i className="fas fa-map"></i>
+                      </button>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowMap((v) => !v)}
+                    aria-pressed={showMap}
+                    aria-label={showMap ? "Back to the 360° tour" : "Show this property on the map"}
+                    title={showMap ? "Back to the 360° tour" : "Show on map"}
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold transition ${showMap ? "bg-foreground text-background" : "hover:bg-card"}`}
                   >
-                    <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
-                  </button>
-                  <button className="p-2 hover:bg-card rounded-full" title="Floor plan">
-                    <i className="fas fa-map"></i>
+                    {showMap ? <Orbit className="h-4 w-4" aria-hidden="true" /> : <MapPin className="h-4 w-4 text-[#EA4335]" aria-hidden="true" />}
+                    {showMap ? "360° tour" : "Map"}
                   </button>
                 </div>
               </div>

@@ -200,6 +200,13 @@ export function registerGoogleAuthRoutes(app: Express): void {
         res.json({ clientId: process.env.GOOGLE_CLIENT_ID || null })
     })
 
+    // [PUBLIC] GET /api/config/google-maps-key — a Google Maps browser key is meant to sit in page code (restrict it
+    // to this site's address in Google Cloud), so serving it is no leak. Null means "use the keyless Google Maps
+    // embed and the basic map" so nothing breaks before the key is set.
+    app.get('/api/config/google-maps-key', (_req: Request, res: Response) => {
+        res.set('Cache-Control', 'public, max-age=300').json({ key: (process.env.GOOGLE_MAPS_API_KEY || '').trim() || null })
+    })
+
     // [PUBLIC] POST /api/auth/google/onetap — the GIS ID-token flow's
     // landing point (see this file's top doc comment, path 1). Body:
     // { credential: <signed JWT from Google> }. Never trusts the token's
