@@ -25,8 +25,9 @@ import type { Express, Request, Response } from 'express'
 import { createHash } from 'crypto'
 import { getGeminiClient } from '../lib/gemini'
 import { hasCredits, noteSpent } from './elevenlabs'
+import { azureConfigured, azureSpeak, azureTtsHasRoom, isResting, rest } from './speech-providers'
 
-export type VoiceProvider = 'elevenlabs' | 'openai' | 'gemini'
+export type VoiceProvider = 'elevenlabs' | 'azure' | 'openai' | 'gemini'
 
 const MAX_TEXT_CHARS = 400
 const MAX_CACHE_ENTRIES = 120
@@ -41,18 +42,28 @@ const KEVIN_DELIVERY =
     'well-educated professional from Kampala, Nairobi or Accra speaks. Mid-to-low male voice, unhurried and friendly, like a trusted ' +
     'guide talking to one person. Clear diction, a smile in the voice, never salesy or robotic. Say prices and numbers the way a person would.'
 
-export function configuredProvider(): VoiceProvider | null {
-    const wanted = (process.env.KEVIN_VOICE_PROVIDER || '').toLowerCase()
+/**
+ * The voices Kevin can use, best-and-free first: ElevenLabs (most human, small monthly allowance), then Microsoft Azure
+ * neural voices (a male Kenyan English voice and Kiswahili voices; free tier of about 500,000 characters a month), then
+ * Gemini, then OpenAI. KEVIN_VOICE_PROVIDER moves one to the front. Each request tries them in order and moves on when one is out of
+ * allowance or failing, so he keeps a good voice while ANY free allowance is left.
+ */
+export function voiceProviders(): VoiceProvider[] {
     const available: Record<VoiceProvider, boolean> = {
         elevenlabs: !!process.env.ELEVENLABS_API_KEY,
-        openai: !!process.env.OPENAI_API_KEY,
+        azure: azureConfigured(),
         gemini: !!process.env.GEMINI_API_KEY,
+        openai: !!process.env.OPENAI_API_KEY,
     }
-    if ((wanted === 'elevenlabs' || wanted === 'openai' || wanted === 'gemini') && available[wanted]) return wanted
-    if (available.elevenlabs) return 'elevenlabs'
-    if (available.openai) return 'openai'
-    if (available.gemini) return 'gemini'
-    return null
+    const order: VoiceProvider[] = ['elevenlabs', 'azure', 'gemini', 'openai']
+    const wanted = (process.env.KEVIN_VOICE_PROVIDER || '').toLowerCase() as VoiceProvider
+    if (order.includes(wanted)) order.splice(order.indexOf(wanted), 1), order.unshift(wanted)
+    return order.filter((p) => available[p])
+}
+
+/** The first configured voice (what the admin screen shows). */
+export function configuredProvider(): VoiceProvider | null {
+    return voiceProviders()[0] ?? null
 }
 
 /** What may be sent to a speech provider: plain sentences, no markup, no addresses, bounded length. */
@@ -209,6 +220,7 @@ async function viaGemini(text: string): Promise<Audio> {
 
 export async function synthesize(provider: VoiceProvider, text: string, lang?: string): Promise<Audio> {
     if (provider === 'elevenlabs') return viaElevenLabs(text, lang)
+    if (provider === 'azure') return azureSpeak(text, lang)
     if (provider === 'openai') return viaOpenAi(text)
     return viaGemini(text)
 }
@@ -255,18 +267,18 @@ function remember(key: string, audio: Audio) {
 export function registerKevinVoiceRoutes(app: Express): void {
     // Lets the widget decide, once, whether to use Kevin's own voice or the device's.
     app.get('/api/gene/speak/status', (_req: Request, res: Response) => {
-        res.set('Cache-Control', 'public, max-age=300').json({ available: configuredProvider() !== null })
+        res.set('Cache-Control', 'public, max-age=300').json({ available: voiceProviders().length > 0 })
     })
 
     app.post('/api/gene/speak', async (req: Request, res: Response) => {
-        const provider = configuredProvider()
-        if (!provider) return res.status(501).json({ message: 'No voice provider is configured.' })
+        const providers = voiceProviders()
+        if (providers.length === 0) return res.status(501).json({ message: 'No voice provider is configured.' })
 
         const text = speechText(req.body?.text)
         if (!text) return res.status(400).json({ message: 'Field "text" is required.' })
 
         const lang = typeof req.body?.lang === 'string' && /^[a-z]{2,3}$/i.test(req.body.lang) ? req.body.lang.toLowerCase() : undefined
-        const key = createHash('sha1').update(`${provider}|${modelFor(lang)}|${text}`).digest('hex')
+        const key = createHash('sha1').update(`${lang ?? ''}|${text}`).digest('hex')
         const hit = cache.get(key)
         if (hit) {
             res.set({ 'Content-Type': hit.type, 'Cache-Control': 'private, max-age=86400', 'X-Kevin-Voice': 'cache' })
@@ -275,18 +287,25 @@ export function registerKevinVoiceRoutes(app: Express): void {
 
         if (!allowVisitor(req.ip || 'unknown')) return res.status(429).json({ message: 'Slow down a little.' })
         if (!withinDailyBudget()) return res.status(429).json({ message: 'Voice is resting for today.' })
-        // A free ElevenLabs plan has a small monthly allowance: when it is used up the widget quietly uses the device's voice.
-        if (provider === 'elevenlabs' && !(await hasCredits(Math.ceil(text.length * costPerChar(modelFor(lang)))))) return res.status(429).json({ message: 'Voice is resting for now.' })
 
-        try {
-            today++
-            const audio = await synthesize(provider, text, lang)
-            remember(key, audio)
-            res.set({ 'Content-Type': audio.type, 'Cache-Control': 'private, max-age=86400', 'X-Kevin-Voice': provider })
-            return res.send(audio.data)
-        } catch (err) {
-            console.error('[kevin-voice] synthesis failed (the widget will use the device voice):', err)
-            return res.status(502).json({ message: 'Voice unavailable right now.' })
+        today++
+        for (const provider of providers) {
+            if (isResting(`tts:${provider}`)) continue
+            // A free allowance that is used up is skipped without a call: the next voice speaks instead.
+            if (provider === 'elevenlabs' && !(await hasCredits(Math.ceil(text.length * costPerChar(modelFor(lang)))))) continue
+            if (provider === 'azure' && !azureTtsHasRoom(text.length)) continue
+            try {
+                const audio = await synthesize(provider, text, lang)
+                remember(key, audio)
+                res.set({ 'Content-Type': audio.type, 'Cache-Control': 'private, max-age=86400', 'X-Kevin-Voice': provider })
+                return res.send(audio.data)
+            } catch (err) {
+                const status = (err as { status?: number }).status ?? 0
+                console.error(`[kevin-voice] ${provider} could not speak (status ${status || 'network'}); trying the next voice`)
+                rest(`tts:${provider}`, status === 429 || status === 402 ? 10 * 60_000 : status === 401 || status === 403 ? 30 * 60_000 : 60_000)
+            }
         }
+        console.error('[kevin-voice] no voice could speak (the widget will use the device voice)')
+        return res.status(502).json({ message: 'Voice unavailable right now.' })
     })
 }
