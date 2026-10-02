@@ -6,6 +6,7 @@ import { FadeIn } from '@/components/ui/animated-components'
 import Tilt from '@/components/motion/Tilt'
 import { Star, Rocket, Heart, Share2, Play, Orbit } from 'lucide-react'
 import { useActiveBoostedPropertyIds } from '@/hooks/useActiveBoosts'
+import BuyWithBitcoinButton from '@/components/crypto/BuyWithBitcoinButton'
 
 interface PropertyCardProps {
     property: Property
@@ -157,6 +158,8 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                             </span>
                             {property.price != null && perUnit && <span className="text-sm text-muted-foreground">{perUnit}</span>}
                         </p>
+                        {/* Every home for sale can be bought with Bitcoin: renders nothing for rentals and stays. */}
+                        <BuyWithBitcoinButton property={property} variant="card" />
                         {/* A BnB can offer a discounted monthly rate for long stays, shown beside the nightly one. */}
                         {isBnB && property.monthlyPrice != null && (
                             <p className="text-xs text-muted-foreground">

@@ -44,7 +44,20 @@ export default function AmlSanctions() {
         account, keep a fee where the Terms allow, and report to the authorities, without notice where the law requires secrecy.
       </p>
 
-      <h2>4. Contact</h2>
+      <h2>4. Buying a home with Bitcoin or other digital currency</h2>
+      <p>
+        A buyer may ask to pay for a home in Bitcoin or another digital currency. Digital assets can move across borders fast and
+        hide who is behind them, so these purchases get the same checks as any large purchase, and more:
+      </p>
+      <ul>
+        <li><strong>The seller must agree.</strong> Digital currency is not legal tender in Uganda and in many other countries. A seller is never required to accept it, and a bank decides for itself whether to accept it in a bank sale.</li>
+        <li><strong>We verify the buyer</strong> (identity, address, and the source of the funds, including how the coin was obtained) before any instructions are given, and we may ask for exchange or wallet history. We do not deal with buyers who are on a sanctions list or who refuse to explain where the funds come from.</li>
+        <li><strong>No payment on this site.</strong> Pressing "Buy with Bitcoin" sends us a request; it moves no money. Payment goes to an escrow or the seller's lawyer on written instructions, and the sale and the title transfer are documented in the listing's currency at a rate agreed in writing, because the price in coin moves with the market.</li>
+        <li><strong>Mixers and anonymising services are refused.</strong> We may decline coin that has passed through one, or that comes from an address linked to crime.</li>
+        <li><strong>Beware of fraud.</strong> Never send coin to an address you were given in a chat, a call or an unsigned message. We will never ask you to pay a personal wallet.</li>
+      </ul>
+
+      <h2>5. Contact</h2>
       <p>
         Questions or concerns about this policy: <a href={`mailto:${COMPANY.emails.legal}`}>{COMPANY.emails.legal}</a>. To report suspected
         wrongdoing in confidence, use the same address and write "Confidential" in the subject.

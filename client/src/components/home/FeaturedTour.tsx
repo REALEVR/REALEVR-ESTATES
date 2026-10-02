@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import VirtualTour from "@/components/property/VirtualTour";
 import BookingCalendarModal from "../property/BookingCalendarModal";
 import SharePropertyModal from "../property/SharePropertyModal";
+import BuyWithBitcoinButton from "../crypto/BuyWithBitcoinButton";
 import { useQuery } from "@tanstack/react-query";
 import type { Property, User } from "@shared/schema";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -488,6 +489,7 @@ export default function FeaturedTour() {
                 </div>
                 <div className="flex flex-col gap-3">
                   <div className="flex flex-wrap gap-3">
+                    <BuyWithBitcoinButton property={featuredProperty} variant="page" />
                     {/* <Button
                       variant="outline"
                       className="border-foreground"
