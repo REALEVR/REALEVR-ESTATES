@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer'
+import type SMTPTransport from 'nodemailer/lib/smtp-transport'
 
 // Email configuration
 const createTransporter = () => {
@@ -14,7 +15,7 @@ const createTransporter = () => {
             clientId: process.env.GOOGLE_EMAIL_CLIENT_ID,
             clientSecret: process.env.GOOGLE_EMAIL_CLIENT_SECRET,
         },
-    })
+    } as SMTPTransport.Options)
 }
 
 export interface EmailAttachment {
@@ -49,7 +50,7 @@ export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
 
         // For development, log the preview URL
         if (process.env.NODE_ENV !== 'production') {
-            console.log('Preview URL:', nodemailer.getTestMessageUrl(result))
+            console.log('Preview URL:', nodemailer.getTestMessageUrl(result as SMTPTransport.SentMessageInfo))
         }
 
         return true

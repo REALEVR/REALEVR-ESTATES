@@ -15,7 +15,7 @@ cloudinary.config({
  * @param {string} cloudinaryFolderPath - The target folder path in Cloudinary.
  * @returns {Promise<any[]>} - An array of upload results.
  */
-async function uploadFolder(localFolderPath: string, cloudinaryFolderPath: string) {
+async function uploadFolder(localFolderPath: string, cloudinaryFolderPath: string): Promise<any[]> {
     const files = fs.readdirSync(localFolderPath);
     const uploads = [];
 

@@ -42,7 +42,9 @@ async function seedDatabase() {
         membershipStartDate: null,
         membershipEndDate: null,
         role: "admin",
-        isVerified: true
+        isVerified: true,
+        subscriptionStatus: "inactive",
+        authProvider: "local"
       },
       {
         username: "user",
@@ -53,7 +55,9 @@ async function seedDatabase() {
         membershipStartDate: null,
         membershipEndDate: null,
         role: "normal",
-        isVerified: true
+        isVerified: true,
+        subscriptionStatus: "inactive",
+        authProvider: "local"
       },
       {
         username: "agent",
@@ -64,7 +68,9 @@ async function seedDatabase() {
         membershipStartDate: null,
         membershipEndDate: null,
         role: "agent",
-        isVerified: true
+        isVerified: true,
+        subscriptionStatus: "inactive",
+        authProvider: "local"
       }
     ];
 
