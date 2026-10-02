@@ -55,12 +55,16 @@ export interface EscalationRecord {
  *     `WHATSAPP_PHONE_NUMBER_ID`) — the original integration this file
  *     shipped with.
  *
+ * Set `WHATSAPP_PROVIDER=meta` to use Meta even when Infobip variables are also set.
+ *
  * Inbound messages have a matching pair of webhook routes in
  * whatsapp-concierge.ts (`/api/gene/whatsapp/webhook` for Meta,
  * `/api/gene/whatsapp/webhook/infobip` for Infobip) — point whichever
  * provider you actually configured at its matching URL.
  */
 function infobipConfigured(): { apiKey: string; baseUrl: string; sender: string } | null {
+    // WHATSAPP_PROVIDER=meta forces Meta's Cloud API even when Infobip variables are also present.
+    if ((process.env.WHATSAPP_PROVIDER || '').trim().toLowerCase() === 'meta') return null
     const apiKey = process.env.INFOBIP_API_KEY
     const baseUrl = process.env.INFOBIP_BASE_URL
     const sender = process.env.INFOBIP_WHATSAPP_SENDER
