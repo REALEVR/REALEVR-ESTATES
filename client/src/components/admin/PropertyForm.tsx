@@ -79,7 +79,8 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
     // Get default values from existing property or use empty defaults
     const defaultValues: Partial<PropertyFormValues> = property
         ? {
-              ...property,
+              // The stored property uses null for "not set"; the form uses undefined.
+              ...(property as unknown as Partial<PropertyFormValues>),
               amenities: property.amenities || [],
           }
         : {

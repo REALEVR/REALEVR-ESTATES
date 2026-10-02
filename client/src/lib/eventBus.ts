@@ -18,7 +18,8 @@ type Callback<K extends EventKey> = (payload: EventMap[K]) => void
 
 class EventBus {
     private events: {
-        [K in EventKey]?: Callback<K>[]
+        // Each list is keyed by event name; the callback type is narrowed again in on()/emit().
+        [K in EventKey]?: Callback<any>[]
     } = {}
 
     on<K extends EventKey>(eventName: K, callback: Callback<K>) {

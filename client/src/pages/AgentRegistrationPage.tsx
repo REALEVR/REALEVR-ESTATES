@@ -219,7 +219,8 @@ export default function AgentRegistrationPage() {
                     ? new Date(expiresAt).toISOString()
                     : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
                 subscriptionPaymentId: paymentId || (selectedPlan === 'free_trial' ? 'free-trial-no-payment' : `test-${Date.now()}`),
-                subscriptionStatus: 'active',
+                subscriptionStatus: 'active' as const,
+                authProvider: 'local' as const,
             }
 
             // Remove confirmPassword from the data
