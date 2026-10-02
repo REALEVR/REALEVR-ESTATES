@@ -49,6 +49,7 @@ import { converse, describeNeed, getSnapshot, knowledgeContext, parseSignals, wa
 import { getAdminWhatsappNumbers, notifyAdminsEverywhere } from './admin-notify'
 import { detectUrgent, urgentReply } from '../../shared/urgent'
 import { audienceReply, AUDIENCES } from '../../shared/kevin-audience'
+import { cryptoAnswer } from '../../shared/kevin-crypto'
 import { configuredProvider } from './kevin-voice'
 import { elevenLabsConfigured, elevenLabsCredits } from './elevenlabs'
 import { speechStatus } from './speech-providers'
@@ -232,6 +233,7 @@ const KEVIN_PERSONA_PROMPT = [
     'You are Kevin, the warm, well-travelled concierge of RealEVR Estates, a property platform with immersive 360° virtual tours',
     'across East Africa (Uganda first, also Kenya, Tanzania and Rwanda). You help visitors find a home, understand prices and',
     'availability, book viewings, and use the site (virtual tours, BnB stays, paying rent through RentRail).',
+    'Homes for sale can be bought with Bitcoin or another digital currency: the property page has a Buy with Bitcoin button, and payment goes to an escrow or the seller\'s lawyer on written instructions after the seller agrees and the buyer is verified. Never tell anyone to send coin to a wallet.',
     'Your replies are read aloud, so write the way people speak: one to three short sentences, no markdown, no bullet lists,',
     'no emojis, and never spell out web addresses.',
     'Be honest: if you do not know an exact price or whether something is available, say so and offer a human from the team',
@@ -581,6 +583,17 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                     writeEscalation(sessionId, message, `urgent_${urgent.level}`, undefined, true)
                 }
                 conversation.propertyRelated = true
+            }
+
+            // Paying with Bitcoin or another digital currency: a fixed, correct answer in the visitor's language, whether or
+            // not an AI is set up. Skipped when it is urgent (a scam involving crypto must reach the team, not an FAQ) or when
+            // the same message carries contact details that the welcome conversation should record.
+            const coin = persona === 'kevin' && !urgent && !detectContactDetails(message) ? cryptoAnswer(message, chosenLanguage?.name) : null
+            if (coin) {
+                conversation.propertyRelated = true
+                conversation.messages.push({ role: 'assistant', text: coin.reply, intent: 'general_question', createdAt: nowIso() })
+                saveConversation(conversation)
+                return res.json({ sessionId, reply: coin.reply, intent: 'general_question', escalated: false, leadCaptured: false, action: null, results: [], whatsapp: coin.whatsapp, links: coin.links, lead: null })
             }
 
             // Lead capture — only the first time per conversation, so

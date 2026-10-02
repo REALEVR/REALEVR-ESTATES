@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import BitcoinPriceStrip from '@/components/crypto/BitcoinPriceStrip'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { useLocation } from 'wouter'
@@ -260,6 +261,9 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                     </Button>
                 </div>
             </div>
+
+            {/* Phone: the Bitcoin price and button sit up here, where the first screen is; the price bar below is already full. */}
+            <BitcoinPriceStrip property={property} only="phone" />
 
             <SharePropertyModal
                 isOpen={isShareModalOpen}
@@ -547,7 +551,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
             )}
 
             {/* Display price differently for BnBs (per night) vs other properties (per month) */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-3">
+            <div className="flex flex-col md:flex-row md:flex-wrap md:items-center justify-between gap-y-3 mb-3">
                 <div className="mb-4 md:mb-0">
                     {/* Design-review fix (round 2): bumped from text-2xl/font-medium
                         to match the same price-hierarchy fix applied to
@@ -573,7 +577,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                             </p>
                         )}
                 </div>
-                <div className="hidden space-x-3 md:flex">
+                <div className="hidden flex-wrap gap-3 md:flex">
                     {property.ownerId && user?.id !== property.ownerId && (
                         <Button variant="outline" className="border-foreground/30" onClick={() => setIsMessageAgentModalOpen(true)}>
                             Message Agent
@@ -587,6 +591,9 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                     </Button>
                 </div>
             </div>
+
+            {/* Homes for sale (and bank sales): the price in Bitcoin and the button to buy with it. */}
+            <BitcoinPriceStrip property={property} only="desktop" />
 
             {/* Phone: the price and the two things you do here stay under your thumb, above the tab
                 bar, like a booking bar in a travel app. The desktop buttons above are hidden here. */}
