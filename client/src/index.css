@@ -91,6 +91,11 @@
   --sidebar-border: 258 30% 89%;
   --sidebar-ring: 258 80% 52%;
 
+  /* Motion tokens (Emil Kowalski): strong curves, short durations. UI under 300ms; only transform and opacity animate. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
   --font-display: "Space Grotesk", "Montserrat", ui-sans-serif, sans-serif;
 
   /* Mobile floating-element stack — single source of truth so
@@ -182,14 +187,18 @@
     hsl(32 100% 66%) 0%, hsl(26 100% 60%) 30%, hsl(20 98% 55%) 55%,
     hsl(30 100% 63%) 80%, hsl(24 100% 58%) 100%);
   background-size: 250% 250%;
-  animation: shine-sweep 4.5s ease-in-out infinite;
+  /* Still at rest; the sweep plays only while pointing at it. A permanent shimmer on a button seen all day is noise. */
+  transition: transform 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
   color: hsl(var(--gold-foreground));
   font-weight: 600;
   border: 1px solid hsla(0, 0%, 100%, 0.45);
   box-shadow: inset 0 1px 0 hsla(0, 0%, 100%, 0.55), 0 4px 16px hsl(20 98% 45% / 0.35);
 }
+@media (hover: hover) and (pointer: fine) {
+  .shine:hover { animation: shine-sweep 1.8s var(--ease-in-out) infinite; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .shine { animation: none; }
+  .shine:hover { animation: none; }
 }
 
 /* "Pay Rent" CTA — glows while blinking, requested so this always-visible,

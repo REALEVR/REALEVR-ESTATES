@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import "../Hero.css"
 
@@ -7,7 +7,6 @@ import houseImg from '../../assets/images/hero-house.webp';
 import mansionBg from '../../assets/images/hero-mansion.jpg';
 import FilterBar from './FilterBar';
 import CountUp from '@/components/motion/CountUp';
-import BlurText from '@/components/fx/BlurText';
 import VRBadge from '@/components/property/VRBadge';
 import ExploreFiltersDialog from './ExploreFiltersDialog';
 import HeroNewsSlide from './HeroNewsSlide';
@@ -35,6 +34,9 @@ interface HeroProps {
   videoUrl?: string;
 }
 
+// Emil Kowalski's strong ease-out: instant-feeling start, soft landing. Built-in CSS easings are too weak for this.
+const EASE_OUT = [0.23, 1, 0.32, 1] as const;
+
 const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
   const [, setLocation] = useLocation();
   const isMobile = useIsMobile();
@@ -50,6 +52,8 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
   const { data: heroProperties } = useProperties();
   const liveHeroListings = (heroProperties ?? []).filter((p) => p.title && p.title.trim() !== '');
   const liveListingCount = liveHeroListings.length;
+  // The tour card on the hero photo: a real listing that has a tour, never a placeholder.
+  const featuredHeroListing = liveHeroListings.find((p) => p.hasTour) ?? liveHeroListings[0];
   // Second stat is a real computed share of live listings that actually
   // have a tour (property.hasTour), not an assumed 100% — falls back to
   // null (stat hidden) rather than a divide-by-zero NaN% when there's no
@@ -262,6 +266,10 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
   // pointer nudges each layer (photo, headline, copy) by a different amount.
   // Touch and reduced-motion visitors get the still scene.
   const reduceMotion = useReducedMotion();
+  const riseIn = {
+    hidden: { opacity: 0, y: reduceMotion ? 0 : 12 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE_OUT } },
+  };
   const { scrollY } = useScroll();
   const bgY = useTransform(scrollY, [0, 700], [0, reduceMotion ? 0 : 56]);
   const heroRef = React.useRef<HTMLElement | null>(null);
@@ -281,77 +289,121 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
   return (
     <>
       {/* ------------------------------------------------------------------
-          Desktop and tablet: a full-bleed photo at golden hour, a headline
-          with room to breathe, and the search as a floating pill. */}
+          Desktop and tablet: copy on the page, one large rounded photo with a
+          live tour card on it, and the search as a floating pill that overlaps
+          the photo's lower edge. Entrance is a short, staggered fade and rise
+          (transform and opacity only); reduced-motion visitors get the fade. */}
       <section
         ref={heroRef}
         onPointerMove={handleSceneMove}
         onPointerLeave={handleSceneLeave}
-        className="relative -mx-4 hidden overflow-hidden bg-foreground sm:-mx-6 md:block lg:-mx-8"
+        className="relative hidden md:block"
         aria-label="Search homes"
       >
-        <motion.img
-          src={mansionBg}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 h-full w-full object-cover parallax-layer"
-          style={{ y: bgY, scale: 1.12, ['--depth' as string]: '-10px' }}
-        />
-        {/* Dusk: ink rising from the left and the bottom, so white type has 7:1 or better wherever it sits. */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[hsl(262_70%_12%/0.9)] via-[hsl(262_60%_20%/0.55)] to-[hsl(262_60%_30%/0.08)]" />
-        {/* a low sunrise glow behind the headline so the hero has colour even over a grey photo */}
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_70%_at_8%_105%,hsl(24_100%_58%/0.42),transparent_70%),radial-gradient(45%_55%_at_95%_0%,hsl(258_85%_62%/0.35),transparent_70%)]" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[hsl(256_45%_7%/0.75)] via-transparent to-transparent" />
-
-        <div className="relative z-10 mx-auto flex min-h-[640px] max-w-[1500px] flex-col justify-end gap-10 px-8 pb-14 pt-24 lg:min-h-[700px]">
+        <div className="mx-auto grid max-w-[1500px] grid-cols-1 items-center gap-10 px-2 pb-6 pt-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,1fr)] lg:gap-16 lg:pt-12">
           <motion.div
-            className="max-w-3xl parallax-layer"
-            style={{ ['--depth' as string]: '7px' }}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            className="parallax-layer"
+            style={{ ['--depth' as string]: '5px' }}
+            initial="hidden"
+            animate="show"
+            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.05 } } }}
           >
-            <span className="tour-chip mb-6">
-              <i className="fas fa-vr-cardboard" aria-hidden="true" /> 360° tours · across Africa
-            </span>
-            <h1 className="font-display text-6xl font-bold leading-[1.02] tracking-tight text-white lg:text-[5.5rem]">
-              <BlurText text="Walk in" />
+            <motion.div variants={riseIn} className="mb-6 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[hsl(var(--lagoon))]">
+              <span className="h-2.5 w-2.5 rounded-full bg-[hsl(var(--lagoon))]" aria-hidden="true" />
+              360° tours · across Africa
+            </motion.div>
+            <motion.h1 variants={riseIn} className="font-display text-6xl font-bold leading-[1.02] tracking-[-0.035em] text-foreground lg:text-[4.25rem]">
+              Walk in{' '}
               <br />
-              <span className="font-medium italic text-[hsl(var(--gold))]">
-                <BlurText text="before you arrive." wordClassName="fx-shimmer" startAt={0.35} />
-              </span>
-            </h1>
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/90 lg:text-xl">
+              <span className="text-primary">before you arrive.</span>
+            </motion.h1>
+            <motion.p variants={riseIn} className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
               Tour real homes on your phone, tablet or headset, then message the owner on WhatsApp. Rentals, BnBs, homes for sale and bank
               auctions.
-            </p>
-            <div className="mt-7 flex gap-10 text-white">
+            </motion.p>
+            <motion.div variants={riseIn} className="mt-8 flex flex-wrap items-center gap-3">
+              <a
+                href="#hero-search"
+                className="shine inline-flex items-center rounded-full px-7 py-3 text-base font-semibold transition-transform duration-150 ease-out active:scale-[0.97]"
+              >
+                <i className="fas fa-search mr-2 text-sm" aria-hidden="true" />
+                Search homes
+              </a>
+              <Link
+                href="/new-listings"
+                className="inline-flex items-center rounded-full border-[1.5px] border-primary px-7 py-3 text-base font-semibold text-primary transition-[transform,background-color,color] duration-150 ease-out hover:bg-primary hover:text-primary-foreground active:scale-[0.97]"
+              >
+                See new listings
+              </Link>
+            </motion.div>
+            <motion.div variants={riseIn} className="mt-10 flex gap-10">
               <div>
-                <div className="font-display text-3xl font-semibold">
+                <div className="font-display text-3xl font-bold tracking-tight text-foreground">
                   <CountUp value={liveListingCount} suffix="+" />
                 </div>
-                <div className="text-sm text-white/80">live listings</div>
+                <div className="text-sm text-muted-foreground">live listings</div>
               </div>
               {tourCoveragePercent !== null && (
                 <div>
-                  <div className="font-display text-3xl font-semibold">
+                  <div className="font-display text-3xl font-bold tracking-tight text-foreground">
                     <CountUp value={tourCoveragePercent} suffix="%" />
                   </div>
-                  <div className="text-sm text-white/80">with a virtual tour</div>
+                  <div className="text-sm text-muted-foreground">with a virtual tour</div>
                 </div>
               )}
-            </div>
+            </motion.div>
           </motion.div>
 
-          <div className="flex justify-start">
-        {/* Search bar - desktop only (5 inline fields need the width).
-            One seamless pill with thin dividers between segments (Airbnb's
-            actual search-bar signature - "Where / Check in / ... / Who" as
-            one bar, not five separate boxes) instead of five individually
-            bordered/rounded selects. Same fields, same handleSearch - purely
-            a container/border restyle. */}
+          <motion.div
+            className="relative h-[560px] overflow-hidden rounded-[2.75rem] bg-[hsl(256_45%_9%)] shadow-[var(--elev-3)] lg:h-[620px]"
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.7, ease: EASE_OUT }}
+          >
+            <motion.img
+              src={mansionBg}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 h-full w-full object-cover parallax-layer"
+              style={{ y: bgY, scale: 1.12, ['--depth' as string]: '-8px' }}
+            />
+            {/* Ink rising from the bottom so the card and the pill always read, whatever the photo is. */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[hsl(256_45%_8%/0.82)] via-[hsl(256_45%_10%/0.12)] to-[hsl(256_45%_10%/0.28)]" />
+            <div className="absolute left-7 top-7 flex items-center gap-2 rounded-full bg-white/95 py-2 pl-3.5 pr-4 text-sm font-semibold text-foreground shadow-sm">
+              <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-[hsl(var(--lagoon-bright))] opacity-70 motion-safe:animate-ping" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[hsl(var(--lagoon-bright))]" />
+              </span>
+              Tour live now
+            </div>
+            {featuredHeroListing && (
+              <Link
+                href={`/property/${featuredHeroListing.id}`}
+                className="absolute inset-x-8 bottom-8 flex items-center justify-between gap-4 rounded-[1.75rem] bg-card px-6 py-4 shadow-[var(--elev-3)] transition-transform duration-200 ease-out hover:-translate-y-0.5 active:scale-[0.99]"
+                aria-label={`Open the 360 tour: ${featuredHeroListing.title}`}
+              >
+                <span className="min-w-0">
+                  <span className="block truncate font-display text-lg font-medium text-foreground">{featuredHeroListing.title}</span>
+                  <span className="block truncate text-sm font-semibold text-primary">
+                    {featuredHeroListing.price != null
+                      ? `${featuredHeroListing.currency || 'UGX'} ${featuredHeroListing.price.toLocaleString()}`
+                      : 'Price on request'}
+                  </span>
+                </span>
+                <span className="shrink-0 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">Open tour</span>
+              </Link>
+            )}
+          </motion.div>
+        </div>
+
+        {/* Search bar - desktop only (5 inline fields need the width). One seamless pill with thin dividers between
+            segments (Airbnb's search-bar signature) instead of five separately bordered selects. Same fields, same
+            handleSearch. */}
         {!isMobile && (
-          <div className="w-full max-w-5xl bg-card rounded-full shadow-[0_20px_60px_-12px_rgba(0,0,0,0.55)] flex flex-wrap md:flex-nowrap items-center pl-3 pr-2 py-2">
+          <div
+            id="hero-search"
+            className="relative z-10 mx-auto -mt-9 flex w-full max-w-[1120px] scroll-mt-28 flex-wrap items-center rounded-full border border-border bg-card py-2 pl-3 pr-2 shadow-[var(--elev-3)] md:flex-nowrap"
+          >
           <select
             aria-label="Location"
             className="flex-1 min-w-[110px] bg-transparent px-4 py-2 text-foreground focus:outline-none border-r border-border last:border-r-0"
@@ -420,10 +472,8 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             <i className="fas fa-search mr-2 text-base"></i>
             Search
           </button>
-        </div>
-        )}
           </div>
-        </div>
+        )}
       </section>
 
       {/* ------------------------------------------------------------------
@@ -598,7 +648,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
               className="p-2.5 flex items-center justify-center"
             >
               <span
-                className={`h-1.5 rounded-full transition-all ${
+                className={`h-1.5 rounded-full transition-[width,background-color] duration-200 ease-out ${
                   heroSlide === slide ? 'w-6 bg-white' : 'w-1.5 bg-white/50'
                 }`}
               />

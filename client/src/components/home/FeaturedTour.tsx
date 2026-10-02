@@ -166,7 +166,7 @@ export default function FeaturedTour() {
                   key={p.id}
                   onClick={() => setIndex(i)}
                   aria-label={`Show featured tour ${i + 1}`}
-                  className={`h-1.5 rounded-full transition-all ${i === index ? "w-6 bg-accent" : "w-1.5 bg-border"}`}
+                  className={`h-1.5 rounded-full transition-[width,background-color] duration-200 ease-out ${i === index ? "w-6 bg-accent" : "w-1.5 bg-border"}`}
                 />
               ))}
             </div>

@@ -229,29 +229,30 @@ export default function Home() {
 
             {/* Agent Registration Call-to-Action — moved here from right after
                 the hero, see the comment near <Hero> above. */}
-            <Reveal><section className="relative overflow-hidden py-16 md:py-20 bg-[linear-gradient(135deg,hsl(258_80%_38%)_0%,hsl(268_72%_34%)_55%,hsl(332_65%_36%)_100%)] text-white -mx-4 sm:-mx-6 lg:-mx-8">
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(50%_70%_at_90%_0%,hsl(24_100%_58%/0.30),transparent_65%),radial-gradient(40%_60%_at_0%_100%,hsl(174_85%_45%/0.22),transparent_65%)]" aria-hidden="true" />
-                <div className="relative z-10 container mx-auto px-6">
-                    <div className="max-w-4xl mx-auto text-center">
-                        <p className="text-xs font-semibold tracking-[0.2em] text-[hsl(32_100%_68%)] uppercase mb-3">For Agents &amp; Brokers</p>
-                        <h2 className="text-3xl md:text-4xl font-display font-medium text-white mb-4">
-                            Become a RealEVR broker today
-                        </h2>
-                        <p className="text-lg text-white/85 mb-8 max-w-2xl mx-auto">
-                            Join RealEVR Estates as a professional agent/dotcom and start listing properties with
-                            virtual tours. Get access to premium features and reach more clients.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Reveal><section className="py-10 md:py-16">
+                <div className="surface-invert relative overflow-hidden rounded-[2rem] px-6 py-12 md:rounded-[2.75rem] md:px-16 md:py-16">
+                    <div className="relative z-10 flex flex-col items-start justify-between gap-8 md:flex-row md:items-center md:gap-12">
+                        <div className="max-w-2xl">
+                            <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-[hsl(var(--gold))]">For agents and brokers</p>
+                            <h2 className="font-display text-3xl font-bold leading-tight tracking-[-0.03em] text-foreground md:text-5xl">
+                                Become a RealEVR broker today
+                            </h2>
+                            <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
+                                Join RealEVR Estates as a professional agent/dotcom and start listing properties with virtual tours. Get access
+                                to premium features and reach more clients.
+                            </p>
+                        </div>
+                        <div className="flex w-full flex-col gap-3 sm:w-auto sm:shrink-0">
                             <Button
                                 asChild
-                                className="shine rounded-full hover:opacity-90 px-8 py-3 text-lg font-semibold transition-all"
+                                className="shine h-auto rounded-full px-8 py-3 text-lg font-semibold hover:opacity-95"
                             >
                                 <Link href="/agent/register">Become an Agent</Link>
                             </Button>
                             <Button
                                 asChild
                                 variant="outline"
-                                className="rounded-full border-white/70 bg-transparent text-white hover:bg-white hover:text-primary hover:shadow-lg px-8 py-3 text-lg font-semibold transition-all"
+                                className="h-auto rounded-full border-white/60 bg-transparent px-8 py-3 text-lg font-semibold text-white hover:bg-white hover:text-[hsl(256_45%_13%)]"
                             >
                                 <Link href="/list-your-property">List a Property</Link>
                             </Button>
