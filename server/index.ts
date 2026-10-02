@@ -26,7 +26,15 @@ const app = express()
 // Text over the wire is compressed (the page script alone is ~2 MB raw, ~650 KB compressed). Server-sent events are left
 // alone so progress messages are not held back in a buffer.
 app.use(compression({ filter: (req, res) => !String(res.getHeader('Content-Type') ?? '').includes('text/event-stream') && !String(req.headers.accept ?? '').includes('text/event-stream') && compression.filter(req, res) }))
-app.use(express.json({ limit: '5gb' }))
+// The WhatsApp webhook is signed over the exact bytes Meta sent, so keep them (only for that path; other bodies can be huge).
+app.use(
+    express.json({
+        limit: '5gb',
+        verify: (req, _res, buf) => {
+            if ((req as { url?: string }).url?.startsWith('/api/gene/whatsapp/webhook')) (req as { rawBody?: Buffer }).rawBody = buf
+        },
+    })
+)
 app.use(express.urlencoded({ extended: true, limit: '5gb' }))
 
 // Add CORS headers

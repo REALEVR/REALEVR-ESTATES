@@ -120,7 +120,7 @@ async function reply(phone: string, text: string): Promise<void> {
 
 /** Meta Cloud API path: media ID -> signed URL -> bytes (two hops, both
  * needing the same bearer token). */
-async function downloadWhatsAppMediaById(mediaId: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+export async function downloadWhatsAppMediaById(mediaId: string): Promise<{ buffer: Buffer; contentType: string } | null> {
     const token = process.env.WHATSAPP_BUSINESS_TOKEN
     if (!token) return null
 
@@ -145,7 +145,7 @@ async function downloadWhatsAppMediaById(mediaId: string): Promise<{ buffer: Buf
 /** Infobip path: the inbound webhook already hands a directly-fetchable
  * media URL — no ID-resolution hop needed, just the App API key to
  * authorize the download. */
-async function downloadWhatsAppMediaFromUrl(url: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+export async function downloadWhatsAppMediaFromUrl(url: string): Promise<{ buffer: Buffer; contentType: string } | null> {
     const apiKey = process.env.INFOBIP_API_KEY
     if (!apiKey) return null
 

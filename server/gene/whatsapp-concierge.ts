@@ -43,6 +43,9 @@
  * Persistence: shared JSON-file collection store (see ./store.ts).
  */
 import type { Express, Request, Response } from 'express'
+import { handleOwnerAudio, isOwnerNumber, ownerSays } from './owner-assistant'
+import { downloadWhatsAppMediaById, downloadWhatsAppMediaFromUrl } from './whatsapp-listing-upload'
+import { verifyInfobipKey, verifyMetaSignature } from './webhook-auth'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
 import { sendWhatsAppMessage } from './whatsapp'
@@ -391,7 +394,13 @@ async function handleConciergeChat(phone: string, text: string, link: WhatsappUs
 /** Exported so the Infobip webhook route below (and any future inbound
  * transport) can reuse the exact same command routing as the Meta webhook,
  * rather than re-implementing it. */
-export async function handleInboundText(phone: string, text: string): Promise<void> {
+export async function handleInboundText(phone: string, text: string, opts: { verified?: boolean } = {}): Promise<void> {
+    // The owner's own number, on a webhook we have proof is genuine: this is the owner talking to the platform
+    // (owner-assistant.ts). Without that proof the number is treated like anyone else, so a forged request can't act as the owner.
+    if (opts.verified && (await isOwnerNumber(phone))) {
+        await ownerSays(phone, text)
+        return
+    }
     const link = findLinkByPhone(phone)
     const firstContact = isFirstContact(phone)
     logMessage({ phone, direction: 'inbound', text, userId: link?.userId })
@@ -446,6 +455,14 @@ export function registerWhatsappConciergeRoutes(app: Express): void {
         // Always 200 quickly — WhatsApp retries aggressively on non-2xx.
         res.sendStatus(200)
         try {
+            // When WHATSAPP_APP_SECRET is set, only deliveries signed by Meta are accepted; forged ones are dropped.
+            // Without it the webhook works as before, but the owner's assistant stays off (it can approve things).
+            const appSecret = (process.env.WHATSAPP_APP_SECRET || '').trim()
+            const verified = verifyMetaSignature((req as any).rawBody, req.headers['x-hub-signature-256'], appSecret)
+            if (appSecret && !verified) {
+                console.warn('[gene/whatsapp-concierge] dropped a webhook with a missing or wrong signature')
+                return
+            }
             const entry = req.body?.entry?.[0]
             const value = entry?.changes?.[0]?.value
             const messages = value?.messages
@@ -464,9 +481,18 @@ export function registerWhatsappConciergeRoutes(app: Express): void {
                     continue
                 }
 
+                // A voice note from the owner is heard and treated as a typed message.
+                if (msg?.type === 'audio' && typeof msg?.audio?.id === 'string') {
+                    if (verified && (await isOwnerNumber(phone))) {
+                        const media = await downloadWhatsAppMediaById(msg.audio.id)
+                        if (media) await handleOwnerAudio(phone, media.buffer, media.contentType)
+                    }
+                    continue
+                }
+
                 const text = msg?.text?.body
                 if (typeof text !== 'string' || !text.trim()) continue
-                await handleInboundText(phone, text.trim())
+                await handleInboundText(phone, text.trim(), { verified })
             }
         } catch (err) {
             console.error('[gene/whatsapp-concierge] webhook processing failed:', err)
@@ -483,6 +509,9 @@ export function registerWhatsappConciergeRoutes(app: Express): void {
     app.post('/api/gene/whatsapp/webhook/infobip', async (req: Request, res: Response) => {
         res.sendStatus(200)
         try {
+            // Infobip does not sign deliveries. Put a secret in the webhook address (?key=...) and set the same value
+            // as INFOBIP_WEBHOOK_SECRET; only then is the owner's assistant listening.
+            const verified = verifyInfobipKey(req.query, req.headers as Record<string, unknown>, (process.env.INFOBIP_WEBHOOK_SECRET || '').trim())
             const results = req.body?.results
             if (!Array.isArray(results) || results.length === 0) return
 
@@ -498,9 +527,17 @@ export function registerWhatsappConciergeRoutes(app: Express): void {
                     continue
                 }
 
+                if ((type === 'VOICE' || type === 'AUDIO') && typeof message?.url === 'string') {
+                    if (verified && (await isOwnerNumber(phone))) {
+                        const media = await downloadWhatsAppMediaFromUrl(message.url)
+                        if (media) await handleOwnerAudio(phone, media.buffer, media.contentType)
+                    }
+                    continue
+                }
+
                 const text = typeof message?.text === 'string' ? message.text : undefined
                 if (!text || !text.trim()) continue
-                await handleInboundText(phone, text.trim())
+                await handleInboundText(phone, text.trim(), { verified })
             }
         } catch (err) {
             console.error('[gene/whatsapp-concierge] Infobip webhook processing failed:', err)

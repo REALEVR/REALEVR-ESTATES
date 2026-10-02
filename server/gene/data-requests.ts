@@ -66,6 +66,17 @@ function save(r: DataRequest) {
     )
 }
 
+/** Used by the admin page and the owner's WhatsApp assistant. Returns null when there is no such request. */
+export function setDataRequestStatus(id: number, status: string, note?: string): DataRequest | null {
+    const r = readCollection<DataRequest>(C_REQ).find((x) => x.id === id)
+    if (!r) return null
+    if (['received', 'verifying', 'in_progress', 'completed', 'refused'].includes(status)) r.status = status as DataRequest['status']
+    if (typeof note === 'string') r.note = note.trim().slice(0, 500)
+    r.updatedAt = nowIso()
+    save(r)
+    return r
+}
+
 export function registerDataRequestRoutes(app: Express): void {
     app.post('/api/data-requests', async (req: Request, res: Response) => {
         if (tooMany(req.ip || 'x', 5)) return res.status(429).json({ message: 'Too many requests from this connection. Try again later, or write to privacy@realevr.com.' })
