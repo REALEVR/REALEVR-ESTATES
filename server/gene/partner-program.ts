@@ -384,6 +384,59 @@ export async function sendPendingInvites(max = INVITES_PER_RUN): Promise<{ sent:
 // Routes
 // ---------------------------------------------------------------------------
 
+/**
+ * Approve, refuse or ask for more on a partner application. One place for the rules, used by the admin page and by
+ * the owner's WhatsApp assistant (owner-assistant.ts), so both behave identically.
+ */
+export async function decidePartnerApplication(
+    a: PartnerApp,
+    input: { decision: unknown; note?: string; waiveFee?: boolean; publicListing?: boolean },
+    byUserId: number
+): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
+    const decision = input.decision
+    const note = input.note ?? ''
+    if (decision === 'approve') {
+        if (a.feeUsd > 0 && a.feeStatus !== 'confirmed' && input.waiveFee !== true) return { ok: false, status: 409, message: 'The partner fee is not confirmed yet. Wait for the payment, or tick "waive the fee".' }
+        a.status = 'approved'
+        a.statusNote = undefined
+        a.decidedAt = nowIso()
+        a.decidedBy = byUserId
+        a.publicListing = input.publicListing !== false
+        a.activeUntil = new Date(Date.now() + APPROVAL_MONTHS * 30 * 86_400_000).toISOString()
+        if (a.feeUsd > 0 && a.feeStatus !== 'confirmed') a.feeNote = 'Fee waived by an administrator'
+        if (a.role === 'bank') {
+            // A bank partner has to be able to list properties and run auctions.
+            const u = await storage.getUser(a.userId).catch(() => undefined)
+            if (u && u.role === 'normal') await storage.updateUserRole(a.userId, 'agent').catch((err) => console.error('[partners] could not give the partner a listing role:', err))
+        }
+    } else if (decision === 'reject') {
+        if (note.length < 5) return { ok: false, status: 400, message: 'Say why (the applicant sees this).' }
+        a.status = 'rejected'
+        a.statusNote = note
+        a.decidedAt = nowIso()
+        a.decidedBy = byUserId
+        if (a.feeStatus === 'confirmed') a.feeNote = 'Application refused: the fee is refunded outside the platform. Contact support.'
+    } else if (decision === 'request_more') {
+        if (note.length < 5) return { ok: false, status: 400, message: 'Say what is missing.' }
+        a.status = 'needs_info'
+        a.statusNote = note
+    } else {
+        return { ok: false, status: 400, message: 'Decision must be approve, reject or request_more.' }
+    }
+    a.updatedAt = nowIso()
+    save(C_APPS, a)
+    const where = worldCountry(a.country)?.name ?? a.country
+    const text =
+        decision === 'approve'
+            ? `Your partnership in ${where} is approved${a.role === 'bank' ? ' and you can now list bank sales and run auctions' : ''}.${a.publicListing ? ' You now appear on the Partners page.' : ''}`
+            : decision === 'reject'
+              ? `We could not accept your application for ${where}: ${note}`
+              : `We need more from you for ${where}: ${note}`
+    await tell(a.userId, decision === 'approve' ? 'Partnership approved' : decision === 'reject' ? 'Partner application not accepted' : 'More information needed', text, '/become-a-partner')
+    sendEmail({ to: a.email, subject: decision === 'approve' ? 'Your RealEVR Estates partnership is approved' : 'Your RealEVR Estates partner application', html: `<p>${text}</p><p>— RealEVR Estates</p>`, text }).catch(() => {})
+    return { ok: true }
+}
+
 export function registerPartnerProgramRoutes(app: Express): void {
     // ---- Public: the programme, and one country's page --------------------------------------------
     app.get('/api/partner-program', (_req: Request, res: Response) => {
@@ -593,47 +646,8 @@ export function registerPartnerProgramRoutes(app: Express): void {
     app.post('/api/admin/partner-program/applications/:id/decision', requireStrictAdmin, async (req: Request, res: Response) => {
         const a = rows.apps().find((x) => x.id === Number(req.params.id))
         if (!a) return res.status(404).json({ message: 'No such application.' })
-        const decision = req.body?.decision
-        const note = str(req.body?.note, 400)
-        if (decision === 'approve') {
-            if (a.feeUsd > 0 && a.feeStatus !== 'confirmed' && req.body?.waiveFee !== true) return res.status(409).json({ message: 'The partner fee is not confirmed yet. Wait for the payment, or tick "waive the fee".' })
-            a.status = 'approved'
-            a.statusNote = undefined
-            a.decidedAt = nowIso()
-            a.decidedBy = asUserId(req)!
-            a.publicListing = req.body?.publicListing !== false
-            a.activeUntil = new Date(Date.now() + APPROVAL_MONTHS * 30 * 86_400_000).toISOString()
-            if (a.feeUsd > 0 && a.feeStatus !== 'confirmed') a.feeNote = 'Fee waived by an administrator'
-            if (a.role === 'bank') {
-                // A bank partner has to be able to list properties and run auctions.
-                const u = await storage.getUser(a.userId).catch(() => undefined)
-                if (u && u.role === 'normal') await storage.updateUserRole(a.userId, 'agent').catch((err) => console.error('[partners] could not give the partner a listing role:', err))
-            }
-        } else if (decision === 'reject') {
-            if (note.length < 5) return res.status(400).json({ message: 'Say why (the applicant sees this).' })
-            a.status = 'rejected'
-            a.statusNote = note
-            a.decidedAt = nowIso()
-            a.decidedBy = asUserId(req)!
-            if (a.feeStatus === 'confirmed') a.feeNote = 'Application refused: the fee is refunded outside the platform. Contact support.'
-        } else if (decision === 'request_more') {
-            if (note.length < 5) return res.status(400).json({ message: 'Say what is missing.' })
-            a.status = 'needs_info'
-            a.statusNote = note
-        } else {
-            return res.status(400).json({ message: 'Decision must be approve, reject or request_more.' })
-        }
-        a.updatedAt = nowIso()
-        save(C_APPS, a)
-        const where = worldCountry(a.country)?.name ?? a.country
-        const text =
-            decision === 'approve'
-                ? `Your partnership in ${where} is approved${a.role === 'bank' ? ' and you can now list bank sales and run auctions' : ''}.${a.publicListing ? ' You now appear on the Partners page.' : ''}`
-                : decision === 'reject'
-                  ? `We could not accept your application for ${where}: ${note}`
-                  : `We need more from you for ${where}: ${note}`
-        await tell(a.userId, decision === 'approve' ? 'Partnership approved' : decision === 'reject' ? 'Partner application not accepted' : 'More information needed', text, '/become-a-partner')
-        sendEmail({ to: a.email, subject: decision === 'approve' ? 'Your RealEVR Estates partnership is approved' : 'Your RealEVR Estates partner application', html: `<p>${text}</p><p>— RealEVR Estates</p>`, text }).catch(() => {})
+        const out = await decidePartnerApplication(a, { decision: req.body?.decision, note: str(req.body?.note, 400), waiveFee: req.body?.waiveFee === true, publicListing: req.body?.publicListing !== false }, asUserId(req)!)
+        if (!out.ok) return res.status(out.status).json({ message: out.message })
         res.json(a)
     })
 

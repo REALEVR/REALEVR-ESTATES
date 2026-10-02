@@ -122,6 +122,17 @@ export async function restoreCryptoBuy(): Promise<void> {
 
 const SAFETY = 'Never send coin to an address you were given in a chat, a call or an unsigned message. Real payment instructions come in writing from RealEVR Estates or the escrow lawyer, and we will never ask you to pay a personal wallet.'
 
+/** Used by the admin page and the owner's WhatsApp assistant. Returns null when there is no such request. */
+export function setCryptoRequestStatus(id: number, status: string, adminNote?: string): CryptoRequest | null {
+    const r = readCollection<CryptoRequest>(C_REQ).find((x) => x.id === id)
+    if (!r) return null
+    if ((CRYPTO_REQUEST_STATUSES as readonly string[]).includes(status)) r.status = status as CryptoRequestStatus
+    if (typeof adminNote === 'string') r.adminNote = adminNote.trim().slice(0, 600)
+    r.updatedAt = nowIso()
+    saveRequest(r)
+    return r
+}
+
 export function registerCryptoBuyRoutes(app: Express): void {
     // The price of a listing in coin. Public, no sign-in. Never shows an amount it could not work out.
     app.get('/api/crypto/property/:id', async (req: Request, res: Response) => {

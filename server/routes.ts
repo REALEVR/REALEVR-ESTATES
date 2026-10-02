@@ -51,6 +51,7 @@ import { registerAuctionRoutes, startAuctionService } from './gene/auctions'
 import { registerPaymentSettingsRoutes } from './gene/payment-settings'
 import { registerPartnerProgramRoutes, startPartnerProgramService } from './gene/partner-program'
 import { registerCryptoBuyRoutes } from './gene/crypto-buy'
+import { startOwnerAssistantService } from './gene/owner-assistant'
 import { registerDataRequestRoutes } from './gene/data-requests'
 import { programForAllCountries } from '../shared/partner-program'
 import { registerGeneIngestionRoutes } from './gene/ingestion'
@@ -2844,6 +2845,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerPartnerProgramRoutes(app)
     registerCryptoBuyRoutes(app)
     startPartnerProgramService()
+    startOwnerAssistantService()
     registerDataRequestRoutes(app)
     startAuctionService()
     scheduleTourHealthAtStartup()

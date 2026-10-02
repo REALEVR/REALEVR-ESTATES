@@ -120,14 +120,64 @@ async function sendViaMetaText(to: string, body: string): Promise<{ sent: boolea
 
         if (!response.ok) {
             const errText = await response.text().catch(() => '')
+            // 131047: more than 24 hours since this person last wrote to the business number, so only an approved
+            // template may be sent. If one is configured, use it so alerts still reach the owner.
+            if (isOutsideWindow(errText)) {
+                const viaTemplate = await sendViaMetaTemplate(to, body)
+                if (viaTemplate) return viaTemplate
+            }
             console.error(`[gene/whatsapp] send failed (${response.status}): ${errText}`)
-            return { sent: false, reason: `WhatsApp API returned ${response.status}` }
+            return { sent: false, reason: isOutsideWindow(errText) ? 'More than 24 hours since this person last messaged the number, and no WHATSAPP_ALERT_TEMPLATE is set' : `WhatsApp API returned ${response.status}` }
         }
 
         return { sent: true }
     } catch (error: any) {
         console.error('[gene/whatsapp] send threw:', error)
         return { sent: false, reason: error?.message ?? 'Unknown error sending WhatsApp message' }
+    }
+}
+
+export function isOutsideWindow(errorBody: string): boolean {
+    return /"code"\s*:\s*131047/.test(errorBody) || /re-?engagement/i.test(errorBody)
+}
+
+/** Template parameters may not hold line breaks, tabs or long runs of spaces. */
+export function templateText(body: string): string {
+    return body.replace(/\s*\n+\s*/g, ' | ').replace(/[\t ]{2,}/g, ' ').trim().slice(0, 1000)
+}
+
+/**
+ * Send through an approved WhatsApp template with one body variable ({{1}}). Create it once in Meta's WhatsApp Manager
+ * (category Utility, body: "RealEVR: {{1}}") and set WHATSAPP_ALERT_TEMPLATE to its name. Returns null when none is set.
+ */
+async function sendViaMetaTemplate(to: string, body: string): Promise<{ sent: boolean; reason?: string } | null> {
+    const name = (process.env.WHATSAPP_ALERT_TEMPLATE || '').trim()
+    const token = process.env.WHATSAPP_BUSINESS_TOKEN
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
+    if (!name || !token || !phoneNumberId) return null
+    try {
+        const response = await fetch(`https://graph.facebook.com/v19.0/${phoneNumberId}/messages`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                messaging_product: 'whatsapp',
+                to,
+                type: 'template',
+                template: {
+                    name,
+                    language: { code: (process.env.WHATSAPP_ALERT_TEMPLATE_LANG || 'en').trim() },
+                    components: [{ type: 'body', parameters: [{ type: 'text', text: templateText(body) }] }],
+                },
+            }),
+        })
+        if (!response.ok) {
+            console.error(`[gene/whatsapp] template send failed (${response.status}): ${await response.text().catch(() => '')}`)
+            return { sent: false, reason: `WhatsApp template send returned ${response.status}` }
+        }
+        return { sent: true }
+    } catch (error: any) {
+        console.error('[gene/whatsapp] template send threw:', error)
+        return { sent: false, reason: error?.message ?? 'Unknown error sending the WhatsApp template' }
     }
 }
 
