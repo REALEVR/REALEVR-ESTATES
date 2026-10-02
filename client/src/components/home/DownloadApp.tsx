@@ -57,6 +57,10 @@ export default function DownloadApp() {
             <img 
               src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=600&q=80" 
               alt="Mobile app on smartphone" 
+              width={600}
+              height={400}
+              loading="lazy"
+              decoding="async"
               className="rounded-xl shadow-2xl mx-auto md:ml-auto md:mr-0 max-w-sm"
             />
           </div>

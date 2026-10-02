@@ -1,5 +1,32 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
+
+/** A still picture with a play button; the 1 MB YouTube player loads only when someone presses it. */
+function VideoFacade({ videoId, title }: { videoId: string; title: string }) {
+  const [playing, setPlaying] = useState(false);
+  if (playing) {
+    return (
+      <iframe
+        className="w-full h-full"
+        src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`}
+        title={title}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+      ></iframe>
+    );
+  }
+  return (
+    <button type="button" onClick={() => setPlaying(true)} className="group relative block h-full w-full" aria-label={`Play video: ${title}`}>
+      <img src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`} alt="" width={480} height={360} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+      <span className="absolute inset-0 grid place-items-center bg-black/20 transition group-hover:bg-black/30">
+        <span className="grid h-16 w-16 place-items-center rounded-full bg-white/95 text-foreground shadow-lg">
+          <i className="fas fa-play ml-1 text-xl" aria-hidden="true"></i>
+        </span>
+      </span>
+    </button>
+  );
+}
 
 export default function HowItWorks() {
   const steps = [
@@ -44,13 +71,7 @@ export default function HowItWorks() {
         <div className="mt-12 mb-8">
           <h3 className="text-xl font-bold text-center mb-6">Watch How It Works</h3>
           <div className="aspect-w-16 aspect-h-9 max-w-3xl mx-auto bg-muted rounded-xl overflow-hidden shadow-lg">
-            <iframe 
-              className="w-full h-full"
-              src="https://www.youtube.com/embed/Ef7CC5EtJww"
-              title="BnB Booking Process Demo"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-              allowFullScreen
-            ></iframe>
+            <VideoFacade videoId="Ef7CC5EtJww" title="BnB Booking Process Demo" />
           </div>
           <p className="text-muted-foreground text-center mt-4 max-w-2xl mx-auto">
             This video demonstrates how our BnB booking system works - browse properties, book your stay, pay a 20% deposit, and get instant access to owner contact details.

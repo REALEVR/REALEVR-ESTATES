@@ -21,6 +21,7 @@ import type { Property } from '@shared/schema'
 import { PageSeo } from '@/components/seo/PageSeo'
 import { getSiteUrl } from '@/lib/siteUrl'
 import { CATEGORY_PAGE_META, SITE_NAME } from '@shared/seo'
+import FaqSection from "@/components/seo/FaqSection";
 
 // Property category labels for display
 const categoryLabels = {
@@ -264,6 +265,7 @@ export default function Home() {
             <Reveal><FeaturedTour /></Reveal>
             <Reveal><AmenitiesHighlight /></Reveal>
             <Reveal><HowItWorks /></Reveal>
+            <Reveal><FaqSection page="home" className="px-4 sm:px-6" /></Reveal>
             <Reveal><DownloadApp /></Reveal>
         </>
     )

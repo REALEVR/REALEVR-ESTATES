@@ -1,15 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageSeo } from "@/components/seo/PageSeo";
 
 export default function AboutUsPage() {
   return (
     <div className="container mx-auto px-6 py-8">
       <div className="max-w-4xl mx-auto">
+        <PageSeo title="About RealEVR Estates | 360° Virtual Property Tours in Africa" description="RealEVR Estates puts a 360° virtual tour on every rental, BnB, home for sale and bank auction, starting in Uganda. Learn what the platform does and what it stands for." canonicalPath="/about" />
         <h1 className="text-3xl font-bold text-center mb-8">About RealEVR Estates</h1>
         
         <div className="space-y-8">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-accent">Our Mission</CardTitle>
+              <CardTitle as="h2" className="text-2xl text-accent">What is RealEVR Estates?</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-gray-600 leading-relaxed">
@@ -22,7 +24,7 @@ export default function AboutUsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-accent">What We Do</CardTitle>
+              <CardTitle as="h2" className="text-2xl text-accent">What can you do on RealEVR Estates?</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -60,7 +62,7 @@ export default function AboutUsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-accent">Our Story</CardTitle>
+              <CardTitle as="h2" className="text-2xl text-accent">Where does RealEVR Estates come from?</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-gray-600 leading-relaxed mb-4">
@@ -79,7 +81,7 @@ export default function AboutUsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-accent">Our Values</CardTitle>
+              <CardTitle as="h2" className="text-2xl text-accent">What does RealEVR Estates stand for?</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

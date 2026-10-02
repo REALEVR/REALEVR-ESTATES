@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { UserPlus, Loader2, Building, CheckIcon, Star, Crown, Zap, Users, Eye, Calendar, Shield, Gift } from 'lucide-react'
 import { useFlutterwave, FlutterWaveTypes } from 'flutterwave-react-v3'
 import { intiateGateWay, makePaymentString, paymentEmitter, PaymentSources, sendPaymentRequest } from '@/lib/iotec-paymentpatch'
+import { PageSeo } from "@/components/seo/PageSeo";
 
 const AgentRegistrationSchema = z
     .object({
@@ -275,6 +276,7 @@ export default function AgentRegistrationPage() {
                 <div className="max-w-6xl mx-auto">
                     {/* Header */}
                     <div className="text-center mb-12">
+                        <PageSeo title="Register as an Agent or Property Owner | RealEVR Estates" description="Create your agent account on RealEVR Estates to list properties with 360° virtual tours and reach buyers, tenants and guests." canonicalPath="/agent/register" />
                         <h1 className="text-4xl font-bold text-gray-900 mb-4">Become a Real Estate Agent</h1>
                         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
                             Join RealEVR Estates as a professional agent and start listing properties with virtual

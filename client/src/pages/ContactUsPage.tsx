@@ -2,18 +2,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PageSeo } from "@/components/seo/PageSeo";
 
 export default function ContactUsPage() {
   return (
     <div className="container mx-auto px-6 py-8">
       <div className="max-w-4xl mx-auto">
+        <PageSeo title="Contact RealEVR Estates | Email, Phone and WhatsApp" description="Get in touch with RealEVR Estates by email, phone or WhatsApp, or send a message. Find answers to common questions about tours, listings and payments." canonicalPath="/contact" />
         <h1 className="text-3xl font-bold text-center mb-8">Contact Us</h1>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-2xl text-accent">Get in Touch</CardTitle>
+                <CardTitle as="h2" className="text-2xl text-accent">How can I contact RealEVR Estates?</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -62,7 +64,7 @@ export default function ContactUsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-2xl text-accent">Follow Us</CardTitle>
+                <CardTitle as="h2" className="text-2xl text-accent">Follow Us</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex space-x-4">
@@ -85,7 +87,7 @@ export default function ContactUsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-accent">Send us a Message</CardTitle>
+              <CardTitle as="h2" className="text-2xl text-accent">Send us a Message</CardTitle>
             </CardHeader>
             <CardContent>
               <form className="space-y-4">
@@ -142,7 +144,7 @@ export default function ContactUsPage() {
         <div className="mt-12">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-accent">Frequently Asked Questions</CardTitle>
+              <CardTitle as="h2" className="text-2xl text-accent">What do people ask us most?</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

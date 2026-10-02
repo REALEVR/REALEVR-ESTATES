@@ -10,6 +10,7 @@ import type { Property } from "@shared/schema";
 import { PageSeo } from "@/components/seo/PageSeo";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { CATEGORY_PAGE_META } from "@shared/seo";
+import FaqSection from "@/components/seo/FaqSection";
 
 export default function BnBsPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -238,6 +239,7 @@ export default function BnBsPage() {
           </div>
         )}
       </div>
+      <FaqSection page="bnbs" />
     </div>
   );
 }

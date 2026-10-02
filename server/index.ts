@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from 'express'
+import compression from 'compression'
 import { registerRoutes } from './routes'
 import { createTablesIfNotExist } from './dynamodb'
 import { initCronJobs } from './cron/index'
@@ -22,6 +23,9 @@ if (!fs.existsSync(tourDir)) {
 }
 
 const app = express()
+// Text over the wire is compressed (the page script alone is ~2 MB raw, ~650 KB compressed). Server-sent events are left
+// alone so progress messages are not held back in a buffer.
+app.use(compression({ filter: (req, res) => !String(res.getHeader('Content-Type') ?? '').includes('text/event-stream') && !String(req.headers.accept ?? '').includes('text/event-stream') && compression.filter(req, res) }))
 app.use(express.json({ limit: '5gb' }))
 app.use(express.urlencoded({ extended: true, limit: '5gb' }))
 

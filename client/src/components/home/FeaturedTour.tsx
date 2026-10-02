@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { Suspense, lazy, useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import VirtualTour from "@/components/property/VirtualTour";
-import BookingCalendarModal from "../property/BookingCalendarModal";
-import SharePropertyModal from "../property/SharePropertyModal";
+const BookingCalendarModal = lazy(() => import("../property/BookingCalendarModal"));
+const SharePropertyModal = lazy(() => import("../property/SharePropertyModal"));
 import BuyWithBitcoinButton from "../crypto/BuyWithBitcoinButton";
 import { useQuery } from "@tanstack/react-query";
 import type { Property, User } from "@shared/schema";
@@ -540,6 +540,8 @@ export default function FeaturedTour() {
       </div>
 
       {/* Modals */}
+      {isBookingModalOpen && (
+      <Suspense fallback={null}>
       <BookingCalendarModal
         isOpen={isBookingModalOpen}
         onClose={() => setIsBookingModalOpen(false)}
@@ -548,13 +550,19 @@ export default function FeaturedTour() {
         propertyPrice={featuredProperty.price}
         propertyCurrency={featuredProperty.currency || "UGX"}
       />
+      </Suspense>
+      )}
 
+      {isShareModalOpen && (
+      <Suspense fallback={null}>
       <SharePropertyModal
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
         propertyId={featuredProperty.id}
         propertyTitle={featuredProperty.title}
       />
+      </Suspense>
+      )}
     </section>
   );
 }

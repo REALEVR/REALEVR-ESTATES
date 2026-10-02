@@ -1,9 +1,11 @@
 import { Link } from "wouter";
+import { PageSeo } from "@/components/seo/PageSeo";
 
 export default function HostResponsibly() {
   return (
     <div className="container mx-auto px-6 py-12">
       <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-sm">
+        <PageSeo title="Host Responsibly | Guidelines for Property Owners and Managers" description="Legal and practical guidelines for property owners and managers who list homes, BnBs and rentals on RealEVR Estates in Uganda." canonicalPath="/host-responsibly" />
         <h1 className="text-3xl font-bold mb-6">Host Responsibly</h1>
         <p className="text-gray-500 mb-8">Guidelines for Property Owners and Managers in Uganda</p>
         

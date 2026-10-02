@@ -1,9 +1,11 @@
 import { Link } from "wouter";
+import { PageSeo } from "@/components/seo/PageSeo";
 
 export default function CookiePolicy() {
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-sm">
+        <PageSeo title="Cookie Policy | RealEVR Estates" description="What cookies and similar technologies RealEVR Estates uses, why, and how to control them." canonicalPath="/cookies" />
         <h1 className="text-3xl font-bold mb-6">Cookie Policy</h1>
         <p className="text-gray-500 mb-8">Last Updated: October 1, 2026</p>
 

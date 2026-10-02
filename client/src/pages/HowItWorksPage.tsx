@@ -1,15 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageSeo } from "@/components/seo/PageSeo";
 
 export default function HowItWorksPage() {
   return (
     <div className="container mx-auto px-6 py-8">
       <div className="max-w-4xl mx-auto">
+        <PageSeo title="How RealEVR Estates Works | Tour, Rent, Book or Buy" description="See how to find a home, take a 360° virtual tour, contact the agent, and rent, book or buy on RealEVR Estates, and how owners and agents list property." canonicalPath="/how-it-works" />
         <h1 className="text-3xl font-bold text-center mb-8">How RealEVR Estates Works</h1>
         
         <div className="space-y-8">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-accent">For Property Seekers</CardTitle>
+              <CardTitle as="h2" className="text-2xl text-accent">How do I find and tour a home?</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
@@ -70,7 +72,7 @@ export default function HowItWorksPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-accent">For Property Owners & Agents</CardTitle>
+              <CardTitle as="h2" className="text-2xl text-accent">How do I list my property?</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
@@ -131,7 +133,7 @@ export default function HowItWorksPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-accent">Subscription Plans</CardTitle>
+              <CardTitle as="h2" className="text-2xl text-accent">How much does it cost to list?</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -174,7 +176,7 @@ export default function HowItWorksPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-accent">Payment & Security</CardTitle>
+              <CardTitle as="h2" className="text-2xl text-accent">Is paying on RealEVR Estates safe?</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { insertUserSchema } from "@shared/schema";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
+import { PageSeo } from "@/components/seo/PageSeo";
 
 // Remove confirmPassword from the final submitted data
 type FormValues = z.infer<typeof insertUserSchema>;
@@ -87,6 +88,7 @@ export default function MembershipPage() {
   return (
     <div className="container mx-auto px-6 py-12">
       <div className="text-center mb-12">
+        <PageSeo title="Membership Plans for Agents and Property Owners | RealEVR Estates" description="Compare RealEVR Estates membership plans for agents and property owners, and see what each plan includes." canonicalPath="/membership" />
         <h1 className="text-4xl font-bold mb-4">Join RealEVR Estates</h1>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
           Become a member to list your properties with virtual tours and expand your reach to potential clients.

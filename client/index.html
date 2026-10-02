@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>RealEVR Estates | Virtual Property Tours</title>
     <meta name="description" content="Discover rental units, vacation BnBs, properties for sale, and bank sales with virtual tours. Search by location, price, and amenities on RealEVR Estates." />
     <meta name="theme-color" content="#211B17" />
@@ -29,12 +29,16 @@
     <link rel="apple-touch-icon" href="/favicon.ico" />
     <link rel="manifest" href="/site.webmanifest" />
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <!-- Montserrat stays the body/UI typeface. Space Grotesk replaces Fraunces
          for display headlines — "NeoVision" theme (v2, GENE v1.9), a geometric
          technical face to match the black & white VR-forward redesign — see
          client/src/index.css for the full rationale. -->
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- The font stylesheet no longer blocks the first paint: the page shows in a system font at once and the web fonts
+         swap in when they arrive (display=swap is in the URL). -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"></noscript>
     <!-- Font Awesome is self-hosted (client/src/main.tsx imports
          @fortawesome/fontawesome-free/css/all.min.css, bundled by Vite) as
          of GENE v1.11's mobile fix, not loaded from cdnjs.cloudflare.com

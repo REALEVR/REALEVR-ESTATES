@@ -11,6 +11,7 @@ import type { Property } from '@shared/schema'
 import { PageSeo } from '@/components/seo/PageSeo'
 import { getSiteUrl } from '@/lib/siteUrl'
 import { CATEGORY_PAGE_META } from '@shared/seo'
+import FaqSection from "@/components/seo/FaqSection";
 
 export default function RentalUnitsPage() {
     const { hasActiveViewingPackage, openViewingPaymentPrompt } = usePayment()
@@ -200,7 +201,7 @@ export default function RentalUnitsPage() {
                                     </svg>
                                 </div>
                                 <div className="flex-1">
-                                    <h3 className="text-foreground font-medium">Viewing Package Required</h3>
+                                    <h2 className="text-foreground font-medium">Viewing Package Required</h2>
                                     <p className="text-muted-foreground text-sm mt-1">
                                         A one-time fee of 10,000 UGX is required to view contact details for up to 10
                                         rental properties. This provides access for 1 day only.
@@ -363,6 +364,7 @@ export default function RentalUnitsPage() {
                     </div>
                 )}
             </div>
+          <FaqSection page="rentalUnits" />
         </div>
     )
 }

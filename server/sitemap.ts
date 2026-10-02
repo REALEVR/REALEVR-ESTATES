@@ -2,6 +2,9 @@
  * Dynamic sitemap generation (sitemaps.org + Google image extension).
  */
 
+import { GUIDES } from '../shared/guides'
+import { COMPARE_REVIEWED, COMPARISONS } from '../shared/compare'
+
 export type SitemapUrlEntry = {
     loc: string
     changefreq?: string
@@ -74,14 +77,23 @@ const STATIC_PATHS: Array<{ path: string; changefreq: string; priority: string }
     { path: '/contact', changefreq: 'monthly', priority: '0.5' },
     { path: '/trust-safety', changefreq: 'monthly', priority: '0.4' },
     { path: '/agent/register', changefreq: 'monthly', priority: '0.5' },
+    { path: '/cookies', changefreq: 'monthly', priority: '0.3' },
+    { path: '/refund-policy', changefreq: 'monthly', priority: '0.3' },
+    { path: '/properties', changefreq: 'daily', priority: '0.7' },
+    { path: '/guides', changefreq: 'weekly', priority: '0.7' },
+    { path: '/compare', changefreq: 'monthly', priority: '0.6' },
 ]
 
 export function getStaticSitemapEntries(base: string): SitemapUrlEntry[] {
-    return STATIC_PATHS.map(({ path, changefreq, priority }) => ({
+    const pages = STATIC_PATHS.map(({ path, changefreq, priority }) => ({
         loc: pathToLoc(base, path),
         changefreq,
         priority,
     }))
+    // Guides carry their own last-updated date, which search engines use to decide when to come back.
+    const guides = GUIDES.map((g) => ({ loc: pathToLoc(base, `/guides/${g.slug}`), lastmod: g.updated, changefreq: 'monthly', priority: '0.7' }))
+    const compares = COMPARISONS.map((c) => ({ loc: pathToLoc(base, `/compare/${c.slug}`), lastmod: COMPARE_REVIEWED, changefreq: 'monthly', priority: '0.6' }))
+    return [...pages, ...guides, ...compares]
 }
 
 export function propertyToSitemapEntry(base: string, property: PropertyForSitemap): SitemapUrlEntry {
@@ -160,6 +172,15 @@ const AI_CRAWLER_USER_AGENTS = [
     'Bytespider', // ByteDance
     'Amazonbot', // Amazon
     'cohere-ai', // Cohere
+    'Claude-SearchBot', // Anthropic search
+    'Claude-User', // Anthropic, on-demand browsing
+    'Applebot-Extended', // Apple's AI opt-in signal
+    'Meta-ExternalAgent', // Meta
+    'Meta-ExternalFetcher', // Meta, on-demand
+    'DuckAssistBot', // DuckDuckGo AI answers
+    'MistralAI-User', // Mistral, on-demand
+    'YouBot', // You.com
+    'Diffbot', // Diffbot
 ]
 
 export function buildRobotsTxt(base: string): string {

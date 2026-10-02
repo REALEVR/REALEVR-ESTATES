@@ -18,7 +18,7 @@ export default function LegalPage({
 }) {
   return (
     <div className="container mx-auto px-4 py-12">
-      <PageSeo title={`${title} | RealEVR Estates`} description={description} canonicalPath={path} />
+      <PageSeo title={`${title} | RealEVR Estates`.length > 65 ? title : `${title} | RealEVR Estates`} description={description} canonicalPath={path} />
       <div className="mx-auto max-w-4xl rounded-lg bg-card p-8 shadow-sm">
         <h1 className="mb-2 font-display text-3xl font-bold">{title}</h1>
         <p className="mb-8 text-sm text-muted-foreground">Last updated: {updated}</p>
