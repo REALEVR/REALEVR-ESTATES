@@ -61,6 +61,12 @@ function toAbsoluteUrl(base: string, urlOrPath: string): string {
  * server/social-preview.ts. Keep the two in sync when changing title/description conventions.
  */
 export function PageSeo({ title, description, canonicalPath, image, imageAlt, type = 'website', jsonLd }: PageSeoProps) {
+    // On the server (server/ssr/static-pages.tsx renders pages for crawlers) there is no document to update, so hand
+    // the page's own tags to whoever is rendering it. Each page then states its title once, for browsers and crawlers.
+    if (typeof window === 'undefined') {
+        ;(globalThis as { __seoCollect?: (p: PageSeoProps) => void }).__seoCollect?.({ title, description, canonicalPath, image, imageAlt, type, jsonLd })
+    }
+
     useEffect(() => {
         document.title = title
 

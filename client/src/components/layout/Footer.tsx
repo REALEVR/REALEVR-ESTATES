@@ -46,7 +46,7 @@ export default function Footer() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-10 pb-10">
           <div className="md:col-span-2">
-            <img src={logoPath} alt="RealEVR Estates Logo" className="h-12 mb-4 brightness-0 invert" />
+            <img src={logoPath} alt="RealEVR Estates Logo" height={48} loading="lazy" decoding="async" className="h-12 w-auto mb-4 brightness-0 invert" />
             <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
               Immersive virtual tours for rentals, BnBs, homes for sale, and bank auction
               properties across Africa.
@@ -79,9 +79,8 @@ export default function Footer() {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link href="/admin/properties" className="hover:text-accent transition-colors">Add Your Property</Link></li>
               <li><Link href="/list-your-property" className="hover:text-accent transition-colors">List a Property</Link></li>
-              <li><Link href="/resources" className="hover:text-accent transition-colors">Resources</Link></li>
-              <li><Link href="/host-responsibly" className="hover:text-accent transition-colors">Host Responsibly</Link></li>
-              <li><Link href="/virtual-tour-creation" className="hover:text-accent transition-colors">Virtual Tour Creation</Link></li>
+                            <li><Link href="/host-responsibly" className="hover:text-accent transition-colors">Host Responsibly</Link></li>
+              <li><Link href="/how-it-works" className="hover:text-accent transition-colors">How Listing Works</Link></li>
             </ul>
           </div>
 
@@ -91,6 +90,8 @@ export default function Footer() {
               <li><Link href="/help" className="hover:text-accent transition-colors">Help Center</Link></li>
               <li><Link href="/contact" className="hover:text-accent transition-colors">Contact Us</Link></li>
               <li><Link href="/trust-safety" className="hover:text-accent transition-colors">Trust &amp; Safety</Link></li>
+              <li><Link href="/guides" className="hover:text-accent transition-colors">Guides</Link></li>
+              <li><Link href="/compare" className="hover:text-accent transition-colors">Compare Sites</Link></li>
             </ul>
           </div>
         </div>

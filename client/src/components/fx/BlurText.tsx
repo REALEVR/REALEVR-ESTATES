@@ -1,7 +1,7 @@
 /**
  * Words that come out of a blur one after another, like breath on glass clearing.
  * Adapted from "BlurText" in React Bits (https://github.com/DavidHDev/react-bits, © David Haz, MIT + Commons Clause),
- * using framer-motion. The whole phrase stays one readable label for screen readers, and with motion off it is plain text.
+ * using framer-motion. The whole phrase stays readable text for screen readers, and with motion off it is plain text.
  */
 import { motion } from 'framer-motion'
 import { useFxMode } from './fxMode'
@@ -11,7 +11,9 @@ export default function BlurText({ text, className = '', wordClassName = '', del
     if (mode === 'off') return <span className={className}>{text}</span>
     const words = text.split(' ')
     return (
-        <span className={className} aria-label={text}>
+        <span className={className}>
+            {/* The phrase as plain text for screen readers and search engines; the animated words are decoration. */}
+            <span className="sr-only">{text}</span>
             {words.map((w, i) => (
                 <motion.span
                     key={`${w}-${i}`}

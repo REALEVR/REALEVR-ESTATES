@@ -162,7 +162,7 @@ export default function Header() {
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/furnished-rentals">Furnished Houses</Link>
+                  <Link href="/bnbs">Furnished Houses</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/bank-sales">Bank Sales Auctions</Link>

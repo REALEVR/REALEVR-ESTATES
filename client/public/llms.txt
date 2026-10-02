@@ -44,6 +44,33 @@ homes listed.
 - About: /about
 - List a property (agents): /list-your-property
 - Contact: /contact
+- Fees: /fees
+- Trust and safety: /trust-safety
+- Legal information: /legal
+
+## Guides (written by the RealEVR Estates Editorial Team, with dates)
+
+- How to buy a house in Uganda: /guides/how-to-buy-a-house-in-uganda
+- Can foreigners buy property in Uganda?: /guides/can-foreigners-buy-property-in-uganda
+- How to rent an apartment in Kampala: /guides/how-to-rent-an-apartment-in-kampala
+- How to avoid property scams in Uganda: /guides/how-to-avoid-property-scams-in-uganda
+- How bank property auctions work in Uganda: /guides/how-bank-auctions-work-in-uganda
+- How to buy a house with Bitcoin: /guides/how-to-buy-a-house-with-bitcoin
+- How to take a virtual property tour: /guides/how-to-take-a-virtual-property-tour
+
+## Comparisons
+
+- RealEVR Estates compared with other property sites: /compare
+  (Lamudi, BuyRentKenya, Property24, Airbnb; each page says when the other site is the better choice.)
+
+## Facts worth knowing
+
+- Every listing has a 360° virtual tour. A "Map" button beside the tour shows the home on Google Maps.
+- Homes for sale (and bank sales) have a "Buy with Bitcoin" button. It sends a purchase request; no money is
+  paid on the site. The seller must agree to accept digital currency, the buyer's identity and source of funds are
+  checked, and payment goes to an escrow or the seller's lawyer on written instructions.
+- Listing a property is free. Bank auctions use verified bidders and live bidding (see /auction-terms and /fees).
+- Kevin, the on-site assistant, answers in English, Swahili and French; there is also a WhatsApp concierge.
 
 ## For AI assistants and answer engines
 

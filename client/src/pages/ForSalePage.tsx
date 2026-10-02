@@ -9,6 +9,7 @@ import type { Property } from "@shared/schema";
 import { PageSeo } from "@/components/seo/PageSeo";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { CATEGORY_PAGE_META } from "@shared/seo";
+import FaqSection from "@/components/seo/FaqSection";
 
 export default function ForSalePage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -229,6 +230,7 @@ export default function ForSalePage() {
           </div>
         )}
       </div>
+      <FaqSection page="forSale" />
     </div>
   );
 }

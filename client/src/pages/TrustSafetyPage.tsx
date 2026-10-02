@@ -1,15 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageSeo } from "@/components/seo/PageSeo";
 
 export default function TrustSafetyPage() {
   return (
     <div className="container mx-auto px-6 py-8">
       <div className="max-w-4xl mx-auto">
+        <PageSeo title="Trust & Safety | How RealEVR Estates Protects You" description="How RealEVR Estates verifies agents and listings, keeps payments secure and handles disputes, plus tips to avoid property scams in Uganda and across Africa." canonicalPath="/trust-safety" />
         <h1 className="text-3xl font-bold text-center mb-8">Trust & Safety</h1>
         
         <div className="space-y-8">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-accent">Our Commitment to Safety</CardTitle>
+              <CardTitle as="h2" className="text-2xl text-accent">How does RealEVR Estates keep me safe?</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-gray-600 leading-relaxed mb-4">
@@ -27,7 +29,7 @@ export default function TrustSafetyPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-accent">Agent Verification</CardTitle>
+              <CardTitle as="h2" className="text-2xl text-accent">How are agents verified?</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -55,7 +57,7 @@ export default function TrustSafetyPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-accent">Property Verification</CardTitle>
+              <CardTitle as="h2" className="text-2xl text-accent">How are listings verified?</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
@@ -103,7 +105,7 @@ export default function TrustSafetyPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-accent">Payment Security</CardTitle>
+              <CardTitle as="h2" className="text-2xl text-accent">How are payments protected?</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -142,7 +144,7 @@ export default function TrustSafetyPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-accent">User Protection</CardTitle>
+              <CardTitle as="h2" className="text-2xl text-accent">How is my privacy protected?</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -170,7 +172,7 @@ export default function TrustSafetyPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-accent">Reporting & Monitoring</CardTitle>
+              <CardTitle as="h2" className="text-2xl text-accent">How do I report a problem or a scam?</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -181,7 +183,7 @@ export default function TrustSafetyPage() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-4 border border-gray-200 rounded-lg">
-                    <h4 className="font-semibold mb-2">Report Suspicious Activity</h4>
+                    <h3 className="font-semibold mb-2">Report Suspicious Activity</h3>
                     <p className="text-gray-600 text-sm mb-3">
                       If you encounter any suspicious listings or behavior, please report it immediately.
                     </p>
@@ -191,7 +193,7 @@ export default function TrustSafetyPage() {
                   </div>
                   
                   <div className="p-4 border border-gray-200 rounded-lg">
-                    <h4 className="font-semibold mb-2">Safety Guidelines</h4>
+                    <h3 className="font-semibold mb-2">Safety Guidelines</h3>
                     <p className="text-gray-600 text-sm mb-3">
                       Learn about best practices for safe property viewing and transactions.
                     </p>
@@ -206,7 +208,7 @@ export default function TrustSafetyPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-accent">Contact Trust & Safety Team</CardTitle>
+              <CardTitle as="h2" className="text-2xl text-accent">Who do I contact about safety?</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center">

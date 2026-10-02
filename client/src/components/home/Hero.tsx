@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import "../Hero.css"
 
-import houseImg from '../../assets/images/hero-house.jpg';
+import houseImg from '../../assets/images/hero-house.webp';
 import mansionBg from '../../assets/images/hero-mansion.jpg';
 import FilterBar from './FilterBar';
 import CountUp from '@/components/motion/CountUp';
@@ -538,8 +538,12 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             <motion.img
               src={houseImg}
               alt="Modern house"
+              width={1280}
+              height={1043}
+              fetchPriority="high"
+              decoding="async"
               className="w-full h-full object-cover"
-              initial={{ scale: 1.06, opacity: 0 }}
+              initial={{ scale: 1.06, opacity: 1 }}
               animate={{ scale: 1, opacity: 1 }}
               whileHover={{ scale: 1.02 }}
               transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}

@@ -10,5 +10,6 @@ export function getSiteUrl(): string {
     if (typeof window !== 'undefined') {
         return window.location.origin
     }
-    return ''
+    // Rendering on the server for crawlers (server/ssr/static-pages.tsx): the server states its own address.
+    return (globalThis as { __SITE_URL__?: string }).__SITE_URL__ ?? ''
 }

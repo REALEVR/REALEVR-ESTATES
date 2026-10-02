@@ -15,6 +15,7 @@ import { getSiteUrl } from "@/lib/siteUrl";
 import { CATEGORY_PAGE_META } from "@shared/seo";
 import { useAuctionList, type AuctionSummary } from "@/hooks/useAuction";
 import { formatLeft, money as auctionMoney } from "@/lib/auctionApi";
+import FaqSection from "@/components/seo/FaqSection";
 
 export default function BankSalesPage() {
   const [activeBankTab, setActiveBankTab] = useState<string>("all");
@@ -154,6 +155,7 @@ export default function BankSalesPage() {
           ))}
         </Tabs>
       )}
+      <FaqSection page="bankSales" />
     </div>
   );
 }

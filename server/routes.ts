@@ -35,7 +35,7 @@ import {
     propertyToSitemapEntry,
 } from './sitemap'
 import { registerIndexNowKeyRoute, startIndexNowSubmitter } from './indexnow'
-import { registerSocialPreviewRoutes } from './social-preview'
+import { registerCrawlerRoutes } from './crawler-pages'
 import notificationRoutes from './routes/notifications'
 import reviewRoutes from './routes/reviews'
 import aiRoutes from './routes/ai'
@@ -293,11 +293,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.send(buildRobotsTxt(base))
     })
 
-    // Server-rendered Open Graph/Twitter/JSON-LD tags for link-preview bots
-    // (WhatsApp, Facebook, Twitter/X, LinkedIn, Telegram, Slack, Discord, iMessage)
-    // that don't execute the SPA's JavaScript. No-ops for everyone else. See
-    // server/social-preview.ts for why this exists.
-    registerSocialPreviewRoutes(app, storage)
+    // Google Search Console, "HTML file" ownership check: set GOOGLE_SITE_VERIFICATION_FILE to the file name Google gives
+    // you (e.g. google1234abcd.html) and it is served here. The meta-tag method uses GOOGLE_SITE_VERIFICATION instead
+    // (see server/crawler-pages.ts). Both are described in docs/SEO_PLAYBOOK.md.
+    app.get(/^\/(google[a-z0-9]+)\.html$/, (req, res, next) => {
+        const want = (process.env.GOOGLE_SITE_VERIFICATION_FILE || '').trim().replace(/\.html$/, '')
+        if (!want || req.params[0] !== want) return next()
+        res.type('text/html').send(`google-site-verification: ${want}.html`)
+    })
+
+    // Finished HTML for crawlers (search engines, AI crawlers, link-preview bots) that
+    // don't run the SPA's JavaScript. No-ops for everyone else. See
+    // server/crawler-pages.ts for why this exists.
+    registerCrawlerRoutes(app, storage)
 
     // Apply no-cache middleware to all API routes
     app.use('/api', noCacheMiddleware)

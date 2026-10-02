@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import type { Property } from '@shared/schema'
-import SharePropertyModal from '../property/SharePropertyModal'
-import BookingCalendarModal from '../property/BookingCalendarModal'
+const SharePropertyModal = lazy(() => import('../property/SharePropertyModal'))
+const BookingCalendarModal = lazy(() => import('../property/BookingCalendarModal'))
 import { FadeIn } from '@/components/ui/animated-components'
 import Tilt from '@/components/motion/Tilt'
 import { Star, Rocket, Heart, Share2, Play, Orbit } from 'lucide-react'
@@ -170,22 +170,31 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                 </article>
             </Tilt>
 
-            <SharePropertyModal
-                isOpen={isShareModalOpen}
-                onClose={() => setIsShareModalOpen(false)}
-                propertyId={property.id}
-                propertyTitle={property.title}
-            />
+            {/* Loaded only when opened: the date picker and its forms are not needed to show a card. */}
+            {isShareModalOpen && (
+                <Suspense fallback={null}>
+                    <SharePropertyModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => setIsShareModalOpen(false)}
+                        propertyId={property.id}
+                        propertyTitle={property.title}
+                    />
+                </Suspense>
+            )}
 
-            <BookingCalendarModal
-                isOpen={isBookingModalOpen}
-                onClose={() => setIsBookingModalOpen(false)}
-                propertyId={property.id}
-                propertyTitle={property.title}
-                propertyCategory={property.category}
-                propertyPrice={property.price}
-                propertyCurrency={property.currency || 'UGX'}
-            />
+            {isBookingModalOpen && (
+                <Suspense fallback={null}>
+                    <BookingCalendarModal
+                        isOpen={isBookingModalOpen}
+                        onClose={() => setIsBookingModalOpen(false)}
+                        propertyId={property.id}
+                        propertyTitle={property.title}
+                        propertyCategory={property.category}
+                        propertyPrice={property.price}
+                        propertyCurrency={property.currency || 'UGX'}
+                    />
+                </Suspense>
+            )}
         </>
     )
 }

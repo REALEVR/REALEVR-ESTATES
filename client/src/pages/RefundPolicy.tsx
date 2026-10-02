@@ -1,9 +1,11 @@
 import { Link } from "wouter";
+import { PageSeo } from "@/components/seo/PageSeo";
 
 export default function RefundPolicy() {
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-sm">
+        <PageSeo title="Refund Policy | RealEVR Estates" description="When fees on RealEVR Estates (viewing fees, booking deposits and others) are refundable, and how to ask for a refund." canonicalPath="/refund-policy" />
         <h1 className="text-3xl font-bold mb-6">Refund Policy</h1>
         <p className="text-gray-500 mb-8">Last Updated: September 7, 2026</p>
 

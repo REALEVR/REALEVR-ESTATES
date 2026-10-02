@@ -9,96 +9,103 @@ import Footer from '@/components/layout/Footer'
 import AnimatedLayout from '@/components/layout/AnimatedLayout'
 import Home from '@/pages/Home'
 import PropertyPage from '@/pages/PropertyPage'
-import MembershipPage from '@/pages/MembershipPage'
 import BnBsPage from '@/pages/BnBsPage'
 import RentalUnitsPage from '@/pages/RentalUnitsPage'
 import ForSalePage from '@/pages/ForSalePage'
 import BankSalesPage from '@/pages/BankSalesPage'
 import NotFound from '@/pages/not-found'
-import PrivacyPolicy from '@/pages/PrivacyPolicy'
-import TermsOfService from '@/pages/TermsOfService'
-import CookiePolicy from '@/pages/CookiePolicy'
-import RefundPolicy from '@/pages/RefundPolicy'
-import ComingSoonPage from '@/pages/ComingSoonPage'
-import RentRail from '@/pages/RentRail'
-import RentRailCallback from '@/pages/RentRailCallback'
-import HostResponsibly from '@/pages/HostResponsibly'
-import PropertyManager from '@/pages/PropertyManager'
-import AdminUserManager from '@/pages/AdminUserManager'
 import AuthPage from '@/pages/auth-page'
-import FeaturedPropertiesPage from '@/pages/FeaturedPropertiesPage'
-import AllPropertiesPage from '@/pages/AllPropertiesPage'
-import NewListingsPage from '@/pages/NewListingsPage'
-import ProfilePage from '@/pages/ProfilePage'
 import TestPage from '@/pages/TestPage' // Added test page
-import { AgentDashboard } from '@/pages/AgentDashboard'
-import { UserDashboard } from '@/pages/UserDashboard'
-import AgentRegistrationPage from '@/pages/AgentRegistrationPage'
-import AgentPortfolioPage from '@/pages/AgentPortfolioPage'
-import AboutUsPage from '@/pages/AboutUsPage'
-import HowItWorksPage from '@/pages/HowItWorksPage'
-import HelpCenterPage from '@/pages/HelpCenterPage'
-import ContactUsPage from '@/pages/ContactUsPage'
-import TrustSafetyPage from '@/pages/TrustSafetyPage'
-import VerifyEmailPage from '@/pages/VerifyEmailPage'
 import { AuthProvider, useAuth } from '@/hooks/use-auth'
-import SignupNudgeGate from '@/components/auth/SignupNudgeGate'
-import WhatsAppNumberPrompt from '@/components/auth/WhatsAppNumberPrompt'
 import { PaymentProvider } from '@/contexts/PaymentContext'
-import VirtualTourManager from '@/components/admin/VirtualTourManager'
 import { ProtectedAdminRoute } from './lib/protected-admin-route'
 import Hero from './components/home/Hero'
 import ScrollToTop from './components/ui/ScrollToTop'
 import IoTecGateway, { IoTecGatewayLight } from './components/payment/io-tech/layoutGate'
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { paymentEmitter } from './lib/iotec-paymentpatch'
 import IotechMetricCounterPaymentHandle from './components/payment/sio-iotech'
-import AgentLauncher from './components/agent/AgentLauncher'
-import KevinOrb from './components/kevin/KevinOrb'
 import FxRoot from './components/fx/FxRoot'
 import ErrorBoundary from '@/components/layout/ErrorBoundary'
 import CookieConsentBanner from '@/components/layout/CookieConsentBanner'
-import ListYourPropertyPage from '@/pages/ListYourPropertyPage'
-import AdminPayoutApprovals from '@/pages/AdminPayoutApprovals'
-import AdminRentRailPayouts from '@/pages/AdminRentRailPayouts'
-import AdminBoostConfirmations from '@/pages/AdminBoostConfirmations'
-import AdminRoomCaptures from '@/pages/AdminRoomCaptures'
-import AdminKevinLeads from '@/pages/AdminKevinLeads'
-import AdminTourHealth from '@/pages/AdminTourHealth'
-import AdminAuctions from '@/pages/AdminAuctions'
-import AdminPayments from '@/pages/AdminPayments'
-import AdminCryptoBuyers from '@/pages/AdminCryptoBuyers'
-import AcceptableUse from '@/pages/AcceptableUse'
-import AmlSanctions from '@/pages/AmlSanctions'
-import LegalRegions from '@/pages/LegalRegions'
-import DataRights from '@/pages/DataRights'
-import PartnerTerms from '@/pages/PartnerTerms'
-import FeesPage from '@/pages/FeesPage'
-import BecomeAPartner from '@/pages/BecomeAPartner'
-import CareersPage from '@/pages/CareersPage'
-import AdminPartners from '@/pages/AdminPartners'
-import AdminDataRequests from '@/pages/AdminDataRequests'
-import AuctionApplyPage from '@/pages/AuctionApplyPage'
-import AuctionTerms from '@/pages/AuctionTerms'
-import BidderVetting from '@/pages/BidderVetting'
-import LegalCenter from '@/pages/LegalCenter'
-import PartnersPage from '@/pages/PartnersPage'
-import AdminRecommendations from '@/pages/AdminRecommendations'
 import PlaceBar from '@/components/PlaceBar'
-import PlaceHomesPage from '@/pages/PlaceHomesPage'
 import { PlaceProvider } from '@/lib/place'
-import RecommendPlacePage from '@/pages/RecommendPlacePage'
-import AdminAnalytics from '@/pages/AdminAnalytics'
-import AdminBroadcast from '@/pages/AdminBroadcast'
-import AdminDashboardHome from '@/pages/AdminDashboardHome'
-import AdminBrokerApplications from '@/pages/AdminBrokerApplications'
-import AdminMessages from '@/pages/AdminMessages'
-import WhatsAppFab from '@/components/whatsapp/WhatsAppFab'
 import MobileTabBar from '@/components/layout/MobileTabBar'
-import AmbientSoundToggle from '@/components/AmbientSoundToggle'
+
+// Pages are fetched when someone goes to them, so the first visit downloads only what it needs.
+const MembershipPage = lazy(() => import('@/pages/MembershipPage'))
+const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'))
+const TermsOfService = lazy(() => import('@/pages/TermsOfService'))
+const CookiePolicy = lazy(() => import('@/pages/CookiePolicy'))
+const RefundPolicy = lazy(() => import('@/pages/RefundPolicy'))
+const ComingSoonPage = lazy(() => import('@/pages/ComingSoonPage'))
+const RentRail = lazy(() => import('@/pages/RentRail'))
+const RentRailCallback = lazy(() => import('@/pages/RentRailCallback'))
+const HostResponsibly = lazy(() => import('@/pages/HostResponsibly'))
+const PropertyManager = lazy(() => import('@/pages/PropertyManager'))
+const AdminUserManager = lazy(() => import('@/pages/AdminUserManager'))
+const FeaturedPropertiesPage = lazy(() => import('@/pages/FeaturedPropertiesPage'))
+const AllPropertiesPage = lazy(() => import('@/pages/AllPropertiesPage'))
+const NewListingsPage = lazy(() => import('@/pages/NewListingsPage'))
+const ProfilePage = lazy(() => import('@/pages/ProfilePage'))
+const AgentDashboard = lazy(() => import('@/pages/AgentDashboard').then((m) => ({ default: m.AgentDashboard })))
+const UserDashboard = lazy(() => import('@/pages/UserDashboard').then((m) => ({ default: m.UserDashboard })))
+const AgentRegistrationPage = lazy(() => import('@/pages/AgentRegistrationPage'))
+const AgentPortfolioPage = lazy(() => import('@/pages/AgentPortfolioPage'))
+const AboutUsPage = lazy(() => import('@/pages/AboutUsPage'))
+const HowItWorksPage = lazy(() => import('@/pages/HowItWorksPage'))
+const HelpCenterPage = lazy(() => import('@/pages/HelpCenterPage'))
+const ContactUsPage = lazy(() => import('@/pages/ContactUsPage'))
+const TrustSafetyPage = lazy(() => import('@/pages/TrustSafetyPage'))
+const VerifyEmailPage = lazy(() => import('@/pages/VerifyEmailPage'))
+const SignupNudgeGate = lazy(() => import('@/components/auth/SignupNudgeGate'))
+const WhatsAppNumberPrompt = lazy(() => import('@/components/auth/WhatsAppNumberPrompt'))
+const VirtualTourManager = lazy(() => import('@/components/admin/VirtualTourManager'))
+const AgentLauncher = lazy(() => import('./components/agent/AgentLauncher'))
+const KevinOrb = lazy(() => import('./components/kevin/KevinOrb'))
+const ListYourPropertyPage = lazy(() => import('@/pages/ListYourPropertyPage'))
+const AdminPayoutApprovals = lazy(() => import('@/pages/AdminPayoutApprovals'))
+const AdminRentRailPayouts = lazy(() => import('@/pages/AdminRentRailPayouts'))
+const AdminBoostConfirmations = lazy(() => import('@/pages/AdminBoostConfirmations'))
+const AdminRoomCaptures = lazy(() => import('@/pages/AdminRoomCaptures'))
+const AdminKevinLeads = lazy(() => import('@/pages/AdminKevinLeads'))
+const AdminTourHealth = lazy(() => import('@/pages/AdminTourHealth'))
+const AdminAuctions = lazy(() => import('@/pages/AdminAuctions'))
+const AdminPayments = lazy(() => import('@/pages/AdminPayments'))
+const AdminCryptoBuyers = lazy(() => import('@/pages/AdminCryptoBuyers'))
+const GuidesPage = lazy(() => import('@/pages/GuidesPage'))
+const GuideArticlePage = lazy(() => import('@/pages/GuideArticlePage'))
+const CompareIndexPage = lazy(() => import('@/pages/CompareIndexPage'))
+const ComparePage = lazy(() => import('@/pages/ComparePage'))
+const AcceptableUse = lazy(() => import('@/pages/AcceptableUse'))
+const AmlSanctions = lazy(() => import('@/pages/AmlSanctions'))
+const LegalRegions = lazy(() => import('@/pages/LegalRegions'))
+const DataRights = lazy(() => import('@/pages/DataRights'))
+const PartnerTerms = lazy(() => import('@/pages/PartnerTerms'))
+const FeesPage = lazy(() => import('@/pages/FeesPage'))
+const BecomeAPartner = lazy(() => import('@/pages/BecomeAPartner'))
+const CareersPage = lazy(() => import('@/pages/CareersPage'))
+const AdminPartners = lazy(() => import('@/pages/AdminPartners'))
+const AdminDataRequests = lazy(() => import('@/pages/AdminDataRequests'))
+const AuctionApplyPage = lazy(() => import('@/pages/AuctionApplyPage'))
+const AuctionTerms = lazy(() => import('@/pages/AuctionTerms'))
+const BidderVetting = lazy(() => import('@/pages/BidderVetting'))
+const LegalCenter = lazy(() => import('@/pages/LegalCenter'))
+const PartnersPage = lazy(() => import('@/pages/PartnersPage'))
+const AdminRecommendations = lazy(() => import('@/pages/AdminRecommendations'))
+const PlaceHomesPage = lazy(() => import('@/pages/PlaceHomesPage'))
+const RecommendPlacePage = lazy(() => import('@/pages/RecommendPlacePage'))
+const AdminAnalytics = lazy(() => import('@/pages/AdminAnalytics'))
+const AdminBroadcast = lazy(() => import('@/pages/AdminBroadcast'))
+const AdminDashboardHome = lazy(() => import('@/pages/AdminDashboardHome'))
+const AdminBrokerApplications = lazy(() => import('@/pages/AdminBrokerApplications'))
+const AdminMessages = lazy(() => import('@/pages/AdminMessages'))
+const WhatsAppFab = lazy(() => import('@/components/whatsapp/WhatsAppFab'))
+const AmbientSoundToggle = lazy(() => import('@/components/AmbientSoundToggle'))
 
 function Router() {
     return (
+        <Suspense fallback={<div className="min-h-[60vh]" aria-busy="true" />}>
         <Switch>
             <Route path="/" component={Home} />
             <Route path="/property/:id" component={PropertyPage} />
@@ -107,6 +114,10 @@ function Router() {
             <Route path="/bank-sales" component={BankSalesPage} />
             <Route path="/rental-units" component={RentalUnitsPage} />
             <Route path="/for-sale" component={ForSalePage} />
+            <Route path="/guides" component={GuidesPage} />
+            <Route path="/guides/:slug" component={GuideArticlePage} />
+            <Route path="/compare" component={CompareIndexPage} />
+            <Route path="/compare/:slug" component={ComparePage} />
             <Route path="/featured-properties" component={FeaturedPropertiesPage} />
             <Route path="/properties" component={AllPropertiesPage} />
             <Route path="/new-listings" component={NewListingsPage} />
@@ -257,6 +268,7 @@ function Router() {
             />
             <Route component={NotFound} />
         </Switch>
+        </Suspense>
     )
 }
 
@@ -332,16 +344,25 @@ function AppShell() {
                 )}
                 <Footer />
             </div>
-            <AgentLauncher />
+            {/* Floating helpers load after the page itself, so they never hold up the first paint. */}
+            <Suspense fallback={null}>
+                <AgentLauncher />
+            </Suspense>
             <FxRoot />
-            <KevinOrb />
-            <WhatsAppFab />
+            <Suspense fallback={null}>
+                <KevinOrb />
+                <WhatsAppFab />
+            </Suspense>
             <ScrollToTop />
-            <WhatsAppNumberPrompt />
-            <SignupNudgeGate />
+            <Suspense fallback={null}>
+                <WhatsAppNumberPrompt />
+                <SignupNudgeGate />
+            </Suspense>
             <CookieConsentBanner />
             <MobileTabBar />
-            <AmbientSoundToggle />
+            <Suspense fallback={null}>
+                <AmbientSoundToggle />
+            </Suspense>
         </>
     )
 }
