@@ -382,9 +382,8 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                         </div>
                     </div>
 
-                    {typeof property.latitude === 'number' && typeof property.longitude === 'number' && (
-                        <PropertyLocationPin latitude={property.latitude} longitude={property.longitude} title={property.title} />
-                    )}
+                    {/* On Google Maps: the exact pin when there is one, otherwise the area from the written location. */}
+                    <PropertyLocationPin latitude={property.latitude} longitude={property.longitude} location={property.location} title={property.title} />
 
                     {/* Property Owner Contact Information. Was showing the
                         agent's raw phone number to every visitor regardless

@@ -5,6 +5,8 @@ import 'leaflet/dist/leaflet.css'
 import type { Property } from '@shared/schema'
 import { Button } from '@/components/ui/button'
 import { MapPin, X } from 'lucide-react'
+import GoogleMapView from '@/components/maps/GoogleMapView'
+import { useGoogleMapsKey } from '@/lib/googleMaps'
 
 /**
  * Real, well-known neighborhood coordinates for the Kampala-area locations
@@ -62,6 +64,10 @@ interface PropertyLocationMapProps {
  */
 export default function PropertyLocationMap({ properties, selectedLocation, onSelectLocation }: PropertyLocationMapProps) {
     const [isOpen, setIsOpen] = useState(false)
+    // Google Maps when the site has a Google Maps key (and Google accepts it); the basic map otherwise.
+    const { data: googleKey } = useGoogleMapsKey()
+    const [googleFailed, setGoogleFailed] = useState(false)
+    const useGoogle = !!googleKey && !googleFailed
 
     const pins = useMemo(() => {
         return NEIGHBORHOODS.map((n) => {
@@ -99,6 +105,23 @@ export default function PropertyLocationMap({ properties, selectedLocation, onSe
 
             {isOpen && (
                 <div className="rounded-lg overflow-hidden border border-border" style={{ height: 360 }}>
+                    {useGoogle ? (
+                        <GoogleMapView
+                            apiKey={googleKey as string}
+                            center={{ lat: KAMPALA_CENTER[0], lng: KAMPALA_CENTER[1] }}
+                            zoom={12}
+                            onError={() => setGoogleFailed(true)}
+                            markers={pins.map((pin) => ({
+                                id: pin.name,
+                                lat: pin.lat,
+                                lng: pin.lng,
+                                label: String(pin.count),
+                                active: selectedLocation === pin.name,
+                                title: `${pin.name}: ${pin.count} propert${pin.count === 1 ? 'y' : 'ies'}`,
+                                onClick: () => onSelectLocation(selectedLocation === pin.name ? null : pin.name),
+                            }))}
+                        />
+                    ) : (
                     <MapContainer center={KAMPALA_CENTER} zoom={12} style={{ height: '100%', width: '100%' }}>
                         <TileLayer
                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -121,6 +144,7 @@ export default function PropertyLocationMap({ properties, selectedLocation, onSe
                             </Marker>
                         ))}
                     </MapContainer>
+                    )}
                 </div>
             )}
         </div>
