@@ -144,8 +144,26 @@ async function ensureBucketCors(): Promise<void> {
 const ACCELERATION_RECHECK_MS = 5 * 60_000;
 let accelerationCheck: { usable: boolean; checkedAt: number } | null = null;
 
+// AWS answers 405 MethodNotAllowed (ResourceType 'accelerate') to every
+// acceleration call - read or write - for a bucket whose region or name can't
+// have Transfer Acceleration (e.g. eu-north-1, or a name containing dots).
+// That is permanent for the bucket, so remember it for the life of the
+// process: no 5-minute retries, no repeated error dumps in the logs.
+let accelerationUnsupported = false;
+function isAccelerationNotSupported(err: any): boolean {
+  return err?.name === 'MethodNotAllowed' || err?.Code === 'MethodNotAllowed' || err?.$metadata?.httpStatusCode === 405;
+}
+function markAccelerationUnsupported(): void {
+  if (accelerationUnsupported) return;
+  accelerationUnsupported = true;
+  console.log(
+    `S3 Transfer Acceleration isn't available for bucket ${BUCKET_NAME} in ${REGION} - tour uploads use the standard endpoint. ` +
+      `Set S3_TRANSFER_ACCELERATION=false to skip the check.`
+  );
+}
+
 async function isAccelerationUsable(): Promise<boolean> {
-  if (!TRANSFER_ACCELERATION_ENABLED) return false;
+  if (!TRANSFER_ACCELERATION_ENABLED || accelerationUnsupported) return false;
   if (accelerationCheck && (accelerationCheck.usable || Date.now() - accelerationCheck.checkedAt < ACCELERATION_RECHECK_MS)) {
     return accelerationCheck.usable;
   }
@@ -155,6 +173,10 @@ async function isAccelerationUsable(): Promise<boolean> {
     const current = await s3Client.send(new GetBucketAccelerateConfigurationCommand({ Bucket: BUCKET_NAME }));
     usable = current.Status === 'Enabled';
   } catch (err) {
+    if (isAccelerationNotSupported(err)) {
+      markAccelerationUnsupported();
+      return false;
+    }
     console.warn("Could not read the tours bucket's Transfer Acceleration setting; using the standard endpoint:", err);
   }
 
@@ -169,6 +191,10 @@ async function isAccelerationUsable(): Promise<boolean> {
       );
       console.log("Requested S3 Transfer Acceleration for the tours bucket; using it once it reports Enabled");
     } catch (err) {
+      if (isAccelerationNotSupported(err)) {
+        markAccelerationUnsupported();
+        return false;
+      }
       console.warn("Could not enable S3 Transfer Acceleration (uploads use the standard endpoint):", err);
     }
   }
@@ -242,7 +268,7 @@ export async function setupS3TourBucket(): Promise<void> {
     // combination, and that's not worth failing the whole setup over -
     // the presigned part URLs just fall back to s3Client's plain endpoint
     // if this doesn't take (see createStagingMultipartUpload).
-    if (TRANSFER_ACCELERATION_ENABLED) {
+    if (TRANSFER_ACCELERATION_ENABLED && !accelerationUnsupported) {
       try {
         await s3Client.send(
           new PutBucketAccelerateConfigurationCommand({
@@ -252,7 +278,11 @@ export async function setupS3TourBucket(): Promise<void> {
         );
         console.log("S3 Transfer Acceleration enabled");
       } catch (accelError) {
-        console.warn("Could not enable S3 Transfer Acceleration (non-fatal, uploads still work without it):", accelError);
+        if (isAccelerationNotSupported(accelError)) {
+          markAccelerationUnsupported();
+        } else {
+          console.warn("Could not enable S3 Transfer Acceleration (non-fatal, uploads still work without it):", accelError);
+        }
       }
     }
 
