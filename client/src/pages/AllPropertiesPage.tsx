@@ -6,7 +6,7 @@ import PropertyCard from '@/components/home/PropertyCard'
 import { Loader2 } from 'lucide-react'
 import { PageSeo } from '@/components/seo/PageSeo'
 import { getSiteUrl } from '@/lib/siteUrl'
-import { CATEGORY_PAGE_META } from '@shared/seo'
+import { buildBreadcrumbJsonLd, CATEGORY_PAGE_META } from '@shared/seo'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import PropertyLocationMap from '@/components/property/PropertyLocationMap'
 import { describeFilters, filtersFromSearch, hasFilters, matchesFilters } from '@shared/property-filters'
@@ -33,13 +33,19 @@ export default function AllPropertiesPage() {
 
     const allJsonLd = useMemo(() => {
         const site = getSiteUrl()
-        return {
-            '@context': 'https://schema.org',
-            '@type': 'CollectionPage',
-            name: CATEGORY_PAGE_META.allProperties.title,
-            description: CATEGORY_PAGE_META.allProperties.description,
-            url: `${site}${CATEGORY_PAGE_META.allProperties.path}`,
-        }
+        return [
+            {
+                '@context': 'https://schema.org',
+                '@type': 'CollectionPage',
+                name: CATEGORY_PAGE_META.allProperties.title,
+                description: CATEGORY_PAGE_META.allProperties.description,
+                url: `${site}${CATEGORY_PAGE_META.allProperties.path}`,
+            },
+            buildBreadcrumbJsonLd(site, [
+                { name: 'Home', path: '/' },
+                { name: 'All Properties', path: CATEGORY_PAGE_META.allProperties.path },
+            ]),
+        ]
     }, [])
 
     const words = query.toLowerCase().split(/\s+/).filter(Boolean)

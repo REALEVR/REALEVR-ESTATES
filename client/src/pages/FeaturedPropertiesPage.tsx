@@ -5,7 +5,7 @@ import PropertyCard from "@/components/home/PropertyCard";
 import { Loader2 } from "lucide-react";
 import { PageSeo } from "@/components/seo/PageSeo";
 import { getSiteUrl } from "@/lib/siteUrl";
-import { CATEGORY_PAGE_META } from "@shared/seo";
+import { buildBreadcrumbJsonLd, CATEGORY_PAGE_META } from "@shared/seo";
 
 export default function FeaturedPropertiesPage() {
   const { data: featuredProperties, isLoading, error } = useQuery<Property[]>({
@@ -14,13 +14,19 @@ export default function FeaturedPropertiesPage() {
 
   const featuredJsonLd = useMemo(() => {
     const site = getSiteUrl();
-    return {
-      "@context": "https://schema.org",
-      "@type": "CollectionPage",
-      name: CATEGORY_PAGE_META.featuredProperties.title,
-      description: CATEGORY_PAGE_META.featuredProperties.description,
-      url: `${site}${CATEGORY_PAGE_META.featuredProperties.path}`,
-    };
+    return [
+      {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: CATEGORY_PAGE_META.featuredProperties.title,
+        description: CATEGORY_PAGE_META.featuredProperties.description,
+        url: `${site}${CATEGORY_PAGE_META.featuredProperties.path}`,
+      },
+      buildBreadcrumbJsonLd(site, [
+        { name: "Home", path: "/" },
+        { name: "Featured Properties", path: CATEGORY_PAGE_META.featuredProperties.path },
+      ]),
+    ];
   }, []);
 
   if (isLoading) {

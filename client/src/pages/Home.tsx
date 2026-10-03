@@ -71,6 +71,15 @@ export default function Home() {
                 name: SITE_NAME,
                 url: `${site}/`,
                 description: CATEGORY_PAGE_META.home.description,
+                // Points at the Hero's location filter (Hero.tsx), which opens the rental results for that place.
+                potentialAction: {
+                    '@type': 'SearchAction',
+                    target: {
+                        '@type': 'EntryPoint',
+                        urlTemplate: `${site}/rental-units?location={search_term_string}`,
+                    },
+                    'query-input': 'required name=search_term_string',
+                },
             },
             {
                 '@context': 'https://schema.org',

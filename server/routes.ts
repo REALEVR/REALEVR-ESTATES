@@ -33,6 +33,7 @@ import {
     getCanonicalBaseUrl,
     getStaticSitemapEntries,
     propertyToSitemapEntry,
+    isValidSitemapPropertyId,
 } from './sitemap'
 import { registerIndexNowKeyRoute, startIndexNowSubmitter } from './indexnow'
 import { registerCrawlerRoutes } from './crawler-pages'
@@ -254,7 +255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const base = getCanonicalBaseUrl()
         const staticEntries = getStaticSitemapEntries(base)
         const properties = (await storage.getAllProperties()).filter(isPubliclyVisibleProperty)
-        const propertyEntries = properties.map((p) =>
+        const propertyEntries = properties.filter((p) => isValidSitemapPropertyId(p.id)).map((p) =>
             propertyToSitemapEntry(base, {
                 id: p.id,
                 title: p.title || 'Property',
