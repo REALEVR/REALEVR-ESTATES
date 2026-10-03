@@ -52,6 +52,8 @@
   var preloaded = {};
   var firstReveal = true;
   var userTookControl = false;
+  // Guided walk-through state (see the "Guided walk-through" section below).
+  var autoWalk = { active: false, paused: false, started: false, run: 0, visited: {}, timers: [], bar: null, text: null, count: null, toggle: null, caption: null, captionTimer: 0 };
 
   // ---- Presentation: the "private viewing" layer ------------------------
   // Purely cosmetic and added from here so the per-tour HTML shell stays
@@ -122,9 +124,9 @@
   var drifting = false;
   var lastFrame = 0;
   function stopDrift() { drifting = false; }
-  function takeControl() { userTookControl = true; stopDrift(); }
+  function takeControl() { userTookControl = true; stopDrift(); if (autoWalk.active) stopWalk('user'); }
   function startDrift() {
-    if (editMode || reducedMotion || userTookControl || drifting || !psvInstance) return;
+    if (editMode || reducedMotion || userTookControl || drifting || !psvInstance || autoWalk.active) return;
     drifting = true;
     lastFrame = performance.now();
     requestAnimationFrame(driftStep);
@@ -380,9 +382,10 @@
   // it while the other doors fade away; before that push ends the next room dissolves in from a
   // tight view and opens out, facing away from the door you came through. No black frame between.
   var walking = false;
-  function walkThrough(link, doorEl) {
+  function walkThrough(link, doorEl, auto) {
     var target = roomsBySlug[link.to];
     if (!target || target === currentRoom || walking) return;
+    if (!auto && autoWalk.active) stopWalk('user');
     closeCards();
     stopDrift();
     userTookControl = true;
@@ -394,7 +397,7 @@
       if (gone) return;
       gone = true;
       walking = false;
-      switchRoom(target, { arrivalYaw: link.arrivalYaw || 0, fade: 900 });
+      switchRoom(target, { arrivalYaw: link.arrivalYaw || 0, fade: 900, auto: !!auto });
     }
     if (psvInstance && !reducedMotion && currentRoom && currentRoom.mode === 'panorama' && target.mode === 'panorama') {
       try {
@@ -404,6 +407,214 @@
       } catch (err) { /* just go */ }
     }
     go();
+  }
+
+  // ---- Guided walk-through ---------------------------------------------------
+  // The tour plays itself like a cinematic walk-through: in each room the camera looks around, turns
+  // to the next doorway, pushes through it, and the next room dissolves in facing away from the door
+  // (the same walkThrough() a visitor triggers by hand). It follows the doors the agent connected,
+  // and visits any room no door leads to by dissolving straight into it, so every 360 room is seen once.
+  // It starts by itself on a visitor's first view and ends the moment they touch the tour
+  // (drag, scroll, key, door, room chip). "Walk me through" plays it again. ?walk=0 turns the autostart off.
+  function walkLater(ms, fn) {
+    var run = autoWalk.run;
+    var id = setTimeout(function () {
+      if (!autoWalk.active || autoWalk.paused || run !== autoWalk.run) return;
+      fn();
+    }, ms);
+    autoWalk.timers.push(id);
+  }
+  function walkClear() {
+    autoWalk.timers.forEach(clearTimeout);
+    autoWalk.timers = [];
+    clearTimeout(autoWalk.captionTimer);
+  }
+  function walkRoutePanoramas() {
+    return rooms.filter(function (r) { return r.mode === 'panorama' && r.panoUrl; });
+  }
+  function walkCanRun() {
+    return !editMode && !!psvInstance && walkRoutePanoramas().length > 1;
+  }
+  // The next stop: an unvisited room through one of this room's doors, else the next unvisited room in tour order.
+  function walkPlanNext(room) {
+    var links = linksFor(room);
+    for (var i = 0; i < links.length; i++) {
+      var t = roomsBySlug[links[i].to];
+      if (t && t.mode === 'panorama' && t.panoUrl && !autoWalk.visited[t.slug]) return { link: links[i], target: t };
+    }
+    var all = walkRoutePanoramas();
+    for (var j = 0; j < all.length; j++) {
+      if (!autoWalk.visited[all[j].slug]) return { target: all[j] };
+    }
+    return null;
+  }
+  function walkVisitedCount() { return Object.keys(autoWalk.visited).length; }
+
+  function walkSetBar(state, room) {
+    if (!autoWalk.bar) return;
+    var total = walkRoutePanoramas().length;
+    autoWalk.bar.setAttribute('data-state', state);
+    if (state === 'playing' || state === 'paused') {
+      autoWalk.text.innerHTML = '<span class="wb-pre">' + (state === 'paused' ? 'Paused · ' : 'Walking through · ') + '</span>';
+      autoWalk.text.appendChild(document.createTextNode(room ? room.name : ''));
+      autoWalk.count.textContent = Math.min(walkVisitedCount(), total) + ' / ' + total;
+      autoWalk.toggle.textContent = state === 'paused' ? 'Resume' : 'Pause';
+      autoWalk.toggle.setAttribute('aria-label', state === 'paused' ? 'Resume the walk-through' : 'Pause the walk-through');
+    } else if (state === 'done') {
+      autoWalk.text.textContent = 'That is the whole home';
+      autoWalk.count.textContent = '';
+    } else {
+      autoWalk.text.textContent = 'Walk me through';
+      autoWalk.count.textContent = '';
+    }
+  }
+  // The room's name, large, for a moment as you arrive.
+  function walkCaption(room) {
+    if (!autoWalk.caption || !room) return;
+    autoWalk.caption.textContent = room.name;
+    autoWalk.caption.classList.add('on');
+    clearTimeout(autoWalk.captionTimer);
+    autoWalk.captionTimer = setTimeout(function () { autoWalk.caption.classList.remove('on'); }, 2600);
+  }
+
+  // A room is on screen and settled: start the walk if it is due, or carry on with it.
+  function walkRoomShown(room) {
+    if (editMode || !room || room.mode !== 'panorama') return;
+    if (!autoWalk.started && !autoWalk.active) {
+      autoWalk.started = true;
+      var optedOut = /[?&]walk=0(&|$)/.test(window.location.search);
+      if (!optedOut && !reducedMotion && !userTookControl && walkCanRun()) startWalk();
+      return;
+    }
+    if (autoWalk.active && !autoWalk.paused) walkStep(room);
+  }
+
+  function walkStep(room) {
+    if (!autoWalk.active || autoWalk.paused || !psvInstance || currentRoom !== room) return;
+    var run = autoWalk.run;
+    autoWalk.visited[room.slug] = true;
+    walkSetBar('playing', room);
+    walkCaption(room);
+    var plan = walkPlanNext(room);
+    if (!plan) { finishWalk(); return; }
+
+    var pos;
+    try { pos = psvInstance.getPosition(); } catch (err) { stopWalk('error'); return; }
+    var doorYaw = plan.link ? plan.link.yaw * RAD : pos.yaw + 1.9;
+    var doorPitch = plan.link ? plan.link.pitch * RAD : 0;
+    // Look the other way round first, so the room is seen before we head for the door.
+    var side = (room.slug.length + walkVisitedCount()) % 2 ? 1 : -1;
+    var lead = doorYaw - side * 0.95;
+
+    function advance() {
+      if (run !== autoWalk.run || !autoWalk.active || autoWalk.paused) return;
+      if (plan.link) walkThrough(plan.link, null, true);
+      else switchRoom(plan.target, { fade: 1100, auto: true });
+    }
+    if (reducedMotion) { walkLater(3600, advance); return; }
+
+    function toDoor() {
+      if (run !== autoWalk.run || !autoWalk.active || autoWalk.paused) return;
+      try {
+        var turn = psvInstance.animate({ yaw: doorYaw, pitch: doorPitch * 0.5, zoom: 30, speed: 2300 });
+        if (turn && turn.then) turn.then(function () { walkLater(350, advance); }, function () {});
+        else walkLater(2700, advance);
+      } catch (err) { walkLater(1200, advance); }
+    }
+    try {
+      var sweep = psvInstance.animate({ yaw: lead, pitch: 0.03, zoom: 10, speed: 3300 });
+      if (sweep && sweep.then) sweep.then(function () { walkLater(250, toDoor); }, function () {});
+      else walkLater(3300, toDoor);
+    } catch (err) { walkLater(800, toDoor); }
+    // A safety net: whatever happens to the animations, the walk moves on.
+    walkLater(11000, advance);
+  }
+
+  function startWalk() {
+    if (!walkCanRun()) return;
+    walkClear();
+    autoWalk.run++;
+    autoWalk.active = true;
+    autoWalk.paused = false;
+    autoWalk.started = true;
+    autoWalk.visited = {};
+    stopDrift();
+    document.body.classList.add('walking-tour');
+    var first = walkRoutePanoramas()[0];
+    walkSetBar('playing', currentRoom);
+    if (currentRoom === first && currentRoom.mode === 'panorama') {
+      walkStep(currentRoom);
+    } else {
+      switchRoom(first, { fade: 1000, auto: true });
+    }
+  }
+  function stopWalk(why) {
+    if (!autoWalk.active && !autoWalk.paused) return;
+    autoWalk.active = false;
+    autoWalk.paused = false;
+    autoWalk.run++;
+    walkClear();
+    document.body.classList.remove('walking-tour');
+    try { if (psvInstance && psvInstance.stopAnimation) psvInstance.stopAnimation(); } catch (err) { /* nothing running */ }
+    if (autoWalk.caption) autoWalk.caption.classList.remove('on');
+    walkSetBar(why === 'done' ? 'done' : 'idle');
+    // The visitor is in charge now: the room keeps drifting only if they have not taken over.
+    if (why === 'done') startDrift();
+  }
+  function finishWalk() { stopWalk('done'); }
+  function pauseWalk() {
+    if (!autoWalk.active || autoWalk.paused) return;
+    autoWalk.paused = true;
+    autoWalk.run++;
+    walkClear();
+    try { if (psvInstance && psvInstance.stopAnimation) psvInstance.stopAnimation(); } catch (err) { /* nothing running */ }
+    walkSetBar('paused', currentRoom);
+  }
+  function resumeWalk() {
+    if (!autoWalk.active || !autoWalk.paused) return;
+    autoWalk.paused = false;
+    autoWalk.run++;
+    walkSetBar('playing', currentRoom);
+    walkStep(currentRoom);
+  }
+  function skipWalk() {
+    if (!autoWalk.active || !currentRoom) return;
+    autoWalk.paused = false;
+    autoWalk.run++;
+    walkClear();
+    try { if (psvInstance && psvInstance.stopAnimation) psvInstance.stopAnimation(); } catch (err) { /* nothing running */ }
+    var plan = walkPlanNext(currentRoom);
+    if (!plan) { finishWalk(); return; }
+    if (plan.link) walkThrough(plan.link, null, true);
+    else switchRoom(plan.target, { fade: 900, auto: true });
+  }
+
+  function buildWalkBar() {
+    if (editMode || walkRoutePanoramas().length < 2) return;
+    var bar = document.createElement('div');
+    bar.id = 'walkbar';
+    bar.setAttribute('role', 'group');
+    bar.setAttribute('aria-label', 'Guided walk-through');
+    bar.setAttribute('data-state', 'idle');
+    var dot = document.createElement('span'); dot.className = 'wb-dot'; dot.setAttribute('aria-hidden', 'true');
+    var status = document.createElement('span'); status.className = 'wb-status'; status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
+    var text = document.createElement('span'); text.className = 'wb-text';
+    var count = document.createElement('span'); count.className = 'wb-count';
+    status.appendChild(text); status.appendChild(count);
+    var toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'wb-btn wb-toggle';
+    toggle.onclick = function () { if (autoWalk.paused) resumeWalk(); else pauseWalk(); };
+    var skip = document.createElement('button'); skip.type = 'button'; skip.className = 'wb-btn wb-skip'; skip.textContent = 'Next'; skip.setAttribute('aria-label', 'Skip to the next room');
+    skip.onclick = skipWalk;
+    var stop = document.createElement('button'); stop.type = 'button'; stop.className = 'wb-btn wb-stop'; stop.innerHTML = '&times;'; stop.setAttribute('aria-label', 'Stop the walk-through and look around yourself');
+    stop.onclick = function () { stopWalk('user'); };
+    var play = document.createElement('button'); play.type = 'button'; play.className = 'wb-btn wb-play'; play.textContent = 'Walk me through';
+    play.onclick = function () { userTookControl = false; startWalk(); };
+    bar.appendChild(dot); bar.appendChild(status); bar.appendChild(toggle); bar.appendChild(skip); bar.appendChild(stop); bar.appendChild(play);
+    rootEl.appendChild(bar);
+    var cap = document.createElement('div'); cap.id = 'walk-caption'; cap.setAttribute('aria-hidden', 'true');
+    rootEl.appendChild(cap);
+    autoWalk.bar = bar; autoWalk.text = text; autoWalk.count = count; autoWalk.toggle = toggle; autoWalk.caption = cap;
+    walkSetBar('idle');
   }
 
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeCards(); });
@@ -443,22 +654,23 @@
         if (currentRoom !== room || !psvInstance) return;
         renderHotspots(room);
         preloadNeighbours(room);
+        var ready = function () { startDrift(); walkRoomShown(room); };
         if (arrival && !reducedMotion) {
           // Came through a door: settle from the tight view we arrived with.
           try {
             var settle = psvInstance.animate({ zoom: 0, speed: 900 });
-            if (settle && settle.then) { settle.then(startDrift, startDrift); return; }
+            if (settle && settle.then) { settle.then(ready, ready); return; }
           } catch (err) { /* fall through */ }
         }
         if (firstReveal && !reducedMotion && !editMode) {
           firstReveal = false;
           try {
             var glide = psvInstance.animate({ yaw: psvInstance.getPosition().yaw + 0.5, pitch: 0, zoom: 0, speed: 2600 });
-            if (glide && glide.then) { glide.then(startDrift, startDrift); return; }
+            if (glide && glide.then) { glide.then(ready, ready); return; }
           } catch (err) { /* fall through to a plain drift */ }
         }
         firstReveal = false;
-        startDrift();
+        ready();
       });
     }
 
@@ -521,6 +733,7 @@
   // dark curtain is only for the rarer jumps that involve a photo-set room (a different viewer).
   function switchRoom(room, opts) {
     if (room === currentRoom) return;
+    if (!(opts && opts.auto) && autoWalk.active) stopWalk('user');
     pendingArrival = opts && typeof opts.arrivalYaw === 'number' ? { yaw: opts.arrivalYaw } : null;
     if (firstReveal && introEl) { selectRoom(room); return; }
     var seamless = psvInstance && currentRoom && currentRoom.mode === 'panorama' && room.mode === 'panorama' && !reducedMotion;
@@ -720,6 +933,7 @@
       var tourTitle = data.title || document.title;
       document.getElementById('tour-title').textContent = tourTitle;
       buildChrome(tourTitle);
+      buildWalkBar();
       rooms.forEach(function (room) {
         var chip = document.createElement('button');
         chip.className = 'room-chip';

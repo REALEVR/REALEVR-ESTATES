@@ -196,3 +196,44 @@ body.edit #viewer .psv-navbar { display: none; }
 }
 .fs-exit:hover { background: var(--gold, #d8b46a); color: var(--ink, #0b0b0f); }
 .fs-exit:focus-visible { outline: 2px solid var(--gold, #d8b46a); outline-offset: 3px; }
+
+/* ---- Guided walk-through ------------------------------------------------
+   A small glass control that appears over the viewer (see tour-app.js). It is
+   one of three looks, set by data-state: idle ("Walk me through"), playing or
+   paused (status, pause, next, stop), done ("That is the whole home" + replay). */
+#walkbar { position: absolute; left: 50%; bottom: calc(var(--room-bar-h) + 66px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 12; display: flex; align-items: center; gap: 4px; max-width: calc(100% - 24px); padding: 4px 4px 4px 14px; border-radius: 999px; color: #fff; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--glass-line); font-size: 12px; letter-spacing: .04em; }
+#walkbar .wb-dot { flex: 0 0 auto; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 0 var(--gold-soft); animation: wb-pulse 2.2s var(--ease) infinite; }
+#walkbar .wb-status { display: flex; align-items: baseline; gap: 10px; min-width: 0; padding-right: 8px; }
+#walkbar .wb-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46vw; }
+#walkbar .wb-count { flex: 0 0 auto; font-variant-numeric: tabular-nums; color: var(--gold); letter-spacing: .12em; }
+#walkbar .wb-btn { min-width: 44px; height: 44px; padding: 0 14px; border: 0; border-radius: 999px; background: transparent; color: #fff; font: inherit; letter-spacing: .06em; cursor: pointer; transition: transform 150ms var(--ease), background-color 150ms var(--ease); }
+#walkbar .wb-btn:active { transform: scale(.97); }
+#walkbar .wb-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+#walkbar .wb-stop { font-size: 22px; line-height: 1; padding: 0 12px; }
+#walkbar .wb-play { background: var(--gold); color: var(--ink); font-weight: 600; padding: 0 18px; }
+@media (hover: hover) and (pointer: fine) {
+  #walkbar .wb-btn:hover { background: rgba(255,255,255,.12); }
+  #walkbar .wb-play:hover { background: #e5c585; }
+}
+/* idle: only the invitation */
+#walkbar[data-state="idle"] { padding-left: 4px; }
+#walkbar[data-state="idle"] .wb-dot, #walkbar[data-state="idle"] .wb-status, #walkbar[data-state="idle"] .wb-toggle, #walkbar[data-state="idle"] .wb-skip, #walkbar[data-state="idle"] .wb-stop { display: none; }
+/* playing and paused: no replay button */
+#walkbar[data-state="playing"] .wb-play, #walkbar[data-state="paused"] .wb-play { display: none; }
+#walkbar[data-state="paused"] .wb-dot { animation: none; }
+/* done */
+#walkbar[data-state="done"] .wb-dot, #walkbar[data-state="done"] .wb-toggle, #walkbar[data-state="done"] .wb-skip, #walkbar[data-state="done"] .wb-stop { display: none; }
+#walkbar[data-state="done"] .wb-count { display: none; }
+/* On a phone the room name is already large on screen, so the bar keeps just the progress; the name stays available to screen readers. */
+@media (max-width: 520px) { #walkbar[data-state="playing"] .wb-text, #walkbar[data-state="paused"] .wb-text { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } #walkbar .wb-count { color: #fff; } #walkbar .wb-count b { color: var(--gold); } }
+@keyframes wb-pulse { 0% { box-shadow: 0 0 0 0 var(--gold-soft); } 70% { box-shadow: 0 0 0 9px rgba(216,180,106,0); } 100% { box-shadow: 0 0 0 0 rgba(216,180,106,0); } }
+
+/* The room's name, large, for a moment as you arrive. */
+#walk-caption { position: absolute; left: 0; right: 0; bottom: calc(var(--room-bar-h) + 128px + env(safe-area-inset-bottom)); z-index: 11; text-align: center; color: #fff; font-family: var(--serif); font-size: 30px; font-weight: 500; letter-spacing: .02em; text-shadow: 0 2px 22px rgba(0,0,0,.65); opacity: 0; transform: translateY(8px); transition: opacity 500ms var(--ease), transform 500ms var(--ease); pointer-events: none; padding: 0 16px; }
+#walk-caption.on { opacity: 1; transform: translateY(0); }
+@media (min-width: 720px) { #walk-caption { font-size: 40px; } #walkbar { bottom: calc(var(--room-bar-h) + 72px + env(safe-area-inset-bottom)); } }
+/* With the editor open the walk-through stays out of the way (it is never built in edit mode). */
+@media (prefers-reduced-motion: reduce) {
+  #walkbar .wb-dot { animation: none; }
+  #walk-caption { transform: none; transition: opacity 300ms linear; }
+}
