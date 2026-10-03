@@ -106,12 +106,28 @@ export function buildPropertyJsonLd(
     base: string,
     p: Pick<
         Property,
-        'title' | 'description' | 'price' | 'currency' | 'isAvailable' | 'location' | 'imageUrl'
+        | 'title'
+        | 'description'
+        | 'price'
+        | 'currency'
+        | 'isAvailable'
+        | 'location'
+        | 'imageUrl'
+        | 'bedrooms'
+        | 'bathrooms'
+        | 'squareMeters'
+        | 'rating'
+        | 'reviewCount'
+        | 'latitude'
+        | 'longitude'
     >,
     propertyPath: string
 ): Record<string, unknown> {
     const url = toAbsoluteUrl(base, propertyPath)
     const image = absolutePropertyImageUrl(base, p)
+    const reviewCount = p.reviewCount ?? 0
+    const ratingValue = Number(p.rating)
+    const hasPin = p.latitude != null && p.longitude != null
 
     return {
         '@context': 'https://schema.org',
@@ -120,6 +136,16 @@ export function buildPropertyJsonLd(
         description: truncatePlainText(p.description, 5000),
         url,
         ...(image ? { image } : {}),
+        // The accommodation itself, nested — bedrooms/bathrooms/floorSize are
+        // documented Accommodation properties, not RealEstateListing's own.
+        about: {
+            '@type': 'Accommodation',
+            numberOfBedrooms: p.bedrooms,
+            numberOfBathroomsTotal: p.bathrooms,
+            ...(p.squareMeters
+                ? { floorSize: { '@type': 'QuantitativeValue', value: p.squareMeters, unitCode: 'MTK' } }
+                : {}),
+        },
         offers: {
             '@type': 'Offer',
             price: p.price,
@@ -130,6 +156,28 @@ export function buildPropertyJsonLd(
             '@type': 'PostalAddress',
             streetAddress: p.location,
         },
+        ...(hasPin ? { geo: { '@type': 'GeoCoordinates', latitude: p.latitude, longitude: p.longitude } } : {}),
+        // Place.aggregateRating — only when a real review exists, never a placeholder.
+        ...(reviewCount > 0 && Number.isFinite(ratingValue)
+            ? { aggregateRating: { '@type': 'AggregateRating', ratingValue, reviewCount } }
+            : {}),
+    }
+}
+
+/** Reused on every category page and the property page for the category → listing trail. */
+export function buildBreadcrumbJsonLd(
+    base: string,
+    trail: Array<{ name: string; path: string }>
+): Record<string, unknown> {
+    return {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: trail.map((step, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            name: step.name,
+            item: toAbsoluteUrl(base, step.path),
+        })),
     }
 }
 

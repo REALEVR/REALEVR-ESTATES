@@ -8,7 +8,7 @@ import PropertyCard from "@/components/home/PropertyCard";
 import type { Property } from "@shared/schema";
 import { PageSeo } from "@/components/seo/PageSeo";
 import { getSiteUrl } from "@/lib/siteUrl";
-import { CATEGORY_PAGE_META } from "@shared/seo";
+import { buildBreadcrumbJsonLd, CATEGORY_PAGE_META } from "@shared/seo";
 import FaqSection from "@/components/seo/FaqSection";
 
 export default function ForSalePage() {
@@ -24,13 +24,19 @@ export default function ForSalePage() {
   
   const forSaleJsonLd = useMemo(() => {
     const site = getSiteUrl();
-    return {
-      "@context": "https://schema.org",
-      "@type": "CollectionPage",
-      name: CATEGORY_PAGE_META.forSale.title,
-      description: CATEGORY_PAGE_META.forSale.description,
-      url: `${site}${CATEGORY_PAGE_META.forSale.path}`,
-    };
+    return [
+      {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: CATEGORY_PAGE_META.forSale.title,
+        description: CATEGORY_PAGE_META.forSale.description,
+        url: `${site}${CATEGORY_PAGE_META.forSale.path}`,
+      },
+      buildBreadcrumbJsonLd(site, [
+        { name: "Home", path: "/" },
+        { name: "For Sale", path: CATEGORY_PAGE_META.forSale.path },
+      ]),
+    ];
   }, []);
 
   // Filter for only properties for sale
