@@ -8,7 +8,7 @@ import logoPath from '../../assets/logo.png';
 function Skyline() {
   const blocks: Array<[number, number, number]> = [[0,34,26],[26,56,22],[48,40,30],[78,72,24],[102,48,28],[130,62,20],[150,36,34],[184,80,22],[206,52,30],[236,44,26],[262,68,24],[286,38,32],[318,76,20],[338,50,28],[366,42,30],[396,64,24],[420,34,34],[454,70,22],[476,46,28],[504,58,26]];
   return (
-    <svg className="pointer-events-none absolute inset-x-0 top-0 h-16 w-full -translate-y-full text-[hsl(240_5%_14%)]" viewBox="0 0 530 80" preserveAspectRatio="none" aria-hidden="true">
+    <svg className="pointer-events-none absolute inset-x-0 top-0 h-16 w-full -translate-y-full text-[hsl(235_30%_12%)]" viewBox="0 0 530 80" preserveAspectRatio="none" aria-hidden="true">
       {blocks.map(([x, h, w], i) => (
         <rect key={i} x={x} y={80 - h} width={w} height={h} fill="currentColor" />
       ))}

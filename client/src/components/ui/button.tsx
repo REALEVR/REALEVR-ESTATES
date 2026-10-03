@@ -12,7 +12,7 @@ const buttonVariants = cva(
         // A light top edge and a soft drop shadow make the primary button read as a
         // raised key; active:translate-y-px (base class) presses it back in.
         default:
-          "bg-primary text-primary-foreground hover:bg-primary/90 [box-shadow:inset_0_1px_0_hsl(0_0%_100%/0.14),0_2px_6px_hsl(240_6%_10%/0.28)] hover:[box-shadow:inset_0_1px_0_hsl(0_0%_100%/0.16),0_6px_14px_hsl(240_6%_10%/0.32)]",
+          "bg-primary text-primary-foreground hover:bg-primary/90 [box-shadow:inset_0_1px_0_hsl(0_0%_100%/0.14),0_2px_6px_hsl(235_21%_21%/0.28)] hover:[box-shadow:inset_0_1px_0_hsl(0_0%_100%/0.16),0_6px_14px_hsl(235_21%_21%/0.32)]",
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline:

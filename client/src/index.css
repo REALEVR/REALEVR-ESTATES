@@ -39,53 +39,51 @@
  * warning color, not just a palette-matched tone.
  */
 :root {
-  /* v6 "Zinc & Emerald" (colour refresh, following the taste skill's colour rules).
-     One neutral family (cool zinc), ONE accent (deep emerald, saturation under 80%), no purple, no warm paper/brass.
-     The accent does every job: brand, links, active states, prices, primary actions, the 360 tour chip.
-     Distinction between actions comes from weight and size, never from a second hue. --destructive stays a true
-     red for warnings. No pure black and no pure white: ink is #18181B, surfaces top out at #FCFCFD.
-     Contrast: off-white on accent 5.7:1, accent text on page 5.5:1, ink on page 16.5:1, muted text on page 6.6:1. */
-  --background: 240 5% 97%;      /* zinc paper #F7F7F8 */
-  --foreground: 240 6% 10%;      /* off-black #18181B */
-  --muted: 240 5% 94%;
-  --muted-foreground: 240 4% 36%;
-  --popover: 240 10% 99%;
-  --popover-foreground: 240 6% 10%;
-  --card: 240 10% 99%;           /* #FCFCFD, lifts off the page without pure white */
-  --card-foreground: 240 6% 10%;
-  --border: 240 6% 88%;
-  --input: 240 6% 88%;
-  --primary: 160 72% 26%;        /* deep emerald #137252, the one accent */
-  --primary-foreground: 0 0% 98%;
-  --secondary: 240 5% 94%;
-  --secondary-foreground: 240 6% 10%;
-  --accent: 160 72% 26%;         /* same accent for links and text-weight uses */
-  --accent-foreground: 0 0% 98%;
-  --accent-light: 158 64% 52%;   /* the same accent lifted for dark surfaces and the live dot, ink text on top */
-  --gold: 160 72% 26%;           /* legacy name: the signature accent (tour chip, shine CTA). Same hue as --accent. */
-  --gold-foreground: 0 0% 98%;
-  --destructive: 4 66% 48%;      /* semantic-only exception */
+  --background: 60 20% 98%;      /* Soft Alabaster White #FBFBF9 — 60% */
+  --foreground: 235 21% 21%;     /* Deep Charcoal/Onyx #2B2D42 — 30% */
+  --muted: 48 22% 93%;
+  --muted-foreground: 100 5% 37%;
+  --popover: 60 100% 100%;
+  --popover-foreground: 235 21% 21%;
+  --card: 60 100% 100%;          /* near-pure white — pops slightly off the alabaster page bg */
+  --card-foreground: 235 21% 21%;
+  --border: 46 23% 85%;
+  --input: 46 23% 85%;
+  --primary: 235 21% 21%;        /* charcoal */
+  --primary-foreground: 60 20% 98%;
+  --secondary: 48 22% 93%;
+  --secondary-foreground: 235 21% 21%;
+  /* Golden hour: the one confident tone is a deep gold (#935E10), 5.1:1 on the
+     alabaster page for text and 5.3:1 behind white text, so it can carry
+     links, active states and buttons. --gold is its bright sibling for dark
+     surfaces and the "360 tour" signature, always with ink text on it. */
+  --accent: 36 80% 32%;
+  --accent-foreground: 0 0% 100%;
+  --gold: 40 92% 62%;
+  --accent-light: 40 92% 62%;    /* bright gold for dots on dark surfaces */
+  --gold-foreground: 235 28% 12%;
+  --destructive: 4 66% 48%;      /* semantic-only exception, see above */
   --destructive-foreground: 0 0% 98%;
-  --ring: 160 72% 26%;
+  --ring: 235 21% 21%;
   --radius: 0.6rem;
-  --chart-1: 160 72% 26%;
-  --chart-2: 240 5% 46%;
-  --chart-3: 240 5% 62%;
-  --chart-4: 160 40% 55%;
-  --chart-5: 240 6% 80%;
-  --sidebar-background: 240 10% 99%;
-  --sidebar-foreground: 240 6% 10%;
-  --sidebar-primary: 160 72% 26%;
-  --sidebar-primary-foreground: 0 0% 98%;
-  --sidebar-accent: 240 5% 94%;
-  --sidebar-accent-foreground: 240 6% 10%;
-  --sidebar-border: 240 6% 88%;
-  --sidebar-ring: 160 72% 26%;
 
   /* Motion tokens (Emil Kowalski): strong curves, short durations. UI under 300ms; only transform and opacity animate. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --chart-1: 235 20% 20%;
+  --chart-2: 235 15% 38%;
+  --chart-3: 235 10% 55%;
+  --chart-4: 235 8% 70%;
+  --chart-5: 235 6% 85%;
+  --sidebar-background: 60 100% 100%;
+  --sidebar-foreground: 235 21% 21%;
+  --sidebar-primary: 235 21% 21%;
+  --sidebar-primary-foreground: 60 20% 98%;
+  --sidebar-accent: 48 22% 93%;
+  --sidebar-accent-foreground: 235 21% 21%;
+  --sidebar-border: 46 23% 85%;
+  --sidebar-ring: 235 21% 21%;
 
   --font-display: "Space Grotesk", "Montserrat", ui-sans-serif, sans-serif;
 
@@ -148,17 +146,15 @@
    used inside an element with this class automatically resolves to these
    scoped values instead of the page-level `:root` ones. */
 .surface-invert {
-  --background: 240 6% 8%;
-  --foreground: 240 10% 96%;
-  --card: 240 6% 8%;
-  --card-foreground: 240 10% 96%;
-  --border: 240 4% 20%;
-  --muted: 240 5% 14%;
-  --muted-foreground: 240 5% 70%;
-  --accent: 158 64% 52%;
-  --accent-foreground: 240 6% 8%;
-  --gold: 158 64% 52%;
-  --gold-foreground: 240 6% 8%;
+  --background: 235 15% 10%;
+  --foreground: 60 20% 96%;
+  --card: 235 15% 10%;
+  --card-foreground: 60 20% 96%;
+  --border: 235 10% 22%;
+  --muted: 235 10% 16%;
+  --muted-foreground: 60 8% 66%;
+  --accent: 40 92% 64%;
+  --accent-foreground: 235 28% 12%;
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
 }
@@ -174,17 +170,17 @@
   100% { background-position: 200% 50%; }
 }
 .shine {
-  /* The accent with a slight vertical sheen. Text is off-white at 4.6:1 or better on every stop. */
+  /* Golden-hour metal: bright and deep gold stops that never go pale, with ink
+     text (about 9:1 on the lightest stop, 6:1 on the darkest). */
   background: linear-gradient(120deg,
-    hsl(160 70% 30%) 0%, hsl(160 72% 26%) 35%, hsl(160 74% 23%) 65%,
-    hsl(160 70% 29%) 100%);
+    hsl(41 93% 66%) 0%, hsl(38 90% 58%) 30%, hsl(34 84% 50%) 55%,
+    hsl(40 92% 64%) 80%, hsl(38 88% 56%) 100%);
   background-size: 250% 250%;
-  /* Still at rest; the sweep plays only while pointing at it. A permanent shimmer on a button seen all day is noise. */
   transition: transform 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
   color: hsl(var(--gold-foreground));
   font-weight: 600;
-  border: 1px solid hsla(0, 0%, 100%, 0.22);
-  box-shadow: inset 0 1px 0 hsla(0, 0%, 100%, 0.22), 0 4px 14px hsl(160 72% 20% / 0.28);
+  border: 1px solid hsla(0, 0%, 100%, 0.45);
+  box-shadow: inset 0 1px 0 hsla(0, 0%, 100%, 0.55), 0 2px 10px hsl(34 84% 40% / 0.28);
 }
 @media (hover: hover) and (pointer: fine) {
   .shine:hover { animation: shine-sweep 1.8s var(--ease-in-out) infinite; }
@@ -253,17 +249,17 @@
  */
 .vr-grid-bg {
   background-image:
-    linear-gradient(hsla(256, 45%, 13%, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, hsla(256, 45%, 13%, 0.06) 1px, transparent 1px);
+    linear-gradient(hsla(235, 21%, 21%, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, hsla(235, 21%, 21%, 0.06) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
 .vr-glow-ring {
-  box-shadow: 0 0 0 1px hsla(256, 45%, 13%, 0.12), 0 0 32px hsla(256, 45%, 13%, 0.10);
+  box-shadow: 0 0 0 1px hsla(235, 21%, 21%, 0.12), 0 0 32px hsla(235, 21%, 21%, 0.10);
 }
 
 .vr-glow-text {
-  text-shadow: 0 0 20px hsla(256, 45%, 13%, 0.22);
+  text-shadow: 0 0 20px hsla(235, 21%, 21%, 0.22);
 }
 
 .vr-badge {
@@ -294,10 +290,10 @@
  * rather than black so shadows sit naturally on the alabaster background.
  */
 :root {
-  --elev-1: 0 1px 2px hsl(240 6% 10% / 0.07), 0 2px 6px hsl(240 6% 10% / 0.05);
-  --elev-2: 0 2px 4px hsl(240 6% 10% / 0.06), 0 8px 18px hsl(240 6% 10% / 0.09);
-  --elev-3: 0 4px 8px hsl(240 6% 10% / 0.07), 0 16px 32px hsl(240 6% 10% / 0.14), 0 32px 60px -12px hsl(240 6% 10% / 0.16);
-  --elev-4: 0 8px 14px hsl(240 6% 10% / 0.08), 0 28px 52px hsl(240 6% 10% / 0.2), 0 52px 90px -16px hsl(240 6% 10% / 0.24);
+  --elev-1: 0 1px 2px hsl(235 21% 21% / 0.07), 0 2px 6px hsl(235 21% 21% / 0.05);
+  --elev-2: 0 2px 4px hsl(235 21% 21% / 0.06), 0 8px 18px hsl(235 21% 21% / 0.09);
+  --elev-3: 0 4px 8px hsl(235 21% 21% / 0.07), 0 16px 32px hsl(235 21% 21% / 0.14), 0 32px 60px -12px hsl(235 21% 21% / 0.16);
+  --elev-4: 0 8px 14px hsl(235 21% 21% / 0.08), 0 28px 52px hsl(235 21% 21% / 0.2), 0 52px 90px -16px hsl(235 21% 21% / 0.24);
 }
 .elev-1 { box-shadow: var(--elev-1); }
 .elev-2 { box-shadow: var(--elev-2); }
@@ -455,7 +451,7 @@ body {
   line-height: 1;
   letter-spacing: 0.02em;
   padding: 0.38rem 0.6rem;
-  box-shadow: 0 1px 2px hsl(240 6% 10% / 0.25), 0 4px 10px hsl(240 6% 10% / 0.18);
+  box-shadow: 0 1px 2px hsl(235 28% 12% / 0.25), 0 4px 10px hsl(235 28% 12% / 0.18);
 }
 
 /* Phone feed: sections that were grids become swipeable rails (Airbnb's pattern),
@@ -485,12 +481,7 @@ body {
 .chip-nav::-webkit-scrollbar { display: none; }
 
 /* Section titles share one rhythm everywhere. */
-.section-title {
-  font-family: var(--font-display); font-weight: 600; letter-spacing: -0.01em; font-size: 1.375rem; line-height: 1.2;
-  /* a sunrise highlighter stroke under the words: colour on every section, no extra element */
-  display: inline-block; padding: 0 0.15em; margin-left: -0.15em;
-  background: linear-gradient(transparent 64%, hsl(158 64% 52% / 0.38) 64%, hsl(158 64% 52% / 0.38) 90%, transparent 90%);
-}
+.section-title { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.01em; font-size: 1.375rem; line-height: 1.2; }
 @media (min-width: 768px) { .section-title { font-size: 1.75rem; } }
 
 /* A listing card is its photo plus three lines of text: no box around it, no glare over the words. */
@@ -498,11 +489,11 @@ body {
 .property-card.tilt:hover { box-shadow: none; }
 .property-card.tilt::after { display: none; }
 .property-card article { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
-@media (hover: hover) and (pointer: fine) { .property-card:hover article > div:first-child { box-shadow: 0 14px 30px -10px hsl(240 6% 10% / 0.35); } }
+@media (hover: hover) and (pointer: fine) { .property-card:hover article > div:first-child { box-shadow: 0 14px 30px -10px hsl(235 28% 12% / 0.35); } }
 
 /* A new top bid makes the price flash gold. */
 @keyframes bidflash {
-  0% { background-color: hsl(158 64% 52% / 0.55); transform: scale(1.03); }
+  0% { background-color: hsl(40 92% 62% / 0.55); transform: scale(1.03); }
   100% { background-color: transparent; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {

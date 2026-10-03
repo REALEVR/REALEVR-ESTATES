@@ -137,7 +137,7 @@ function LanguagePicker({ onPick }: { onPick: (lang: KevinLanguage) => void }) {
             type="button"
             lang={l.code ?? undefined}
             onClick={() => onPick(l)}
-            className="rounded-full border border-white/10 px-3.5 py-1.5 text-[13px] text-white/80 transition hover:border-white/30 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#36d399]"
+            className="rounded-full border border-white/10 px-3.5 py-1.5 text-[13px] text-white/80 transition hover:border-white/30 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f5c469]"
           >
             {l.native}
           </button>
@@ -871,7 +871,7 @@ export default function KevinOrb() {
           onContextMenu={(e) => e.preventDefault()}
           onPointerLeave={() => clearTimeout(pressTimer.current)}
           aria-label="Chat with Kevin, your RealEVR concierge. Press and hold to talk."
-          className="kevin-fab group fixed select-none [-webkit-touch-callout:none] bottom-[var(--fab-row-1)] right-3 z-40 flex w-16 flex-col items-center gap-1.5 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#36d399] md:bottom-5 md:right-4"
+          className="kevin-fab group fixed select-none [-webkit-touch-callout:none] bottom-[var(--fab-row-1)] right-3 z-40 flex w-16 flex-col items-center gap-1.5 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f5c469] md:bottom-5 md:right-4"
         >
           <span className="relative block h-11 w-11 md:h-12 md:w-12">
             <Orb speaking={voice.speaking || phase === 'speaking'} listening={voice.listening} thinking={busy} />
@@ -882,7 +882,7 @@ export default function KevinOrb() {
           </span>
           {ambient.active && (
             <span
-              className="pointer-events-none absolute left-2 top-0 grid h-5 w-5 place-items-center rounded-full bg-[#36d399] text-[#1b1305] shadow"
+              className="pointer-events-none absolute left-2 top-0 grid h-5 w-5 place-items-center rounded-full bg-[#f5c469] text-[#1b1305] shadow"
               title={strings.handsFreeActive}
             >
               <Mic size={11} />
@@ -964,7 +964,7 @@ export default function KevinOrb() {
             <div className="min-w-0 flex-1">
               <div className="font-display text-[17px] font-semibold leading-tight tracking-tight">Kevin</div>
               <p className="kevin-sub flex items-center gap-1.5 truncate text-[12px] text-white/45" aria-live="polite">
-                {handsFreeOn && ambient.active && <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[#36d399]" aria-hidden="true" />}
+                {handsFreeOn && ambient.active && <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[#f5c469]" aria-hidden="true" />}
                 {voice.speaking ? '…' : busy ? strings.thinking : voice.listening ? strings.listening : handsFreeOn && ambient.active ? strings.handsFreeActive : 'Your RealEVR concierge'}
               </p>
             </div>
@@ -974,7 +974,7 @@ export default function KevinOrb() {
                 onClick={startVoiceMode}
                 title={strings.talkToKevin}
                 aria-label={strings.talkToKevin}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#36d399] transition hover:bg-white/10"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#f5c469] transition hover:bg-white/10"
               >
                 <AudioLines size={20} />
               </button>
@@ -1067,7 +1067,7 @@ export default function KevinOrb() {
                 <button
                   type="button"
                   onClick={confirmHandsFree}
-                  className="min-h-10 rounded-full bg-[#36d399] px-4 text-[13px] font-semibold text-[#1b1305] transition hover:brightness-110"
+                  className="min-h-10 rounded-full bg-[#f5c469] px-4 text-[13px] font-semibold text-[#1b1305] transition hover:brightness-110"
                 >
                   {strings.handsFreeOn}
                 </button>
@@ -1151,7 +1151,7 @@ export default function KevinOrb() {
                           type="button"
                           disabled={busy}
                           onClick={() => void send(audienceLabel(a, lang), { choice: a })}
-                          className="min-h-10 rounded-full border border-white/12 px-4 text-sm text-white/85 transition hover:border-[#36d399]/70 hover:text-[#36d399] disabled:opacity-40"
+                          className="min-h-10 rounded-full border border-white/12 px-4 text-sm text-white/85 transition hover:border-[#f5c469]/70 hover:text-[#f5c469] disabled:opacity-40"
                         >
                           {audienceLabel(a, lang)}
                         </button>
@@ -1169,7 +1169,7 @@ export default function KevinOrb() {
                         href={l.path}
                         onClick={() => setOpen(false)}
                         className={`kevin-rise inline-flex min-h-10 items-center rounded-full px-4 text-sm font-medium transition ${
-                          i === 0 ? 'bg-[#36d399] text-[#1b1305] hover:brightness-110' : 'border border-white/12 text-white/85 hover:border-white/30'
+                          i === 0 ? 'bg-[#f5c469] text-[#1b1305] hover:brightness-110' : 'border border-white/12 text-white/85 hover:border-white/30'
                         }`}
                       >
                         {l.label}
@@ -1253,7 +1253,7 @@ export default function KevinOrb() {
                   aria-pressed={voice.listening}
                   aria-label={voice.listening ? 'Stop listening' : 'Speak to Kevin'}
                   title="Speak to Kevin"
-                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition ${voice.listening ? 'bg-[#36d399] text-[#1b1305]' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}
+                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition ${voice.listening ? 'bg-[#f5c469] text-[#1b1305]' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}
                 >
                   <Mic size={19} />
                 </button>
@@ -1270,7 +1270,7 @@ export default function KevinOrb() {
                 type="submit"
                 disabled={busy || !input.trim()}
                 aria-label="Send"
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#36d399] text-[#1b1305] transition enabled:hover:brightness-110 disabled:bg-white/10 disabled:text-white/30"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#f5c469] text-[#1b1305] transition enabled:hover:brightness-110 disabled:bg-white/10 disabled:text-white/30"
               >
                 <ArrowUp size={19} strokeWidth={2.25} />
               </button>
