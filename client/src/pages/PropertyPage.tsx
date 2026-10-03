@@ -188,6 +188,7 @@ export default function PropertyPage() {
                 isFullscreen={isFullscreen}
                 onExitFullscreen={() => setIsFullscreen(false)}
                 showVrButton
+                coverImage={(property as Property).imageUrl}
               />
 
               {showMap && (
@@ -217,42 +218,43 @@ export default function PropertyPage() {
                   </div>
                 </div>
               )}
-
-              <div className="absolute bottom-4 right-4 z-30 bg-card/80 backdrop-blur-sm rounded-lg p-2 shadow-lg">
-                <div className="flex items-center space-x-3">
-                  {!showMap && (
-                    <>
-                      <button className="p-2 hover:bg-card rounded-full" title="Zoom in">
-                        <i className="fas fa-plus"></i>
-                      </button>
-                      <button className="p-2 hover:bg-card rounded-full" title="Zoom out">
-                        <i className="fas fa-minus"></i>
-                      </button>
-                      <button
-                        className="p-2 hover:bg-card rounded-full"
-                        title="Fullscreen"
-                        onClick={() => setIsFullscreen(!isFullscreen)}
-                      >
-                        <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
-                      </button>
-                      <button className="p-2 hover:bg-card rounded-full" title="Floor plan">
-                        <i className="fas fa-map"></i>
-                      </button>
-                    </>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowMap((v) => !v)}
-                    aria-pressed={showMap}
-                    aria-label={showMap ? "Back to the 360° tour" : "Show this property on the map"}
-                    title={showMap ? "Back to the 360° tour" : "Show on map"}
-                    className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold transition ${showMap ? "bg-foreground text-background" : "hover:bg-card"}`}
-                  >
-                    {showMap ? <Orbit className="h-4 w-4" aria-hidden="true" /> : <MapPin className="h-4 w-4 text-[#EA4335]" aria-hidden="true" />}
-                    {showMap ? "360° tour" : "Map"}
-                  </button>
-                </div>
+            </div>
+            {/* The tour's controls sit directly under it, never over the picture. */}
+            <div className="flex items-center justify-between gap-2 border-t border-border bg-card px-3 py-2">
+              <div className="flex items-center gap-1">
+                {!showMap && (
+                  <>
+                    <button className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted" title="Zoom in" aria-label="Zoom in">
+                      <i className="fas fa-plus"></i>
+                    </button>
+                    <button className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted" title="Zoom out" aria-label="Zoom out">
+                      <i className="fas fa-minus"></i>
+                    </button>
+                    <button
+                      className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted"
+                      title="Fullscreen"
+                      aria-label="Fullscreen"
+                      onClick={() => setIsFullscreen(!isFullscreen)}
+                    >
+                      <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
+                    </button>
+                    <button className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted" title="Floor plan" aria-label="Floor plan">
+                      <i className="fas fa-map"></i>
+                    </button>
+                  </>
+                )}
               </div>
+              <button
+                type="button"
+                onClick={() => setShowMap((v) => !v)}
+                aria-pressed={showMap}
+                aria-label={showMap ? "Back to the 360° tour" : "Show this property on the map"}
+                title={showMap ? "Back to the 360° tour" : "Show on map"}
+                className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${showMap ? "bg-foreground text-background" : "border border-border hover:bg-muted"}`}
+              >
+                {showMap ? <Orbit className="h-4 w-4" aria-hidden="true" /> : <MapPin className="h-4 w-4 text-[#EA4335]" aria-hidden="true" />}
+                {showMap ? "360° tour" : "Map"}
+              </button>
             </div>
           </div>
           
