@@ -1,3 +1,11 @@
+> **Status: the guided walk-through is switched off for now** (no "Walk me through" button, no autostart): `WALK_ENABLED = false` in
+> `server/templates/tour-viewer/tour-app.js`. Everything below describes it for when it comes back.
+>
+> **Room order:** instead, the viewer lists and steps through the rooms in walking order (`walkRank` / `inWalkingOrder` in the same file):
+> out front, entrance and hall, living room, dining, kitchen, study, master bedroom then the other bedrooms, bathrooms, utility,
+> balcony, garden last. Rooms whose names it does not recognise sit among the bedrooms; equal ranks keep their captured order.
+> Doors are linked by room, so ordering never breaks them. Applies to every phone-captured tour on the next deploy.
+
 # Guided walk-through (phone-captured tours)
 
 Every phone-captured tour (the ones with a `tour.json`, drawn by `server/templates/tour-viewer/tour-app.js`) now plays itself

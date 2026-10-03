@@ -477,9 +477,12 @@
     autoWalk.captionTimer = setTimeout(function () { autoWalk.caption.classList.remove('on'); }, 2600);
   }
 
+  // The guided walk-through is switched off for now (no button, no autostart). Set this to true to bring it back.
+  var WALK_ENABLED = false;
+
   // A room is on screen and settled: start the walk if it is due, or carry on with it.
   function walkRoomShown(room) {
-    if (editMode || !room || room.mode !== 'panorama') return;
+    if (!WALK_ENABLED || editMode || !room || room.mode !== 'panorama') return;
     if (!autoWalk.started && !autoWalk.active) {
       autoWalk.started = true;
       var optedOut = /[?&]walk=0(&|$)/.test(window.location.search);
@@ -590,7 +593,7 @@
   }
 
   function buildWalkBar() {
-    if (editMode || walkRoutePanoramas().length < 2) return;
+    if (!WALK_ENABLED || editMode || walkRoutePanoramas().length < 2) return;
     var bar = document.createElement('div');
     bar.id = 'walkbar';
     bar.setAttribute('role', 'group');
@@ -913,6 +916,34 @@
   document.addEventListener('fullscreenchange', syncExitButton);
   document.addEventListener('webkitfullscreenchange', syncExitButton);
 
+  // The rooms in the order someone would walk the property: out front, in through the entrance, living areas, kitchen,
+  // then the bedrooms (the master first, each followed by the bathrooms after them), utility, balcony, and the garden last.
+  // Names the rules do not recognise keep their place among the bedrooms, and rooms of equal rank keep the order they were captured in.
+  function walkRank(name) {
+    var n = String(name || '').toLowerCase();
+    var num = (n.match(/(\d+)/) || [])[1];
+    var k = num ? Math.min(parseInt(num, 10), 9) / 10 : 0;
+    if (/\b(gate|compound|exterior|outside|street|driveway|facade|front (view|yard|of)|outdoor entrance|house front)\b/.test(n)) return 0;
+    if (/\b(entrance|entry|foyer|porch|lobby|hallway|corridor|passage|hall|stairs|staircase)\b/.test(n)) return 1 + k / 10;
+    if (/\b(living|lounge|sitting|family|tv|reception|salon|parlou?r)\b/.test(n)) return 2 + k / 10;
+    if (/\b(dining)\b/.test(n)) return 3;
+    if (/\b(kitchen|pantry|scullery)\b/.test(n)) return 4;
+    if (/\b(study|office|library|home office)\b/.test(n)) return 5;
+    if (/\b(bath|bathroom|toilet|washroom|shower|restroom|wc|lavatory|powder|en-?suite)\b/.test(n)) return 7 + k;
+    if (/\b(master|main bedroom|principal)\b/.test(n)) return 6;
+    if (/\b(bedroom|bed room|guest room|kids?|children|nursery)\b/.test(n)) return 6 + (num ? k : 0.5);
+    if (/\b(laundry|utility|store|storage|garage|wardrobe|closet)\b/.test(n)) return 8;
+    if (/\b(balcony|terrace|patio|veranda|verandah|deck|sun ?room)\b/.test(n)) return 9;
+    if (/\b(backyard|back yard|garden|yard|pool|rooftop|roof|parking|lawn|courtyard|play ?ground)\b/.test(n)) return 10;
+    return 6.5;
+  }
+  function inWalkingOrder(list) {
+    return list
+      .map(function (room, i) { return { room: room, i: i, rank: walkRank(room.name) }; })
+      .sort(function (a, b) { return a.rank - b.rank || a.i - b.i; })
+      .map(function (x) { return x.room; });
+  }
+
   fetch('./tour.json')
     .then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -920,7 +951,7 @@
     })
     .then(function (data) {
       loadingEl.style.display = 'none';
-      rooms = data.rooms || [];
+      rooms = inWalkingOrder(data.rooms || []);
       if (rooms.length === 0) {
         emptyEl.style.display = 'flex';
         return;
