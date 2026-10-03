@@ -39,19 +39,19 @@
  * warning color, not just a palette-matched tone.
  */
 :root {
-  --background: 60 20% 98%;      /* Soft Alabaster White #FBFBF9 — 60% */
+  --background: 0 0% 100%;       /* White */
   --foreground: 235 21% 21%;     /* Deep Charcoal/Onyx #2B2D42 — 30% */
-  --muted: 48 22% 93%;
+  --muted: 0 0% 96%;
   --muted-foreground: 100 5% 37%;
-  --popover: 60 100% 100%;
+  --popover: 0 0% 100%;
   --popover-foreground: 235 21% 21%;
-  --card: 60 100% 100%;          /* near-pure white — pops slightly off the alabaster page bg */
+  --card: 0 0% 100%;             /* white */
   --card-foreground: 235 21% 21%;
-  --border: 46 23% 85%;
-  --input: 46 23% 85%;
+  --border: 0 0% 90%;
+  --input: 0 0% 90%;
   --primary: 235 21% 21%;        /* charcoal */
-  --primary-foreground: 60 20% 98%;
-  --secondary: 48 22% 93%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 96%;
   --secondary-foreground: 235 21% 21%;
   /* Golden hour: the one confident tone is a deep gold (#935E10), 5.1:1 on the
      alabaster page for text and 5.3:1 behind white text, so it can carry
@@ -76,13 +76,13 @@
   --chart-3: 235 10% 55%;
   --chart-4: 235 8% 70%;
   --chart-5: 235 6% 85%;
-  --sidebar-background: 60 100% 100%;
+  --sidebar-background: 0 0% 100%;
   --sidebar-foreground: 235 21% 21%;
   --sidebar-primary: 235 21% 21%;
-  --sidebar-primary-foreground: 60 20% 98%;
-  --sidebar-accent: 48 22% 93%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 0 0% 96%;
   --sidebar-accent-foreground: 235 21% 21%;
-  --sidebar-border: 46 23% 85%;
+  --sidebar-border: 0 0% 90%;
   --sidebar-ring: 235 21% 21%;
 
   --font-display: "Space Grotesk", "Montserrat", ui-sans-serif, sans-serif;
@@ -147,9 +147,9 @@
    scoped values instead of the page-level `:root` ones. */
 .surface-invert {
   --background: 235 15% 10%;
-  --foreground: 60 20% 96%;
+  --foreground: 0 0% 98%;
   --card: 235 15% 10%;
-  --card-foreground: 60 20% 96%;
+  --card-foreground: 0 0% 98%;
   --border: 235 10% 22%;
   --muted: 235 10% 16%;
   --muted-foreground: 60 8% 66%;

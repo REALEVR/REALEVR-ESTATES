@@ -72,9 +72,9 @@ html:not([data-fx="off"]) { --mobile-tabbar-h: calc(4rem + 8px + env(safe-area-i
 /* ---------- ambient liquid light behind everything ------------------------------------------------- */
 .fx-ambient { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
 .fx-ambient i { position: absolute; border-radius: 50%; will-change: transform; }
-.fx-ambient i:nth-child(1) { width: 62vmax; height: 62vmax; left: -18vmax; top: -22vmax; background: radial-gradient(closest-side, hsl(40 92% 62% / 0.30), transparent); animation: fx-drift-a 38s ease-in-out infinite alternate; }
-.fx-ambient i:nth-child(2) { width: 56vmax; height: 56vmax; right: -20vmax; top: 18vh; background: radial-gradient(closest-side, hsl(180 55% 55% / 0.20), transparent); animation: fx-drift-b 46s ease-in-out infinite alternate; }
-.fx-ambient i:nth-child(3) { width: 50vmax; height: 50vmax; left: 10vw; bottom: -26vmax; background: radial-gradient(closest-side, hsl(250 60% 70% / 0.18), transparent); animation: fx-drift-c 52s ease-in-out infinite alternate; }
+.fx-ambient i:nth-child(1) { width: 62vmax; height: 62vmax; left: -18vmax; top: -22vmax; background: radial-gradient(closest-side, hsl(40 92% 62% / 0.10), transparent); animation: fx-drift-a 38s ease-in-out infinite alternate; }
+.fx-ambient i:nth-child(2) { width: 56vmax; height: 56vmax; right: -20vmax; top: 18vh; background: radial-gradient(closest-side, hsl(34 90% 58% / 0.06), transparent); animation: fx-drift-b 46s ease-in-out infinite alternate; }
+.fx-ambient i:nth-child(3) { width: 50vmax; height: 50vmax; left: 10vw; bottom: -26vmax; background: radial-gradient(closest-side, hsl(0 0% 100% / 0), transparent); animation: fx-drift-c 52s ease-in-out infinite alternate; }
 @keyframes fx-drift-a { to { transform: translate3d(14vw, 10vh, 0) scale(1.15); } }
 @keyframes fx-drift-b { to { transform: translate3d(-16vw, -8vh, 0) scale(1.1); } }
 @keyframes fx-drift-c { to { transform: translate3d(12vw, -14vh, 0) scale(1.2); } }
@@ -91,7 +91,7 @@ html[data-fx="off"] .fx-ambient { display: none; }
   z-index: 95;
   pointer-events: none;
   border-radius: 50% 50% 0 0 / 70px 70px 0 0;
-  background: linear-gradient(180deg, hsl(0 0% 100% / 0.7) 0, hsl(40 92% 82% / 0.28) 10%, hsl(0 0% 100% / 0.16) 60%, hsl(180 55% 80% / 0.14) 100%);
+  background: linear-gradient(180deg, hsl(0 0% 100% / 0.7) 0, hsl(40 92% 82% / 0.28) 10%, hsl(0 0% 100% / 0.16) 60%, hsl(0 0% 100% / 0.14) 100%);
   -webkit-backdrop-filter: blur(14px) saturate(1.7);
   backdrop-filter: blur(14px) saturate(1.7);
   box-shadow: 0 -2px 0 hsl(0 0% 100% / 0.8), 0 -24px 60px -10px hsl(40 92% 62% / 0.35);
@@ -125,7 +125,7 @@ html[data-fx="off"] .fx-pre { opacity: 1; transform: none; filter: none; }
 .fx-bead--lead { width: 30px; height: 30px; margin: -15px 0 0 -15px; border: 1px solid hsl(0 0% 100% / 0.85); background: radial-gradient(circle at 32% 28%, hsl(0 0% 100% / 0.75), hsl(0 0% 100% / 0.12) 55%, transparent 70%); -webkit-backdrop-filter: blur(2px) saturate(1.8) brightness(1.08); backdrop-filter: blur(2px) saturate(1.8) brightness(1.08); box-shadow: inset 0 0 8px hsl(0 0% 100% / 0.7), 0 4px 14px hsl(235 28% 12% / 0.18); }
 .fx-bead--lead.is-over { width: 52px; height: 52px; margin: -26px 0 0 -26px; }
 .fx-bead--t1 { width: 14px; height: 14px; margin: -7px 0 0 -7px; background: hsl(40 92% 62% / 0.55); filter: blur(1px); }
-.fx-bead--t2 { width: 8px; height: 8px; margin: -4px 0 0 -4px; background: hsl(180 55% 55% / 0.5); filter: blur(1px); }
+.fx-bead--t2 { width: 8px; height: 8px; margin: -4px 0 0 -4px; background: hsl(34 90% 52% / 0.5); filter: blur(1px); }
 .fx-bead.is-on { opacity: 1; }
 
 /* ---------- press: a droplet ring where you tap ---------------------------------------------------- */
@@ -135,7 +135,7 @@ html[data-fx="off"] .fx-pre { opacity: 1; transform: none; filter: none; }
 @keyframes fx-fling { from { transform: translate(0, 0) scale(1); opacity: 1; } to { transform: translate(var(--dx), var(--dy)) scale(0.2); opacity: 0; } }
 
 /* ---------- scroll progress ------------------------------------------------------------------------ */
-.fx-progress { position: fixed; left: 0; top: 0; right: 0; height: 3px; z-index: 120; pointer-events: none; transform-origin: 0 50%; transform: scaleX(0); background: linear-gradient(90deg, hsl(40 92% 62%), hsl(180 55% 55%), hsl(250 60% 70%)); box-shadow: 0 0 10px hsl(40 92% 62% / 0.7); }
+.fx-progress { position: fixed; left: 0; top: 0; right: 0; height: 3px; z-index: 120; pointer-events: none; transform-origin: 0 50%; transform: scaleX(0); background: linear-gradient(90deg, hsl(40 92% 62%), hsl(34 90% 52%)); box-shadow: 0 0 10px hsl(40 92% 62% / 0.7); }
 html[data-fx="off"] .fx-progress { display: none; }
 
 /* A soft blur where content slides under the phone's bottom bar. */
@@ -145,7 +145,7 @@ html[data-fx="lite"] .fx-edge, html[data-fx="off"] .fx-edge { display: none; }
 
 /* ---------- gold shimmer on hero accent text ------------------------------------------------------- */
 html[data-fx="full"] .fx-shimmer {
-  background: linear-gradient(100deg, hsl(var(--gold)) 38%, hsl(48 100% 90%) 50%, hsl(var(--gold)) 62%);
+  background: linear-gradient(100deg, hsl(var(--gold)) 38%, hsl(0 0% 100%) 50%, hsl(var(--gold)) 62%);
   background-size: 260% 100%;
   -webkit-background-clip: text;
   background-clip: text;

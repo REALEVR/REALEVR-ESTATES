@@ -312,8 +312,8 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           style={{ y: bgY, scale: 1.1, ['--depth' as string]: '-8px' }}
         />
         {/* Paper veil from the left, and a fade into the page at the bottom. Both use the page colour, so it is one scene. */}
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(var(--background))_0%,hsl(var(--background)/0.94)_32%,hsl(var(--background)/0.5)_56%,hsl(var(--background)/0)_80%)]" />
-        <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-background via-background/70 to-transparent" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(var(--background)/0.92)_0%,hsl(var(--background)/0.72)_24%,hsl(var(--background)/0.18)_46%,hsl(var(--background)/0)_62%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background via-background/60 to-transparent" />
 
         <div className="relative z-10 mx-auto flex min-h-[640px] max-w-[1500px] flex-col justify-between gap-10 px-8 pb-10 pt-14 lg:min-h-[700px]">
           <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,1fr)]">
@@ -487,12 +487,12 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           browsing, the way people expect from a home-search app. */}
       <section className="relative -mx-4 overflow-hidden px-4 pb-4 pt-2 sm:-mx-6 sm:px-6 md:hidden">
         <img src={mansionBg} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-[60%_30%]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/55 via-background/80 to-background" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/15 to-background/90" />
         <WalkingFigure />
-        <h1 className="relative font-display text-[1.65rem] font-semibold leading-tight tracking-tight text-foreground">
+        <h1 className="relative font-display text-[1.65rem] font-semibold leading-tight tracking-tight text-foreground [text-shadow:0_0_14px_rgba(255,255,255,0.95),0_0_4px_rgba(255,255,255,0.9)]">
           Walk in before you arrive
         </h1>
-        <p className="relative mt-1 text-[15px] text-foreground/75">Tour real homes in 360° first.</p>
+        <p className="relative mt-1 text-[15px] font-medium text-foreground/80 [text-shadow:0_0_12px_rgba(255,255,255,0.95),0_0_4px_rgba(255,255,255,0.9)]">Tour real homes in 360° first.</p>
       </section>
 
       <FilterBar />
