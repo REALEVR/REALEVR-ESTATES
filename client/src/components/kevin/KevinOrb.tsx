@@ -643,21 +643,30 @@ export default function KevinOrb() {
   }
   actionsRef.current = { beginListening }
 
+  // "Talk to Kevin" (press and hold the orb, or the sound-wave button in the chat): the chat steps aside and he just listens
+  // from the side, with the orb showing it and a small card for his words. The full-screen voice view is no longer used, so
+  // the visitor can keep scrolling through the homes while he talks.
   const startVoiceMode = () => {
     setBubble(false)
-    setOpen(true)
-    if (!langRef.current) return // a language comes first; the picker is already showing
+    if (!langRef.current) {
+      setOpen(true) // a language comes first; the picker is already showing
+      return
+    }
     if (mutedRef.current) {
       // Choosing to talk to him means wanting to hear him back.
       setMuted(false)
       mutedRef.current = false
       writeStore(MUTED_KEY, '0')
     }
+    writeStore(HANDSFREE_KEY, '1')
+    setHandsFreeOn(true)
+    setTouched(true) // this press is the gesture that lets sound play
+    setConsentOpen(false)
     setChangingLanguage(false)
-    setVoiceMode(true)
-    voiceModeRef.current = true
+    setOpen(false)
+    setMenuOpen(false)
     setLastReply('')
-    beginListening(false)
+    setPeek({ heard: '' })
   }
 
   const onStageOrbTap = () => {
@@ -787,14 +796,6 @@ export default function KevinOrb() {
     return () => clearTimeout(t)
   }, [waking])
 
-  const ensureVoiceMode = () => {
-    setBubble(false)
-    setOpen(true)
-    setChangingLanguage(false)
-    setVoiceMode(true)
-    voiceModeRef.current = true
-  }
-
   // The visitor's choice: stays off on later visits too.
   // Someone who just starts talking has already chosen a language: their browser's.
   const adoptBrowserLanguage = () => {
@@ -863,13 +864,11 @@ export default function KevinOrb() {
       adoptBrowserLanguage()
       setWaking(true)
       setHeard(interim)
-      // Panel closed: he does not take over the screen; a small card above the orb shows what he is hearing.
-      if (openRef.current) ensureVoiceMode()
-      else setPeek({ heard: interim })
+      // He never takes over the screen: a small card above the orb shows what he is hearing.
+      if (!openRef.current) setPeek({ heard: interim })
     },
     onUtterance: (text) => {
       adoptBrowserLanguage()
-      if (openRef.current && !voiceModeRef.current) ensureVoiceMode()
       handleUtterance(text, true)
     },
     onProblem: (problem) => {

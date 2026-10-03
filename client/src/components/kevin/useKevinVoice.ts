@@ -67,8 +67,8 @@ const NATURAL_VOICE = /\b(premium|enhanced|natural|neural|online|siri|google)\b|
 // Kevin is a man. Devices rarely say a voice's gender, but most name it: these are the
 // common male and female names and words across Apple, Google and Microsoft voices,
 // including the African-English ones (Kenya, Nigeria, Tanzania, South Africa).
-const MALE_VOICE = /\b(male|man)\b|daniel|alex|fred|oliver|arthur|aaron|david|mark|guy|ryan|george|james|thomas|ezra|abeo|chilemba|elimu|rafiki|luke|jorge|diego|paul|henri|claude|stefan/i
-const FEMALE_VOICE = /\bfemale\b|woman|samantha|karen|moira|serena|susan|zira|hazel|eva|aria|jenny|libby|sonia|emma|ezinne|imani|zuri|leah|mzuri|google .*\(female\)|victoria|fiona|tessa|amelie|sara|laura|paulina|monica|helena|anna|katja/i
+const MALE_VOICE = /\b(?:male|man|daniel|alex|fred|oliver|arthur|aaron|david|mark|guy|ryan|george|james|thomas|ezra|abeo|chilemba|elimu|rafiki|luke|jorge|diego|paul|henri|claude|stefan|brian|eric|liam|roger|william|davis|jason|tony|christopher|steffan|conrad|killian|mohamed|hamed|jorge|luca|reed|rishi|prabhat|ravi|oskar|bruno|lucas|antonio|felipe|stefano|alvaro|enrique|diego)\b|-x-(?:iol|iom|tpd|gbb|gbd|rjs)\b/i
+const FEMALE_VOICE = /\b(?:female|woman|samantha|karen|moira|serena|susan|zira|hazel|eva|aria|jenny|libby|sonia|emma|ezinne|imani|zuri|leah|mzuri|victoria|fiona|tessa|amelie|sara|laura|paulina|monica|helena|anna|katja)\b/i
 const AFRICAN_REGION = /-(ke|ng|tz|za|gh|ug|zw|rw)$/
 
 function voiceScore(v: SpeechSynthesisVoice, wanted: string): number {
@@ -77,11 +77,18 @@ function voiceScore(v: SpeechSynthesisVoice, wanted: string): number {
   if (lang === wanted) score += 4 // exact region beats same language
   if (NATURAL_VOICE.test(v.name)) score += 3
   if (!v.localService) score += 1 // cloud voices are usually the better ones
-  const male = MALE_VOICE.test(v.name) && !FEMALE_VOICE.test(v.name)
+  const label = `${v.name} ${v.voiceURI || ''}`
+  const male = MALE_VOICE.test(label) && !FEMALE_VOICE.test(label)
   if (male) score += 5 // Kevin's a man; this outweighs "natural" so a flat male voice beats a lovely female one
-  else if (FEMALE_VOICE.test(v.name)) score -= 5
+  else if (FEMALE_VOICE.test(label)) score -= 5
   if (male && AFRICAN_REGION.test(lang)) score += 5 // an African male voice is better still
   return score
+}
+
+/** Does the voice say it is a man's? Devices rarely say, so false only means "not known to be". */
+export function isKnownMale(v: SpeechSynthesisVoice): boolean {
+  const label = `${v.name} ${v.voiceURI || ''}`
+  return MALE_VOICE.test(label) && !FEMALE_VOICE.test(label)
 }
 
 export function pickVoice(voices: SpeechSynthesisVoice[], bcp47: string | null): SpeechSynthesisVoice | null {
@@ -229,8 +236,9 @@ export function useKevinVoice(bcp47: string | null) {
           utterance.voice = chosen
           utterance.lang = chosen.lang
           // Kevin is a man. A voice that says it is male is only lowered a little; one that does not say is lowered more.
-          utterance.pitch = MALE_VOICE.test(chosen.name) && !FEMALE_VOICE.test(chosen.name) ? 0.9 : 0.75
-          utterance.rate = 1
+          // A voice that does not say it is a man's is lowered a lot: a woman's voice at this pitch sounds like a man's.
+          utterance.pitch = isKnownMale(chosen) ? 0.92 : 0.55
+          utterance.rate = 0.98
           utterance.onstart = () => {
             if (speechRun.current === run) setSpeaking(true)
           }
