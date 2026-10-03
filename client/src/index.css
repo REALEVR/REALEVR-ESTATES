@@ -508,3 +508,26 @@ body {
 @media (prefers-reduced-motion: reduce) {
   [class*="bidflash"] { animation: none !important; }
 }
+
+/* ---------- Walking figure above the phone headline ------------------------------------------------
+ * Limbs swing about the shoulder / hip, the body bobs twice per stride, the whole figure crosses the
+ * screen on a long linear loop. Transform and opacity only. Reduced motion: standing still. */
+.walker-lane { overflow: hidden; }
+.walker { position: absolute; left: 0; bottom: 0; transform: translateX(0); animation: walker-cross 12s linear infinite; }
+.walker-body { animation: walker-bob 0.7s ease-in-out infinite; }
+.walker-leg, .walker-arm { animation: walker-swing 0.7s ease-in-out infinite alternate; }
+.walker-leg { transform-origin: 20px 34px; --swing: 26deg; }
+.walker-arm { transform-origin: 20px 18px; --swing: 24deg; }
+.walker-leg--far, .walker-arm--near { animation-direction: alternate-reverse; }
+@keyframes walker-swing { from { transform: rotate(calc(var(--swing) * -1)); } to { transform: rotate(var(--swing)); } }
+@keyframes walker-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+@keyframes walker-cross {
+  0% { transform: translateX(-12px); opacity: 0; }
+  6% { opacity: 1; }
+  94% { opacity: 1; }
+  100% { transform: translateX(calc(100vw - 3rem)); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .walker, .walker-body, .walker-leg, .walker-arm { animation: none; }
+  .walker { transform: none; opacity: 1; }
+}

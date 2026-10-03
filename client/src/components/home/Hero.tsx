@@ -6,6 +6,7 @@ import "../Hero.css"
 import houseImg from '../../assets/images/hero-house.webp';
 import mansionBg from '../../assets/images/hero-mansion.jpg';
 import FilterBar from './FilterBar';
+import WalkingFigure from './WalkingFigure';
 import CountUp from '@/components/motion/CountUp';
 import VRBadge from '@/components/property/VRBadge';
 import ExploreFiltersDialog from './ExploreFiltersDialog';
@@ -484,9 +485,8 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
       {/* ------------------------------------------------------------------
           Phone: no wall of text. One line of headline, then straight to
           browsing, the way people expect from a home-search app. */}
-      <section className="relative -mx-4 overflow-hidden px-4 pb-4 pt-5 sm:-mx-6 sm:px-6 md:hidden">
-        <img src={mansionBg} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-[60%_30%]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/55 via-background/80 to-background" />
+      <section className="relative -mx-4 overflow-hidden px-4 pb-4 pt-2 sm:-mx-6 sm:px-6 md:hidden">
+        <WalkingFigure />
         <h1 className="relative font-display text-[1.65rem] font-semibold leading-tight tracking-tight text-foreground">
           Walk in before you arrive
         </h1>
