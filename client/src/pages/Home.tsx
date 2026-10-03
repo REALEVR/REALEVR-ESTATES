@@ -233,7 +233,7 @@ export default function Home() {
             <Reveal><section className="py-10 md:py-16">
                 <div className="surface-invert relative overflow-hidden rounded-[2rem] px-6 py-12 md:rounded-[2.75rem] md:px-16 md:py-16">
                     <img src={bungalowBg} alt="" aria-hidden="true" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover object-[50%_35%]" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-[hsl(240_6%_6%/0.95)] via-[hsl(240_6%_6%/0.82)] to-[hsl(240_6%_6%/0.58)]" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-[hsl(235_30%_8%/0.95)] via-[hsl(235_30%_8%/0.82)] to-[hsl(235_30%_8%/0.58)]" />
                     <div className="relative z-10 flex flex-col items-start justify-between gap-8 md:flex-row md:items-center md:gap-12">
                         <div className="max-w-2xl">
                             <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-[hsl(var(--gold))]">For agents and brokers</p>

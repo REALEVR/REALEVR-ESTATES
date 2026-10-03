@@ -6,6 +6,7 @@ import "../Hero.css"
 import houseImg from '../../assets/images/hero-house.webp';
 import mansionBg from '../../assets/images/hero-mansion.jpg';
 import FilterBar from './FilterBar';
+import WalkingFigure from './WalkingFigure';
 import CountUp from '@/components/motion/CountUp';
 import VRBadge from '@/components/property/VRBadge';
 import ExploreFiltersDialog from './ExploreFiltersDialog';
@@ -311,8 +312,8 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
           style={{ y: bgY, scale: 1.1, ['--depth' as string]: '-8px' }}
         />
         {/* Paper veil from the left, and a fade into the page at the bottom. Both use the page colour, so it is one scene. */}
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(var(--background))_0%,hsl(var(--background)/0.94)_32%,hsl(var(--background)/0.5)_56%,hsl(var(--background)/0)_80%)]" />
-        <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-background via-background/70 to-transparent" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(var(--background)/0.92)_0%,hsl(var(--background)/0.72)_24%,hsl(var(--background)/0.18)_46%,hsl(var(--background)/0)_62%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background via-background/60 to-transparent" />
 
         <div className="relative z-10 mx-auto flex min-h-[640px] max-w-[1500px] flex-col justify-between gap-10 px-8 pb-10 pt-14 lg:min-h-[700px]">
           <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,1fr)]">
@@ -323,14 +324,14 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
               animate="show"
               variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.05 } } }}
             >
-              <motion.div variants={riseIn} className="mb-6 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
-                <span className="h-2.5 w-2.5 rounded-full bg-primary" aria-hidden="true" />
+              <motion.div variants={riseIn} className="mb-6 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-accent">
+                <span className="h-2.5 w-2.5 rounded-full bg-accent" aria-hidden="true" />
                 360° tours · across Africa
               </motion.div>
               <motion.h1 variants={riseIn} className="font-display text-6xl font-bold leading-[1.02] tracking-[-0.035em] text-foreground lg:text-[4.25rem]">
                 Walk in{' '}
                 <br />
-                <span className="text-primary">before you arrive.</span>
+                <span className="text-accent">before you arrive.</span>
               </motion.h1>
               <motion.p variants={riseIn} className="mt-6 max-w-xl text-lg leading-relaxed text-foreground/80">
                 Tour real homes on your phone, tablet or headset, then message the owner on WhatsApp. Rentals, BnBs, homes for sale and bank
@@ -346,7 +347,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
                 </a>
                 <Link
                   href="/new-listings"
-                  className="inline-flex items-center rounded-full border-[1.5px] border-primary bg-background/60 px-7 py-3 text-base font-semibold text-primary backdrop-blur-sm transition-[transform,background-color,color] duration-150 ease-out hover:bg-primary hover:text-primary-foreground active:scale-[0.97]"
+                  className="inline-flex items-center rounded-full border-[1.5px] border-accent bg-background/60 px-7 py-3 text-base font-semibold text-accent backdrop-blur-sm transition-[transform,background-color,color] duration-150 ease-out hover:bg-accent hover:text-accent-foreground active:scale-[0.97]"
                 >
                   See new listings
                 </Link>
@@ -389,13 +390,13 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
               >
                 <span className="min-w-0">
                   <span className="block truncate font-display text-lg font-medium text-foreground">{featuredHeroListing.title}</span>
-                  <span className="block truncate text-sm font-semibold text-primary">
+                  <span className="block truncate text-sm font-semibold text-accent">
                     {featuredHeroListing.price != null
                       ? `${featuredHeroListing.currency || 'UGX'} ${featuredHeroListing.price.toLocaleString()}`
                       : 'Price on request'}
                   </span>
                 </span>
-                <span className="shrink-0 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">Open tour</span>
+                <span className="shrink-0 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground">Open tour</span>
               </Link>
             )}
 
@@ -484,13 +485,14 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
       {/* ------------------------------------------------------------------
           Phone: no wall of text. One line of headline, then straight to
           browsing, the way people expect from a home-search app. */}
-      <section className="relative -mx-4 overflow-hidden px-4 pb-4 pt-5 sm:-mx-6 sm:px-6 md:hidden">
+      <section className="relative -mx-4 overflow-hidden px-4 pb-4 pt-2 sm:-mx-6 sm:px-6 md:hidden">
         <img src={mansionBg} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-[60%_30%]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/55 via-background/80 to-background" />
-        <h1 className="relative font-display text-[1.65rem] font-semibold leading-tight tracking-tight text-foreground">
+        <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/15 to-background/90" />
+        <WalkingFigure />
+        <h1 className="relative font-display text-[1.65rem] font-semibold leading-tight tracking-tight text-foreground [text-shadow:0_0_14px_rgba(255,255,255,0.95),0_0_4px_rgba(255,255,255,0.9)]">
           Walk in before you arrive
         </h1>
-        <p className="relative mt-1 text-[15px] text-foreground/75">Tour real homes in 360° first.</p>
+        <p className="relative mt-1 text-[15px] font-medium text-foreground/80 [text-shadow:0_0_12px_rgba(255,255,255,0.95),0_0_4px_rgba(255,255,255,0.9)]">Tour real homes in 360° first.</p>
       </section>
 
       <FilterBar />

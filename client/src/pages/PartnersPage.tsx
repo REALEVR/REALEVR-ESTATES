@@ -50,9 +50,9 @@ export default function PartnersPage() {
         jsonLd={jsonLd}
       />
 
-      <section className="-mx-4 bg-[hsl(240_6%_8%)] px-4 py-14 text-white sm:-mx-6 lg:-mx-8 md:py-20">
+      <section className="-mx-4 bg-[hsl(235_30%_9%)] px-4 py-14 text-white sm:-mx-6 lg:-mx-8 md:py-20">
         <div className="mx-auto max-w-5xl">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.25em] text-[hsl(158_64%_52%)]">Partners</p>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.25em] text-[hsl(40_92%_62%)]">Partners</p>
           <h1 className="font-display text-4xl font-bold leading-tight md:text-5xl">
             The people who build, own and sell the homes you tour.
           </h1>
@@ -72,7 +72,7 @@ export default function PartnersPage() {
                 <div className="mb-4 flex items-center gap-4">
                   <span
                     aria-hidden="true"
-                    className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[hsl(240_6%_10%)] font-display text-lg font-bold text-[hsl(158_64%_52%)]"
+                    className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[hsl(235_30%_12%)] font-display text-lg font-bold text-[hsl(40_92%_62%)]"
                   >
                     {monogram(p.name)}
                   </span>
