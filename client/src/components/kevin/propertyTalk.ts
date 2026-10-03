@@ -10,7 +10,7 @@
  * English, in Johannesburg as South African English; Swahili the same. The same tag steers the device
  * voice towards a matching regional voice when one is installed.
  */
-export { isAboutProperties } from '@shared/property-talk'
+export { isAboutProperties, isSmallTalk } from '@shared/property-talk'
 
 // ---------------------------------------------------------------------------
 // Accent-aware recognition

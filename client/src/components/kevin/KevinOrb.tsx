@@ -16,7 +16,8 @@ import { useKevinVoice } from './useKevinVoice'
 import { regionalTag } from './propertyTalk'
 import { usePlace } from '@/lib/place'
 import { useAmbientListening } from './useAmbientListening'
-import { isAboutProperties, isWakePhrase, isWakeOnly } from './propertyTalk'
+import { isAboutProperties, isWakePhrase, isWakeOnly, isSmallTalk } from './propertyTalk'
+import { filtersToSearch, hasFilters } from '@shared/property-filters'
 import { interestText, recordInterest, useKevinWhatsapp, whatsappHref } from './useKevinWhatsapp'
 import Orb from './Orb'
 import ResultCards from './ResultCards'
@@ -440,9 +441,16 @@ export default function KevinOrb() {
   }
   const openCard = (id: number) => goTo(`/property/${id}`)
 
-  const runAction = (action: KevinAction | null | undefined) => {
-    if (!action) return
-    if (action.type === 'open') goTo(`/property/${action.propertyId}`)
+  // What Kevin may do on the screen, and when. He talks to anyone; the page changes only when someone asked for something:
+  //  - specific homes ("two bedrooms in Kololo under three million"): the page showing exactly those homes;
+  //  - "open that one": that home;
+  //  - "take me to ...": the page asked for.
+  // A greeting, a thank-you or "are you there" never moves the page, whatever the AI suggests.
+  const runAction = (action: KevinAction | null | undefined, said: string) => {
+    if (!action || isSmallTalk(said) || isWakeOnly(said)) return
+    if (action.type === 'results') {
+      if (action.total > 0 && hasFilters(action.query)) goTo(`/properties?${filtersToSearch(action.query)}`)
+    } else if (action.type === 'open') goTo(`/property/${action.propertyId}`)
     else if (action.type === 'go' && typeof action.path === 'string' && action.path.startsWith('/')) goTo(action.path)
   }
 
@@ -571,7 +579,7 @@ export default function KevinOrb() {
         setMessages((prev) => prev.filter((m) => m.kind !== 'whatsapp'))
         push({ kind: 'whatsapp' })
       }
-      runAction(data.action)
+      runAction(data.action, message)
     } catch {
       kevinSays(stringsFor(langRef.current).error)
       if (opts.voice) setPhase('idle')

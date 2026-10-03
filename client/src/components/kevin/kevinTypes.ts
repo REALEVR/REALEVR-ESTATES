@@ -1,3 +1,4 @@
+import type { PropertyFilters } from '@shared/property-filters'
 /** A listing as the Kevin endpoint returns it (server/gene/kevin-actions.ts KevinCard). */
 export interface KevinCard {
   id: number
@@ -12,7 +13,7 @@ export interface KevinCard {
 
 /** What Kevin did besides talking (server/gene/kevin-actions.ts KevinAction). */
 export type KevinAction =
-  | { type: 'results'; total: number }
+  | { type: 'results'; total: number; query: PropertyFilters }
   | { type: 'open'; propertyId: number }
   | { type: 'go'; page: string; path: string }
 
