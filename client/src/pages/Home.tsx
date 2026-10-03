@@ -6,7 +6,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Hero from '@/components/home/Hero'
 import ListFreeHero from '@/components/home/ListFreeHero'
 import { usePlace } from '@/lib/place'
-import MotionBackground from '@/components/motion/MotionBackground'
 import Reveal from '@/components/motion/Reveal'
 import FilterBar from '@/components/home/FilterBar'
 import FeaturedTour from '@/components/home/FeaturedTour'
@@ -23,6 +22,7 @@ import { getSiteUrl } from '@/lib/siteUrl'
 import { CATEGORY_PAGE_META, SITE_NAME } from '@shared/seo'
 import FaqSection from "@/components/seo/FaqSection";
 
+import bungalowBg from '@/assets/images/hero-house.webp';
 // Property category labels for display
 const categoryLabels = {
     rental_units: 'Rental Units',
@@ -230,29 +230,32 @@ export default function Home() {
 
             {/* Agent Registration Call-to-Action — moved here from right after
                 the hero, see the comment near <Hero> above. */}
-            <Reveal><section className="relative overflow-hidden py-16 bg-gradient-to-r from-accent/10 via-secondary to-accent/10 -mx-4 sm:-mx-6 lg:-mx-8">
-                <MotionBackground tone="warm" />
-                <div className="relative z-10 container mx-auto px-6">
-                    <div className="max-w-4xl mx-auto text-center">
-                        <p className="text-xs font-semibold tracking-[0.2em] text-accent uppercase mb-3">For Agents &amp; Brokers</p>
-                        <h2 className="text-3xl md:text-4xl font-display font-medium text-foreground mb-4">
-                            Become a RealEVR broker today
-                        </h2>
-                        <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-                            Join RealEVR Estates as a professional agent/dotcom and start listing properties with
-                            virtual tours. Get access to premium features and reach more clients.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Reveal><section className="py-10 md:py-16">
+                <div className="surface-invert relative overflow-hidden rounded-[2rem] px-6 py-12 md:rounded-[2.75rem] md:px-16 md:py-16">
+                    <img src={bungalowBg} alt="" aria-hidden="true" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover object-[50%_35%]" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-[hsl(240_6%_6%/0.95)] via-[hsl(240_6%_6%/0.82)] to-[hsl(240_6%_6%/0.58)]" />
+                    <div className="relative z-10 flex flex-col items-start justify-between gap-8 md:flex-row md:items-center md:gap-12">
+                        <div className="max-w-2xl">
+                            <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-[hsl(var(--gold))]">For agents and brokers</p>
+                            <h2 className="font-display text-3xl font-bold leading-tight tracking-[-0.03em] text-foreground md:text-5xl">
+                                Become a RealEVR broker today
+                            </h2>
+                            <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
+                                Join RealEVR Estates as a professional agent/dotcom and start listing properties with virtual tours. Get access
+                                to premium features and reach more clients.
+                            </p>
+                        </div>
+                        <div className="flex w-full flex-col gap-3 sm:w-auto sm:shrink-0">
                             <Button
                                 asChild
-                                className="rounded-full bg-primary hover:bg-primary/90 hover:shadow-lg text-primary-foreground px-8 py-3 text-lg font-semibold transition-all"
+                                className="shine h-auto rounded-full px-8 py-3 text-lg font-semibold hover:opacity-95"
                             >
                                 <Link href="/agent/register">Become an Agent</Link>
                             </Button>
                             <Button
                                 asChild
                                 variant="outline"
-                                className="rounded-full border-accent text-accent hover:bg-accent hover:text-accent-foreground hover:shadow-lg px-8 py-3 text-lg font-semibold transition-all"
+                                className="h-auto rounded-full border-foreground/50 bg-background/10 px-8 backdrop-blur-sm py-3 text-lg font-semibold text-foreground hover:bg-foreground hover:text-background"
                             >
                                 <Link href="/list-your-property">List a Property</Link>
                             </Button>

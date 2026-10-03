@@ -10,7 +10,7 @@
      width/height are ignored and the whole dot collapses to nothing. */
   display: block;
   --kevin-teal: #2dd4bf;
-  --kevin-gold: #f5c469;
+  --kevin-gold: #36d399;
   --kevin-ink: #0b0d1c;
   position: relative;
   width: 100%;
@@ -63,7 +63,7 @@
 
 /* Speaking equaliser in the panel header. */
 .kevin-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
-.kevin-bars span { width: 3px; border-radius: 2px; background: var(--kevin-gold, #f5c469); height: 4px; }
+.kevin-bars span { width: 3px; border-radius: 2px; background: var(--kevin-gold, #36d399); height: 4px; }
 .kevin-bars.is-on span { animation: kevin-bar 0.9s ease-in-out infinite; }
 .kevin-bars.is-on span:nth-child(2) { animation-delay: 0.15s; }
 .kevin-bars.is-on span:nth-child(3) { animation-delay: 0.3s; }
@@ -199,7 +199,7 @@ body.kevin-over-auth .kevin-panel { z-index: 120; }
 /* ---- The chat panel, calm: graphite glass, one warm glow, hairlines instead of boxes ---------------------- */
 .kevin-calm {
   background:
-    radial-gradient(120% 55% at 50% -12%, rgba(245, 196, 105, 0.07), transparent 62%),
+    radial-gradient(120% 55% at 50% -12%, rgba(54, 211, 153, 0.07), transparent 62%),
     rgba(10, 11, 16, 0.94);
   -webkit-backdrop-filter: blur(28px) saturate(1.4);
   backdrop-filter: blur(28px) saturate(1.4);

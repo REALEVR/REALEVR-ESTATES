@@ -55,7 +55,7 @@ export default function MobileTabBar() {
 
 const tabClass = (active: boolean) =>
     `relative flex min-h-[44px] flex-col items-center justify-center gap-0.5 transition-colors active:scale-95 ${
-        active ? 'text-foreground' : 'text-muted-foreground'
+        active ? 'text-primary' : 'text-muted-foreground'
     }`
 
 function TabLink({

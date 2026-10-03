@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 export default {
+  future: { hoverOnlyWhenSupported: true },
   darkMode: ["class"],
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
   theme: {
@@ -41,6 +42,7 @@ export default {
         },
         accent: {
           DEFAULT: "hsl(var(--accent))",
+          light: "hsl(var(--accent-light))",
           foreground: "hsl(var(--accent-foreground))",
         },
         destructive: {

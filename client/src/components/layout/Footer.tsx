@@ -4,6 +4,19 @@ import { useQuery } from "@tanstack/react-query";
 import { WHATSAPP_NUMBERS, whatsAppLink, SOCIAL_LINKS } from "@/lib/siteLinks";
 import logoPath from '../../assets/logo.png';
 
+/** A quiet row of building silhouettes along the footer's top edge: the buildings the site is about, in the footer's own tone. */
+function Skyline() {
+  const blocks: Array<[number, number, number]> = [[0,34,26],[26,56,22],[48,40,30],[78,72,24],[102,48,28],[130,62,20],[150,36,34],[184,80,22],[206,52,30],[236,44,26],[262,68,24],[286,38,32],[318,76,20],[338,50,28],[366,42,30],[396,64,24],[420,34,34],[454,70,22],[476,46,28],[504,58,26]];
+  return (
+    <svg className="pointer-events-none absolute inset-x-0 top-0 h-16 w-full -translate-y-full text-[hsl(240_5%_14%)]" viewBox="0 0 530 80" preserveAspectRatio="none" aria-hidden="true">
+      {blocks.map(([x, h, w], i) => (
+        <rect key={i} x={x} y={80 - h} width={w} height={h} fill="currentColor" />
+      ))}
+      <rect x="0" y="79" width="530" height="1" fill="currentColor" />
+    </svg>
+  );
+}
+
 /** Links to the countries and cities that really have homes listed (and only those). */
 function PlaceLinks() {
   const { data } = useQuery<Array<{ slug: string; name: string; count: number; cities: Array<{ slug: string; name: string }> }>>({
@@ -42,7 +55,8 @@ export default function Footer() {
     // it sits permanently behind the tab bar instead of above it. See
     // index.css's --mobile-tabbar-h doc comment for why this exact value,
     // not a guessed one, is what actually clears it on notched phones too.
-    <footer className="surface-invert border-t border-border pb-[var(--mobile-tabbar-h)] md:pb-0">
+    <footer className="surface-invert relative border-t border-border pb-[var(--mobile-tabbar-h)] md:pb-0">
+    <Skyline />
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-10 pb-10">
           <div className="md:col-span-2">

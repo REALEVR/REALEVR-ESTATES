@@ -25,7 +25,7 @@ export default function KevinSignupHelper({ tone = 'light' }: { tone?: 'light' |
           <button
             type="button"
             onClick={() => openKevin({ context: 'signup', handsFree: true })}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-[#f5c469] px-3.5 text-sm font-semibold text-[#1b1305] transition hover:brightness-110"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-[#36d399] px-3.5 text-sm font-semibold text-[#1b1305] transition hover:brightness-110"
           >
             <Mic size={14} aria-hidden="true" /> Talk to Kevin
           </button>
