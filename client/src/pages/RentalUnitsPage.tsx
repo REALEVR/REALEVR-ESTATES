@@ -1,3 +1,4 @@
+import { navigate } from 'wouter/use-browser-location'
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation } from 'wouter'
@@ -348,7 +349,7 @@ export default function RentalUnitsPage() {
                                             e.preventDefault()
                                             
                                         } else {
-                                            window.location.href = `/property/${property.id}`
+                                            navigate(`/property/${property.id}`)
                                         }
                                     }}
                                 >

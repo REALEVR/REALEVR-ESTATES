@@ -38,6 +38,11 @@ function serverVoiceAvailable(): Promise<boolean> {
   return serverVoiceStatus
 }
 
+// When his own voice could not be reached, the whole session uses the device voice for a while: one answer, or two
+// answers in a row, must never switch between two different voices. Retried after ten minutes.
+let serverVoiceDownUntil = 0
+const serverVoiceUsable = () => Date.now() >= serverVoiceDownUntil
+
 // A short silent clip, played inside the first tap so phones allow later playback.
 const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA='
 
@@ -202,7 +207,7 @@ export function useKevinVoice(bcp47: string | null) {
   }, [synth])
 
   const usesServerVoice = useCallback(
-    (tag: string | null | undefined) => serverVoice && SERVER_VOICE_LANGUAGES.has(primaryLanguage(tag)),
+    (tag: string | null | undefined) => serverVoice && serverVoiceUsable() && SERVER_VOICE_LANGUAGES.has(primaryLanguage(tag)),
     [serverVoice],
   )
 
@@ -223,7 +228,9 @@ export function useKevinVoice(bcp47: string | null) {
           const utterance = new SpeechSynthesisUtterance(piece)
           utterance.voice = chosen
           utterance.lang = chosen.lang
-          utterance.rate = 1.03
+          // Kevin is a man. A voice that says it is male is only lowered a little; one that does not say is lowered more.
+          utterance.pitch = MALE_VOICE.test(chosen.name) && !FEMALE_VOICE.test(chosen.name) ? 0.9 : 0.75
+          utterance.rate = 1
           utterance.onstart = () => {
             if (speechRun.current === run) setSpeaking(true)
           }
@@ -302,7 +309,9 @@ export function useKevinVoice(bcp47: string | null) {
         }
         if (speechRun.current !== run) return discard(i + 1)
         if (!played) {
-          // His voice isn't reachable (or the phone blocked it): finish the answer with the device's.
+          // His voice isn't reachable (or the phone blocked it): finish the answer with the device's, and stay
+          // with the device voice for the next ten minutes so he does not flip between two voices.
+          serverVoiceDownUntil = Date.now() + 10 * 60_000
           discard(i + 1)
           setSpeaking(false)
           const rest = pieces.slice(i).join(' ')

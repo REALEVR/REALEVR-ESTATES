@@ -193,6 +193,7 @@ export default function KevinOrb() {
   const { user } = useAuth()
 
   const [open, setOpen] = useState(false)
+  
   const [bubble, setBubble] = useState(false)
   const [lang, setLang] = useState<KevinLanguage | null>(readStoredLanguage)
   const [messages, setMessages] = useState<Message[]>([])
@@ -222,6 +223,8 @@ export default function KevinOrb() {
   const contextRef = useRef<'signup' | 'welcome' | null>(null)
   const greetedRef = useRef(false)
   const [nudge, setNudge] = useState<string | null>(null)
+  // Spoken to while the panel is closed: Kevin answers aloud and a small card shows the words, instead of the full screen opening.
+  const [peek, setPeek] = useState<{ heard: string; said?: string } | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
 
   // Voice mode
@@ -253,6 +256,9 @@ export default function KevinOrb() {
   voiceModeRef.current = voiceMode
   // Hands-free is on: the always-open microphone hears the visitor's next words, so no second listener is started after he speaks.
   const handsFreeRef = useRef(false)
+  const openRef = useRef(false)
+  // A spoken exchange has happened: follow-ups without a property word are then accepted for a short while.
+  const exchangedRef = useRef(false)
   // When Kevin last spoke or finished speaking: for the next ~90 seconds a follow-up ("how much is it?") counts even without a property word in it.
   const lastKevinAtRef = useRef(0)
   // Listings on screen, sent with each message so "open the second one" is understood.
@@ -513,6 +519,7 @@ export default function KevinOrb() {
         setMessages((prev) => prev.filter((m) => m.id !== userMessageId))
         setHeard('')
         setWaking(false)
+        setPeek(null)
         if (opts.voice) setPhase('idle')
         return
       }
@@ -535,6 +542,10 @@ export default function KevinOrb() {
       // In voice mode, once he has finished speaking he listens again: that is
       // what makes it a conversation rather than a series of button presses.
       if (opts.voice) setHeard('') // the answer takes the place of the words they said
+      if (opts.voice) {
+        exchangedRef.current = true
+        if (!openRef.current) setPeek({ heard: message, said: text })
+      }
       // With the microphone already open (hands-free) the same listener simply carries on; otherwise he opens one for the follow-up.
       const spoke = kevinSays(
         text,
@@ -579,6 +590,7 @@ export default function KevinOrb() {
   const handleUtterance = (text: string, ambient = false) => {
     setWaking(false)
     setHeard(text)
+    if (!openRef.current) setPeek({ heard: text })
     // The few words that mean "never mind" end the conversation quietly.
     if (/^(stop|cancel|never ?mind|that'?s (all|it)|enough)[.!\s]*$/i.test(text)) {
       setPhase('idle')
@@ -771,6 +783,7 @@ export default function KevinOrb() {
   const adoptBrowserLanguage = () => {
     if (langRef.current) return
     const guess = languageFromBrowser()
+    setBubble(false) // speaking is an answer to "which language"
     setLang(guess)
     langRef.current = guess
     writeStore(LANG_KEY, JSON.stringify(guess))
@@ -795,6 +808,7 @@ export default function KevinOrb() {
   }
 
   handsFreeRef.current = handsFreeOn && voice.canListen
+  openRef.current = open
 
   // However his speech ended (finished, cut off, the voice failed), "speaking" must not outlive it: the microphone waits on this.
   useEffect(() => {
@@ -803,26 +817,42 @@ export default function KevinOrb() {
     return () => clearTimeout(t)
   }, [phase, voice.speaking])
   // The follow-up window runs from the moment he stops talking.
+  const wasSpeakingRef = useRef(false)
   useEffect(() => {
-    if (!voice.speaking) lastKevinAtRef.current = Date.now()
+    if (wasSpeakingRef.current && !voice.speaking) lastKevinAtRef.current = Date.now()
+    wasSpeakingRef.current = voice.speaking
   }, [voice.speaking])
+
+  // The small card goes away a few seconds after he is done (and never while he is still hearing, thinking or talking).
+  useEffect(() => {
+    if (!peek) return
+    if (open) {
+      setPeek(null)
+      return
+    }
+    if (busy || voice.speaking || phase !== 'idle') return
+    const t = setTimeout(() => setPeek(null), peek.said ? 7000 : 4000)
+    return () => clearTimeout(t)
+  }, [peek, open, busy, voice.speaking, phase])
 
   const ambient = useAmbientListening({
     enabled: handsFreeOn && voice.canListen,
     // About property, or a follow-up within a minute and a half of something he said. The server still decides whether to answer.
-    relevant: (text) => isAboutProperties(text) || (voiceModeRef.current && Date.now() - lastKevinAtRef.current < 90_000),
+    relevant: (text) => isAboutProperties(text) || (exchangedRef.current && Date.now() - lastKevinAtRef.current < 90_000),
     // Kevin is already in the middle of something (hearing you, thinking, talking): the mic is his.
     paused: busy || voice.speaking || voice.listening || phase !== 'idle',
     bcp47: tagFor(lang ?? languageFromBrowser()),
     onWake: (interim) => {
       adoptBrowserLanguage()
-      ensureVoiceMode()
       setWaking(true)
       setHeard(interim)
+      // Panel closed: he does not take over the screen; a small card above the orb shows what he is hearing.
+      if (openRef.current) ensureVoiceMode()
+      else setPeek({ heard: interim })
     },
     onUtterance: (text) => {
       adoptBrowserLanguage()
-      if (!voiceModeRef.current) ensureVoiceMode()
+      if (openRef.current && !voiceModeRef.current) ensureVoiceMode()
       handleUtterance(text, true)
     },
     onProblem: (problem) => {
@@ -935,6 +965,34 @@ export default function KevinOrb() {
             {voice.canListen && lang ? 'Ask Kevin · hold to talk' : 'Ask Kevin'}
           </span>
         </button>
+      )}
+
+      {/* Spoken to while browsing: what he heard and what he said, small, over the page. Tap to open the full chat. */}
+      {peek && !open && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="kevin-pop fixed bottom-[calc(var(--fab-row-1)+4.25rem)] right-3 z-[60] w-[min(20rem,calc(100vw-1.5rem))] rounded-2xl border border-white/10 bg-[#0d1024]/95 p-3 text-white shadow-2xl backdrop-blur-xl md:bottom-[6.25rem] md:right-4"
+        >
+          <button type="button" onClick={() => setPeek(null)} aria-label="Dismiss" className="absolute right-1.5 top-1.5 rounded-full p-1.5 text-white/50 transition hover:bg-white/10 hover:text-white">
+            <X size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPeek(null)
+              setOpen(true)
+            }}
+            className="block w-full pr-5 text-left"
+          >
+            <span className="block truncate text-[12px] text-white/50">{peek.heard}</span>
+            {peek.said ? (
+              <span className="mt-1 block line-clamp-4 text-sm leading-relaxed text-white/90">{peek.said}</span>
+            ) : (
+              <span className="mt-1 block text-sm text-white/60">{busy ? strings.thinking : strings.listening}</span>
+            )}
+          </button>
+        </div>
       )}
 
       {/* After sign-up: a small welcome from the assistant */}
