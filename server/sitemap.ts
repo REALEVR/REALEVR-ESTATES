@@ -96,6 +96,13 @@ export function getStaticSitemapEntries(base: string): SitemapUrlEntry[] {
     return [...pages, ...guides, ...compares]
 }
 
+/** Rejects ids that would produce broken URLs such as /property/NaN. */
+export function isValidSitemapPropertyId(id: unknown): boolean {
+    if (id === null || id === undefined) return false
+    const str = String(id).trim()
+    return str !== '' && str !== 'NaN' && str !== 'undefined' && str !== 'null'
+}
+
 export function propertyToSitemapEntry(base: string, property: PropertyForSitemap): SitemapUrlEntry {
     const id = String(property.id)
     const loc = pathToLoc(base, `/property/${id}`)
