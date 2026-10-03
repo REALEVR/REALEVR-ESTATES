@@ -1,3 +1,4 @@
+import { navigate } from 'wouter/use-browser-location'
 import { Suspense, lazy, useState } from 'react'
 import type { Property } from '@shared/schema'
 const SharePropertyModal = lazy(() => import('../property/SharePropertyModal'))
@@ -38,7 +39,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
     // card goes straight to the property page, where each category's payment moment (if any)
     // lives (rental tours preview free for 5 seconds, BnB deposits come at booking).
     const goToProperty = () => {
-        window.location.href = `/property/${property.id}`
+        navigate(`/property/${property.id}`)
     }
 
     const stop = (e: React.MouseEvent) => {

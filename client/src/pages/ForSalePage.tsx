@@ -215,9 +215,7 @@ export default function ForSalePage() {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {sortedProperties.map(property => (
-                <div key={property.id} className="cursor-pointer" onClick={() => {
-                  window.location.href = `/property/${property.id}`;
-                }}>
+                <div key={property.id} className="cursor-pointer">
                   <PropertyCard property={property} />
                 </div>
               ))}
