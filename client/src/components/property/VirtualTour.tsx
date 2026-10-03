@@ -15,9 +15,13 @@ interface VirtualTourProps {
   showVrButton?: boolean;
   /** Called when the visitor leaves full screen (the Exit button, or Esc), so the parent can drop its own full-screen state. */
   onExitFullscreen?: () => void;
+  /** The property's cover photo: shown while the tour is loading, then faded away. */
+  coverImage?: string | null;
 }
 
-export default function VirtualTour({ tourUrl, isFullscreen = false, showVrButton = false, onExitFullscreen }: VirtualTourProps) {
+export default function VirtualTour({ tourUrl, isFullscreen = false, showVrButton = false, onExitFullscreen, coverImage }: VirtualTourProps) {
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => setLoaded(false), [tourUrl]);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -81,7 +85,21 @@ export default function VirtualTour({ tourUrl, isFullscreen = false, showVrButto
         // work at all inside an iframe.
         allow="xr-spatial-tracking; gyroscope; accelerometer; fullscreen"
         className="w-full h-full border-0"
+        // The page has arrived; give the first picture a moment to draw before the cover photo fades.
+        onLoad={() => window.setTimeout(() => setLoaded(true), 500)}
       />
+      {coverImage && (
+        <div
+          aria-hidden={loaded}
+          className={`pointer-events-none absolute inset-0 z-[1] transition-opacity duration-500 ease-out ${loaded ? "opacity-0" : "opacity-100"}`}
+        >
+          <img src={coverImage} alt="" className="h-full w-full object-cover" fetchPriority="high" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/10" />
+          <span className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm">
+            Loading the 360° tour…
+          </span>
+        </div>
+      )}
       {(isFullscreen || apiFull) && <ExitFullscreenButton onClick={exitFullscreen} />}
       {showVrButton && (
         <button

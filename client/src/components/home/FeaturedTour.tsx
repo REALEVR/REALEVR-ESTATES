@@ -185,28 +185,27 @@ export default function FeaturedTour() {
                   isFullscreen={isFullscreen}
                   onExitFullscreen={() => setIsFullscreen(false)}
                   showVrButton
+                  coverImage={featuredProperty.imageUrl}
                 />
-
-                <div className="absolute bottom-4 right-4 bg-card/80 backdrop-blur-sm rounded-lg p-2 shadow-lg">
-                  <div className="flex space-x-3">
-                    <button className="p-2 hover:bg-card rounded-full" title="Zoom in">
-                      <i className="fas fa-plus"></i>
-                    </button>
-                    <button className="p-2 hover:bg-card rounded-full" title="Zoom out">
-                      <i className="fas fa-minus"></i>
-                    </button>
-                    <button
-                      className="p-2 hover:bg-card rounded-full"
-                      title="Fullscreen"
-                      onClick={() => setIsFullscreen(!isFullscreen)}
-                    >
-                      <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
-                    </button>
-                    <button className="p-2 hover:bg-card rounded-full" title="Floor plan">
-                      <i className="fas fa-map"></i>
-                    </button>
-                  </div>
-                </div>
+              </div>
+              <div className="flex items-center gap-1 border-t border-border bg-card px-3 py-2">
+                <button className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted" title="Zoom in" aria-label="Zoom in">
+                  <i className="fas fa-plus"></i>
+                </button>
+                <button className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted" title="Zoom out" aria-label="Zoom out">
+                  <i className="fas fa-minus"></i>
+                </button>
+                <button
+                  className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted"
+                  title="Fullscreen"
+                  aria-label="Fullscreen"
+                  onClick={() => setIsFullscreen(!isFullscreen)}
+                >
+                  <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
+                </button>
+                <button className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted" title="Floor plan" aria-label="Floor plan">
+                  <i className="fas fa-map"></i>
+                </button>
               </div>
             </div>
 
