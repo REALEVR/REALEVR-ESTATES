@@ -16,7 +16,7 @@ import { useKevinVoice } from './useKevinVoice'
 import { regionalTag } from './propertyTalk'
 import { usePlace } from '@/lib/place'
 import { useAmbientListening } from './useAmbientListening'
-import { isAboutProperties } from './propertyTalk'
+import { isAboutProperties, isWakePhrase, isWakeOnly } from './propertyTalk'
 import { interestText, recordInterest, useKevinWhatsapp, whatsappHref } from './useKevinWhatsapp'
 import Orb from './Orb'
 import ResultCards from './ResultCards'
@@ -591,6 +591,23 @@ export default function KevinOrb() {
     setWaking(false)
     setHeard(text)
     if (!openRef.current) setPeek({ heard: text })
+
+    // Just his name with a greeting: he answers at once, in the visitor's language, without a trip to the server.
+    if (ambient && isWakeOnly(text) && !busy) {
+      const l = langRef.current
+      const greeting = intakeDoneRef.current ? stringsFor(l).intro : stringsFor(l).introIntake
+      exchangedRef.current = true
+      lastKevinAtRef.current = Date.now()
+      setPhase('speaking')
+      const spoke = kevinSays(greeting, l, () => {
+        lastKevinAtRef.current = Date.now()
+        setPhase('idle')
+      })
+      if (!spoke) setPhase('idle')
+      if (!openRef.current) setPeek({ heard: text, said: greeting })
+      setHeard('')
+      return
+    }
     // The few words that mean "never mind" end the conversation quietly.
     if (/^(stop|cancel|never ?mind|that'?s (all|it)|enough)[.!\s]*$/i.test(text)) {
       setPhase('idle')
@@ -838,7 +855,7 @@ export default function KevinOrb() {
   const ambient = useAmbientListening({
     enabled: handsFreeOn && voice.canListen,
     // About property, or a follow-up within a minute and a half of something he said. The server still decides whether to answer.
-    relevant: (text) => isAboutProperties(text) || (exchangedRef.current && Date.now() - lastKevinAtRef.current < 90_000),
+    relevant: (text) => isWakePhrase(text) || isAboutProperties(text) || (exchangedRef.current && Date.now() - lastKevinAtRef.current < 90_000),
     // Kevin is already in the middle of something (hearing you, thinking, talking): the mic is his.
     paused: busy || voice.speaking || voice.listening || phase !== 'idle',
     bcp47: tagFor(lang ?? languageFromBrowser()),
