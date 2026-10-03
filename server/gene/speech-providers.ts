@@ -128,7 +128,7 @@ export async function azureSpeak(text: string, lang?: string): Promise<{ data: B
         headers: {
             'Ocp-Apim-Subscription-Key': process.env.AZURE_SPEECH_KEY as string,
             'Content-Type': 'application/ssml+xml',
-            'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+            'X-Microsoft-OutputFormat': 'audio-24khz-96kbitrate-mono-mp3',
             'User-Agent': 'realevr-kevin',
         },
         body: ssml,

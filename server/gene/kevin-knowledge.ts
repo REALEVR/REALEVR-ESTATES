@@ -348,7 +348,7 @@ const when = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('en-GB', 
  * Relevant reports and team facts for a question, formatted for the prompt. `placeCountry` is where the visitor
  * seems to be: used to prefer local reports, never to fetch live coverage (only a country they name does that).
  */
-export async function knowledgeFor(question: string, placeCountry?: string | null): Promise<string> {
+export async function knowledgeFor(question: string, placeCountry?: string | null, options: { live?: boolean } = {}): Promise<string> {
     try {
         const named = countryInText(question)
         const focus = named ?? undefined
@@ -374,7 +374,10 @@ export async function knowledgeFor(question: string, placeCountry?: string | nul
         const facts = scored.filter((s) => s.e.kind === 'fact').slice(0, 2).map((s) => s.e)
         let news = scored.filter((s) => s.e.kind === 'news').slice(0, 3).map((s) => s.e)
 
-        if (focus && news.length < 2) {
+        if (focus && news.length < 2 && options.live === false) {
+            // A spoken answer cannot wait for the news: look it up in the background so the next question about this country has it.
+            void liveCoverage(focus, question).catch(() => {})
+        } else if (focus && news.length < 2) {
             const live = await liveCoverage(focus, question)
             news = [
                 ...news,
