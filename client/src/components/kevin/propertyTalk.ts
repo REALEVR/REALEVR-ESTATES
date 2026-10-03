@@ -39,3 +39,31 @@ export function regionalTag(tag: string | null | undefined, country: string | nu
   if (primary === 'sw') return SWAHILI_REGION[code] ?? tag
   return tag
 }
+
+// ---------------------------------------------------------------------------
+// Waking him by name
+// ---------------------------------------------------------------------------
+
+// Speech engines write the name many ways. Greetings in the languages Kevin speaks.
+const NAME = '(?:kev[iyae]n|kevon|kelvin|calvin|kevi)'
+const GREETING = '(?:hello|hallo|hullo|hi|hey|hei|okay|ok|yo|good (?:morning|afternoon|evening)|hola|bonjour|salut|ol[aá]|habari|jambo|mambo|vipi|marhaba|namaste|oi)'
+const WAKE = new RegExp(`^\\s*(?:${GREETING}[\\s,.!]+)?(?:there[\\s,.!]+)?${NAME}\\b[\\s,.!?]*`, 'i')
+const GREETED = new RegExp(`\\b${GREETING}[\\s,.!]+${NAME}\\b`, 'i')
+
+/** "Hello Kevin" (or hi / hey / okay / habari / bonjour Kevin, or just his name first): someone is calling him. */
+export function isWakePhrase(text: string): boolean {
+  return GREETED.test(text) || WAKE.test(text)
+}
+
+/** What was said once the calling is taken off the front: "Hello Kevin, I want a flat in Kololo" gives "I want a flat in Kololo". */
+export function afterWakePhrase(text: string): string {
+  return text.replace(WAKE, '').trim()
+}
+
+/** Only the calling, with nothing (or only filler like "are you there") after it: he should answer with a greeting, not a search. */
+export function isWakeOnly(text: string): boolean {
+  if (!isWakePhrase(text)) return false
+  const rest = afterWakePhrase(text).replace(/[.!?,]+/g, ' ').trim().toLowerCase()
+  if (!rest) return true
+  return /^(are you there|you there|wake up|can you hear me|are you listening|come here|please|help me|i need (some )?help)$/.test(rest)
+}
