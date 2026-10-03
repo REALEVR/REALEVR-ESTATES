@@ -20,7 +20,7 @@
  */
 import type { Express, Request, Response } from 'express'
 import { DynamoDBUtils, TABLES } from '../dynamodb'
-import { readCollection, writeCollection, nextId, nowIso } from './store'
+import { readCollection, writeCollection, nowIso } from './store'
 import { requireStrictAdmin } from './admin-guard'
 import { WORLD_COUNTRIES, worldCountry } from '../../shared/world'
 
@@ -181,7 +181,7 @@ const STOP = new Set(
 )
 
 export function words(text: string): string[] {
-    return (text.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) ?? []).filter((w) => !STOP.has(w))
+    return (text.toLowerCase().match(new RegExp('[\\p{L}\\p{N}]{3,}', 'gu')) ?? []).filter((w) => !STOP.has(w))
 }
 
 // Names people use that are not the country's listed name.
@@ -205,7 +205,7 @@ const COUNTRY_NAME_INDEX: { name: string; code: string }[] = [
 
 /** The country a message is about, if it names one (or one of its well-known cities). */
 export function countryInText(text: string): string | undefined {
-    const t = ` ${text.toLowerCase().replace(/[^\p{L}\p{N}.\s]/gu, ' ')} `
+    const t = ` ${text.toLowerCase().replace(new RegExp('[^\\p{L}\\p{N}.\\s]', 'gu'), ' ')} `
     for (const c of COUNTRY_NAME_INDEX) {
         if (t.includes(` ${c.name} `)) return c.code
     }
@@ -445,7 +445,7 @@ export function registerKevinKnowledgeRoutes(app: Express): void {
             res.json({
                 counts: { reports: list.filter((e) => e.kind === 'news').length, facts: list.filter((e) => e.kind === 'fact').length, openGaps: g.filter((x) => x.status === 'open').length },
                 lastRunAt: state?.lastRunAt ?? null,
-                countriesCovered: new Set(list.filter((e) => e.kind === 'news' && e.country).map((e) => e.country)).size,
+                countriesCovered: Array.from(new Set(list.filter((e) => e.kind === 'news' && e.country).map((e) => e.country))).length,
                 gaps: g.filter((x) => x.status === 'open').sort((a, b) => b.count - a.count || b.lastAt.localeCompare(a.lastAt)).slice(0, 100),
                 facts: list.filter((e) => e.kind === 'fact').sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
                 recentReports: list.filter((e) => e.kind === 'news').sort((a, b) => (b.publishedAt ?? b.createdAt).localeCompare(a.publishedAt ?? a.createdAt)).slice(0, 30),
@@ -465,12 +465,12 @@ export function registerKevinKnowledgeRoutes(app: Express): void {
             if (!title || !text) return res.status(400).json({ message: 'A title and the answer are both needed.' })
             const country = typeof body.country === 'string' && worldCountry(body.country) ? body.country.toUpperCase() : undefined
             const entry: KbEntry = {
-                id: `f${nextId()}${Date.now().toString(36)}`,
+                id: `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
                 kind: 'fact',
                 title,
                 text,
                 country,
-                tags: [...new Set([...words(title), ...words(text).slice(0, 20), ...(Array.isArray(body.tags) ? body.tags.filter((t): t is string => typeof t === 'string').map((t) => t.toLowerCase()) : [])])].slice(0, 40),
+                tags: Array.from(new Set([...words(title), ...words(text).slice(0, 20), ...(Array.isArray(body.tags) ? body.tags.filter((t): t is string => typeof t === 'string').map((t) => t.toLowerCase()) : [])])).slice(0, 40),
                 createdAt: nowIso(),
             }
             await saveEntries([...(await entries()), entry], [entry])

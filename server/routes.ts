@@ -46,6 +46,7 @@ import { runDepositReminders, runViewingReminders, postDailyUpdate } from './cro
 import { registerGeneChatRoutes } from './gene/chat'
 import { registerKevinVoiceRoutes } from './gene/kevin-voice'
 import { registerKevinSttRoutes } from './gene/kevin-stt'
+import { registerKevinKnowledgeRoutes } from './gene/kevin-knowledge'
 import { registerTourHealthRoutes, scheduleTourHealthAtStartup } from './gene/tour-health'
 import { registerAuctionRoutes, startAuctionService } from './gene/auctions'
 import { registerPaymentSettingsRoutes } from './gene/payment-settings'
@@ -2839,6 +2840,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerGeneChatRoutes(app, adminMiddleware)
     registerKevinVoiceRoutes(app)
     registerKevinSttRoutes(app)
+    registerKevinKnowledgeRoutes(app)
     registerTourHealthRoutes(app)
     registerAuctionRoutes(app)
     registerPaymentSettingsRoutes(app)

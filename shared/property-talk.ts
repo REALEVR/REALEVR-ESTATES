@@ -14,6 +14,13 @@ const LATIN_WORDS = [
   'rent', 'rents', 'rental', 'rentals', 'renting', 'lease', 'leasing', 'to let', 'landlord', 'landlords', 'tenant', 'tenants', 'mortgage',
   'buy', 'buying', 'sell', 'selling', 'sale', 'listing', 'listings', 'list my', 'viewing', 'virtual tour', 'airbnb', 'bnb', 'bnbs',
   'furnished', 'unfurnished', 'accommodation', 'hostel', 'bank sale', 'auction', 'square metres', 'square meters', 'sqm', 'agent', 'broker', 'kevin',
+  // More property talk, worldwide
+  'realtor', 'realtors', 'real-estate', 'housing', 'tenancy', 'tenure', 'freehold', 'leasehold', 'title deed', 'title deeds', 'conveyancing', 'stamp duty',
+  'property tax', 'valuation', 'valuer', 'surveyor', 'developer', 'developers', 'construction', 'renovation', 'renovate', 'sublet', 'roommate', 'roommates',
+  'co-living', 'deposit', 'down payment', 'refinance', 'home equity', 'foreclosure', 'eviction', 'evict', 'penthouse', 'townhouse', 'cottage', 'mansion',
+  'warehouse', 'office space', 'commercial property', 'retail space', 'shop space', 'neighbourhood', 'neighborhood', 'suburb', 'gated community',
+  'estate agent', 'letting', 'lettings', 'house hunting', 'floor plan', 'floorplan', 'square feet', 'sq ft', 'sqft', 'hectare', 'hectares',
+  'closing costs', 'escrow', 'rent-to-own', 'landlady', 'caretaker', 'service charge', 'ground rent', 'land title', 'deed', 'brokers',
   // Swahili
   'nyumba', 'chumba', 'vyumba', 'kupanga', 'kupangisha', 'kodi', 'kuuza', 'kununua', 'shamba', 'kiwanja', 'viwanja', 'mali', 'mpangaji', 'mwenye nyumba',
   // Luganda / Kinyarwanda

@@ -16,6 +16,7 @@ import { useKevinVoice } from './useKevinVoice'
 import { regionalTag } from './propertyTalk'
 import { usePlace } from '@/lib/place'
 import { useAmbientListening } from './useAmbientListening'
+import { isAboutProperties } from './propertyTalk'
 import { interestText, recordInterest, useKevinWhatsapp, whatsappHref } from './useKevinWhatsapp'
 import Orb from './Orb'
 import ResultCards from './ResultCards'
@@ -250,6 +251,10 @@ export default function KevinOrb() {
   const noVoiceNotedFor = useRef<string | null>(null)
   const voiceModeRef = useRef(false)
   voiceModeRef.current = voiceMode
+  // Hands-free is on: the always-open microphone hears the visitor's next words, so no second listener is started after he speaks.
+  const handsFreeRef = useRef(false)
+  // When Kevin last spoke or finished speaking: for the next ~90 seconds a follow-up ("how much is it?") counts even without a property word in it.
+  const lastKevinAtRef = useRef(0)
   // Listings on screen, sent with each message so "open the second one" is understood.
   const shownRef = useRef<{ id: number; title: string }[]>([])
   const pressTimer = useRef<ReturnType<typeof setTimeout>>()
@@ -295,6 +300,7 @@ export default function KevinOrb() {
     (text: string, target: KevinLanguage | null = langRef.current, onDone?: () => void): boolean => {
       push({ kind: 'text', role: 'kevin', text })
       setLastReply(text)
+      lastKevinAtRef.current = Date.now()
       return say(text, target, onDone)
     },
     [push, say],
@@ -475,13 +481,14 @@ export default function KevinOrb() {
     kevinSays(intro, picked)
   }
 
-  const send = async (raw: string, opts: { voice?: boolean; choice?: Audience } = {}) => {
+  const send = async (raw: string, opts: { voice?: boolean; choice?: Audience; ambient?: boolean } = {}) => {
     const message = raw.trim()
     if (!message || busy) return
     voice.stop()
     setInput('')
     setLastReply('')
-    setMessages((prev) => [...prev.filter((m) => m.kind !== 'picker'), { id: nextId(), kind: 'text', role: 'user', text: message }])
+    const userMessageId = nextId()
+    setMessages((prev) => [...prev.filter((m) => m.kind !== 'picker'), { id: userMessageId, kind: 'text', role: 'user', text: message }])
     setBusy(true)
     setOfferWhatsapp(false)
     if (opts.voice) setPhase('thinking')
@@ -492,6 +499,7 @@ export default function KevinOrb() {
         sessionId: sessionIdRef.current,
         persona: 'kevin',
         voice: opts.voice === true,
+        ...(opts.ambient ? { ambient: true } : {}),
         shown: shownRef.current,
         intake: !intakeDoneRef.current,
         ...(contextRef.current ? { context: contextRef.current } : {}),
@@ -500,6 +508,14 @@ export default function KevinOrb() {
       })
       const data = await res.json()
       if (typeof data.sessionId === 'string') sessionIdRef.current = data.sessionId
+      // Overheard, not meant for him (or not about property): he stays quiet and the words leave no trace on screen.
+      if (data.ignored === true) {
+        setMessages((prev) => prev.filter((m) => m.id !== userMessageId))
+        setHeard('')
+        setWaking(false)
+        if (opts.voice) setPhase('idle')
+        return
+      }
       // He has what he needed (or they said no): stop asking, for good.
       if (data.lead && (data.lead.complete || data.lead.declined)) {
         writeStore(INTAKE_KEY, 'done')
@@ -519,7 +535,18 @@ export default function KevinOrb() {
       // In voice mode, once he has finished speaking he listens again: that is
       // what makes it a conversation rather than a series of button presses.
       if (opts.voice) setHeard('') // the answer takes the place of the words they said
-      const spoke = kevinSays(text, current, opts.voice ? () => actionsRef.current.beginListening(true) : undefined)
+      // With the microphone already open (hands-free) the same listener simply carries on; otherwise he opens one for the follow-up.
+      const spoke = kevinSays(
+        text,
+        current,
+        opts.voice
+          ? () => {
+              lastKevinAtRef.current = Date.now()
+              if (handsFreeRef.current) setPhase('idle')
+              else actionsRef.current.beginListening(true)
+            }
+          : undefined,
+      )
       if (opts.voice) setPhase(spoke ? 'speaking' : 'idle')
       // The button comes right after what he said about it.
       if (Array.isArray(data.links) && data.links.length) push({ kind: 'links', links: data.links.filter((l: any) => typeof l?.path === 'string' && l.path.startsWith('/') && typeof l?.label === 'string') })
@@ -549,7 +576,7 @@ export default function KevinOrb() {
   const actionsRef = useRef({ beginListening: (_followUp: boolean) => {} })
 
   // One finished sentence from the visitor in voice mode (however it was heard).
-  const handleUtterance = (text: string) => {
+  const handleUtterance = (text: string, ambient = false) => {
     setWaking(false)
     setHeard(text)
     // The few words that mean "never mind" end the conversation quietly.
@@ -558,7 +585,7 @@ export default function KevinOrb() {
       setHeard('')
       return
     }
-    void send(text, { voice: true })
+    void send(text, { voice: true, ambient })
   }
 
   const beginListening = (followUp: boolean) => {
@@ -767,8 +794,23 @@ export default function KevinOrb() {
     setConsentOpen(false)
   }
 
+  handsFreeRef.current = handsFreeOn && voice.canListen
+
+  // However his speech ended (finished, cut off, the voice failed), "speaking" must not outlive it: the microphone waits on this.
+  useEffect(() => {
+    if (phase !== 'speaking' || voice.speaking) return
+    const t = setTimeout(() => setPhase('idle'), 1500)
+    return () => clearTimeout(t)
+  }, [phase, voice.speaking])
+  // The follow-up window runs from the moment he stops talking.
+  useEffect(() => {
+    if (!voice.speaking) lastKevinAtRef.current = Date.now()
+  }, [voice.speaking])
+
   const ambient = useAmbientListening({
     enabled: handsFreeOn && voice.canListen,
+    // About property, or a follow-up within a minute and a half of something he said. The server still decides whether to answer.
+    relevant: (text) => isAboutProperties(text) || (voiceModeRef.current && Date.now() - lastKevinAtRef.current < 90_000),
     // Kevin is already in the middle of something (hearing you, thinking, talking): the mic is his.
     paused: busy || voice.speaking || voice.listening || phase !== 'idle',
     bcp47: tagFor(lang ?? languageFromBrowser()),
@@ -781,7 +823,7 @@ export default function KevinOrb() {
     onUtterance: (text) => {
       adoptBrowserLanguage()
       if (!voiceModeRef.current) ensureVoiceMode()
-      handleUtterance(text)
+      handleUtterance(text, true)
     },
     onProblem: (problem) => {
       pauseHandsFree()

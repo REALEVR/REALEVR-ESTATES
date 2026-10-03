@@ -24,6 +24,10 @@ import { pauseServerStt, serverSttAvailable, transcribeClip } from './serverStt'
  *    phrase that wakes him is passed on, and only to be answered.
  *  - Short noises and single words ("uh", a cough) do not wake him.
  *
+ * Continuous: the microphone is opened once and stays open for as long as hands-free is on and the page is visible. Kevin
+ * being busy (hearing, thinking, talking) no longer closes and reopens it; the audio is simply not used while he is, plus a
+ * short moment after, so he never answers his own voice. `active` is therefore steady, not flickering.
+ *
  * The better ear first: when the server can transcribe (ElevenLabs Scribe, see serverStt.ts) the microphone is watched and
  * each spoken sentence is cut out and sent to be turned into text. That hears more accents and languages, makes no
  * sound at all on a phone, and keeps every word, because a moment from before the first word is kept. It is limited
@@ -36,6 +40,11 @@ import { pauseServerStt, serverSttAvailable, transcribeClip } from './serverStt'
  * recogniser opened to hear the sentence. If the room is noisy but nobody is talking to Kevin, it waits longer
  * and longer before listening again. If a device cannot run the meter, the old restart loop is used, slowly.
  */
+
+/** How long after Kevin stops talking the visitor's voice is again taken for the visitor's, not his own tail. */
+const TAIL_AFTER_KEVIN_MS = 700
+/** Sentences sent to be turned into text per hour while listening all day; past this the browser's own recogniser takes over. */
+const MAX_CLIPS_PER_HOUR = 120
 
 export type AmbientProblem = 'blocked' | 'unsupported'
 
@@ -70,6 +79,13 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
   // The callbacks change on every render of the caller; the recogniser must not restart for that.
   const handlers = useRef({ onWake, onUtterance, onProblem, relevant })
   handlers.current = { onWake, onUtterance, onProblem, relevant }
+  // Kevin is busy: the microphone stays open but nothing heard now is used (see the effect below).
+  const pausedRef = useRef(paused)
+  pausedRef.current = paused
+  const controls = useRef<{ setPaused: (p: boolean) => void } | null>(null)
+  useEffect(() => {
+    controls.current?.setPaused(paused)
+  }, [paused])
 
   useEffect(() => {
     const onVisibility = () => setVisible(document.visibilityState === 'visible')
@@ -84,16 +100,26 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
       handlers.current.onProblem('unsupported')
       return
     }
-    if (paused || !visible) return
+    if (!visible) return
 
     let stopped = false
+    let isPaused = pausedRef.current
+    // Anything that began before this moment is Kevin's own voice or the tail of it: not used.
+    let blockedUntil = isPaused ? Infinity : 0
+    let usingFallback = false
     let recognition: any = null
     let timer: ReturnType<typeof setTimeout> | undefined
     let meterTimer: ReturnType<typeof setInterval> | undefined
     let stream: MediaStream | null = null
     let audio: AudioContext | null = null
     let failures = 0
-    let quiet = 0 // consecutive rounds that ended with nothing said to Kevin: each waits longer before listening again
+    let quiet = 0 // consecutive rounds that ended with nothing said to Kevin: each waits a little longer before listening again
+    let session: CaptureSession | null = null
+    let speechStartedAt = 0
+    let sentThisHour: number[] = []
+
+    /** The microphone is open from here until this effect ends: `active` does not follow Kevin's busy moments. */
+    setActive(true)
 
     const releaseMeter = () => {
       clearInterval(meterTimer)
@@ -104,20 +130,22 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
       audio = null
     }
 
+    const usable = (startedAt: number) => !isPaused && startedAt >= blockedUntil
+
     /** One round with the recogniser: hear one sentence, then stop. Calls `done(heardSomething)` when it ends. */
     const listenOnce = (done: (consumed: boolean) => void) => {
-      if (stopped) return
+      if (stopped || isPaused) return
       if (!Recognition) {
         handlers.current.onProblem('unsupported')
         return
       }
+      const startedAt = Date.now()
       let woke = false
       let consumed = false
       let finished = false
       const finish = () => {
         if (finished) return
         finished = true
-        setActive(false)
         done(consumed)
       }
       recognition = new Recognition()
@@ -128,10 +156,9 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
 
       recognition.onstart = () => {
         failures = 0
-        setActive(true)
       }
       recognition.onresult = (event: any) => {
-        if (consumed || stopped) return
+        if (consumed || stopped || !usable(startedAt)) return
         let interim = ''
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const result = event.results[i]
@@ -163,6 +190,7 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
         const error = event?.error
         if (error === 'not-allowed' || error === 'service-not-allowed') {
           stopped = true
+          setActive(false)
           handlers.current.onProblem('blocked')
         } else if (error !== 'no-speech' && error !== 'aborted') {
           failures++
@@ -190,20 +218,21 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
       timer = setTimeout(then, ms)
     }
 
-    /** The old way, for devices that cannot run the level meter: reopen the recogniser, slowly. */
+    /** For devices that cannot run the level meter: reopen the recogniser, with short pauses. */
     const legacyLoop = () => {
-      if (stopped) return
+      if (stopped || isPaused) return
+      usingFallback = true
       listenOnce((consumed) => {
-        if (stopped) return
-        quiet = consumed ? 0 : Math.min(quiet + 1, 8)
-        const pause = Math.min(1000 * Math.pow(2, quiet), 30_000)
-        wait(Math.max(pause, Math.min(250 + failures * 900, 6000)), legacyLoop)
+        if (stopped || isPaused) return
+        quiet = consumed ? 0 : Math.min(quiet + 1, 4)
+        wait(Math.max(400 * (quiet + 1), Math.min(250 + failures * 900, 6000)), legacyLoop)
       })
     }
 
     /** Watch the microphone level, silently. When someone starts to speak, let go of it and open the recogniser. */
     const watch = async () => {
-      if (stopped) return
+      if (stopped || isPaused) return
+      usingFallback = true
       const AudioCtx: typeof AudioContext | undefined = window.AudioContext || (window as any).webkitAudioContext
       if (!navigator.mediaDevices?.getUserMedia || !AudioCtx) {
         legacyLoop()
@@ -215,13 +244,14 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
         if (stopped) return
         if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') {
           stopped = true
+          setActive(false)
           handlers.current.onProblem('blocked')
         } else {
           legacyLoop()
         }
         return
       }
-      if (stopped) {
+      if (stopped || isPaused) {
         releaseMeter()
         return
       }
@@ -234,7 +264,6 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
         const samples = new Float32Array(analyser.fftSize)
         let floor = 0.004
         let loud = 0
-        setActive(true)
         meterTimer = setInterval(() => {
           analyser.getFloatTimeDomainData(samples)
           let sum = 0
@@ -247,12 +276,11 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
           if (loud >= 4) {
             // About a fifth of a second of real speech.
             releaseMeter()
-            setActive(false)
             listenOnce((consumed) => {
-              if (stopped) return
-              quiet = consumed ? 0 : Math.min(quiet + 1, 6)
-              // Nothing for Kevin was said: be deaf for a while (3s, 6s, ... up to 60s) so a noisy room cannot make it chirp.
-              wait(consumed ? 1500 : Math.min(3000 * Math.pow(2, quiet - 1), 60_000), () => void watch())
+              if (stopped || isPaused) return
+              quiet = consumed ? 0 : Math.min(quiet + 1, 5)
+              // Nothing for Kevin was said: wait a little (1.5s, 2.4s ... up to 8s) so a noisy room cannot make the phone chirp.
+              wait(consumed ? 800 : Math.min(1500 * Math.pow(1.6, quiet - 1), 8000), () => void watch())
             })
           }
         }, 50)
@@ -261,24 +289,24 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
         legacyLoop()
       }
     }
-    let session: CaptureSession | null = null
-    let sentThisHour: number[] = []
 
     /** Hand over to the browser's recogniser (the meter-gated way) when the server cannot be used. */
     const fallBack = () => {
       session?.stop()
       session = null
-      setActive(false)
+      usingFallback = true
       if (!stopped) void watch()
     }
 
     const serverSession = () => {
-      setActive(true)
       session = startCapture({
         continuous: true,
         silenceMs: 1000,
         maxMs: 12_000,
         preRollMs: 700,
+        onSpeechStart: () => {
+          speechStartedAt = Date.now()
+        },
         onError: (reason) => {
           if (reason === 'blocked') {
             stopped = true
@@ -287,9 +315,11 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
           } else fallBack()
         },
         onClip: (wav) => {
+          // He was talking (or had only just stopped) when this began: it is his own voice, not the visitor's.
+          if (!usable(speechStartedAt || Date.now())) return
           const now = Date.now()
           sentThisHour = sentThisHour.filter((t) => now - t < 3_600_000)
-          if (sentThisHour.length >= 40) {
+          if (sentThisHour.length >= MAX_CLIPS_PER_HOUR) {
             pauseServerStt(30)
             fallBack()
             return
@@ -301,6 +331,8 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
               fallBack()
               return
             }
+            // He began to answer, or was busy, while this was being turned into words: let it go.
+            if (isPaused) return
             // Said, but not about property and not to him: let it pass, as a person in the room would.
             if (!isMeaningfulSpeech(text) || !handlers.current.relevant(text)) return
             handlers.current.onWake(text)
@@ -310,16 +342,43 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
       })
     }
 
+    /** Kevin is busy (hearing, thinking, talking) or free again. The server path just stops using what it hears; the browser path steps aside. */
+    controls.current = {
+      setPaused: (p: boolean) => {
+        if (p === isPaused || stopped) return
+        isPaused = p
+        if (p) {
+          blockedUntil = Infinity
+          if (usingFallback) {
+            clearTimeout(timer)
+            releaseMeter()
+            try {
+              recognition?.abort()
+            } catch {
+              /* already stopped */
+            }
+          }
+        } else {
+          // A moment of grace so the end of his own voice is not taken for the visitor's.
+          blockedUntil = Date.now() + TAIL_AFTER_KEVIN_MS
+          if (usingFallback) wait(TAIL_AFTER_KEVIN_MS, () => void watch())
+        }
+      },
+    }
+
     void (async () => {
       if (canCaptureSpeech() && (await serverSttAvailable())) {
         if (!stopped) serverSession()
-      } else {
+      } else if (!isPaused) {
         void watch()
+      } else {
+        usingFallback = true // resumes by itself when he is free
       }
     })()
 
     return () => {
       stopped = true
+      controls.current = null
       session?.stop()
       clearTimeout(timer)
       releaseMeter()
@@ -330,7 +389,7 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
       }
       setActive(false)
     }
-  }, [enabled, paused, visible, bcp47])
+  }, [enabled, visible, bcp47])
 
   return { active }
 }

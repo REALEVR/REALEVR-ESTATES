@@ -25,6 +25,7 @@
 import type { Express, RequestHandler } from 'express'
 import { randomUUID } from 'crypto'
 import { isAboutProperties } from '../../shared/property-talk'
+import { knowledgeFor, recordGap } from './kevin-knowledge'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
 import type { User } from '@shared/schema'
@@ -241,6 +242,30 @@ const KEVIN_PERSONA_PROMPT = [
     `If the visitor asks to speak to a person, an agent, a human or support (in any language), answer kindly and end your message with the exact token ${HUMAN_HANDOFF_TOKEN}.`,
 ]
 
+// What Kevin will and will not talk about, and how he stays honest about a world he cannot see all of.
+// [[GAP]] and [[IGNORE]] are control markers: they are stripped before anything is shown or spoken.
+const KEVIN_SCOPE_PROMPT = [
+    'SCOPE: you are a worldwide property expert and you talk only about property: renting, buying, selling, building or renovating, land, mortgages and financing,',
+    'landlord and tenant matters, valuing and investing, moving, short stays, and the buildings, neighbourhoods and markets themselves, in any country. This site\'s own listings are mostly',
+    'in East Africa, but anyone anywhere may ask you anything about property, and you help them.',
+    'If someone asks about anything that is not property, say in one short, kind sentence that property is what you are here for and invite a property question. Do not answer the',
+    'off-topic question, however easy it is, and never be curt about it.',
+    'Honesty across the world: property law, taxes, fees, rents and prices differ by country and city and change over time. Give the general principle and how it usually works in the',
+    'place they mean, use that place\'s currency and units, and say plainly what to confirm with a licensed local lawyer, agent or the official land registry. Never invent a law, fee,',
+    'price, listing or statistic. A figure that is not in the platform facts or the background below is an estimate: say so.',
+    'When you cannot answer a property question reliably, say so honestly, say where to find out, and end your reply with the exact token [[GAP]] so the team can teach you.',
+]
+
+// Always-listening hands-free mode: what arrives may be a television or a conversation in the room.
+const KEVIN_AMBIENT_PROMPT = [
+    'The visitor did not tap or type: you overheard these words through an always-listening microphone, so they may come from a television or other people.',
+    'If the words are not clearly meant for you, or are not about property, reply with exactly [[IGNORE]] and nothing else.',
+]
+
+const IGNORE_TOKEN = /\[\[\s*IGNORE\s*\]\]/i
+const GAP_TOKEN = /\[\[\s*GAP\s*\]\]/i
+const CONTROL_MARKERS = /\[\[\s*(?:IGNORE|GAP)\s*\]\]/gi
+
 // Voice mode is the visitor talking to Kevin out loud, the way people use a phone
 // assistant. What makes those feel good is not the voice, it is the manner:
 // the answer comes first, it is one breath long, it does the thing instead of
@@ -291,6 +316,10 @@ interface ReplyOptions {
     knowledge?: string
     /** Where the visitor is, so homes near them come first and prices are in their currency. */
     place?: Place | null
+    /** Heard through the always-listening microphone rather than tapped or typed. */
+    ambient?: boolean
+    /** Worldwide background for this question (kevin-knowledge.ts): reports and facts the team added. */
+    world?: string
 }
 
 async function getReply(
@@ -302,6 +331,8 @@ async function getReply(
     const propertyContext = await buildPropertyContext()
     const systemPrompt = [
         ...(options.persona === 'kevin' ? KEVIN_PERSONA_PROMPT : GENE_PERSONA_PROMPT),
+        ...(options.persona === 'kevin' ? KEVIN_SCOPE_PROMPT : []),
+        ...(options.persona === 'kevin' && options.ambient ? KEVIN_AMBIENT_PROMPT : []),
         ...(options.persona === 'kevin' ? ACTION_PROMPT : []),
         ...(options.persona === 'kevin' && options.voice ? KEVIN_VOICE_PROMPT : []),
         options.persona === 'kevin' && options.shown?.length
@@ -312,6 +343,7 @@ async function getReply(
         // An explicit choice beats the browser's guess.
         options.chosenLanguage ? chosenLanguageInstruction(options.chosenLanguage) : languageInstruction(acceptLanguage),
         options.persona === 'kevin' && options.knowledge ? options.knowledge : propertyContext,
+        options.persona === 'kevin' ? options.world ?? '' : '',
     ]
         .filter(Boolean)
         .join('\n')
@@ -564,7 +596,8 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             // Urgent talk (a break-in, a flood, a scam, "locked out", "I need a place tonight"): the team is told
             // at once on every channel, and the visitor gets a direct WhatsApp button. Only once per ten minutes
             // per conversation, so a distressed visitor typing five messages does not bury the owner's phone.
-            const urgent = persona === 'kevin' ? detectUrgent(message) : null
+            // Words overheard through the always-listening microphone that are not about property (a film, the neighbours) never raise an alarm.
+            const urgent = persona === 'kevin' && !(body.ambient === true && !isAboutProperties(message)) ? detectUrgent(message) : null
             if (urgent) {
                 const last = conversation.urgentAt ? Date.parse(conversation.urgentAt) : 0
                 if (Date.now() - last > 10 * 60 * 1000) {
@@ -663,9 +696,17 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                           .join('\n')
                     : undefined,
                 place,
+                ambient: persona === 'kevin' && body.ambient === true,
+                // Worldwide background (reports from the countries asked about, things the team taught him).
+                world: persona === 'kevin' ? await knowledgeFor(message, place?.country) : undefined,
             }
             const history = conversation.messages.slice(0, -1)
-            const aiReply = await getReply(history, message, req.headers['accept-language'], replyOptions)
+            const rawReply = await getReply(history, message, req.headers['accept-language'], replyOptions)
+            // Control markers never reach the visitor. [[GAP]]: he could not answer a property question well.
+            const aiReply = rawReply === null ? null : rawReply.replace(CONTROL_MARKERS, '').trim() || null
+            if (persona === 'kevin' && rawReply !== null && GAP_TOKEN.test(rawReply) && (isAboutProperties(message) || conversation.propertyRelated)) {
+                void recordGap(message, place?.country)
+            }
             // No AI provider (or it failed): Kevin answers from the real listings himself
             // (kevin-brain.ts) instead of repeating one canned line.
             let brain: BrainResult | null = null
@@ -674,6 +715,12 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             // a search, a "wanted" place or a saved need: he just says what he is for.
             const offTopic =
                 persona === 'kevin' && !aiReply && !intaking && !conversation.propertyRelated && !isAboutProperties(message) && intent !== 'human_handoff_request'
+            // Overheard, not addressed to him or not about property: say nothing at all.
+            const modelSaidIgnore = rawReply !== null && IGNORE_TOKEN.test(rawReply)
+            if (replyOptions.ambient && !isAboutProperties(message) && (modelSaidIgnore || offTopic)) {
+                conversation.messages.pop()
+                return res.json({ sessionId, reply: '', ignored: true, action: null, results: [], whatsapp: false, lead: null })
+            }
             if (persona === 'kevin' && !aiReply && !offTopic) {
                 try {
                     brain = await converse({

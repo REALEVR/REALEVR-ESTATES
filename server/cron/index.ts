@@ -6,6 +6,7 @@ import { sendWeeklyAnalyticsExport } from '../gene/analytics-export'
 import { runTourHealth } from '../gene/tour-health'
 import { finalizeDueAuctions } from '../gene/auctions'
 import { sendPendingInvites } from '../gene/partner-program'
+import { runKnowledgeIngest } from '../gene/kevin-knowledge'
 
 let initialized = false
 
@@ -54,6 +55,18 @@ export function initCronJobs(): void {
     cron.schedule('11 * * * *', () => {
         sendPendingInvites().catch((err) => console.error('[Cron] sending partner invitations failed:', err))
     }, { timezone: 'UTC' })
+
+    // Kevin keeps learning: every three hours the next few countries (and a couple of world property feeds) are read,
+    // so every country is covered about every two and a half days. KEVIN_KB_CRON changes the schedule, KEVIN_KB=off stops it.
+    if (process.env.KEVIN_KB !== 'off') {
+        cron.schedule(process.env.KEVIN_KB_CRON || '23 */3 * * *', () => {
+            runKnowledgeIngest().catch((err) => console.error('[Cron] Kevin knowledge run failed:', err))
+        }, { timezone: 'UTC' })
+        // And once soon after every start, so a fresh deploy is not a week behind.
+        setTimeout(() => {
+            runKnowledgeIngest().catch((err) => console.error('[Cron] first Kevin knowledge run failed:', err))
+        }, 90_000)
+    }
 
     // Every virtual tour is opened the way a visitor's browser would, every six hours; broken ones are reported
     // to the administrators (dashboard bell, email, WhatsApp). TOUR_HEALTH_CRON changes the schedule.
