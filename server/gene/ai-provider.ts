@@ -28,7 +28,7 @@ export interface AiChatMessage {
 
 export type AiProvider = 'anthropic' | 'openai' | 'gemini'
 
-async function callAnthropic(systemPrompt: string, history: AiChatMessage[], message: string): Promise<string | null> {
+async function callAnthropic(systemPrompt: string, history: AiChatMessage[], message: string, maxTokens = 500): Promise<string | null> {
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) return null
 
@@ -47,7 +47,7 @@ async function callAnthropic(systemPrompt: string, history: AiChatMessage[], mes
             body: JSON.stringify({
                 // Set ANTHROPIC_MODEL to change it (e.g. a larger model for richer answers).
                 model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
-                max_tokens: 500,
+                max_tokens: maxTokens,
                 system: systemPrompt,
                 messages,
             }),
@@ -68,7 +68,7 @@ async function callAnthropic(systemPrompt: string, history: AiChatMessage[], mes
     }
 }
 
-async function callOpenAi(systemPrompt: string, history: AiChatMessage[], message: string): Promise<string | null> {
+async function callOpenAi(systemPrompt: string, history: AiChatMessage[], message: string, maxTokens = 500): Promise<string | null> {
     const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey) return null
 
@@ -86,7 +86,7 @@ async function callOpenAi(systemPrompt: string, history: AiChatMessage[], messag
             },
             body: JSON.stringify({
                 model: 'gpt-4o-mini',
-                max_tokens: 500,
+                max_tokens: maxTokens,
                 messages,
             }),
         })
@@ -103,7 +103,7 @@ async function callOpenAi(systemPrompt: string, history: AiChatMessage[], messag
     }
 }
 
-async function callGemini(systemPrompt: string, history: AiChatMessage[], message: string): Promise<string | null> {
+async function callGemini(systemPrompt: string, history: AiChatMessage[], message: string, maxTokens = 500): Promise<string | null> {
     const ai = getGeminiClient()
     if (!ai) return null
 
@@ -115,7 +115,7 @@ async function callGemini(systemPrompt: string, history: AiChatMessage[], messag
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
-            config: { systemInstruction: systemPrompt },
+            config: { systemInstruction: systemPrompt, maxOutputTokens: Math.max(maxTokens, 256) },
         })
         const reply = (response.text || '').trim()
         return reply.length > 0 ? reply : null
@@ -135,15 +135,17 @@ async function callGemini(systemPrompt: string, history: AiChatMessage[], messag
 export async function getAiReply(
     systemPrompt: string,
     message: string,
-    history: AiChatMessage[] = []
+    history: AiChatMessage[] = [],
+    /** A spoken answer is a sentence or two: asking for fewer tokens makes it arrive sooner. */
+    maxTokens = 500
 ): Promise<{ reply: string; provider: AiProvider } | null> {
-    const anthropicReply = await callAnthropic(systemPrompt, history, message)
+    const anthropicReply = await callAnthropic(systemPrompt, history, message, maxTokens)
     if (anthropicReply) return { reply: anthropicReply, provider: 'anthropic' }
 
-    const openAiReply = await callOpenAi(systemPrompt, history, message)
+    const openAiReply = await callOpenAi(systemPrompt, history, message, maxTokens)
     if (openAiReply) return { reply: openAiReply, provider: 'openai' }
 
-    const geminiReply = await callGemini(systemPrompt, history, message)
+    const geminiReply = await callGemini(systemPrompt, history, message, maxTokens)
     if (geminiReply) return { reply: geminiReply, provider: 'gemini' }
 
     return null

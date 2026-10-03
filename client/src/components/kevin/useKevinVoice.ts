@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { canCaptureSpeech, startCapture, type CaptureSession } from './speechCapture'
 import { transcribeClip, useServerStt } from './serverStt'
+import { speakable } from '@shared/speakable'
 
 /**
  * Kevin's voice. Two sources, tried in this order:
@@ -100,9 +101,11 @@ export function pickVoice(voices: SpeechSynthesisVoice[], bcp47: string | null):
   return candidates.reduce((best, v) => (voiceScore(v, wanted) > voiceScore(best, wanted) ? v : best))
 }
 
-/** How a spoken answer is cut up for the server: the first sentence on its own
- * (so Kevin starts talking quickly), then the rest in at most two further pieces. */
+/** How a spoken answer is sent to the server: whole when short, else cut in two. */
 function serverPieces(text: string): string[] {
+  // A spoken answer is a sentence or two. One request gives one take: no seam, no change of tone between clips,
+  // no gap in the middle of a thought. Only a longer text is cut, and then into at most two pieces.
+  if (text.length <= 300) return [text]
   const parts = sentences(text)
   if (parts.length <= 1) return parts
   const [first, ...rest] = parts
@@ -131,12 +134,7 @@ function sentences(text: string): string[] {
 // What reads well on screen reads badly aloud: strip markdown symbols, and
 // say "the link" instead of spelling out a URL.
 export function cleanForSpeech(text: string): string {
-  return text
-    .replace(/https?:\/\/\S+/g, ' the link ')
-    .replace(/\bUGX\b/g, 'shillings')
-    .replace(/[*_`#>~]+/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return speakable(text)
 }
 
 export function useKevinVoice(bcp47: string | null) {
@@ -230,14 +228,15 @@ export function useKevinVoice(bcp47: string | null) {
       const chosen = synth ? pickVoice(voicesRef.current, tag ?? null) : null
       if (!synth || !chosen) return false
       try {
-        const pieces = sentences(spoken)
+        // Short answers are one utterance (no gaps between sentences); long ones are cut, because engines stop after ~15 s.
+        const pieces = spoken.length <= 220 ? [spoken] : sentences(spoken)
         pieces.forEach((piece, i) => {
           const utterance = new SpeechSynthesisUtterance(piece)
           utterance.voice = chosen
           utterance.lang = chosen.lang
           // Kevin is a man. A voice that says it is male is only lowered a little; one that does not say is lowered more.
-          // A voice that does not say it is a man's is lowered a lot: a woman's voice at this pitch sounds like a man's.
-          utterance.pitch = isKnownMale(chosen) ? 0.92 : 0.55
+          // A voice that does not say it is a man's is lowered a little (much lower sounds muffled and robotic).
+          utterance.pitch = isKnownMale(chosen) ? 0.95 : 0.8
           utterance.rate = 0.98
           utterance.onstart = () => {
             if (speechRun.current === run) setSpeaking(true)

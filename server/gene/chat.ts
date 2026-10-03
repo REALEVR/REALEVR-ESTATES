@@ -352,6 +352,8 @@ async function getReply(
         systemPrompt,
         message,
         history.slice(-8).map((m) => ({ role: m.role, text: m.text }))
+        // A spoken answer is under 30 words; room is left for the bracketed markers (lead, search) that can ride along.
+        , options.persona === 'kevin' && options.voice ? 280 : 500
     )
     return result?.reply ?? null
 }
@@ -653,11 +655,22 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
             // The welcome conversation: still under way unless this visitor has
             // already told Kevin what he needs to know (or declined to).
             const signedIn = persona === 'kevin' && req.isAuthenticated?.() ? (req.user as User) : null
-            const knownLead = persona === 'kevin' ? await getLead(sessionId) : null
-            const intaking = persona === 'kevin' && !isIntakeComplete(knownLead) && (body.intake === true || !!knownLead)
-            const snapshot = persona === 'kevin' ? await getSnapshot().catch(() => null) : null
             // Where the visitor is (their time zone, a place they chose, or a location they shared), from the cookie the site sets.
             const place = persona === 'kevin' ? placeFromCookieHeader(req.headers.cookie) : null
+            // Everything Kevin looks up before answering is looked up at the same moment, not one after another: a spoken
+            // reply feels instant or it feels fake. Worldwide background gets 700 ms in a spoken exchange and no live fetch.
+            const spoken = persona === 'kevin' && body.voice === true
+            const [knownLead, snapshot, world] = await Promise.all([
+                persona === 'kevin' ? getLead(sessionId) : Promise.resolve(null),
+                persona === 'kevin' ? getSnapshot().catch(() => null) : Promise.resolve(null),
+                persona === 'kevin'
+                    ? Promise.race([
+                          knowledgeFor(message, place?.country, { live: !spoken }),
+                          new Promise<string>((resolve) => setTimeout(() => resolve(''), spoken ? 700 : 3500)),
+                      ])
+                    : Promise.resolve(''),
+            ])
+            const intaking = persona === 'kevin' && !isIntakeComplete(knownLead) && (body.intake === true || !!knownLead)
 
             // A signed-in visitor has a "My Agent" profile and picks: Kevin is that agent now, so he
             // starts from what it already knows and his answers feed it back (see syncProfileFromKevin).
@@ -698,7 +711,7 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                 place,
                 ambient: persona === 'kevin' && body.ambient === true,
                 // Worldwide background (reports from the countries asked about, things the team taught him).
-                world: persona === 'kevin' ? await knowledgeFor(message, place?.country) : undefined,
+                world: persona === 'kevin' ? world : undefined,
             }
             const history = conversation.messages.slice(0, -1)
             const rawReply = await getReply(history, message, req.headers['accept-language'], replyOptions)

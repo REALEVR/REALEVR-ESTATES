@@ -970,7 +970,7 @@ export default function KevinOrb() {
           className="kevin-fab group fixed select-none [-webkit-touch-callout:none] bottom-[var(--fab-row-1)] right-3 z-40 flex w-16 flex-col items-center gap-1.5 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f5c469] md:bottom-5 md:right-4"
         >
           <span className="relative block h-11 w-11 md:h-12 md:w-12">
-            <Orb speaking={voice.speaking || phase === 'speaking'} listening={voice.listening} thinking={busy} />
+            <Orb speaking={voice.speaking || phase === 'speaking'} listening={voice.listening || ambient.hearing} thinking={busy} />
           </span>
           {/* His name floats under the dot. The dark pill keeps it readable over light and dark pages alike. */}
           <span className="rounded-full bg-[#0d1024]/85 px-2.5 py-0.5 font-display text-[11px] font-semibold tracking-wide text-white shadow-md backdrop-blur">

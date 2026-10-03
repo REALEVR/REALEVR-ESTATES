@@ -24,6 +24,7 @@
 import type { Express, Request, Response } from 'express'
 import { createHash } from 'crypto'
 import { getGeminiClient } from '../lib/gemini'
+import { speakable } from '../../shared/speakable'
 import { hasCredits, noteSpent } from './elevenlabs'
 import { azureConfigured, azureSpeak, azureTtsHasRoom, isResting, rest } from './speech-providers'
 
@@ -69,14 +70,7 @@ export function configuredProvider(): VoiceProvider | null {
 /** What may be sent to a speech provider: plain sentences, no markup, no addresses, bounded length. */
 export function speechText(raw: unknown): string {
     if (typeof raw !== 'string') return ''
-    return raw
-        .replace(/\[\[[^\]]*\]\]/g, ' ')
-        .replace(/https?:\/\/\S+/g, ' ')
-        .replace(/[\u0000-\u001f\u007f]/g, ' ')
-        .replace(/[*_`#>~]+/g, '')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .slice(0, MAX_TEXT_CHARS)
+    return speakable(raw.replace(/[\u0000-\u001f\u007f]/g, ' ')).slice(0, MAX_TEXT_CHARS)
 }
 
 /** Gemini returns raw 16-bit mono PCM at 24 kHz; browsers need it wrapped as WAV. */

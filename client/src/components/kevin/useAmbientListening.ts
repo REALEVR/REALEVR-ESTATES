@@ -75,6 +75,8 @@ function recognitionConstructor(): any {
 
 export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtterance, onProblem, relevant = isAboutProperties }: Options) {
   const [active, setActive] = useState(false)
+  // Someone is speaking right now and he is taking it in: the orb shows it at once, before any words are known.
+  const [hearing, setHearing] = useState(false)
   const [visible, setVisible] = useState(() => typeof document === 'undefined' || document.visibilityState === 'visible')
   // The callbacks change on every render of the caller; the recogniser must not restart for that.
   const handlers = useRef({ onWake, onUtterance, onProblem, relevant })
@@ -116,6 +118,7 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
     let quiet = 0 // consecutive rounds that ended with nothing said to Kevin: each waits a little longer before listening again
     let session: CaptureSession | null = null
     let speechStartedAt = 0
+    let hearingTimer: ReturnType<typeof setTimeout> | undefined
     let sentThisHour: number[] = []
 
     /** The microphone is open from here until this effect ends: `active` does not follow Kevin's busy moments. */
@@ -301,11 +304,18 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
     const serverSession = () => {
       session = startCapture({
         continuous: true,
-        silenceMs: 1000,
+        // 750 ms of quiet ends a sentence: quick enough to feel like he answers as you finish, long enough for a breath.
+        silenceMs: 750,
         maxMs: 12_000,
         preRollMs: 700,
         onSpeechStart: () => {
           speechStartedAt = Date.now()
+          if (usable(speechStartedAt)) {
+            setHearing(true)
+            // A noise too short to count never reaches onClip: do not leave the orb "hearing" for ever.
+            clearTimeout(hearingTimer)
+            hearingTimer = setTimeout(() => setHearing(false), 5000)
+          }
         },
         onError: (reason) => {
           if (reason === 'blocked') {
@@ -316,6 +326,8 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
         },
         onClip: (wav) => {
           // He was talking (or had only just stopped) when this began: it is his own voice, not the visitor's.
+          clearTimeout(hearingTimer)
+          setHearing(false)
           if (!usable(speechStartedAt || Date.now())) return
           const now = Date.now()
           sentThisHour = sentThisHour.filter((t) => now - t < 3_600_000)
@@ -379,6 +391,8 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
     return () => {
       stopped = true
       controls.current = null
+      clearTimeout(hearingTimer)
+      setHearing(false)
       session?.stop()
       clearTimeout(timer)
       releaseMeter()
@@ -391,5 +405,5 @@ export function useAmbientListening({ enabled, paused, bcp47, onWake, onUtteranc
     }
   }, [enabled, visible, bcp47])
 
-  return { active }
+  return { active, hearing }
 }
