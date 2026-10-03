@@ -6,6 +6,8 @@
  * This gives Kevin ONE recognisable voice everywhere by synthesising it on the
  * server with whichever speech provider is configured, in this order:
  *
+ *   0. VoiceStudio (VOICESTUDIO_URL)     - the owner's OWN voice server (github.com/debpalash/VoiceStudio), if one is
+ *      running: used first, with a cloned or designed voice (VOICESTUDIO_VOICE), at no per-character cost. See viaVoiceStudio.
  *   1. ElevenLabs  (ELEVENLABS_API_KEY)  - the most flexible. Kevin is a man with an
  *      African accent: by default a male West African library voice. Set
  *      KEVIN_ELEVENLABS_VOICE_ID to any voice in your account, including one you
@@ -28,7 +30,7 @@ import { speakable } from '../../shared/speakable'
 import { hasCredits, noteSpent } from './elevenlabs'
 import { azureConfigured, azureSpeak, azureTtsHasRoom, isResting, rest } from './speech-providers'
 
-export type VoiceProvider = 'elevenlabs' | 'azure' | 'openai' | 'gemini'
+export type VoiceProvider = 'voicestudio' | 'elevenlabs' | 'azure' | 'openai' | 'gemini'
 
 const MAX_TEXT_CHARS = 400
 const MAX_CACHE_ENTRIES = 120
@@ -51,12 +53,13 @@ const KEVIN_DELIVERY =
  */
 export function voiceProviders(): VoiceProvider[] {
     const available: Record<VoiceProvider, boolean> = {
+        voicestudio: voiceStudioUrl() !== null,
         elevenlabs: !!process.env.ELEVENLABS_API_KEY,
         azure: azureConfigured(),
         gemini: !!process.env.GEMINI_API_KEY,
         openai: !!process.env.OPENAI_API_KEY,
     }
-    const order: VoiceProvider[] = ['elevenlabs', 'azure', 'gemini', 'openai']
+    const order: VoiceProvider[] = ['voicestudio', 'elevenlabs', 'azure', 'gemini', 'openai']
     const wanted = (process.env.KEVIN_VOICE_PROVIDER || '').toLowerCase() as VoiceProvider
     if (order.includes(wanted)) order.splice(order.indexOf(wanted), 1), order.unshift(wanted)
     return order.filter((p) => available[p])
@@ -180,6 +183,51 @@ async function viaElevenLabsWith(text: string, model: string): Promise<Audio> {
     throw lastError
 }
 
+/**
+ * The base address of the owner's VoiceStudio server (VOICESTUDIO_URL), or null when none is set or it is not a web
+ * address. It is the owner's own setting, never visitor input, so it is trusted; http is allowed for a server on a
+ * private network (Railway private domain, localhost).
+ */
+export function voiceStudioUrl(): string | null {
+    const raw = (process.env.VOICESTUDIO_URL || '').trim()
+    if (!raw) return null
+    try {
+        const url = new URL(raw)
+        if (url.protocol !== 'https:' && url.protocol !== 'http:') return null
+        return url.toString().replace(/\/+$/, '')
+    } catch {
+        return null
+    }
+}
+
+/**
+ * VoiceStudio speaks the OpenAI speech protocol (POST /v1/audio/speech). The voice is a profile id from the server
+ * (VOICESTUDIO_VOICE: a cloned or designed voice, for instance an African man recorded for Kevin) or "default";
+ * VOICESTUDIO_MODEL names the engine ("tts-1" means whichever engine the server has active). VOICESTUDIO_API_KEY is sent
+ * as a bearer key when the server has OMNIVOICE_API_KEY set. Make sure the voice model's licence allows commercial use.
+ */
+async function viaVoiceStudio(text: string): Promise<Audio> {
+    const base = voiceStudioUrl()
+    if (!base) throw new Error('VoiceStudio is not configured')
+    const key = (process.env.VOICESTUDIO_API_KEY || '').trim()
+    const res = await fetchWithTimeout(`${base}/v1/audio/speech`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'audio/mpeg', ...(key ? { authorization: `Bearer ${key}` } : {}) },
+        body: JSON.stringify({
+            model: process.env.VOICESTUDIO_MODEL || 'tts-1',
+            voice: process.env.VOICESTUDIO_VOICE || 'default',
+            input: text,
+            instructions: KEVIN_DELIVERY,
+            response_format: 'mp3',
+            speed: Number(process.env.VOICESTUDIO_SPEED) || 1,
+        }),
+    })
+    if (!res.ok) throw Object.assign(new Error(`VoiceStudio ${res.status}: ${(await res.text()).slice(0, 200)}`), { status: res.status })
+    const data = Buffer.from(await res.arrayBuffer())
+    if (data.length < 200) throw new Error('VoiceStudio returned no audio')
+    return { data, type: res.headers.get('content-type')?.split(';')[0] || 'audio/mpeg' }
+}
+
 async function viaOpenAi(text: string): Promise<Audio> {
     const res = await fetchWithTimeout('https://api.openai.com/v1/audio/speech', {
         method: 'POST',
@@ -213,6 +261,7 @@ async function viaGemini(text: string): Promise<Audio> {
 }
 
 export async function synthesize(provider: VoiceProvider, text: string, lang?: string): Promise<Audio> {
+    if (provider === 'voicestudio') return viaVoiceStudio(text)
     if (provider === 'elevenlabs') return viaElevenLabs(text, lang)
     if (provider === 'azure') return azureSpeak(text, lang)
     if (provider === 'openai') return viaOpenAi(text)

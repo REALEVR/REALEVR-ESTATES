@@ -8,6 +8,7 @@ code or in chat). Each one that is set is used; each one that is missing is skip
 
 | Order | Service | Variables | Free allowance |
 |---|---|---|---|
+| 0 | **VoiceStudio**, your own server ([github.com/debpalash/VoiceStudio](https://github.com/debpalash/VoiceStudio)) | `VOICESTUDIO_URL`, optional `VOICESTUDIO_API_KEY`, `VOICESTUDIO_VOICE`, `VOICESTUDIO_MODEL`, `VOICESTUDIO_SPEED` | free software; you pay for the server |
 | 1 | ElevenLabs Scribe | `ELEVENLABS_API_KEY` | free credits each month (shared with the voice) |
 | 2 | Groq Whisper | `GROQ_API_KEY` | free tier with per-minute and daily limits; very fast; good with Kiswahili |
 | 3 | Azure AI Speech | `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` | free F0 tier, about 5 audio hours a month |
@@ -24,7 +25,15 @@ code or in chat). Each one that is set is used; each one that is missing is skip
 | 3 | Google Gemini speech | `GEMINI_API_KEY` | free tier with rate limits |
 | 4 | OpenAI | `OPENAI_API_KEY` | not free |
 
-`KEVIN_VOICE_PROVIDER=azure` moves one to the front. By default Azure speaks with a male Kenyan English voice
+`KEVIN_VOICE_PROVIDER=azure` moves one to the front.
+
+**VoiceStudio** (used first when `VOICESTUDIO_URL` is set; any failure falls through to the next service): run it with Docker on a server
+(a GPU server is strongly advised; its own docs say CPU generation is several times slower, too slow for live replies), set
+`OMNIVOICE_API_KEY` on it, and point Kevin at it. `VOICESTUDIO_VOICE` is a voice profile id on that server: clone or design an African male
+voice there from a recording of a consenting speaker. `VOICESTUDIO_MODEL` defaults to `tts-1`, meaning whichever engine the server has active.
+Before using it on the site, check the licence of the voice model: VoiceStudio's default model (OmniVoice) has weights licensed CC-BY-NC, which is
+non-commercial. Kevin sends it the text through its OpenAI-compatible `POST /v1/audio/speech`. Check with
+`curl -H "Authorization: Bearer $KEY" $VOICESTUDIO_URL/v1/audio/speech -d '{"model":"tts-1","voice":"default","input":"Hello"}' -H 'content-type: application/json' -o t.mp3`. By default Azure speaks with a male Kenyan English voice
 (`en-KE-ChilembaNeural`) and a male Kiswahili voice (`sw-KE-RafikiNeural`); change them with `KEVIN_AZURE_ENGLISH_VOICE`
 and `KEVIN_AZURE_VOICE`. Other good male English choices: `en-NG-AbeoNeural` (Nigerian), `en-TZ-ElimuNeural`
 (Tanzanian), `en-ZA-LukeNeural` (South African).
