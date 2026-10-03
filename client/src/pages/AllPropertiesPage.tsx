@@ -9,6 +9,7 @@ import { getSiteUrl } from '@/lib/siteUrl'
 import { CATEGORY_PAGE_META } from '@shared/seo'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import PropertyLocationMap from '@/components/property/PropertyLocationMap'
+import { describeFilters, filtersFromSearch, hasFilters, matchesFilters } from '@shared/property-filters'
 
 /**
  * "All Properties" — the second of the 3 top-level browsing destinations
@@ -18,9 +19,12 @@ import PropertyLocationMap from '@/components/property/PropertyLocationMap'
  * as filter tabs instead — "the rest will appear through the filters."
  */
 export default function AllPropertiesPage() {
+    // What Kevin (or a link) asked for: /properties?loc=Kololo&max=3000000&beds=2&cat=rental_units
+    const [searchParams] = useSearchParams()
+    const filters = useMemo(() => filtersFromSearch(searchParams), [searchParams])
+    const filtered = hasFilters(filters)
     const [activeTab, setActiveTab] = useState('all')
     // The header's search box sends people here as /properties?q=...; every word must appear in the title, place or type.
-    const [searchParams] = useSearchParams()
     const query = (searchParams.get('q') ?? '').trim()
     const [mapLocation, setMapLocation] = useState<string | null>(null)
     const { data: properties, isLoading, error } = useQuery<Property[]>({
@@ -41,6 +45,7 @@ export default function AllPropertiesPage() {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean)
     const liveAll = (properties ?? [])
         .filter((p) => p.title && p.title.trim() !== '')
+        .filter((p) => !filtered || (p.isAvailable !== false && matchesFilters(p, filters)))
         .filter((p) => {
             if (!words.length) return true
             const haystack = `${p.title} ${p.location} ${p.propertyType} ${p.category}`.toLowerCase()
@@ -94,8 +99,10 @@ export default function AllPropertiesPage() {
                 canonicalPath={CATEGORY_PAGE_META.allProperties.path}
                 jsonLd={allJsonLd}
             />
-            <h1 className="section-title mb-2 text-3xl md:text-4xl">{query ? `Homes matching “${query}”` : 'All Properties'}</h1>
-            {query && (
+            <h1 className="section-title mb-2 text-3xl md:text-4xl">
+                {filtered ? describeFilters(filters).replace(/^./, (c) => c.toUpperCase()) : query ? `Homes matching “${query}”` : 'All Properties'}
+            </h1>
+            {(query || filtered) && (
                 <p className="mb-5 text-sm text-muted-foreground">
                     {liveAll.length} {liveAll.length === 1 ? 'home' : 'homes'} ·{' '}
                     <Link href="/properties" className="text-accent underline-offset-2 hover:underline">

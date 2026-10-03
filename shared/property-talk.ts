@@ -57,3 +57,18 @@ export function isAboutProperties(text: string): boolean {
   if (!t) return false
   return LATIN.test(t) || OTHER.test(t)
 }
+
+// ---------------------------------------------------------------------------
+// Small talk
+// ---------------------------------------------------------------------------
+
+const SMALL_TALK = new RegExp(
+    '^\\s*(?:(?:hello|hallo|hullo|hi|hey|hei|okay|ok|yo|good (?:morning|afternoon|evening|night)|hola|bonjour|salut|ol[aá]|habari|jambo|mambo|vipi|marhaba|namaste|thanks|thank you|asante|merci|gracias|obrigado|bye|goodbye|ciao|cheers|great|nice|cool|wow|yes|yeah|yep|no|nope|sure|please|sorry|welcome|how are you|are you there|can you hear me|what\'s up|sasa)(?:\\s+(?:there|again|so much|very much|a lot|kevin|kelvin|kevan|kevyn|kevon|kevi))*[\\s,.!?]*)+$',
+    'i',
+)
+
+/** Only a greeting, a thank-you, a goodbye or "are you there": nothing to find and nowhere to go. Kevin answers; the page stays put. */
+export function isSmallTalk(text: string): boolean {
+  const t = (text || '').trim()
+  return t.length > 0 && t.length < 60 && SMALL_TALK.test(t)
+}

@@ -24,7 +24,7 @@
  */
 import type { Express, RequestHandler } from 'express'
 import { randomUUID } from 'crypto'
-import { isAboutProperties } from '../../shared/property-talk'
+import { isAboutProperties, isSmallTalk } from '../../shared/property-talk'
 import { knowledgeFor, recordGap } from './kevin-knowledge'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
@@ -796,6 +796,11 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                 } else {
                     reply = acted.text || reply
                 }
+            }
+            // A greeting, a thank-you, "are you there": he answers, but never searches or takes the visitor anywhere.
+            if (persona === 'kevin' && isSmallTalk(message)) {
+                action = null
+                results = []
             }
             // Deterministic, not dependent on the AI provider cooperating —
             // guarantees every visitor who shares their details gets
