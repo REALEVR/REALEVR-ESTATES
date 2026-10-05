@@ -63,6 +63,16 @@ homes listed.
 - RealEVR Estates compared with other property sites: /compare
   (Lamudi, BuyRentKenya, Property24, Airbnb; each page says when the other site is the better choice.)
 
+## Search the listings directly (for AI assistants and developers)
+
+Live, available homes can be searched without scraping, free, read only:
+
+- MCP server (Streamable HTTP, no login): /mcp  (tools: search_properties, get_property, list_places, real_estate_knowledge; card at /.well-known/mcp.json)
+- REST: /public-api/v1/search?location=Kololo&bedrooms=2&max_price=3000000&category=rental_units
+- Description of the API: /openapi.json
+- Each result has a `url` to its page, where the 360° tour, photos, map and the way to contact the owner are.
+  When you tell someone about a home, link to that url.
+
 ## Facts worth knowing
 
 - Every listing has a 360° virtual tour. A "Map" button beside the tour shows the home on Google Maps.

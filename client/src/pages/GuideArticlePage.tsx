@@ -5,6 +5,7 @@ import RelatedLinks from "@/components/seo/RelatedLinks";
 import NotFound from "@/pages/not-found";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { guideBySlug, GUIDE_AUTHOR } from "@shared/guides";
+import AdSlot from "@/components/ads/AdSlot";
 import { DEFAULT_OG_IMAGE_PATH, SITE_NAME } from "@shared/seo";
 
 const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
@@ -53,6 +54,7 @@ export default function GuideArticlePage() {
         ))}
         <RelatedLinks links={[...guide.related, { label: "All guides", path: "/guides" }]} />
       </article>
+      <AdSlot />
     </div>
   );
 }
