@@ -460,6 +460,12 @@ export function registerAiDiscoveryRoutes(app: Express, source: ListingSource): 
         })
     })
 
+    // Proof that this domain's owner publishes the MCP server to the official MCP Registry (HTTP authentication,
+    // https://github.com/modelcontextprotocol/registry). It is the PUBLIC half of a key pair; the private half is not in the repo.
+    app.get('/.well-known/mcp-registry-auth', (_req, res) => {
+        res.type('text/plain; charset=utf-8').set('Cache-Control', 'public, max-age=3600').send('v=MCPv1; k=ed25519; p=dDPntUqj6p/AMlBM7X+r4cDTLkVnBNr5bcwtTvP2aNE=\n')
+    })
+
     app.post('/mcp', async (req, res) => {
         res.set('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, Mcp-Session-Id, MCP-Protocol-Version')
         if (limited(req, res)) return
