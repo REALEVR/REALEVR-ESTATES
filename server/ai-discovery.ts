@@ -38,6 +38,15 @@ const PROPERTY_TYPES = ['apartment', 'house', 'land', 'commercial', 'hostel']
 // Turning a stored listing into the public shape
 // ---------------------------------------------------------------------------
 
+/** Agents sometimes type their number into the description. The page shows the right contact, so the API leaves these out. */
+export function stripContacts(text: string): string {
+    return text
+        .replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, '')
+        .replace(/https?:\/\/(?:wa\.me|api\.whatsapp\.com|chat\.whatsapp\.com)\S*/gi, '')
+        .replace(/\+\d[\d\s().-]{7,}\d/g, '') // +256 702 742333
+        .replace(/\b0\d{2,3}[\s.-]?\d{3}[\s.-]?\d{3,4}\b/g, '') // 0702 742 333
+}
+
 export function publicListing(p: Listing, base: string) {
     const city = listingCity(p)
     const country = inferListingCountry(p)
@@ -58,7 +67,7 @@ export function publicListing(p: Listing, base: string) {
         monthlyPrice: p.monthlyPrice ? Number(p.monthlyPrice) : null,
         furnished: p.category === 'furnished_houses',
         amenities: Array.isArray(p.amenities) ? p.amenities.filter((a: unknown) => typeof a === 'string' && a.trim()).slice(0, 20) : [],
-        description: String(p.description ?? '').replace(/\s+/g, ' ').trim().slice(0, 400),
+        description: stripContacts(String(p.description ?? '')).replace(/\s+/g, ' ').trim().slice(0, 400),
         hasVirtualTour: p.hasTour !== false,
         featured: !!p.isFeatured,
         image: p.imageUrl ? (String(p.imageUrl).startsWith('http') ? String(p.imageUrl) : `${base}${String(p.imageUrl).startsWith('/') ? '' : '/'}${p.imageUrl}`) : null,
