@@ -9,6 +9,7 @@ import { getSiteUrl } from '@/lib/siteUrl'
 import { buildBreadcrumbJsonLd, CATEGORY_PAGE_META } from '@shared/seo'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import PropertyLocationMap from '@/components/property/PropertyLocationMap'
+import AdSlot from '@/components/ads/AdSlot'
 import { describeFilters, filtersFromSearch, hasFilters, matchesFilters } from '@shared/property-filters'
 
 /**
@@ -149,6 +150,7 @@ export default function AllPropertiesPage() {
                     </TabsContent>
                 ))}
             </Tabs>
+            <AdSlot />
         </div>
     )
 }

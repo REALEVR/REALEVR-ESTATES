@@ -37,6 +37,7 @@ import {
 } from './sitemap'
 import { registerIndexNowKeyRoute, startIndexNowSubmitter } from './indexnow'
 import { registerCrawlerRoutes } from './crawler-pages'
+import { registerAiDiscoveryRoutes } from './ai-discovery'
 import notificationRoutes from './routes/notifications'
 import reviewRoutes from './routes/reviews'
 import aiRoutes from './routes/ai'
@@ -289,6 +290,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerIndexNowKeyRoute(app, getCanonicalBaseUrl)
     startIndexNowSubmitter(getCanonicalBaseUrl, async () => (await publicSitemapEntries()).map((e) => e.loc))
 
+    // Google AdSense requires /ads.txt to name the publisher (ADSENSE_PUBLISHER_ID=pub-1234567890123456). Without it set, no file.
+    app.get('/ads.txt', (_req, res, next) => {
+        const pub = (process.env.ADSENSE_PUBLISHER_ID || '').trim().replace(/^ca-/, '')
+        if (!/^pub-\d{10,20}$/.test(pub)) return next()
+        res.type('text/plain; charset=utf-8').set('Cache-Control', 'public, max-age=86400').send(`google.com, ${pub}, DIRECT, f08c47fec0942fa0\n`)
+    })
+
     app.get('/robots.txt', (_req, res) => {
         const base = getCanonicalBaseUrl()
         res.type('text/plain; charset=utf-8')
@@ -309,6 +317,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // don't run the SPA's JavaScript. No-ops for everyone else. See
     // server/crawler-pages.ts for why this exists.
     registerCrawlerRoutes(app, storage)
+
+    // Open listings API and MCP server, so AI assistants can search the platform and send people to it (docs/AI_DISCOVERY.md).
+    registerAiDiscoveryRoutes(app, storage)
 
     // Apply no-cache middleware to all API routes
     app.use('/api', noCacheMiddleware)

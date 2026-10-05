@@ -9,6 +9,7 @@ import { PageSeo } from "@/components/seo/PageSeo";
 import { useToast } from "@/hooks/use-toast";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { buildPlaceHomesMeta } from "@shared/seo";
+import AdSlot from "@/components/ads/AdSlot";
 import { cityBySlug, countryBySlug, inferListingCountry, listingCity, slugify } from "@shared/africa";
 
 interface PlaceRow {
@@ -154,6 +155,7 @@ export default function PlaceHomesPage() {
           </div>
         </section>
       )}
+      <AdSlot />
     </div>
   );
 }
