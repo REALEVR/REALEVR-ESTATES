@@ -68,7 +68,7 @@ export function publicListing(p: Listing, base: string) {
         furnished: p.category === 'furnished_houses',
         amenities: Array.isArray(p.amenities) ? p.amenities.filter((a: unknown) => typeof a === 'string' && a.trim()).slice(0, 20) : [],
         description: stripContacts(String(p.description ?? '')).replace(/\s+/g, ' ').trim().slice(0, 400),
-        hasVirtualTour: p.hasTour !== false,
+        hasVirtualTour: !!p.tourUrl && p.hasTour !== false,
         featured: !!p.isFeatured,
         image: p.imageUrl ? (String(p.imageUrl).startsWith('http') ? String(p.imageUrl) : `${base}${String(p.imageUrl).startsWith('/') ? '' : '/'}${p.imageUrl}`) : null,
         // The page has the 360° tour, photos, map and the way to contact the owner.

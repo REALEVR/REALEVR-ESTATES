@@ -84,7 +84,8 @@ export default function FeaturedTour() {
   // when fewer than 2 properties actually have a real tour to rotate through.
   const rotationPool = useMemo(() => {
     const withTours = sortedByPopularity.filter((p) => p.hasTour && p.tourUrl).slice(0, 5);
-    return withTours.length > 0 ? withTours : sortedByPopularity.slice(0, 1);
+    // Only homes that really have a tour: a featured *tour* never shows a home without one.
+    return withTours;
   }, [sortedByPopularity]);
 
   const [index, setIndex] = useState(0);
@@ -141,6 +142,9 @@ export default function FeaturedTour() {
     );
   }
 
+  // Nothing to feature (no home has a tour yet): the section is simply left out.
+  if (!error && !featuredProperty) return null;
+
   if (error || !featuredProperty) {
     return (
       <section id="featured" className="py-10 bg-secondary -mx-4 sm:-mx-6 lg:-mx-8">
@@ -181,7 +185,7 @@ export default function FeaturedTour() {
             <div className="lg:w-1/2">
               <div className="h-[400px] lg:h-[600px] tour-container bg-muted relative">
                 <VirtualTour
-                  tourUrl={featuredProperty.tourUrl || "https://realevr.com/LA%20ROSE%20ROYAL%20APARTMENTS/"}
+                  tourUrl={featuredProperty.tourUrl as string}
                   isFullscreen={isFullscreen}
                   onExitFullscreen={() => setIsFullscreen(false)}
                   showVrButton

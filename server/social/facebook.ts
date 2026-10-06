@@ -1,6 +1,6 @@
 import type { PostResult } from './types'
+import { graphBase } from '../gene/meta-graph'
 
-const GRAPH_VERSION = 'v21.0'
 
 /**
  * Posts to a Facebook Page's feed via the Meta Graph API.
@@ -17,8 +17,8 @@ export async function postToFacebook(message: string, imageUrl?: string): Promis
 
     try {
         const endpoint = imageUrl
-            ? `https://graph.facebook.com/${GRAPH_VERSION}/${pageId}/photos`
-            : `https://graph.facebook.com/${GRAPH_VERSION}/${pageId}/feed`
+            ? `${graphBase()}/${pageId}/photos`
+            : `${graphBase()}/${pageId}/feed`
 
         const body = new URLSearchParams({ access_token: accessToken })
         if (imageUrl) {

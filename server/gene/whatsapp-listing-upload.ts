@@ -37,6 +37,7 @@ import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
 import { sendWhatsAppMessage } from './whatsapp'
 import { uploadFileToS3, getS3FileUrl } from '../s3-util'
+import { graphBase } from './meta-graph'
 import type { WhatsappUserLink } from './whatsapp-concierge'
 
 const DRAFT_COLLECTION = 'gene_whatsapp_listing_drafts'
@@ -125,7 +126,7 @@ export async function downloadWhatsAppMediaById(mediaId: string): Promise<{ buff
     if (!token) return null
 
     try {
-        const metaRes = await fetch(`https://graph.facebook.com/v19.0/${mediaId}`, {
+        const metaRes = await fetch(`${graphBase()}/${mediaId}`, {
             headers: { Authorization: `Bearer ${token}` },
         })
         if (!metaRes.ok) return null
