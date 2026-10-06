@@ -155,29 +155,37 @@ async function callGemini(systemPrompt: string, history: AiChatMessage[], messag
         `Visitor: ${message}`,
     ].join('\n')
     for (const model of geminiCandidates()) {
-        try {
-            const response = await ai.models.generateContent({
-                model,
-                contents: prompt,
-                config: { systemInstruction: systemPrompt, maxOutputTokens: Math.max(maxTokens, 256) },
-            })
-            const reply = (response.text || '').trim()
-            if (reply.length > 0) {
-                geminiWorking = model
-                return reply
+        // A busy model (500/503) gets one more try a moment later, then the next model gets a turn.
+        for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+                const response = await ai.models.generateContent({
+                    model,
+                    contents: prompt,
+                    config: { systemInstruction: systemPrompt, maxOutputTokens: Math.max(maxTokens, 256) },
+                })
+                const reply = (response.text || '').trim()
+                if (reply.length > 0) {
+                    geminiWorking = model
+                    return reply
+                }
+                return null
+            } catch (err) {
+                const status = Number((err as { status?: number })?.status) || undefined
+                if (status === 500 || status === 503) {
+                    console.error(`[gene/ai-provider] Gemini ${model} is busy (${status})${attempt === 0 ? '; trying it once more' : '; moving on'}`)
+                    if (attempt === 0) await new Promise((r) => setTimeout(r, 700))
+                    continue
+                }
+                // A model that is gone: try the next one. Anything else (bad key, no quota, a hiccup) ends this attempt.
+                if (status === 404) {
+                    if (geminiWorking === model) geminiWorking = null
+                    console.error(`[gene/ai-provider] Gemini model ${model} is not available; trying the next one`)
+                    break
+                }
+                noteProviderFailure('gemini', status, String((err as Error)?.message ?? ''))
+                console.error('[gene/ai-provider] Gemini call failed:', err)
+                return null
             }
-            return null
-        } catch (err) {
-            const status = Number((err as { status?: number })?.status) || undefined
-            // A model that is gone: try the next one. Anything else (bad key, no quota, a hiccup) ends this attempt.
-            if (status === 404) {
-                if (geminiWorking === model) geminiWorking = null
-                console.error(`[gene/ai-provider] Gemini model ${model} is not available; trying the next one`)
-                continue
-            }
-            noteProviderFailure('gemini', status, String((err as Error)?.message ?? ''))
-            console.error('[gene/ai-provider] Gemini call failed:', err)
-            return null
         }
     }
     noteProviderFailure('gemini', 404)
