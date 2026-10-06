@@ -280,7 +280,9 @@ export const DynamoDBUtils = {
         key: Record<string, unknown>,
         updateExpression: string,
         expressionAttributeValues: Record<string, unknown>,
-        expressionAttributeNames?: Record<string, string>
+        expressionAttributeNames?: Record<string, string>,
+        /** e.g. 'attribute_exists(id)': DynamoDB's update creates the record when it is missing, which is rarely wanted. */
+        conditionExpression?: string
     ) {
         if (!tableName) throw new DynamoDBValidationError('tableName is required for updateItem')
         if (!updateExpression?.trim()) throw new DynamoDBValidationError('updateExpression cannot be empty', tableName)
@@ -295,8 +297,13 @@ export const DynamoDBUtils = {
                 UpdateExpression: updateExpression,
                 ExpressionAttributeValues: expressionAttributeValues,
                 ExpressionAttributeNames: expressionAttributeNames,
+                ...(conditionExpression ? { ConditionExpression: conditionExpression } : {}),
                 ReturnValues: 'ALL_NEW',
-            })),
+            })).catch((error: unknown) => {
+                // The condition said "only if it exists" and it does not: nothing was written, and that is the answer.
+                if (conditionExpression && (error as { name?: string })?.name === 'ConditionalCheckFailedException') return { Attributes: undefined }
+                throw error
+            }),
             `updateItem:${tableName}`
         )
 
