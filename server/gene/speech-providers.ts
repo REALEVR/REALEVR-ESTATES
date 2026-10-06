@@ -119,10 +119,14 @@ const xmlEscape = (s: string) => s.replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>
 // ---------------------------------------------------------------------------
 
 export async function azureSpeak(text: string, lang?: string): Promise<{ data: Buffer; type: string }> {
-    const voice = azureVoiceFor(lang)
+    return azureSpeakWith(text, azureVoiceFor(lang))
+}
+
+/** Speak with one named Azure voice (the voice lab uses this to let the owner compare voices). */
+export async function azureSpeakWith(text: string, voice: string, rate = '-4%'): Promise<{ data: Buffer; type: string }> {
     const locale = voice.split('-').slice(0, 2).join('-')
     // A little slower than the default and a touch of warmth in pitch: what makes a neural voice sound like a person talking to you.
-    const ssml = `<speak version='1.0' xml:lang='${locale}'><voice name='${voice}'><prosody rate='-4%'>${xmlEscape(text)}</prosody></voice></speak>`
+    const ssml = `<speak version='1.0' xml:lang='${locale}'><voice name='${voice}'><prosody rate='${rate}'>${xmlEscape(text)}</prosody></voice></speak>`
     const res = await fetch(`https://${AZURE_REGION()}.tts.speech.microsoft.com/cognitiveservices/v1`, {
         method: 'POST',
         headers: {
