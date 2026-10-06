@@ -20,3 +20,14 @@ export function openKevin(detail: KevinOpenDetail = {}): void {
     /* Kevin is a helper, never a requirement */
   }
 }
+
+/** Jarvis mode (the command centre, KevinHUD.tsx): a screen can offer it, but it opens only when the visitor chooses it. */
+export const KEVIN_HUD_EVENT = 'realevr:kevin-hud'
+
+export function openKevinHud(): void {
+  try {
+    window.dispatchEvent(new Event(KEVIN_HUD_EVENT))
+  } catch {
+    /* Kevin is a helper, never a requirement */
+  }
+}
