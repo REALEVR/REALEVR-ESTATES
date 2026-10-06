@@ -46,7 +46,7 @@ import {
     type LeadUpdate,
 } from './kevin-leads'
 import { toCard } from './kevin-actions'
-import { converse, describeNeed, getSnapshot, knowledgeContext, parseSignals, wantsFrom, type BrainResult } from './kevin-brain'
+import { converse, describeNeed, getSnapshot, knowledgeContext, marketFacts, parseSignals, wantsFrom, type BrainResult } from './kevin-brain'
 import { getAdminWhatsappNumbers, notifyAdminsEverywhere } from './admin-notify'
 import { detectUrgent, urgentReply } from '../../shared/urgent'
 import { audienceReply, AUDIENCES } from '../../shared/kevin-audience'
@@ -256,6 +256,13 @@ const KEVIN_SCOPE_PROMPT = [
     'When you cannot answer a property question reliably, say so honestly, say where to find out, and end your reply with the exact token [[GAP]] so the team can teach you.',
 ]
 
+// How Kevin carries himself. The numbers come from the live listings (marketFacts in kevin-brain.ts), so he can be specific.
+const KEVIN_MANNER_PROMPT = [
+    'MANNER: calm, capable and quietly witty, like a trusted chief of staff. Act first and explain briefly. When live numbers are given, use them: a real figure beats an adjective.',
+    'When it helps, close with exactly one useful next move ("Shall I narrow it to two bedrooms?"), never more than one, and none when they only said thanks or goodbye.',
+    'Do not talk about yourself unless asked. If someone sincerely asks what you are, say plainly that you are Kevin, the platform\'s AI assistant.',
+]
+
 // Always-listening hands-free mode: what arrives may be a television or a conversation in the room.
 const KEVIN_AMBIENT_PROMPT = [
     'The visitor did not tap or type: you overheard these words through an always-listening microphone, so they may come from a television or other people.',
@@ -332,6 +339,7 @@ async function getReply(
     const systemPrompt = [
         ...(options.persona === 'kevin' ? KEVIN_PERSONA_PROMPT : GENE_PERSONA_PROMPT),
         ...(options.persona === 'kevin' ? KEVIN_SCOPE_PROMPT : []),
+        ...(options.persona === 'kevin' ? KEVIN_MANNER_PROMPT : []),
         ...(options.persona === 'kevin' && options.ambient ? KEVIN_AMBIENT_PROMPT : []),
         ...(options.persona === 'kevin' ? ACTION_PROMPT : []),
         ...(options.persona === 'kevin' && options.voice ? KEVIN_VOICE_PROMPT : []),
@@ -700,6 +708,7 @@ export function registerGeneChatRoutes(app: Express, _adminMiddleware: RequestHa
                 knowledge: snapshot
                     ? [
                           knowledgeContext(snapshot, place ? currencyForCountry(place.country) : 'UGX', place),
+                          marketFacts(snapshot, message, place ? currencyForCountry(place.country) : 'UGX'),
                           agentKnowledge,
                           body.context === 'signup'
                               ? 'The visitor is on the sign-up screen. Act as their personal assistant: help them choose how to sign up, explain why we ask for a WhatsApp number (so agents and the team can reach them about viewings and bookings), say signing up is free, and never ask for a password. They may be a tenant, a landlord, a company or a sponsor; find out which and help them all the way.'

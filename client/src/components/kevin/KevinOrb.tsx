@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowUp, AudioLines, Globe, MessageCircle, Mic, MoreHorizontal, Sparkles, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react'
+import { ArrowUp, AudioLines, Globe, MessageCircle, Mic, MoreHorizontal, Radar, Sparkles, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react'
 import { Link, useLocation } from 'wouter'
 import { useAuth } from '@/hooks/use-auth'
 import { apiRequest } from '@/lib/queryClient'
@@ -17,13 +17,16 @@ import { regionalTag } from './propertyTalk'
 import { usePlace } from '@/lib/place'
 import { useAmbientListening } from './useAmbientListening'
 import { isAboutProperties, isWakePhrase, isWakeOnly, isSmallTalk } from './propertyTalk'
-import { filtersToSearch, hasFilters } from '@shared/property-filters'
+import { describeFilters, filtersToSearch, hasFilters, type PropertyFilters } from '@shared/property-filters'
 import { interestText, recordInterest, useKevinWhatsapp, whatsappHref } from './useKevinWhatsapp'
 import Orb from './Orb'
 import ResultCards from './ResultCards'
 import VoiceStage, { type VoicePhase } from './VoiceStage'
+import KevinHUD, { type HudLogEntry } from './KevinHUD'
+import type { HudMode } from './HudCanvas'
+import { hudCommand } from './hudCommands'
 import type { KevinAction, KevinCard } from './kevinTypes'
-import { KEVIN_OPEN_EVENT, type KevinOpenDetail } from './kevinEvents'
+import { KEVIN_HUD_EVENT, KEVIN_OPEN_EVENT, type KevinOpenDetail } from './kevinEvents'
 import { assistantFor, audienceLabel } from './kevinAssistant'
 import { AUDIENCES, type Audience } from '@shared/kevin-audience'
 import './kevin.css'
@@ -235,6 +238,17 @@ export default function KevinOrb() {
   const [lastReply, setLastReply] = useState('')
   const [cards, setCards] = useState<KevinCard[]>([])
 
+  // Jarvis mode (KevinHUD): only ever opened by the visitor ("Kevin, Jarvis mode", or the menu).
+  const [hudOpen, setHudOpen] = useState(false)
+  const [hudLog, setHudLog] = useState<HudLogEntry[]>([])
+  const [hudAsked, setHudAsked] = useState('')
+  const hudOpenRef = useRef(false)
+  hudOpenRef.current = hudOpen
+  // The last search, so the command centre can offer the full results page without moving the page on its own.
+  const lastQueryRef = useRef<PropertyFilters | null>(null)
+  const hudNote = (kind: HudLogEntry['kind'], text: string) =>
+    setHudLog((prev) => [...prev.slice(-39), { id: nextId(), at: Date.now(), kind, text: text.length > 140 ? `${text.slice(0, 137)}…` : text }])
+
   // Async flows below outlive the render they started in; refs keep them
   // reading the CURRENT language and mute setting, not a stale copy.
   const langRef = useRef(lang)
@@ -432,6 +446,7 @@ export default function KevinOrb() {
   // Go somewhere on the site. The panel steps aside so the page is visible, but
   // whatever Kevin is still saying carries on.
   const goTo = (path: string) => {
+    setHudOpen(false)
     voice.stopListening()
     setVoiceMode(false)
     voiceModeRef.current = false
@@ -449,9 +464,15 @@ export default function KevinOrb() {
   const runAction = (action: KevinAction | null | undefined, said: string) => {
     if (!action || isSmallTalk(said) || isWakeOnly(said)) return
     if (action.type === 'results') {
+      lastQueryRef.current = action.total > 0 && hasFilters(action.query) ? action.query : null
+      hudNote('action', `Searched: ${hasFilters(action.query) ? describeFilters(action.query) : 'all homes'} · ${action.total} found`)
+      // In the command centre the homes appear there; the page behind stays where it is until they ask to open it.
+      if (hudOpenRef.current) return
       if (action.total > 0 && hasFilters(action.query)) goTo(`/properties?${filtersToSearch(action.query)}`)
-    } else if (action.type === 'open') goTo(`/property/${action.propertyId}`)
-    else if (action.type === 'go' && typeof action.path === 'string' && action.path.startsWith('/')) goTo(action.path)
+    } else if (action.type === 'open') {
+      hudNote('action', `Opened home ${action.propertyId}`)
+      goTo(`/property/${action.propertyId}`)
+    } else if (action.type === 'go' && typeof action.path === 'string' && action.path.startsWith('/')) goTo(action.path)
   }
 
   const chooseLanguage = async (picked: KevinLanguage) => {
@@ -505,6 +526,8 @@ export default function KevinOrb() {
     setMessages((prev) => [...prev.filter((m) => m.kind !== 'picker'), { id: userMessageId, kind: 'text', role: 'user', text: message }])
     setBusy(true)
     setOfferWhatsapp(false)
+    setHudAsked(message)
+    hudNote('heard', message)
     if (opts.voice) setPhase('thinking')
     try {
       const current = langRef.current
@@ -547,6 +570,7 @@ export default function KevinOrb() {
       }
 
       const text = typeof data.reply === 'string' && data.reply ? data.reply : stringsFor(current).error
+      hudNote('kevin', text)
       // In voice mode, once he has finished speaking he listens again: that is
       // what makes it a conversation rather than a series of button presses.
       if (opts.voice) setHeard('') // the answer takes the place of the words they said
@@ -616,6 +640,22 @@ export default function KevinOrb() {
       setHeard('')
       return
     }
+    // "Jarvis mode" / "close the command centre": answered here, without a trip to the server.
+    const hud = hudCommand(text, hudOpenRef.current)
+    if (hud) {
+      exchangedRef.current = true
+      lastKevinAtRef.current = Date.now()
+      setHeard('')
+      hudNote('heard', text)
+      if (hud === 'open') {
+        openHud()
+        if (langRef.current) kevinSays('Command centre online. Go ahead.', langRef.current, () => setPhase('idle'))
+      } else {
+        closeHud()
+        kevinSays('Closing.', langRef.current, () => setPhase('idle'))
+      }
+      return
+    }
     // The few words that mean "never mind" end the conversation quietly.
     if (/^(stop|cancel|never ?mind|that'?s (all|it)|enough)[.!\s]*$/i.test(text)) {
       setPhase('idle')
@@ -675,6 +715,38 @@ export default function KevinOrb() {
     setMenuOpen(false)
     setLastReply('')
     setPeek({ heard: '' })
+  }
+
+  // Jarvis mode: the command centre. It needs the microphone open (as "talk to Kevin" does), so opening it is the visitor's
+  // explicit choice; a language comes first, as everywhere else.
+  const openHud = () => {
+    if (!langRef.current) {
+      setOpen(true)
+      return
+    }
+    if (!handsFreeRef.current) startVoiceMode()
+    setOpen(false)
+    setMenuOpen(false)
+    setPeek(null)
+    setHudOpen(true)
+    hudNote('action', 'Command centre online')
+  }
+  const closeHud = () => {
+    setHudOpen(false)
+    voice.stop()
+    setPhase('idle')
+    setHeard('')
+  }
+  // Tapping the core: interrupt him if he is talking, otherwise make sure the microphone is on.
+  const hudTapCore = () => {
+    if (voice.speaking || phase === 'speaking') {
+      voice.stop()
+      setPhase('idle')
+    } else if (!handsFreeOn) startVoiceMode()
+  }
+  const hudOpenResults = () => {
+    const q = lastQueryRef.current
+    if (q && hasFilters(q)) goTo(`/properties?${filtersToSearch(q)}`)
   }
 
   const onStageOrbTap = () => {
@@ -930,6 +1002,17 @@ export default function KevinOrb() {
     return () => window.removeEventListener('realevr:open-kevin', openKevin)
   }, [])
 
+  // Any screen can offer Jarvis mode with openKevinHud() (kevinEvents.ts).
+  const openHudRef = useRef(openHud)
+  openHudRef.current = openHud
+  useEffect(() => {
+    const onHud = () => openHudRef.current()
+    window.addEventListener(KEVIN_HUD_EVENT, onHud)
+    return () => window.removeEventListener(KEVIN_HUD_EVENT, onHud)
+  }, [])
+
+  const hudMode: HudMode = busy ? 'thinking' : voice.speaking || phase === 'speaking' ? 'speaking' : voice.listening || ambient.hearing || phase === 'listening' || waking ? 'listening' : 'idle'
+
   const openMyAgent = () => {
     closePanel()
     window.dispatchEvent(new Event('realevr:open-agent'))
@@ -992,7 +1075,7 @@ export default function KevinOrb() {
       )}
 
       {/* Spoken to while browsing: what he heard and what he said, small, over the page. Tap to open the full chat. */}
-      {peek && !open && (
+      {peek && !open && !hudOpen && (
         <div
           role="status"
           aria-live="polite"
@@ -1136,6 +1219,14 @@ export default function KevinOrb() {
                     setChangingLanguage((v) => !v)
                   }}
                 />
+                {voice.canListen && lang && (
+                  <MenuRow
+                    icon={Radar}
+                    label="Jarvis mode"
+                    state="Command centre"
+                    onClick={openHud}
+                  />
+                )}
                 {voice.canListen && lang && (
                   <MenuRow
                     icon={Mic}
@@ -1403,6 +1494,25 @@ export default function KevinOrb() {
             </>
           )}
         </div>
+      )}
+
+      {hudOpen && (
+        <KevinHUD
+          mode={hudMode}
+          heard={heard}
+          reply={lastReply}
+          asked={hudAsked}
+          cards={cards}
+          log={hudLog}
+          micOn={handsFreeOn && ambient.active}
+          languageName={lang?.name ?? 'English'}
+          busy={busy}
+          onClose={closeHud}
+          onSend={(text) => void send(text, { voice: true })}
+          onOpenCard={openCard}
+          onOpenResults={lastQueryRef.current ? hudOpenResults : null}
+          onTapCore={hudTapCore}
+        />
       )}
     </>
   )

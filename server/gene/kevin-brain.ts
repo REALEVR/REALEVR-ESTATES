@@ -169,6 +169,62 @@ export function knowledgeContext(snap: PlatformSnapshot, currency = 'UGX', place
     return lines.join('\n')
 }
 
+/**
+ * Real numbers for the question being asked, so Kevin answers "how much are two bedrooms in Kololo?" or "what is the cheapest
+ * BnB?" from the listings instead of from a guess. Empty when the question is about neither a known area nor price extremes.
+ */
+export function marketFacts(snap: PlatformSnapshot, message: string, currency = 'UGX'): string {
+    const live = snap.raw.filter((p) => p.isAvailable !== false)
+    if (!live.length) return ''
+    const text = message.toLowerCase()
+    const lines: string[] = []
+    const median = (xs: number[]) => {
+        const a = [...xs].sort((x, y) => x - y)
+        const m = Math.floor(a.length / 2)
+        return a.length % 2 ? a[m] : Math.round((a[m - 1] + a[m]) / 2)
+    }
+    const describe = (rows: any[]) =>
+        CATEGORIES.map((c) => {
+            const inCat = rows.filter((p) => p.category === c && Number(p.price) > 0)
+            if (!inCat.length) return ''
+            const tally = new Map<string, number>()
+            for (const p of inCat) tally.set(String(p.currency || 'UGX'), (tally.get(String(p.currency || 'UGX')) ?? 0) + 1)
+            const cur = tally.has(currency) ? currency : Array.from(tally.entries()).sort((a, b) => b[1] - a[1])[0][0]
+            const prices = inCat.filter((p) => String(p.currency || 'UGX') === cur).map((p) => Number(p.price))
+            const label = inCat.length === 1 ? CATEGORY_LABEL[c].one : CATEGORY_LABEL[c].many
+            return prices.length > 1
+                ? `${inCat.length} ${label}: typically ${spokenMoney(median(prices), cur)}, from ${spokenMoney(Math.min(...prices), cur)} to ${spokenMoney(Math.max(...prices), cur)}`
+                : `${inCat.length} ${label}: ${spokenMoney(prices[0], cur)}`
+        })
+            .filter(Boolean)
+            .join('; ')
+
+    const seen = new Set<string>()
+    for (const area of AREAS) {
+        const name = area.toLowerCase()
+        if (seen.size >= 2 || seen.has(name) || !new RegExp(`(^|[^a-z])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^a-z]|$)`).test(text)) continue
+        seen.add(name)
+        const rows = live.filter((p) => `${p.location ?? ''} ${p.title ?? ''}`.toLowerCase().includes(name))
+        lines.push(rows.length ? `Live numbers for ${area}: ${describe(rows)}.` : `Nothing is listed in ${area} at the moment.`)
+    }
+
+    const wantsLow = /\b(cheap(?:est)?|lowest|affordable|budget|least expensive)\b/.test(text)
+    const wantsHigh = /\b(most expensive|priciest|highest|luxur(?:y|ious)|top end)\b/.test(text)
+    if (wantsLow || wantsHigh) {
+        const extreme = CATEGORIES.map((c) => {
+            const rows = live.filter((p) => p.category === c && Number(p.price) > 0 && String(p.currency || 'UGX') === currency)
+            if (!rows.length) return ''
+            const pick = rows.reduce((a, b) => ((wantsLow ? Number(b.price) < Number(a.price) : Number(b.price) > Number(a.price)) ? b : a))
+            return `${CATEGORY_LABEL[c].one}: ${String(pick.title ?? '').slice(0, 60)} in ${pick.location}, ${spokenMoney(Number(pick.price), currency)}`
+        })
+            .filter(Boolean)
+            .join('; ')
+        if (extreme) lines.push(`${wantsLow ? 'Cheapest' : 'Most expensive'} right now, by type: ${extreme}.`)
+    }
+    if (lines.length) lines.push('These numbers are from the live listings: quote them as they are and never round them into a different claim.')
+    return lines.join('\n')
+}
+
 // ---------------------------------------------------------------------------
 // Saying money and places the way people do
 // ---------------------------------------------------------------------------
