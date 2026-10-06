@@ -1,6 +1,6 @@
 import type { PostResult } from './types'
+import { graphBase } from '../gene/meta-graph'
 
-const GRAPH_VERSION = 'v21.0'
 
 /**
  * Posts an image to an Instagram Business/Creator account via the Meta Graph API.
@@ -21,7 +21,7 @@ export async function postToInstagram(caption: string, imageUrl?: string): Promi
     }
 
     try {
-        const createRes = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${igUserId}/media`, {
+        const createRes = await fetch(`${graphBase()}/${igUserId}/media`, {
             method: 'POST',
             body: new URLSearchParams({ image_url: imageUrl, caption, access_token: accessToken }),
         })
@@ -30,7 +30,7 @@ export async function postToInstagram(caption: string, imageUrl?: string): Promi
             return { platform: 'instagram', status: 'failed', detail: createData?.error?.message || 'Failed to create media container' }
         }
 
-        const publishRes = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${igUserId}/media_publish`, {
+        const publishRes = await fetch(`${graphBase()}/${igUserId}/media_publish`, {
             method: 'POST',
             body: new URLSearchParams({ creation_id: createData.id, access_token: accessToken }),
         })

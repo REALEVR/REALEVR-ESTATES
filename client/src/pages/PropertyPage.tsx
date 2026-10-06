@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useRoute } from "wouter";
 import VirtualTour from "@/components/property/VirtualTour";
 import VRBadge from "@/components/property/VRBadge";
-import { Headset, MapPin, Orbit } from "lucide-react";
+import { Headset, ImageOff, MapPin, Orbit } from "lucide-react";
+import { openKevin } from "@/components/kevin/kevinEvents";
 import GoogleMapFrame from "@/components/maps/GoogleMapFrame";
 import { directionsUrl, hasPin, openUrl } from "@/lib/googleMaps";
 import PropertyDetails from "@/components/property/PropertyDetails";
@@ -109,6 +110,8 @@ export default function PropertyPage() {
   const { data: property, isLoading, error } = useProperty(propertyId);
 
   const propertyPath = `/property/${propertyId}`;
+  // A tour is shown only when this home really has one. A home without a tour shows its own photo and says so, never another building's tour.
+  const hasRealTour = !!(property as Property | undefined)?.tourUrl && (property as Property | undefined)?.hasTour !== false;
 
   const propertySeo = useMemo(() => {
     if (!property) return null;
@@ -189,7 +192,7 @@ export default function PropertyPage() {
       <div className="bg-card rounded-xl overflow-hidden shadow-lg">
         <div className="lg:flex">
           <div className="lg:w-1/2">
-            {(property as Property).hasTour && (
+            {hasRealTour && (
               <div className="flex items-center justify-between gap-2 bg-background px-4 py-2.5 border-b border-border">
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                   <Headset className="h-4 w-4" />
@@ -199,13 +202,35 @@ export default function PropertyPage() {
               </div>
             )}
             <div className="h-[400px] lg:h-[600px] tour-container bg-muted relative vr-glow-ring">
-              <VirtualTour
-                tourUrl={(property as Property).tourUrl || "https://realevr.com/LA%20ROSE%20ROYAL%20APARTMENTS/"}
-                isFullscreen={isFullscreen}
-                onExitFullscreen={() => setIsFullscreen(false)}
-                showVrButton
-                coverImage={(property as Property).imageUrl}
-              />
+              {hasRealTour ? (
+                <VirtualTour
+                  tourUrl={(property as Property).tourUrl as string}
+                  isFullscreen={isFullscreen}
+                  onExitFullscreen={() => setIsFullscreen(false)}
+                  showVrButton
+                  coverImage={(property as Property).imageUrl}
+                />
+              ) : (
+                <div className="relative h-full w-full overflow-hidden bg-muted">
+                  {(property as Property).imageUrl && (
+                    <img src={(property as Property).imageUrl} alt={(property as Property).title} className="h-full w-full object-cover" />
+                  )}
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-5 text-white">
+                    <p className="flex items-center gap-2 text-sm font-semibold">
+                      <ImageOff className="h-4 w-4" aria-hidden="true" />
+                      No 360° tour for this home yet
+                    </p>
+                    <p className="mt-1 text-sm text-white/80">Ask the owner for a viewing, or ask Kevin about this home.</p>
+                    <button
+                      type="button"
+                      onClick={() => openKevin()}
+                      className="mt-3 inline-flex min-h-10 items-center rounded-full bg-white px-4 text-sm font-semibold text-black hover:bg-white/90"
+                    >
+                      Ask Kevin
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {showMap && (
                 <div className="absolute inset-0 z-20 bg-background">
@@ -238,7 +263,7 @@ export default function PropertyPage() {
             {/* The tour's controls sit directly under it, never over the picture. */}
             <div className="flex items-center justify-between gap-2 border-t border-border bg-card px-3 py-2">
               <div className="flex items-center gap-1">
-                {!showMap && (
+                {!showMap && hasRealTour && (
                   <>
                     <button className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted" title="Zoom in" aria-label="Zoom in">
                       <i className="fas fa-plus"></i>

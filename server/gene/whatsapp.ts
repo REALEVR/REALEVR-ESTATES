@@ -19,6 +19,7 @@
 import type { Express, Request, Response, RequestHandler } from 'express'
 import fetch from 'node-fetch'
 import { readCollection, writeCollection, nowIso } from './store'
+import { graphBase } from './meta-graph'
 
 const COLLECTION = 'gene_escalations'
 
@@ -108,7 +109,7 @@ async function sendViaMetaText(to: string, body: string): Promise<{ sent: boolea
     if (!token || !phoneNumberId) return { sent: false, reason: 'not configured' }
 
     try {
-        const response = await fetch(`https://graph.facebook.com/v19.0/${phoneNumberId}/messages`, {
+        const response = await fetch(`${graphBase()}/${phoneNumberId}/messages`, {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -160,7 +161,7 @@ async function sendViaMetaTemplate(to: string, body: string): Promise<{ sent: bo
     const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
     if (!name || !token || !phoneNumberId) return null
     try {
-        const response = await fetch(`https://graph.facebook.com/v19.0/${phoneNumberId}/messages`, {
+        const response = await fetch(`${graphBase()}/${phoneNumberId}/messages`, {
             method: 'POST',
             headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -265,7 +266,7 @@ export async function sendWhatsAppTemplateMessage(
     }
 
     try {
-        const response = await fetch(`https://graph.facebook.com/v19.0/${phoneNumberId}/messages`, {
+        const response = await fetch(`${graphBase()}/${phoneNumberId}/messages`, {
             method: 'POST',
             headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({

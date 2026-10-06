@@ -7,6 +7,10 @@ const createTransporter = () => {
     // For production, use a proper email service
     return nodemailer.createTransport({
         service: 'gmail',
+        // Cloud hosts often block SMTP; fail within seconds instead of holding a sign-up or an alert for minutes.
+        connectionTimeout: 8_000,
+        greetingTimeout: 8_000,
+        socketTimeout: 15_000,
         // or your preferred service
         auth: {
             type: 'OAUTH2',
@@ -32,7 +36,43 @@ export interface EmailOptions {
     attachments?: EmailAttachment[]
 }
 
+/**
+ * Email over HTTPS (Resend), which works on hosts that block SMTP ports (Railway does on some plans). Used first when
+ * RESEND_API_KEY is set; EMAIL_FROM must be an address on a domain verified at Resend (or onboarding@resend.dev to test).
+ */
+async function sendViaResend(options: EmailOptions): Promise<boolean | null> {
+    const key = (process.env.RESEND_API_KEY || '').trim()
+    if (!key) return null
+    try {
+        const res = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                from: process.env.EMAIL_FROM || 'RealEVR Estates <onboarding@resend.dev>',
+                to: [options.to],
+                subject: options.subject,
+                html: options.html,
+                ...(options.text ? { text: options.text } : {}),
+                ...(options.attachments?.length
+                    ? { attachments: options.attachments.map((a) => ({ filename: a.filename, content: Buffer.from(a.content).toString('base64') })) }
+                    : {}),
+            }),
+            signal: AbortSignal.timeout(15_000),
+        })
+        if (!res.ok) {
+            console.error('Resend could not send the email:', res.status, (await res.text().catch(() => '')).slice(0, 200))
+            return false
+        }
+        return true
+    } catch (error) {
+        console.error('Resend email failed:', error)
+        return false
+    }
+}
+
 export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
+    const viaHttps = await sendViaResend(options)
+    if (viaHttps === true) return true
     try {
         const transporter = createTransporter()
 

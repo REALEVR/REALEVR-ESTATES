@@ -18,6 +18,16 @@ import {
     generateTimestamp,
 } from './dynamodb'
 import type { IStorage } from './storage'
+/**
+ * An empty shell, not a home: a record with no title, no price and no description (only an id, a view count and a timestamp).
+ * Visits to ids that are not homes used to create these; they are never shown, counted or put in the sitemap.
+ */
+export function isGhostRecord(item: Record<string, unknown> | null | undefined): boolean {
+    if (!item) return true
+    const blank = (v: unknown) => v === undefined || v === null || v === ''
+    return blank(item.title) && blank(item.price) && blank(item.description)
+}
+
 export class DynamoDBStorage implements IStorage {
     // User methods
     async getUser(id: number): Promise<User | undefined> {
@@ -180,7 +190,7 @@ export class DynamoDBStorage implements IStorage {
     async getAllProperties(): Promise<Property[]> {
         return executeWithRetry(async () => {
             try {
-                const items = await DynamoDBUtils.scanTable(TABLES.PROPERTIES)
+                const items = (await DynamoDBUtils.scanTable(TABLES.PROPERTIES)).filter((item) => !isGhostRecord(item))
                 const convertedItems = await Promise.all(items.map((item) => this.convertPropertyFromDynamoDB(item)))
                 return convertedItems.sort((a, b) => b.id - a.id) // Sort by ID descending (newest first)
             } catch (error) {
@@ -192,7 +202,7 @@ export class DynamoDBStorage implements IStorage {
     async getProperty(id: number): Promise<Property | undefined> {
         return executeWithRetry(async () => {
             const item = await DynamoDBUtils.getItem(TABLES.PROPERTIES, { id: toStringId(id) })
-            return item ? this.convertPropertyFromDynamoDB(item) : undefined
+            return item && !isGhostRecord(item) ? this.convertPropertyFromDynamoDB(item) : undefined
         })
     }
     async getFeaturedProperties(): Promise<Property[]> {
@@ -342,7 +352,8 @@ export class DynamoDBStorage implements IStorage {
                 { id: toStringId(id) },
                 UpdateExpression,
                 expressionAttributeValues,
-                expressionAttributeNames
+                expressionAttributeNames,
+                'attribute_exists(id)'
             )
             return updatedItem ? await this.convertPropertyFromDynamoDB(updatedItem) : undefined
         })
@@ -360,7 +371,9 @@ export class DynamoDBStorage implements IStorage {
                 { id: toStringId(id) },
                 'ADD #viewCount :increment SET #updatedAt = :updatedAt',
                 { ':increment': 1, ':updatedAt': generateTimestamp() },
-                { '#viewCount': 'viewCount', '#updatedAt': 'updatedAt' }
+                { '#viewCount': 'viewCount', '#updatedAt': 'updatedAt' },
+                // A visit to /property/<an id that is not a home> used to create an empty "home" holding only a view count.
+                'attribute_exists(id)'
             )
             return updatedItem ? this.convertPropertyFromDynamoDB(updatedItem) : undefined
         })
@@ -611,14 +624,14 @@ export class DynamoDBStorage implements IStorage {
     }
     async getPopularProperties(limit: number = 4): Promise<Property[]> {
         return executeWithRetry(async () => {
-            const items = await DynamoDBUtils.scanTable(TABLES.PROPERTIES)
+            const items = (await DynamoDBUtils.scanTable(TABLES.PROPERTIES)).filter((item) => !isGhostRecord(item))
             const converted = await Promise.all(items.map((item) => this.convertPropertyFromDynamoDB(item)))
             return converted.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0) || b.id - a.id).slice(0, limit)
         })
     }
     async getRecentlyAddedProperties(limit: number = 4): Promise<Property[]> {
         return executeWithRetry(async () => {
-            const items = await DynamoDBUtils.scanTable(TABLES.PROPERTIES)
+            const items = (await DynamoDBUtils.scanTable(TABLES.PROPERTIES)).filter((item) => !isGhostRecord(item))
             const converted = await Promise.all(items.map((item) => this.convertPropertyFromDynamoDB(item)))
             return converted.sort((a, b) => b.id - a.id).slice(0, limit)
         })
