@@ -28,6 +28,35 @@ export interface AiChatMessage {
 
 export type AiProvider = 'anthropic' | 'openai' | 'gemini'
 
+// A provider that says "bad key", "no credits" or "that model is gone" will say the same thing on the next request, so it is
+// left alone for a while instead of being tried (and waited for) on every message. Other failures are tried again at once.
+const RESTING = new Map<AiProvider, number>()
+const REST_MS: Record<'bad' | 'limit', number> = { bad: 10 * 60_000, limit: 60_000 }
+
+export function isProviderResting(provider: AiProvider, now = Date.now()): boolean {
+    const until = RESTING.get(provider)
+    if (until === undefined) return false
+    if (until <= now) {
+        RESTING.delete(provider)
+        return false
+    }
+    return true
+}
+
+/** Rest a provider after a failure that will repeat. Returns how it was classified (for the log). */
+export function noteProviderFailure(provider: AiProvider, status: number | undefined, body = '', now = Date.now()): 'bad' | 'limit' | null {
+    const text = body.toLowerCase()
+    let kind: 'bad' | 'limit' | null = null
+    if (status === 401 || status === 403 || status === 404) kind = 'bad'
+    else if (status === 429) kind = /insufficient_quota|no credits|credit_balance|billing/.test(text) ? 'bad' : 'limit'
+    if (kind) RESTING.set(provider, now + REST_MS[kind])
+    return kind
+}
+
+export function resetProviderRest(): void {
+    RESTING.clear()
+}
+
 async function callAnthropic(systemPrompt: string, history: AiChatMessage[], message: string, maxTokens = 500): Promise<string | null> {
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) return null
@@ -53,7 +82,9 @@ async function callAnthropic(systemPrompt: string, history: AiChatMessage[], mes
             }),
         })
         if (!response.ok) {
-            console.error('[gene/ai-provider] Anthropic error', response.status, await response.text())
+            const body = await response.text()
+            noteProviderFailure('anthropic', response.status, body)
+            console.error('[gene/ai-provider] Anthropic error', response.status, body)
             return null
         }
         const data: any = await response.json()
@@ -91,7 +122,9 @@ async function callOpenAi(systemPrompt: string, history: AiChatMessage[], messag
             }),
         })
         if (!response.ok) {
-            console.error('[gene/ai-provider] OpenAI error', response.status, await response.text())
+            const body = await response.text()
+            noteProviderFailure('openai', response.status, body)
+            console.error('[gene/ai-provider] OpenAI error', response.status, body)
             return null
         }
         const data: any = await response.json()
@@ -103,26 +136,53 @@ async function callOpenAi(systemPrompt: string, history: AiChatMessage[], messag
     }
 }
 
+// Google retires Gemini models without much warning ("no longer available to new users"). GEMINI_MODEL picks one; otherwise these
+// are tried in order and the first that works is kept until the server restarts.
+const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash']
+let geminiWorking: string | null = null
+
+function geminiCandidates(): string[] {
+    const wanted = (process.env.GEMINI_MODEL || '').trim()
+    return Array.from(new Set([...(geminiWorking ? [geminiWorking] : []), ...(wanted ? [wanted] : []), ...GEMINI_MODELS]))
+}
+
 async function callGemini(systemPrompt: string, history: AiChatMessage[], message: string, maxTokens = 500): Promise<string | null> {
     const ai = getGeminiClient()
     if (!ai) return null
 
-    try {
-        const prompt = [
-            ...history.slice(-8).map((m) => `${m.role === 'user' ? 'Visitor' : 'You'}: ${m.text}`),
-            `Visitor: ${message}`,
-        ].join('\n')
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: { systemInstruction: systemPrompt, maxOutputTokens: Math.max(maxTokens, 256) },
-        })
-        const reply = (response.text || '').trim()
-        return reply.length > 0 ? reply : null
-    } catch (err) {
-        console.error('[gene/ai-provider] Gemini call failed:', err)
-        return null
+    const prompt = [
+        ...history.slice(-8).map((m) => `${m.role === 'user' ? 'Visitor' : 'You'}: ${m.text}`),
+        `Visitor: ${message}`,
+    ].join('\n')
+    for (const model of geminiCandidates()) {
+        try {
+            const response = await ai.models.generateContent({
+                model,
+                contents: prompt,
+                config: { systemInstruction: systemPrompt, maxOutputTokens: Math.max(maxTokens, 256) },
+            })
+            const reply = (response.text || '').trim()
+            if (reply.length > 0) {
+                geminiWorking = model
+                return reply
+            }
+            return null
+        } catch (err) {
+            const status = Number((err as { status?: number })?.status) || undefined
+            // A model that is gone: try the next one. Anything else (bad key, no quota, a hiccup) ends this attempt.
+            if (status === 404) {
+                if (geminiWorking === model) geminiWorking = null
+                console.error(`[gene/ai-provider] Gemini model ${model} is not available; trying the next one`)
+                continue
+            }
+            noteProviderFailure('gemini', status, String((err as Error)?.message ?? ''))
+            console.error('[gene/ai-provider] Gemini call failed:', err)
+            return null
+        }
     }
+    noteProviderFailure('gemini', 404)
+    console.error('[gene/ai-provider] Gemini has none of the models we know; set GEMINI_MODEL to a current one')
+    return null
 }
 
 /**
@@ -139,14 +199,20 @@ export async function getAiReply(
     /** A spoken answer is a sentence or two: asking for fewer tokens makes it arrive sooner. */
     maxTokens = 500
 ): Promise<{ reply: string; provider: AiProvider } | null> {
-    const anthropicReply = await callAnthropic(systemPrompt, history, message, maxTokens)
-    if (anthropicReply) return { reply: anthropicReply, provider: 'anthropic' }
+    if (!isProviderResting('anthropic')) {
+        const anthropicReply = await callAnthropic(systemPrompt, history, message, maxTokens)
+        if (anthropicReply) return { reply: anthropicReply, provider: 'anthropic' }
+    }
 
-    const openAiReply = await callOpenAi(systemPrompt, history, message, maxTokens)
-    if (openAiReply) return { reply: openAiReply, provider: 'openai' }
+    if (!isProviderResting('openai')) {
+        const openAiReply = await callOpenAi(systemPrompt, history, message, maxTokens)
+        if (openAiReply) return { reply: openAiReply, provider: 'openai' }
+    }
 
-    const geminiReply = await callGemini(systemPrompt, history, message, maxTokens)
-    if (geminiReply) return { reply: geminiReply, provider: 'gemini' }
+    if (!isProviderResting('gemini')) {
+        const geminiReply = await callGemini(systemPrompt, history, message, maxTokens)
+        if (geminiReply) return { reply: geminiReply, provider: 'gemini' }
+    }
 
     return null
 }
