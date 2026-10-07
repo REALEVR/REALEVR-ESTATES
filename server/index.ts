@@ -114,6 +114,7 @@ app.use((req, res, next) => {
         const port = process.env.PORT || 5001
         const httpServer = app.listen(Number(port), '0.0.0.0', () => {
             console.log(`Server running at http://0.0.0.0:${port}`)
+            void import('./purge-ghosts').then((m) => m.purgeGhostRecords())
         })
 
         // Virtual tour ZIP exports go up to 5GB (see server/upload.ts's own
