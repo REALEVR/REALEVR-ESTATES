@@ -389,6 +389,7 @@ export class DynamoDBStorage implements IStorage {
         return executeWithRetry(async () => {
             const viewId = generateId()
             const item = {
+                viewId, // the table's sort key; without it every write was rejected and no view was ever recorded
                 id: viewId,
                 propertyId: toStringId(viewData.propertyId),
                 userId: viewData.userId ? toStringId(viewData.userId) : null,

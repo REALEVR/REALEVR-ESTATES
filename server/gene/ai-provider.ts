@@ -137,25 +137,56 @@ async function callOpenAi(systemPrompt: string, history: AiChatMessage[], messag
 }
 
 // Google retires Gemini models without much warning ("no longer available to new users"). GEMINI_MODEL picks one; otherwise these
-// are tried in order and the first that works is kept until the server restarts.
+// are tried in order, then whatever flash models Google lists as current, and the first that works is kept until the server restarts.
 const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash']
 let geminiWorking: string | null = null
+let discovered: { at: number; names: string[] } | null = null
 
 function geminiCandidates(): string[] {
     const wanted = (process.env.GEMINI_MODEL || '').trim()
     return Array.from(new Set([...(geminiWorking ? [geminiWorking] : []), ...(wanted ? [wanted] : []), ...GEMINI_MODELS]))
 }
 
-async function callGemini(systemPrompt: string, history: AiChatMessage[], message: string, maxTokens = 500): Promise<string | null> {
-    const ai = getGeminiClient()
-    if (!ai) return null
+const versionOf = (name: string) => parseFloat(name.match(/gemini-(\d+(?:\.\d+)?)/)?.[1] ?? '0')
 
+/** The plain "flash" models Google lists right now, newest first (asked at most once an hour). */
+export async function discoverGeminiModels(ai: { models: { list: (params?: object) => Promise<AsyncIterable<{ name?: string; supportedActions?: string[] }>> } }): Promise<string[]> {
+    if (discovered && Date.now() - discovered.at < 3_600_000) return discovered.names
+    try {
+        const names: string[] = []
+        for await (const m of await ai.models.list({ config: { pageSize: 100 } })) {
+            const name = String(m.name ?? '').replace(/^models\//, '')
+            const can = !m.supportedActions || m.supportedActions.includes('generateContent')
+            if (/^gemini-\d+(\.\d+)?-flash$/.test(name) && can) names.push(name)
+        }
+        names.sort((x, y) => versionOf(y) - versionOf(x))
+        discovered = { at: Date.now(), names }
+        return names
+    } catch (err) {
+        console.error('[gene/ai-provider] Could not ask Google which Gemini models exist:', err)
+        return []
+    }
+}
+
+export function resetGeminiState(): void {
+    geminiWorking = null
+    discovered = null
+}
+
+type GeminiClient = NonNullable<ReturnType<typeof getGeminiClient>>
+
+export async function callGeminiWith(ai: GeminiClient, systemPrompt: string, history: AiChatMessage[], message: string, maxTokens = 500): Promise<string | null> {
     const prompt = [
         ...history.slice(-8).map((m) => `${m.role === 'user' ? 'Visitor' : 'You'}: ${m.text}`),
         `Visitor: ${message}`,
     ].join('\n')
-    for (const model of geminiCandidates()) {
-        // A busy model (500/503) gets one more try a moment later, then the next model gets a turn.
+    const tried = new Set<string>()
+    let busy = false
+    let gone = false
+
+    const attemptModel = async (model: string): Promise<{ reply?: string; stop?: boolean }> => {
+        tried.add(model)
+        // A busy model (500/503) gets one more try a moment later.
         for (let attempt = 0; attempt < 2; attempt++) {
             try {
                 const response = await ai.models.generateContent({
@@ -166,31 +197,56 @@ async function callGemini(systemPrompt: string, history: AiChatMessage[], messag
                 const reply = (response.text || '').trim()
                 if (reply.length > 0) {
                     geminiWorking = model
-                    return reply
+                    return { reply }
                 }
-                return null
+                return { stop: true }
             } catch (err) {
                 const status = Number((err as { status?: number })?.status) || undefined
                 if (status === 500 || status === 503) {
+                    busy = true
                     console.error(`[gene/ai-provider] Gemini ${model} is busy (${status})${attempt === 0 ? '; trying it once more' : '; moving on'}`)
                     if (attempt === 0) await new Promise((r) => setTimeout(r, 700))
                     continue
                 }
-                // A model that is gone: try the next one. Anything else (bad key, no quota, a hiccup) ends this attempt.
                 if (status === 404) {
+                    gone = true
                     if (geminiWorking === model) geminiWorking = null
                     console.error(`[gene/ai-provider] Gemini model ${model} is not available; trying the next one`)
-                    break
+                    return {}
                 }
+                // Bad key, no quota, anything else: no other model will do better.
                 noteProviderFailure('gemini', status, String((err as Error)?.message ?? ''))
                 console.error('[gene/ai-provider] Gemini call failed:', err)
-                return null
+                return { stop: true }
             }
         }
+        return {}
     }
-    noteProviderFailure('gemini', 404)
-    console.error('[gene/ai-provider] Gemini has none of the models we know; set GEMINI_MODEL to a current one')
+
+    for (const model of geminiCandidates()) {
+        const r = await attemptModel(model)
+        if (r.reply) return r.reply
+        if (r.stop) return null
+    }
+    // None of the models we know worked. If any was simply gone, ask Google what exists now.
+    if (gone) {
+        for (const model of await discoverGeminiModels(ai as never)) {
+            if (tried.has(model)) continue
+            const r = await attemptModel(model)
+            if (r.reply) return r.reply
+            if (r.stop) return null
+        }
+    }
+    // Busy is not broken: leave it alone for a minute, not ten.
+    noteProviderFailure('gemini', busy ? 429 : 404)
+    console.error(busy ? '[gene/ai-provider] Gemini is too busy right now' : '[gene/ai-provider] Gemini has none of the models we know or list; set GEMINI_MODEL to a current one')
     return null
+}
+
+async function callGemini(systemPrompt: string, history: AiChatMessage[], message: string, maxTokens = 500): Promise<string | null> {
+    const ai = getGeminiClient()
+    if (!ai) return null
+    return callGeminiWith(ai, systemPrompt, history, message, maxTokens)
 }
 
 /**
