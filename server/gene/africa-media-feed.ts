@@ -33,6 +33,20 @@ const NEWS_CACHE_TTL_MS = 60 * 60 * 1000 // 1 hour — same TTL as personal-agen
 const AFRICA_REAL_ESTATE_QUERY =
     '(real estate OR property market OR housing) AND (Africa OR Uganda OR Kenya OR Tanzania OR Rwanda OR Nigeria OR Ghana OR "South Africa")'
 
+/**
+ * NewsAPI's loose keyword match let unrelated stories into the hero (a war headline in a "Real Estate Pulse" slot). A story is only
+ * shown when its TITLE is about property or housing AND it is about Africa, and never when it is about conflict or crime.
+ */
+const PROPERTY_WORDS = /\b(real estate|realty|propert(?:y|ies)|housing|homes?|houses?|apartments?|rent(?:al|s|ing)?|landlords?|tenants?|mortgages?|land|estate|developers?|construction|affordable homes?|buildings?|condos?|villas?)\b/i
+const AFRICA_WORDS = /\b(africa|african|uganda|kampala|kenya|nairobi|tanzania|dar es salaam|rwanda|kigali|nigeria|lagos|abuja|ghana|accra|south africa|johannesburg|cape town|ethiopia|zambia|zimbabwe|egypt|morocco|senegal|cameroon|ivory coast|botswana|namibia|mozambique)\b/i
+const OFF_TOPIC_WORDS = /\b(hostages?|hamas|gaza|israel\w*|ukrain\w*|russia\w*|war|wars|terror\w*|murder\w*|kill\w*|shoot\w*|massacre\w*|rape\w*|assault\w*|abus\w*|election\w*|coup|protest\w*|riot\w*|celebrit\w*|football|soccer|betting|casino|scam\w*)\b/i
+
+export function isAfricaPropertyNews(item: { title?: string; description?: string }): boolean {
+    const title = item.title ?? ''
+    const body = `${title} ${item.description ?? ''}`
+    return PROPERTY_WORDS.test(title) && AFRICA_WORDS.test(body) && !OFF_TOPIC_WORDS.test(body)
+}
+
 export interface AfricaNewsItem {
     title: string
     url: string
@@ -64,19 +78,20 @@ export async function fetchAfricaRealEstateNews(): Promise<{
     const rows = readCollection<NewsCacheRow>(NEWS_CACHE_COLLECTION)
     const cached = rows.find((r) => r.query === AFRICA_REAL_ESTATE_QUERY)
     if (cached && Date.now() - new Date(cached.fetchedAt).getTime() < NEWS_CACHE_TTL_MS) {
-        return { configured: true, items: cached.items, fetchedAt: cached.fetchedAt }
+        return { configured: true, items: cached.items.filter(isAfricaPropertyNews), fetchedAt: cached.fetchedAt }
     }
 
     try {
         const url = new URL('https://newsapi.org/v2/everything')
         url.searchParams.set('q', AFRICA_REAL_ESTATE_QUERY)
         url.searchParams.set('language', 'en')
+        url.searchParams.set('searchIn', 'title,description')
         url.searchParams.set('sortBy', 'publishedAt')
-        url.searchParams.set('pageSize', '12')
+        url.searchParams.set('pageSize', '40') // most are filtered out below, so ask for more
         const response = await fetch(url.toString(), { headers: { 'X-Api-Key': apiKey } })
         if (!response.ok) {
             console.error('[gene/africa-media-feed] News API error', response.status, await response.text())
-            return { configured: true, items: cached?.items ?? [], fetchedAt: cached?.fetchedAt ?? null }
+            return { configured: true, items: (cached?.items ?? []).filter(isAfricaPropertyNews), fetchedAt: cached?.fetchedAt ?? null }
         }
         const data: any = await response.json()
         const items: AfricaNewsItem[] = Array.isArray(data?.articles)
@@ -90,6 +105,8 @@ export async function fetchAfricaRealEstateNews(): Promise<{
                       description: typeof a.description === 'string' ? a.description : undefined,
                       imageUrl: typeof a.urlToImage === 'string' && a.urlToImage ? a.urlToImage : undefined,
                   }))
+                  .filter(isAfricaPropertyNews)
+                  .slice(0, 12)
             : []
 
         const fetchedAt = nowIso()
@@ -100,7 +117,7 @@ export async function fetchAfricaRealEstateNews(): Promise<{
         return { configured: true, items, fetchedAt }
     } catch (err) {
         console.error('[gene/africa-media-feed] News fetch failed, serving stale cache if any:', err)
-        return { configured: true, items: cached?.items ?? [], fetchedAt: cached?.fetchedAt ?? null }
+        return { configured: true, items: (cached?.items ?? []).filter(isAfricaPropertyNews), fetchedAt: cached?.fetchedAt ?? null }
     }
 }
 

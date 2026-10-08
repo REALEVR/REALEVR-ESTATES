@@ -522,3 +522,11 @@ body {
   .walker, .walker-body, .walker-leg, .walker-arm { animation: none; }
   .walker { transform: none; opacity: 1; }
 }
+
+
+/* Sections far below the first screen are not laid out or painted until they near the viewport. This trims first-load work on
+   phones (the home page has well over two thousand elements). The reserved height stops the scrollbar jumping as they appear. */
+.defer-render {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 640px;
+}

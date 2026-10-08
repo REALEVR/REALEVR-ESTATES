@@ -56,8 +56,10 @@ export default function OwnerContactDetails({ property, bookingConfirmed, owner 
       "Contact via platform messaging",
     email: owner?.email || "Available after booking",
     address: property.location,
-    responseTime: "Usually responds within 1 hour",
-    verificationStatus: owner ? "Identity verified" : "Verification pending",
+    // Only what we actually know: an account whose email has been confirmed. We do not check ID documents, and we do not measure
+    // response times, so neither is claimed.
+    responseTime: "",
+    verificationStatus: owner?.isVerified ? "Email verified" : "Not yet verified",
   };
 
   return (
@@ -70,8 +72,7 @@ export default function OwnerContactDetails({ property, bookingConfirmed, owner 
             </div>
             <div>
               <h4 className="text-lg font-semibold">{ownerDetails.name}</h4>
-              <p className="text-gray-500 text-sm">{ownerDetails.responseTime}</p>
-              <div className="flex items-center text-green-600 text-sm mt-1">
+              <div className={`flex items-center text-sm mt-1 ${owner?.isVerified ? "text-green-600" : "text-gray-500"}`}>
                 <Shield className="h-3 w-3 mr-1" />
                 <span>{ownerDetails.verificationStatus}</span>
               </div>

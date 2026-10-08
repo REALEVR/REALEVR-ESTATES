@@ -232,12 +232,17 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                 <div>
                     <h1 className="text-2xl font-display font-medium text-foreground">{property.title}</h1>
                     <p className="text-muted-foreground mb-2">{property.location}</p>
-                    <div className="flex items-center mb-4">
-                        <i className="fas fa-star text-accent"></i>
-                        <span className="ml-1 font-medium">{property.rating}</span>
-                        <span className="mx-1">·</span>
-                        <span className="text-muted-foreground underline">{property.reviewCount} reviews</span>
-                    </div>
+                    {/* No reviews yet is not worth announcing as "0 reviews": show the stars only once there is something to show. */}
+                    {Number(property.reviewCount) > 0 ? (
+                        <div className="flex items-center mb-4">
+                            <i className="fas fa-star text-accent"></i>
+                            <span className="ml-1 font-medium">{property.rating}</span>
+                            <span className="mx-1">·</span>
+                            <span className="text-muted-foreground underline">{property.reviewCount} reviews</span>
+                        </div>
+                    ) : (
+                        <div className="mb-4 inline-flex items-center rounded-full bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent">New on RealEVR</div>
+                    )}
                 </div>
                 <div className="flex gap-1">
                     <Button
@@ -333,10 +338,20 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                         <span>{property.propertyType}</span>
                                     </li>
                                     {isBnB && (
+                                        <>
                                         <li className="flex items-center text-accent font-medium">
                                             <i className="fas fa-calendar-check w-6"></i>
                                             <span>20% deposit to book (non-refundable) — unlocks the tour and host contact</span>
                                         </li>
+                                        <li className="ml-6 text-xs leading-relaxed text-muted-foreground">
+                                            The deposit holds your dates with the host and counts toward your stay. It is not returned if you cancel, because the host turns
+                                            other guests away while your dates are held. See the{' '}
+                                            <a href="/refund-policy" className="text-accent hover:underline">
+                                                refund policy
+                                            </a>
+                                            .
+                                        </li>
+                                        </>
                                     )}
                                 </ul>
                             </div>
