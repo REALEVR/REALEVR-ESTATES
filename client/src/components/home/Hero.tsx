@@ -11,6 +11,7 @@ import CountUp from '@/components/motion/CountUp';
 import VRBadge from '@/components/property/VRBadge';
 import ExploreFiltersDialog from './ExploreFiltersDialog';
 import HeroNewsSlide from './HeroNewsSlide';
+import HeroTourOrbit from './HeroTourOrbit';
 import { useProperties } from '@/hooks/usePropertyData';
 
 // Custom hook for mobile detection
@@ -314,6 +315,10 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
         {/* Paper veil from the left, and a fade into the page at the bottom. Both use the page colour, so it is one scene. */}
         <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(var(--background)/0.92)_0%,hsl(var(--background)/0.72)_24%,hsl(var(--background)/0.18)_46%,hsl(var(--background)/0)_62%)]" />
         <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background via-background/60 to-transparent" />
+        {/* The motion graphic: a view-cone sweeping a ring of African cities, like a 360 tour turning. Sits behind the copy and cards. */}
+        <div className="parallax-layer pointer-events-none absolute right-[3%] top-[3%] z-[1] hidden w-[min(40vw,470px)] lg:block" style={{ ['--depth' as string]: '12px' }}>
+          <HeroTourOrbit className="aspect-square w-full" />
+        </div>
 
         <div className="relative z-10 mx-auto flex min-h-[640px] max-w-[1500px] flex-col justify-between gap-10 px-8 pb-10 pt-14 lg:min-h-[700px]">
           <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,1fr)]">
@@ -489,6 +494,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
         <img src={mansionBg} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-[60%_30%]" />
         <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/15 to-background/90" />
         <WalkingFigure />
+        <HeroTourOrbit labels={false} className="absolute -right-6 top-2 h-[132px] w-[132px] opacity-90" />
         <h1 className="relative font-display text-[1.65rem] font-semibold leading-tight tracking-tight text-foreground [text-shadow:0_0_14px_rgba(255,255,255,0.95),0_0_4px_rgba(255,255,255,0.9)]">
           Walk in before you arrive
         </h1>

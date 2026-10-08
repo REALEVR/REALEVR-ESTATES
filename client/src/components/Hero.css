@@ -33,3 +33,72 @@
 .hero-find-text{
 
 }
+/* ------------------------------------------------------------------
+   Tour orbit (HeroTourOrbit.tsx): the front page's motion graphic.
+   Only transform and opacity move. It pauses when scrolled out of view
+   and is a single still frame under "reduce motion".
+   ------------------------------------------------------------------ */
+.tour-orbit {
+  pointer-events: none;
+  animation: orbit-arrive 1.1s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+.tour-orbit svg { filter: drop-shadow(0 6px 22px hsl(var(--accent-light) / 0.35)); }
+.tour-orbit.is-paused * { animation-play-state: paused !important; }
+
+.orbit-spin { animation: orbit-turn 120s linear infinite; }
+.orbit-spin-reverse { animation-direction: reverse; animation-duration: 160s; }
+.orbit-spin-slow { animation-duration: 90s; }
+.orbit-sweep { animation: orbit-turn linear infinite; }
+
+.orbit-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: orbit-draw 1.8s cubic-bezier(0.65, 0, 0.35, 1) 0.2s forwards;
+  transform-origin: 200px 200px;
+  transform: rotate(-90deg);
+}
+.orbit-draw-late { animation-delay: 0.7s; }
+
+.orbit-pin { animation: orbit-pin-lit ease-out infinite; }
+.orbit-ping { opacity: 0; animation: orbit-ping ease-out infinite; }
+.orbit-home { animation: orbit-breathe 5s ease-in-out infinite; }
+
+.orbit-label {
+  font: 600 11.5px/1 var(--font-sans, system-ui, sans-serif);
+  fill: hsl(var(--foreground));
+  paint-order: stroke;
+  stroke: rgb(255 255 255 / 0.92);
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
+  opacity: 0;
+  animation: orbit-fade 0.8s ease-out forwards;
+}
+.orbit-360 {
+  font: 700 9px/1 var(--font-sans, system-ui, sans-serif);
+  letter-spacing: 0.08em;
+  fill: hsl(var(--accent));
+}
+
+@keyframes orbit-arrive { from { opacity: 0; scale: 0.92; } to { opacity: 1; scale: 1; } }
+@keyframes orbit-turn { to { transform: rotate(360deg); } }
+@keyframes orbit-draw { to { stroke-dashoffset: 0; } }
+@keyframes orbit-fade { to { opacity: 1; } }
+@keyframes orbit-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); } }
+/* The cone reaches a pin at (angle / 360) of the sweep, so the pin's delay is set to that and its pulse starts as the cone arrives. */
+@keyframes orbit-pin-lit {
+  0% { transform: scale(1); }
+  3% { transform: scale(1.7); }
+  14% { transform: scale(1); }
+  100% { transform: scale(1); }
+}
+@keyframes orbit-ping {
+  0% { opacity: 0.9; transform: scale(1); }
+  16% { opacity: 0; transform: scale(4.2); }
+  100% { opacity: 0; transform: scale(4.2); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-orbit, .orbit-spin, .orbit-sweep, .orbit-pin, .orbit-ping, .orbit-home, .orbit-label { animation: none; }
+  .orbit-draw { animation: none; stroke-dashoffset: 0; }
+  .orbit-label { opacity: 1; }
+}
