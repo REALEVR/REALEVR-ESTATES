@@ -141,6 +141,18 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
     return url;
   };
 
+  // A video that never reports "loaded" (blocked embed, slow data, ad-blocker) used to leave "Loading video..." spinning forever,
+  // because an iframe gives no error event. After a few seconds, give up and show the photo instead.
+  useEffect(() => {
+    if (!isVideoLoading || showYoutubeFacade) return;
+    const timer = setTimeout(() => {
+      setIsVideoLoading(false);
+      setVideoError(true);
+      setShowImage(true);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [isVideoLoading, showYoutubeFacade]);
+
   useEffect(() => {
     console.log('Hero component - videoUrl:', videoUrl);
     if (videoUrl) {

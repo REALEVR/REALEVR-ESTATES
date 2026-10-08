@@ -5,6 +5,7 @@ const SharePropertyModal = lazy(() => import('../property/SharePropertyModal'))
 const BookingCalendarModal = lazy(() => import('../property/BookingCalendarModal'))
 import { FadeIn } from '@/components/ui/animated-components'
 import Tilt from '@/components/motion/Tilt'
+import SafeImage from '@/components/ui/safe-image'
 import { Star, Rocket, Heart, Share2, Play, Orbit } from 'lucide-react'
 import { useActiveBoostedPropertyIds } from '@/hooks/useActiveBoosts'
 import BuyWithBitcoinButton from '@/components/crypto/BuyWithBitcoinButton'
@@ -63,7 +64,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                     <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-muted shadow-[0_1px_2px_hsl(235_28%_12%/0.08)]">
                         <FadeIn className="h-full w-full">
                             {/* Lazy: a grid of these used to fetch every photo at once, a real cost on mobile data. */}
-                            <img
+                            <SafeImage
                                 src={property.imageUrl}
                                 alt={property.title}
                                 loading="lazy"

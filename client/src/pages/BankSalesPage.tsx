@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import SafeImage from '@/components/ui/safe-image'
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { format, isPast, parseISO } from "date-fns";
@@ -188,7 +189,7 @@ function AuctionPropertyCard({ property, auction }: AuctionPropertyCardProps) {
   return (
     <Card className="overflow-hidden transition-all hover:shadow-lg">
       <div className="relative h-48 overflow-hidden">
-        <img
+        <SafeImage
           src={property.imageUrl}
           alt={property.title}
           className="w-full h-full object-cover transition-transform hover:scale-105"

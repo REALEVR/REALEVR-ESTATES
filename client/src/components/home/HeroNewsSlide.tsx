@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'wouter'
 import { useProperties } from '@/hooks/usePropertyData'
+import SafeImage from '@/components/ui/safe-image'
 
 /**
  * "Real Estate Pulse — Africa" news/listings feed, rendered as the second
@@ -156,7 +157,7 @@ export default function HeroNewsSlide({ active }: { active: boolean }) {
                 </a>
             ) : (
                 <Link href={`/property/${card.propertyId}`} className="block relative w-full h-full group">
-                    <img src={card.imageUrl} alt={card.title} loading="lazy" className="w-full h-full object-cover" />
+                    <SafeImage src={card.imageUrl} alt={card.title} loading="lazy" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
                     <div className="absolute top-4 right-4">
                         <span className="text-[10px] font-semibold uppercase tracking-wide bg-emerald-600 text-white rounded px-2 py-0.5">

@@ -274,11 +274,11 @@ export default function Home() {
             </section></Reveal>
 
             {/* The long-form featured tour sits after the feed: on a phone the homes come first. */}
-            <Reveal><FeaturedTour /></Reveal>
-            <Reveal><AmenitiesHighlight /></Reveal>
-            <Reveal><HowItWorks /></Reveal>
+            <Reveal className="defer-render"><FeaturedTour /></Reveal>
+            <Reveal className="defer-render"><AmenitiesHighlight /></Reveal>
+            <Reveal className="defer-render"><HowItWorks /></Reveal>
             <Reveal><FaqSection page="home" className="px-4 sm:px-6" /></Reveal>
-            <Reveal><DownloadApp /></Reveal>
+            <Reveal className="defer-render"><DownloadApp /></Reveal>
         </>
     )
 }
