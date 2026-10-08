@@ -38,6 +38,7 @@ import {
 import { registerIndexNowKeyRoute, startIndexNowSubmitter } from './indexnow'
 import { registerCrawlerRoutes } from './crawler-pages'
 import { registerAiDiscoveryRoutes } from './ai-discovery'
+import { registerAndroidAppRoutes } from './android-app'
 import notificationRoutes from './routes/notifications'
 import reviewRoutes from './routes/reviews'
 import aiRoutes from './routes/ai'
@@ -321,6 +322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Open listings API and MCP server, so AI assistants can search the platform and send people to it (docs/AI_DISCOVERY.md).
     registerAiDiscoveryRoutes(app, storage)
+    registerAndroidAppRoutes(app)
 
     // Apply no-cache middleware to all API routes
     app.use('/api', noCacheMiddleware)

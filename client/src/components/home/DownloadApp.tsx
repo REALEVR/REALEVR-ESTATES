@@ -20,7 +20,7 @@ export default function DownloadApp() {
       <div className="container mx-auto px-4">
         <div className="md:flex items-center">
           <div className="md:w-1/2 mb-8 md:mb-0">
-            <h2 className="section-title mb-4 text-foreground">Coming soon on mobile</h2>
+            <h2 className="section-title mb-4 text-foreground">Get the app</h2>
             <p className="mb-6 text-muted-foreground">
               Download our mobile app to explore virtual tours on the go. Access our full catalog of properties,
               save favorites, and get notifications about new listings.
@@ -37,20 +37,21 @@ export default function DownloadApp() {
                   <div className="font-medium">App Store</div>
                 </div>
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => openWaitlist("android")}
-                className="bg-transparent border border-border rounded-xl py-7 px-5 flex items-center hover:bg-muted hover:border-accent text-foreground h-auto"
+              <a
+                href="/downloads/RealEVR-Estates.apk"
+                download
+                className="bg-transparent border border-accent rounded-xl py-3.5 px-5 flex items-center hover:bg-muted text-foreground"
+                data-testid="download-android-apk"
               >
-                <i className="fab fa-google-play text-2xl mr-3"></i>
+                <i className="fab fa-android text-2xl mr-3" aria-hidden="true"></i>
                 <div>
-                  <div className="text-xs text-left">Get it on</div>
-                  <div className="font-medium">Google Play</div>
+                  <div className="text-xs text-left">Download for</div>
+                  <div className="font-medium">Android (APK)</div>
                 </div>
-              </Button>
+              </a>
             </div>
             <p className="mt-4 text-sm text-muted-foreground">
-              Coming soon! Join our waitlist to be notified when our app is released.
+              The Android app is ready to install: download it, open the file, and allow installs from your browser if your phone asks. iPhone and Google Play versions are coming; tap to join the waitlist.
             </p>
           </div>
           <div className="md:w-1/2 md:pl-12">

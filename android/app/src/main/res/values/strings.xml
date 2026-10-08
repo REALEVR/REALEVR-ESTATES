@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">RealEVR Estates</string>
+    <string name="shortcut_search">Search homes</string>
+    <string name="shortcut_new">New listings</string>
+    <string name="asset_statements">
+        [{\"relation\": [\"delegate_permission/common.handle_all_urls\"],
+        \"target\": {\"namespace\": \"web\", \"site\": \"https://estates.realevr.com\"}}]
+    </string>
+</resources>

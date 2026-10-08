@@ -1,0 +1,53 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Release signing comes from android/keystore.properties (never committed) or the environment, so the key stays out of git:
+//   storeFile=/path/to/upload.jks  storePassword=...  keyAlias=...  keyPassword=...
+def keystoreProps = new Properties()
+def keystoreFile = rootProject.file('keystore.properties')
+if (keystoreFile.exists()) keystoreFile.withInputStream { keystoreProps.load(it) }
+def signingValue = { String key, String env -> keystoreProps.getProperty(key) ?: System.getenv(env) }
+
+android {
+    namespace 'com.realevr.estates'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.realevr.estates'
+        minSdk 23
+        targetSdk 35
+        versionCode 1
+        versionName '1.0.0'
+    }
+
+    signingConfigs {
+        release {
+            def path = signingValue('storeFile', 'RELEASE_STORE_FILE')
+            if (path) {
+                storeFile file(path)
+                storePassword signingValue('storePassword', 'RELEASE_STORE_PASSWORD')
+                keyAlias signingValue('keyAlias', 'RELEASE_KEY_ALIAS')
+                keyPassword signingValue('keyPassword', 'RELEASE_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (signingValue('storeFile', 'RELEASE_STORE_FILE')) signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // Opens the site full screen inside Chrome (a Trusted Web Activity), so Google sign-in, microphone, location and
+    // uploads behave exactly as they do in the browser, and falls back to a Custom Tab if Chrome is missing.
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}
