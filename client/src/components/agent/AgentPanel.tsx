@@ -84,7 +84,7 @@ export default function AgentPanel({ onClose, nearbyAlerts }: AgentPanelProps) {
           >
             <MapPin className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => setEditingProfile(true)} title="Edit preferences">
+          <Button variant="ghost" size="icon" onClick={() => setEditingProfile(true)} title="Edit preferences" aria-label="Edit preferences">
             <Settings2 className="h-4 w-4" />
           </Button>
         </div>

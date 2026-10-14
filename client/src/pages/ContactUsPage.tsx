@@ -68,17 +68,17 @@ export default function ContactUsPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex space-x-4">
-                  <Button variant="outline" size="icon" className="w-12 h-12">
-                    <i className="fab fa-facebook-f"></i>
+                  <Button variant="outline" size="icon" className="w-12 h-12" aria-label="Facebook">
+                    <i className="fab fa-facebook-f" aria-hidden="true"></i>
                   </Button>
-                  <Button variant="outline" size="icon" className="w-12 h-12">
-                    <i className="fab fa-twitter"></i>
+                  <Button variant="outline" size="icon" className="w-12 h-12" aria-label="Twitter">
+                    <i className="fab fa-twitter" aria-hidden="true"></i>
                   </Button>
-                  <Button variant="outline" size="icon" className="w-12 h-12">
-                    <i className="fab fa-instagram"></i>
+                  <Button variant="outline" size="icon" className="w-12 h-12" aria-label="Instagram">
+                    <i className="fab fa-instagram" aria-hidden="true"></i>
                   </Button>
-                  <Button variant="outline" size="icon" className="w-12 h-12">
-                    <i className="fab fa-linkedin-in"></i>
+                  <Button variant="outline" size="icon" className="w-12 h-12" aria-label="LinkedIn">
+                    <i className="fab fa-linkedin-in" aria-hidden="true"></i>
                   </Button>
                 </div>
               </CardContent>
