@@ -482,7 +482,7 @@ export default function AgentOnboarding({ existingProfile, onSaved }: AgentOnboa
                 className="min-h-[42px] flex-1 resize-none"
                 rows={1}
               />
-              <Button size="icon" onClick={handleTextSubmit} disabled={!draft.trim()}>
+              <Button size="icon" onClick={handleTextSubmit} disabled={!draft.trim()} aria-label="Send answer">
                 <Send className="h-4 w-4" />
               </Button>
             </div>

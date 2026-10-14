@@ -154,7 +154,7 @@ export default function MessagesInbox({
                                     }
                                 }}
                             />
-                            <Button type="submit" size="icon" disabled={!draft.trim() || sendMessage.isPending}>
+                            <Button type="submit" size="icon" disabled={!draft.trim() || sendMessage.isPending} aria-label="Send message">
                                 {sendMessage.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                             </Button>
                         </form>
