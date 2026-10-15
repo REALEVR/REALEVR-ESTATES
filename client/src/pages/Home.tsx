@@ -14,6 +14,7 @@ import RecentProperties from '@/components/home/RecentProperties'
 import PropertyCard from '@/components/home/PropertyCard'
 import AmenitiesHighlight from '@/components/home/AmenitiesHighlight'
 import HowItWorks from '@/components/home/HowItWorks'
+import PricingStrip from '@/components/home/PricingStrip'
 import DownloadApp from '@/components/home/DownloadApp'
 import { useProperties } from '@/hooks/usePropertyData'
 import type { Property } from '@shared/schema'
@@ -236,6 +237,8 @@ export default function Home() {
                     )}
                 </div>
             </section></Reveal>
+
+            <Reveal><PricingStrip /></Reveal>
 
             {/* Agent Registration Call-to-Action — moved here from right after
                 the hero, see the comment near <Hero> above. */}
