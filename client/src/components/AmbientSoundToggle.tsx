@@ -10,9 +10,8 @@ import { AMBIENT_SOUND_AVAILABLE, attemptWelcomeAmbient, consumeJustSignedInFlag
  * for the actual audio engine and why sign-in success is wired in from
  * several places rather than here). Mounted once, site-wide, in App.tsx.
  *
- * Bottom-left is deliberately empty real estate on this site — the AI
- * assistant launcher, WhatsApp FAB, RentRail agent launcher, and
- * scroll-to-top button all live in the bottom-right corner already.
+ * Bottom-left holds this toggle (signed-in) or the WhatsApp bubble
+ * (signed-out) — never both; Kevin and scroll-to-top own the bottom-right.
  */
 export default function AmbientSoundToggle() {
     const { user } = useAuth()
