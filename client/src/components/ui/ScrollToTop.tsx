@@ -30,10 +30,9 @@ const ScrollToTop = () => {
         <button
           onClick={scrollToTop}
           // Hidden on phones (it used to sit on top of MobileTabBar.tsx's fixed
-          // bar). On desktop it stacks directly above Kevin's orb in the
-          // bottom-right column, centred on the same line (WhatsApp now has
-          // the bottom-left corner to itself).
-          className="max-md:hidden fixed bottom-[var(--fab-row-2)] left-5 right-auto z-50 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full p-3 shadow-lg transition-all duration-500 ease-out hover:scale-110 hover:shadow-xl animate-in slide-in-from-bottom-4 zoom-in-95 md:bottom-[7rem] md:left-auto md:right-[1.625rem]"
+          // bar). On desktop it sits bottom-centre, so neither corner (WhatsApp
+          // left, Kevin right) ever has two bubbles stacked in it.
+          className="max-md:hidden fixed bottom-[var(--fab-row-2)] left-5 right-auto z-50 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full p-3 shadow-lg transition-all duration-500 ease-out hover:scale-110 hover:shadow-xl animate-in slide-in-from-bottom-4 zoom-in-95 md:bottom-5 md:left-0 md:right-0 md:mx-auto md:w-fit"
           aria-label="Scroll to top"
           style={{
             animation: 'bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)'
