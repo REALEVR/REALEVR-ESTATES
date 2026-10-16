@@ -14,6 +14,23 @@ import { getSiteUrl } from '@/lib/siteUrl'
 import { buildBreadcrumbJsonLd, CATEGORY_PAGE_META } from '@shared/seo'
 import FaqSection from "@/components/seo/FaqSection";
 
+/** How many cards sit in one row of the listings grid (mirrors the grid-cols breakpoints below). */
+function useGridColumns() {
+    const [columns, setColumns] = useState(1)
+    useEffect(() => {
+        const read = () => {
+            const w = window.innerWidth
+            setColumns(w >= 1280 ? 4 : w >= 1024 ? 3 : w >= 640 ? 2 : 1)
+        }
+        read()
+        window.addEventListener('resize', read)
+        return () => window.removeEventListener('resize', read)
+    }, [])
+    return columns
+}
+
+const LISTINGS_GRID = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+
 export default function RentalUnitsPage() {
     const { hasActiveViewingPackage, openViewingPaymentPrompt } = usePayment()
     const [location] = useLocation()
@@ -24,6 +41,7 @@ export default function RentalUnitsPage() {
     const [bedroomsFilter, setBedroomsFilter] = useState<string>('all')
     const [bathroomsFilter, setBathroomsFilter] = useState<string>('all')
     const [sortBy, setSortBy] = useState<string>('default')
+    const columns = useGridColumns()
 
     // Get all properties
     const {
@@ -160,10 +178,6 @@ export default function RentalUnitsPage() {
         }
     }
 
-    const carryOutPaymentModel = ()=>{
-
-    }
-
     return (
         <div className="py-8">
             <PageSeo
@@ -179,50 +193,6 @@ export default function RentalUnitsPage() {
                         Browse our collection of unfurnished apartments and houses available for monthly rental in
                         Kampala and surrounding areas.
                     </p>
-
-                    {!hasActiveViewingPackage && (
-                        /* Design-review fix (round 1): was bg-amber-50/text-amber-800/
-                           bg-amber-600 — a hardcoded warning-yellow palette that
-                           clashes with the site's charcoal/alabaster/silver system
-                           and visually reads as an ad/dark-pattern banner rather
-                           than an on-brand notice. Restyled onto the same semantic
-                           tokens every other card on the site uses. Price corrected
-                           from "15,000 UGX" to "10,000 UGX" to match what this
-                           button's actual payment flow (PropertyViewingPaymentPrompt)
-                           charges — the two had drifted apart. */
-                        <div className="bg-muted border border-border rounded-lg p-4 mb-6">
-                            <div className="flex items-start">
-                                <div className="flex-shrink-0 mr-3">
-                                    <svg
-                                        className="h-6 w-6 text-foreground"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                        />
-                                    </svg>
-                                </div>
-                                <div className="flex-1">
-                                    <h2 className="text-foreground font-medium">Viewing Package Required</h2>
-                                    <p className="text-muted-foreground text-sm mt-1">
-                                        A one-time fee of 10,000 UGX is required to view contact details for up to 10
-                                        rental properties. This provides access for 1 day only.
-                                    </p>
-                                    <Button
-                                        className="mt-3 shine"
-                                        onClick={carryOutPaymentModel}
-                                    >
-                                        Purchase Viewing
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
 
                     <div className="grid md:grid-cols-3 gap-4 mb-6">
                         <div>
@@ -345,24 +315,44 @@ export default function RentalUnitsPage() {
                             {sortedProperties.length === 1 ? 'property' : 'properties'}
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {sortedProperties.map((property) => (
-                                <div
-                                    key={property.id}
-                                    className="cursor-pointer"
-                                    onClick={(e) => {
-                                        if (!hasActiveViewingPackage) {
-                                            e.preventDefault()
-                                            
-                                        } else {
-                                            navigate(`/property/${property.id}`)
-                                        }
-                                    }}
-                                >
-                                    <PropertyCard property={property} />
-                                </div>
-                            ))}
-                        </div>
+                        {[sortedProperties.slice(0, columns), sortedProperties.slice(columns)].map((row, part) => (
+                            <div key={part}>
+                                {/* The viewing-package notice comes after the first row, so people see homes before the ask. */}
+                                {part === 1 && !hasActiveViewingPackage && (
+                                    <div className="bg-muted border border-border rounded-lg p-4 my-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div>
+                                            <h2 className="text-foreground font-medium">Like what you see? Unlock contact details</h2>
+                                            <p className="text-muted-foreground text-sm mt-1">
+                                                A one-time fee of 10,000 UGX shows contact details for up to 10 rental properties, for 1 day.
+                                            </p>
+                                        </div>
+                                        <Button className="shine shrink-0" onClick={openViewingPaymentPrompt}>
+                                            Purchase Viewing
+                                        </Button>
+                                    </div>
+                                )}
+                                {row.length > 0 && (
+                                    <div className={LISTINGS_GRID}>
+                                        {row.map((property) => (
+                                            <div
+                                                key={property.id}
+                                                className="cursor-pointer"
+                                                onClick={(e) => {
+                                                    if (!hasActiveViewingPackage) {
+                                                        e.preventDefault()
+                                                        openViewingPaymentPrompt()
+                                                    } else {
+                                                        navigate(`/property/${property.id}`)
+                                                    }
+                                                }}
+                                            >
+                                                <PropertyCard property={property} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
                     </div>
                 ) : (
                     <div className="text-center py-12">
