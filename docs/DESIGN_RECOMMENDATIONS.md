@@ -17,7 +17,7 @@ property page and listings page were judged on what rendered plus the code; re-c
    bar once someone opens a listing.
 2. **Real photos only.** The sample BnB listing's cover is an AI-made coin illustration with the title baked in. Add a photo check on
    upload (minimum size, no text overlays, at least 5 photos) and a "no photo, no listing" rule for featured slots.
-3. **Fill the hero slot.** On phones the tour slot under the categories can show an empty grey panel with a pause button. Show a
+3. **(Done) Fill the hero slot.** On phones the tour slot under the categories can show an empty grey panel with a pause button. Show a
    still of the featured tour with a Play button until the video is ready, and never show a pause control over nothing.
 4. **Trust that is checkable.** Replace claims with facts: owner joined date, number of tours, "phone verified" once you verify
    numbers, a visible report button. Do not add ID-verified badges until IDs are actually checked.
