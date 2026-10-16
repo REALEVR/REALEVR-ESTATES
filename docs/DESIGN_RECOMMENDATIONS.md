@@ -12,7 +12,7 @@ property page and listings page were judged on what rendered plus the code; re-c
 - The tour-orbit graphic no longer touches the phone headline.
 
 ## Next, in order of value
-1. **Show value before the ask on /rental-units.** The first thing on the page is a "Viewing Package Required, 10,000 UGX" box,
+1. **(Done) Show value before the ask on /rental-units.** The first thing on the page is a "Viewing Package Required, 10,000 UGX" box,
    above the filters and listings. Lead with the listings and the free preview; show the package after the first row, or as a sticky
    bar once someone opens a listing.
 2. **Real photos only.** The sample BnB listing's cover is an AI-made coin illustration with the title baked in. Add a photo check on
