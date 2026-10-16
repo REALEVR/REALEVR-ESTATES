@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageSeo } from "@/components/seo/PageSeo";
+import { Icon } from '@/components/ui/icon'
 
 export default function AboutUsPage() {
   return (
@@ -87,7 +88,7 @@ export default function AboutUsPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="text-center">
                   <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className="fas fa-shield-alt text-2xl text-accent"></i>
+                    <Icon name="shield-alt" className="text-2xl text-accent" />
                   </div>
                   <h3 className="font-semibold mb-2">Trust & Security</h3>
                   <p className="text-gray-600 text-sm">
@@ -96,7 +97,7 @@ export default function AboutUsPage() {
                 </div>
                 <div className="text-center">
                   <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className="fas fa-users text-2xl text-accent"></i>
+                    <Icon name="users" className="text-2xl text-accent" />
                   </div>
                   <h3 className="font-semibold mb-2">Community Focus</h3>
                   <p className="text-gray-600 text-sm">
@@ -105,7 +106,7 @@ export default function AboutUsPage() {
                 </div>
                 <div className="text-center">
                   <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className="fas fa-rocket text-2xl text-accent"></i>
+                    <Icon name="rocket" className="text-2xl text-accent" />
                   </div>
                   <h3 className="font-semibold mb-2">Innovation</h3>
                   <p className="text-gray-600 text-sm">

@@ -13,6 +13,7 @@ import ExploreFiltersDialog from './ExploreFiltersDialog';
 import HeroNewsSlide from './HeroNewsSlide';
 import HeroTourOrbit from './HeroTourOrbit';
 import { useProperties } from '@/hooks/usePropertyData';
+import { Icon } from '@/components/ui/icon'
 
 // Custom hook for mobile detection
 const useIsMobile = () => {
@@ -369,7 +370,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
                   href="#hero-search"
                   className="shine inline-flex items-center rounded-full px-7 py-3 text-base font-semibold transition-transform duration-150 ease-out active:scale-[0.97]"
                 >
-                  <i className="fas fa-search mr-2 text-sm" aria-hidden="true" />
+                  <Icon name="search" className="mr-2 text-sm" />
                   Search homes
                 </a>
                 <Link
@@ -500,7 +501,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
             className="shine rounded-full px-8 py-2.5 font-semibold text-lg hover:opacity-90 transition ml-2"
             onClick={handleSearch}
           >
-            <i className="fas fa-search mr-2 text-base"></i>
+            <Icon name="search" className="mr-2 text-base" />
             Search
           </button>
               </div>

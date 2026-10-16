@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageSeo } from "@/components/seo/PageSeo";
+import { Icon } from '@/components/ui/icon'
 
 export default function TrustSafetyPage() {
   return (
@@ -64,7 +65,7 @@ export default function TrustSafetyPage() {
               <div className="space-y-6">
                 <div className="flex items-start space-x-4">
                   <div className="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center flex-shrink-0">
-                    <i className="fas fa-check text-accent"></i>
+                    <Icon name="check" className="text-accent" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg mb-2">Property Ownership Verification</h3>
@@ -77,7 +78,7 @@ export default function TrustSafetyPage() {
                 
                 <div className="flex items-start space-x-4">
                   <div className="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center flex-shrink-0">
-                    <i className="fas fa-camera text-accent"></i>
+                    <Icon name="camera" className="text-accent" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg mb-2">Photo Verification</h3>
@@ -90,7 +91,7 @@ export default function TrustSafetyPage() {
                 
                 <div className="flex items-start space-x-4">
                   <div className="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center flex-shrink-0">
-                    <i className="fas fa-map-marker-alt text-accent"></i>
+                    <Icon name="map-marker-alt" className="text-accent" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg mb-2">Location Verification</h3>
@@ -112,7 +113,7 @@ export default function TrustSafetyPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="text-center">
                   <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className="fas fa-shield-alt text-2xl text-accent"></i>
+                    <Icon name="shield-alt" className="text-2xl text-accent" />
                   </div>
                   <h3 className="font-semibold mb-2">SSL Encryption</h3>
                   <p className="text-gray-600 text-sm">
@@ -122,7 +123,7 @@ export default function TrustSafetyPage() {
                 
                 <div className="text-center">
                   <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className="fas fa-credit-card text-2xl text-accent"></i>
+                    <Icon name="credit-card" className="text-2xl text-accent" />
                   </div>
                   <h3 className="font-semibold mb-2">Secure Payment Gateway</h3>
                   <p className="text-gray-600 text-sm">
@@ -132,7 +133,7 @@ export default function TrustSafetyPage() {
                 
                 <div className="text-center">
                   <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className="fas fa-lock text-2xl text-accent"></i>
+                    <Icon name="lock" className="text-2xl text-accent" />
                   </div>
                   <h3 className="font-semibold mb-2">Fraud Protection</h3>
                   <p className="text-gray-600 text-sm">
@@ -225,7 +226,7 @@ export default function TrustSafetyPage() {
                     href="/contact"
                     className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                   >
-                    <i className="fas fa-exclamation-triangle mr-2"></i>
+                    <Icon name="exclamation-triangle" className="mr-2" />
                     Report Safety Issue
                   </Link>
                   {/* was border-accent/text-accent — accent as a text color
@@ -234,7 +235,7 @@ export default function TrustSafetyPage() {
                     href="/contact"
                     className="px-6 py-3 border border-primary text-primary rounded-lg hover:bg-primary/5 transition-colors"
                   >
-                    <i className="fas fa-envelope mr-2"></i>
+                    <Icon name="envelope" className="mr-2" />
                     Contact Safety Team
                   </Link>
                 </div>

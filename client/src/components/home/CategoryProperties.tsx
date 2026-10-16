@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PropertyCard from "@/components/home/PropertyCard";
 import { usePropertiesByCategory } from "@/hooks/usePropertyData";
 import type { Property } from "@shared/schema";
+import { Icon } from '@/components/ui/icon'
 
 export default function CategoryProperties() {
   const [activeCategory, setActiveCategory] = useState<string>("rental_units");
@@ -30,7 +31,7 @@ export default function CategoryProperties() {
                 value={category.id}
                 className="flex items-center justify-center py-3 px-4 data-[state=active]:bg-accent data-[state=active]:text-accent-foreground"
               >
-                <i className={`fas fa-${category.icon} mr-2`}></i>
+                <Icon name={category.icon} className="mr-2" />
                 <span>{category.label}</span>
               </TabsTrigger>
             ))}

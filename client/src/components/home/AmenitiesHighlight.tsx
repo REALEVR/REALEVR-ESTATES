@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { Amenity } from "@shared/schema";
+import { Icon } from '@/components/ui/icon'
 
 export default function AmenitiesHighlight() {
   const { data: amenities, isLoading, error } = useQuery<Amenity[]>({
@@ -41,7 +42,7 @@ export default function AmenitiesHighlight() {
             <div key={amenity.id} className="bg-card p-6 rounded-xl shadow-md text-center">
               <div className="flex justify-center mb-4">
                 <span className="p-3 bg-accent/10 text-accent rounded-full">
-                  <i className={`fas fa-${amenity.icon} text-2xl`}></i>
+                  <Icon name={amenity.icon} className="text-2xl" />
                 </span>
               </div>
               <h3 className="font-bold mb-2">{amenity.name}</h3>

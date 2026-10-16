@@ -22,6 +22,7 @@ import { getSafeAmenities } from '@/lib/property-utils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Phone, User as UserIcon, Share2 } from 'lucide-react'
+import { Icon } from '@/components/ui/icon'
 
 interface PropertyDescriptionProps {
     description: string
@@ -236,7 +237,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                     {/* No reviews yet is not worth announcing as "0 reviews": show the stars only once there is something to show. */}
                     {Number(property.reviewCount) > 0 ? (
                         <div className="flex items-center mb-4">
-                            <i className="fas fa-star text-accent"></i>
+                            <Icon name="star" className="text-accent" />
                             <span className="ml-1 font-medium">{property.rating}</span>
                             <span className="mx-1">·</span>
                             <span className="text-muted-foreground underline">{property.reviewCount} reviews</span>
@@ -262,7 +263,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                         className="p-2 hover:bg-secondary rounded-full"
                         onClick={handleFavoriteClick}
                     >
-                        <i className={`${isFavorite ? 'fas text-accent' : 'far'} fa-heart text-xl`}></i>
+                        <Icon name="heart" filled={isFavorite} className={`${isFavorite ? 'text-accent' : ''} text-xl`} />
                     </Button>
                 </div>
             </div>
@@ -315,11 +316,11 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                 <h4 className="font-semibold mb-1">Property Details</h4>
                                 <ul className="space-y-2 text-muted-foreground">
                                     <li className="flex items-center">
-                                        <i className="fas fa-bed w-6"></i>
+                                        <Icon name="bed" className="w-6" />
                                         <span>{property.bedrooms} Bedrooms</span>
                                     </li>
                                     <li className="flex items-center">
-                                        <i className="fas fa-bath w-6"></i>
+                                        <Icon name="bath" className="w-6" />
                                         <span>{property.bathrooms} Bathrooms</span>
                                     </li>
                                     {/* Square meters is no longer collected on the upload form —
@@ -327,7 +328,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                         value, never a fabricated "0 sq m". */}
                                     {property.squareMeters ? (
                                         <li className="flex items-center">
-                                            <i className="fas fa-vector-square w-6"></i>
+                                            <Icon name="vector-square" className="w-6" />
                                             <span>
                                                 {property.squareMeters} sq m ({Math.round(property.squareMeters / 0.093)} sq
                                                 ft)
@@ -335,13 +336,13 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                         </li>
                                     ) : null}
                                     <li className="flex items-center">
-                                        <i className="fas fa-building w-6"></i>
+                                        <Icon name="building" className="w-6" />
                                         <span>{property.propertyType}</span>
                                     </li>
                                     {isBnB && (
                                         <>
                                         <li className="flex items-start text-accent font-medium">
-                                            <i className="fas fa-calendar-check mt-1 w-6 shrink-0"></i>
+                                            <Icon name="calendar-check" className="mt-1 w-6 shrink-0" />
                                             <span>20% deposit to book (non-refundable) — unlocks the tour and host contact</span>
                                         </li>
                                         <li className="ml-6 text-xs leading-relaxed text-muted-foreground">
@@ -373,9 +374,8 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                         }
                                         return amenities.map((amenity, index) => (
                                             <li key={index} className="flex items-center">
-                                                <i
-                                                    className={`fas fa-${
-                                                        amenity.includes('Pool')
+                                                <Icon
+                                                    name={amenity.includes('Pool')
                                                             ? 'swimming-pool'
                                                             : amenity.includes('Fitness')
                                                             ? 'dumbbell'
@@ -385,9 +385,9 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                                             ? 'wifi'
                                                             : amenity.includes('parking')
                                                             ? 'parking'
-                                                            : 'check'
-                                                    } w-6`}
-                                                ></i>
+                                                            : 'check'}
+                                                    className="w-6"
+                                                />
                                                 <span>{amenity}</span>
                                             </li>
                                         ))
@@ -478,19 +478,19 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                     <ul className="space-y-2 text-muted-foreground">
                                         {property.yearOfConstruction && (
                                             <li className="flex items-center">
-                                                <i className="fas fa-calendar w-6"></i>
+                                                <Icon name="calendar" className="w-6" />
                                                 <span>Built in {property.yearOfConstruction}</span>
                                             </li>
                                         )}
                                         {property.buildingAge && (
                                             <li className="flex items-center">
-                                                <i className="fas fa-clock w-6"></i>
+                                                <Icon name="clock" className="w-6" />
                                                 <span>{property.buildingAge} years old</span>
                                             </li>
                                         )}
                                         {property.propertyCondition && (
                                             <li className="flex items-center">
-                                                <i className="fas fa-star w-6"></i>
+                                                <Icon name="star" className="w-6" />
                                                 <span>
                                                     Condition:{' '}
                                                     {property.propertyCondition
@@ -515,7 +515,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                         <ul className="space-y-2 text-muted-foreground">
                                             {property.auctionStart && (
                                                 <li className="flex items-center">
-                                                    <i className="fas fa-play w-6"></i>
+                                                    <Icon name="play" className="w-6" />
                                                     <span>
                                                         Starts: {new Date(property.auctionStart).toLocaleDateString()}
                                                     </span>
@@ -523,7 +523,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                             )}
                                             {property.auctionEnd && (
                                                 <li className="flex items-center">
-                                                    <i className="fas fa-stop w-6"></i>
+                                                    <Icon name="stop" className="w-6" />
                                                     <span>
                                                         Ends: {new Date(property.auctionEnd).toLocaleDateString()}
                                                     </span>
@@ -531,7 +531,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                             )}
                                             {property.auctionStatus && (
                                                 <li className="flex items-center">
-                                                    <i className="fas fa-gavel w-6"></i>
+                                                    <Icon name="gavel" className="w-6" />
                                                     <span>
                                                         Status:{' '}
                                                         {property.auctionStatus.replace(/\b\w/g, (l) =>
@@ -622,7 +622,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                 </div>
                 {property.ownerId && user?.id !== property.ownerId && (
                     <Button variant="outline" size="icon" className="h-11 w-11 shrink-0 rounded-full border-foreground/30" onClick={() => setIsMessageAgentModalOpen(true)} aria-label="Message the agent">
-                        <i className="far fa-comment-dots" aria-hidden="true"></i>
+                        <Icon name="comment-dots" />
                     </Button>
                 )}
                 <Button variant="outline" className="h-11 shrink-0 rounded-full border-foreground/30 px-4" onClick={handleScheduleVisit}>
@@ -652,7 +652,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                 to the platform's actual existing Trust & Safety page rather
                 than inventing a new policy. */}
             <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
-                <i className="fas fa-shield-halved mr-1.5 text-xs" aria-hidden="true"></i>
+                <Icon name="shield-halved" className="mr-1.5 text-xs" />
                 You'll be contacted by the listing agent to arrange next steps.{' '}
                 <a href="/trust-safety" className="text-accent hover:underline">
                     Read our safety guidance

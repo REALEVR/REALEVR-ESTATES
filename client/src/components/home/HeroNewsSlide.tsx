@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'wouter'
 import { useProperties } from '@/hooks/usePropertyData'
 import SafeImage from '@/components/ui/safe-image'
+import { Icon } from '@/components/ui/icon'
 
 /**
  * "Real Estate Pulse — Africa" news/listings feed, rendered as the second
@@ -142,7 +143,7 @@ export default function HeroNewsSlide({ active }: { active: boolean }) {
                         />
                     ) : (
                         <div className="w-full h-full bg-secondary flex items-center justify-center">
-                            <i className="fas fa-newspaper text-4xl text-muted-foreground/40"></i>
+                            <Icon name="newspaper" className="text-4xl text-muted-foreground/40" />
                         </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />

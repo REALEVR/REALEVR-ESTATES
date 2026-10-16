@@ -9,6 +9,7 @@ import type { Property, User } from "@shared/schema";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Phone, User as UserIcon, Building } from "lucide-react";
+import { Icon } from '@/components/ui/icon'
 
 interface PropertyDescriptionProps {
   description: string;
@@ -194,10 +195,10 @@ export default function FeaturedTour() {
               </div>
               <div className="flex items-center gap-1 border-t border-border bg-card px-3 py-2">
                 <button className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted" title="Zoom in" aria-label="Zoom in">
-                  <i className="fas fa-plus"></i>
+                  <Icon name="plus" />
                 </button>
                 <button className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted" title="Zoom out" aria-label="Zoom out">
-                  <i className="fas fa-minus"></i>
+                  <Icon name="minus" />
                 </button>
                 <button
                   className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted"
@@ -205,10 +206,10 @@ export default function FeaturedTour() {
                   aria-label="Fullscreen"
                   onClick={() => setIsFullscreen(!isFullscreen)}
                 >
-                  <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
+                  <Icon name={isFullscreen ? 'compress' : 'expand'} />
                 </button>
                 <button className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted" title="Floor plan" aria-label="Floor plan">
-                  <i className="fas fa-map"></i>
+                  <Icon name="map" />
                 </button>
               </div>
             </div>
@@ -219,7 +220,7 @@ export default function FeaturedTour() {
                   <h3 className="text-2xl font-bold">{featuredProperty.title}</h3>
                   <p className="text-muted-foreground mb-2">{featuredProperty.location}</p>
                   <div className="flex items-center mb-4">
-                    <i className="fas fa-star text-accent"></i>
+                    <Icon name="star" className="text-accent" />
                     <span className="ml-1 font-medium">{featuredProperty.rating}</span>
                     <span className="mx-1">·</span>
                     <span className="text-muted-foreground underline">{featuredProperty.reviewCount} reviews</span>
@@ -231,7 +232,7 @@ export default function FeaturedTour() {
                     onClick={() => setIsShareModalOpen(true)}
                     title="Share this property"
                   >
-                    <i className="fas fa-share-alt text-xl"></i>
+                    <Icon name="share-alt" className="text-xl" />
                   </button>
                   <button
                     className={`p-2 hover:bg-secondary rounded-full ${isWishlisted ? 'bg-red-100' : ''}`}
@@ -247,7 +248,7 @@ export default function FeaturedTour() {
                       });
                     }}
                   >
-                    <i className={`${isWishlisted ? 'fas text-accent' : 'far'} fa-heart text-xl`}></i>
+                    <Icon name="heart" filled={isWishlisted} className={`${isWishlisted ? 'text-accent' : ''} text-xl`} />
                   </button>
                 </div>
               </div>
@@ -265,18 +266,18 @@ export default function FeaturedTour() {
                         <h4 className="font-semibold mb-1">Property Details</h4>
                         <ul className="space-y-2 text-muted-foreground">
                           <li className="flex items-center">
-                            <i className="fas fa-bed w-6"></i>
+                            <Icon name="bed" className="w-6" />
                             <span>{featuredProperty.bedrooms} Bedrooms</span>
                           </li>
                           <li className="flex items-center">
-                            <i className="fas fa-bath w-6"></i>
+                            <Icon name="bath" className="w-6" />
                             <span>{featuredProperty.bathrooms} Bathrooms</span>
                           </li>
                           {/* No longer collected on the upload form - only shown for
                               older listings that already have a real value. */}
                           {featuredProperty.squareMeters ? (
                             <li className="flex items-center">
-                              <i className="fas fa-vector-square w-6"></i>
+                              <Icon name="vector-square" className="w-6" />
                               <span>{featuredProperty.squareMeters} sq m</span>
                             </li>
                           ) : null}
@@ -288,12 +289,12 @@ export default function FeaturedTour() {
                           {featuredProperty.amenities && Array.isArray(featuredProperty.amenities)
                            && featuredProperty.amenities.map((amenity, index) => (
                             <li key={index} className="flex items-center">
-                              <i className={`fas fa-${
+                              <Icon name={
                                 amenity.includes("Pool Access") ? "swimming-pool" :
                                 amenity.includes("Fitness Center") ? "dumbbell" :
                                 amenity.includes("Parking") ? "parking" : 
                                 amenity.includes("Pet Friendly") ? "paw" : "check"
-                              } w-6`}></i>
+                              } className="w-6" />
                               <span>{amenity}</span>
                             </li>
                           ))}
@@ -317,7 +318,7 @@ export default function FeaturedTour() {
                       className="border-foreground"
                       onClick={() => setIsBookingModalOpen(true)}
                     >
-                      <i className="far fa-calendar-alt mr-2"></i>
+                      <Icon name="calendar-alt" className="mr-2" />
                       Schedule Visit
                     </Button>
                     {/* <Button asChild className="bg-accent hover:bg-accent/90">
@@ -325,7 +326,7 @@ export default function FeaturedTour() {
                         href="tel:+256771891323"
                         className="flex items-center"
                       >
-                        <i className="fas fa-phone mr-2"></i> Call Agent
+                        <Icon name="phone" className="mr-2" /> Call Agent
                       </a>
                     </Button> */}
 
@@ -396,7 +397,7 @@ export default function FeaturedTour() {
                                   rel="noopener noreferrer"
                                   className="flex items-center"
                                 >
-                                  <i className="fab fa-whatsapp mr-2"></i>
+                                  <Icon name="whatsapp" className="mr-2" />
                                   WhatsApp
                                 </a>
                               </Button>
@@ -415,19 +416,19 @@ export default function FeaturedTour() {
                         <ul className="space-y-2 text-muted-foreground">
                           {featuredProperty.yearOfConstruction && (
                             <li className="flex items-center">
-                              <i className="fas fa-calendar w-6"></i>
+                              <Icon name="calendar" className="w-6" />
                               <span>Built in {featuredProperty.yearOfConstruction}</span>
                             </li>
                           )}
                           {featuredProperty.buildingAge && (
                             <li className="flex items-center">
-                              <i className="fas fa-clock w-6"></i>
+                              <Icon name="clock" className="w-6" />
                               <span>{featuredProperty.buildingAge} years old</span>
                             </li>
                           )}
                           {featuredProperty.propertyCondition && (
                             <li className="flex items-center">
-                              <i className="fas fa-star w-6"></i>
+                              <Icon name="star" className="w-6" />
                               <span>Condition: {featuredProperty.propertyCondition.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
                             </li>
                           )}
@@ -442,19 +443,19 @@ export default function FeaturedTour() {
                           <ul className="space-y-2 text-muted-foreground">
                             {featuredProperty.auctionStart && (
                               <li className="flex items-center">
-                                <i className="fas fa-play w-6"></i>
+                                <Icon name="play" className="w-6" />
                                 <span>Starts: {new Date(featuredProperty.auctionStart).toLocaleDateString()}</span>
                               </li>
                             )}
                             {featuredProperty.auctionEnd && (
                               <li className="flex items-center">
-                                <i className="fas fa-stop w-6"></i>
+                                <Icon name="stop" className="w-6" />
                                 <span>Ends: {new Date(featuredProperty.auctionEnd).toLocaleDateString()}</span>
                               </li>
                             )}
                             {featuredProperty.auctionStatus && (
                               <li className="flex items-center">
-                                <i className="fas fa-gavel w-6"></i>
+                                <Icon name="gavel" className="w-6" />
                                 <span>Status: {featuredProperty.auctionStatus.replace(/\b\w/g, l => l.toUpperCase())}</span>
                               </li>
                             )}
@@ -498,7 +499,7 @@ export default function FeaturedTour() {
                       className="border-foreground"
                       onClick={() => setIsBookingModalOpen(true)}
                     >
-                      <i className="far fa-calendar-alt mr-2"></i>
+                      <Icon name="calendar-alt" className="mr-2" />
                       Schedule Visit
                     </Button> */}
                     {/* <Button asChild className="bg-accent hover:bg-accent/90">
@@ -506,7 +507,7 @@ export default function FeaturedTour() {
                         href="tel:+256771891323"
                         className="flex items-center"
                       >
-                        <i className="fas fa-phone mr-2"></i> Call Agent
+                        <Icon name="phone" className="mr-2" /> Call Agent
                       </a>
                     </Button> */}
                   </div>
@@ -519,7 +520,7 @@ export default function FeaturedTour() {
                         rel="noopener noreferrer"
                         className="flex items-center"
                       >
-                        <i className="fab fa-whatsapp mr-2"></i> WhatsApp Agent 1
+                        <Icon name="whatsapp" className="mr-2" /> WhatsApp Agent 1
                       </a>
                     </Button>
                     <Button asChild variant="outline" className="border-foreground border-green-500 text-green-500 hover:bg-green-50">
@@ -529,7 +530,7 @@ export default function FeaturedTour() {
                         rel="noopener noreferrer"
                         className="flex items-center"
                       >
-                        <i className="fab fa-whatsapp mr-2"></i> WhatsApp Agent 2
+                        <Icon name="whatsapp" className="mr-2" /> WhatsApp Agent 2
                       </a>
                     </Button>
                   </div> */}
