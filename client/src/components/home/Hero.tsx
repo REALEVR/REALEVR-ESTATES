@@ -250,6 +250,16 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
     setShowImage(true);
   };
 
+  const retryVideo = () => {
+    setVideoError(false);
+    setIsVideoPlaying(true);
+    setIsVideoLoading(true);
+    setShowImage(false);
+  };
+
+  // A pause control only makes sense over a video that is actually on screen and running.
+  const hasPlayingVideo = Boolean(videoUrl) && !showImage && !isVideoLoading && !showYoutubeFacade;
+
   const handlePlayPause = () => {
     if (!videoUrl) return;
     
@@ -536,12 +546,16 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
         ) : videoUrl && !showImage ? (
           // Video content - full width and height
           <div className="relative w-full aspect-[4/3] md:aspect-auto md:h-[520px] lg:h-[600px] rounded-3xl shadow-[0_8px_30px_-8px_rgba(24, 24, 27,0.35)] overflow-hidden">
-            {/* Loading spinner — suppressed while the tap-to-play facade is
-                showing, since nothing is actually loading yet at that point. */}
+            {/* While the video loads, show the still (not a bare grey panel) with a small status chip; it is
+                suppressed while the tap-to-play facade is showing, since nothing is loading yet then. */}
             {isVideoLoading && !showYoutubeFacade && (
-              <div className="absolute inset-0 bg-muted flex items-center justify-center z-10">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
-                <span className="ml-3 text-muted-foreground">Loading video...</span>
+              <div className="absolute inset-0 z-10">
+                <img src={houseImg} alt="" aria-hidden="true" className="h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" />
+                <div role="status" className="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-black/55 px-3 py-1.5 text-sm text-white backdrop-blur-sm">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  Loading the tour video…
+                </div>
               </div>
             )}
 
@@ -635,15 +649,31 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
               transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent"></div>
+            {/* The video could not start (slow data, blocked embed): the still carries a Play button that tries again. */}
+            {videoUrl && (
+              <button
+                type="button"
+                onClick={retryVideo}
+                aria-label="Play tour video"
+                className="absolute inset-0 flex items-center justify-center bg-black/10"
+              >
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/90 shadow-lg">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="translate-x-0.5">
+                    <polygon points="8,5 19,12 8,19" fill="currentColor" className="text-foreground" />
+                  </svg>
+                </span>
+              </button>
+            )}
           </div>
         )}
         
         {/* Play/Pause button overlay - top right. Hidden while the mobile
             tap-to-play facade is showing — tapping the facade itself is the
             play action, so a second play control would be redundant —
-            and while the news slide is showing, since it controls video
-            playback specifically. */}
-        {heroSlide === 'tour' && !showYoutubeFacade && (
+            while the video is still loading or has fallen back to the photo
+            (nothing to pause), and while the news slide is showing, since it
+            controls video playback specifically. */}
+        {heroSlide === 'tour' && hasPlayingVideo && (
           <button
             onClick={handlePlayPause}
             aria-label={isVideoPlaying ? 'Pause video' : 'Play video'}
