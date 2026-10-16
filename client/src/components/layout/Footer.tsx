@@ -3,6 +3,7 @@ import FxSwitch from "@/components/fx/FxSwitch";
 import { useQuery } from "@tanstack/react-query";
 import { WHATSAPP_NUMBERS, whatsAppLink, SOCIAL_LINKS } from "@/lib/siteLinks";
 import logoPath from '../../assets/logo.png';
+import { Icon } from '@/components/ui/icon'
 
 /** A quiet row of building silhouettes along the footer's top edge: the buildings the site is about, in the footer's own tone. */
 function Skyline() {
@@ -123,10 +124,10 @@ export default function Footer() {
                 here, this already renders a real link for any key whose
                 URL isn't "#". */}
             {([
-              ['facebook', 'fa-facebook-f'],
-              ['twitter', 'fa-twitter'],
-              ['instagram', 'fa-instagram'],
-              ['pinterest', 'fa-pinterest-p'],
+              ['facebook', 'facebook-f'],
+              ['twitter', 'twitter'],
+              ['instagram', 'instagram'],
+              ['pinterest', 'pinterest-p'],
             ] as const).map(([key, icon]) => {
               const href = SOCIAL_LINKS[key];
               if (href === "#") {
@@ -139,7 +140,7 @@ export default function Footer() {
                     aria-label={`${key.charAt(0).toUpperCase()}${key.slice(1)} — coming soon`}
                     className="w-9 h-9 flex items-center justify-center rounded-full bg-muted text-muted-foreground/50 cursor-not-allowed"
                   >
-                    <i className={`fab ${icon} text-sm`}></i>
+                    <Icon name={icon} className="text-sm" />
                   </button>
                 );
               }
@@ -153,7 +154,7 @@ export default function Footer() {
                   aria-label={`${key.charAt(0).toUpperCase()}${key.slice(1)}`}
                   className="w-9 h-9 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
                 >
-                  <i className={`fab ${icon} text-sm`}></i>
+                  <Icon name={icon} className="text-sm" />
                 </a>
               );
             })}
@@ -166,7 +167,7 @@ export default function Footer() {
                 title={`WhatsApp ${agent.label}`}
                 className="w-9 h-9 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-[#25D366] hover:text-white transition-colors"
               >
-                <i className="fab fa-whatsapp text-sm"></i>
+                <Icon name="whatsapp" className="text-sm" />
               </a>
             ))}
           </div>

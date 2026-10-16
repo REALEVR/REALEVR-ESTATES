@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PageSeo } from "@/components/seo/PageSeo";
+import { Icon } from '@/components/ui/icon'
 
 export default function ContactUsPage() {
   return (
@@ -21,7 +22,7 @@ export default function ContactUsPage() {
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center">
-                      <i className="fas fa-envelope text-accent"></i>
+                      <Icon name="envelope" className="text-accent" />
                     </div>
                     <div>
                       <p className="font-semibold">Email</p>
@@ -31,7 +32,7 @@ export default function ContactUsPage() {
                   
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center">
-                      <i className="fas fa-phone text-accent"></i>
+                      <Icon name="phone" className="text-accent" />
                     </div>
                     <div>
                       <p className="font-semibold">Phone</p>
@@ -41,7 +42,7 @@ export default function ContactUsPage() {
                   
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center">
-                      <i className="fas fa-map-marker-alt text-accent"></i>
+                      <Icon name="map-marker-alt" className="text-accent" />
                     </div>
                     <div>
                       <p className="font-semibold">Address</p>
@@ -51,7 +52,7 @@ export default function ContactUsPage() {
                   
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center">
-                      <i className="fas fa-clock text-accent"></i>
+                      <Icon name="clock" className="text-accent" />
                     </div>
                     <div>
                       <p className="font-semibold">Business Hours</p>
@@ -69,16 +70,16 @@ export default function ContactUsPage() {
               <CardContent>
                 <div className="flex space-x-4">
                   <Button variant="outline" size="icon" className="w-12 h-12">
-                    <i className="fab fa-facebook-f"></i>
+                    <Icon name="facebook-f" />
                   </Button>
                   <Button variant="outline" size="icon" className="w-12 h-12">
-                    <i className="fab fa-twitter"></i>
+                    <Icon name="twitter" />
                   </Button>
                   <Button variant="outline" size="icon" className="w-12 h-12">
-                    <i className="fab fa-instagram"></i>
+                    <Icon name="instagram" />
                   </Button>
                   <Button variant="outline" size="icon" className="w-12 h-12">
-                    <i className="fab fa-linkedin-in"></i>
+                    <Icon name="linkedin-in" />
                   </Button>
                 </div>
               </CardContent>
@@ -133,7 +134,7 @@ export default function ContactUsPage() {
                 </div>
                 
                 <Button type="submit" className="w-full bg-accent hover:bg-accent/90">
-                  <i className="fas fa-paper-plane mr-2"></i>
+                  <Icon name="paper-plane" className="mr-2" />
                   Send Message
                 </Button>
               </form>

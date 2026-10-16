@@ -18,6 +18,7 @@ import { toast } from "@/hooks/use-toast";
 import NotificationCenter from "@/components/NotificationCenter";
 import AuthModal from "@/components/auth/AuthModal";
 import LanguageSwitcher from "@/components/layout/LanguageSwitcher";
+import { Icon } from '@/components/ui/icon'
 
 export default function Header() {
   const [location, setLocation] = useLocation();
@@ -143,8 +144,8 @@ export default function Header() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" aria-label="Menu" className="flex h-11 items-center gap-1 rounded-full border border-border bg-card p-1.5 shadow-sm transition hover:shadow-md md:h-12 md:gap-2 md:px-3">
-                <i className="fas fa-bars mx-1.5 text-foreground"></i>
-                <i className="fas fa-user-circle text-2xl text-muted-foreground md:text-[1.75rem]"></i>
+                <Icon name="bars" className="mx-1.5 text-foreground" />
+                <Icon name="user-circle" className="text-2xl text-muted-foreground md:text-[1.75rem]" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">

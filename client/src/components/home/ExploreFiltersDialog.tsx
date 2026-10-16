@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { usePlace } from "@/lib/place";
 import { countryByCode, currencyForCountry } from "@shared/africa";
+import { Icon } from '@/components/ui/icon'
 
 interface ExploreFiltersDialogProps {
   isOpen: boolean;
@@ -84,7 +85,7 @@ export default function ExploreFiltersDialog({ isOpen, onClose }: ExploreFilters
                   onClick={() => handleBrowseCategory(type.route)}
                 >
                   <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center mr-4">
-                    <i className={`fas fa-${type.icon} text-muted-foreground`}></i>
+                    <Icon name={type.icon} className="text-muted-foreground" />
                   </div>
                   <div>
                     <h3 className="font-medium">{type.name}</h3>
@@ -141,9 +142,9 @@ export default function ExploreFiltersDialog({ isOpen, onClose }: ExploreFilters
                   }}
                 >
                   <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center mr-4">
-                    {index === 0 && <i className="fas fa-dollar-sign text-muted-foreground"></i>}
-                    {index === 1 && <i className="fas fa-dollar-sign text-muted-foreground"></i>}
-                    {index === 2 && <i className="fas fa-dollar-sign text-muted-foreground"></i>}
+                    {index === 0 && <Icon name="dollar-sign" className="text-muted-foreground" />}
+                    {index === 1 && <Icon name="dollar-sign" className="text-muted-foreground" />}
+                    {index === 2 && <Icon name="dollar-sign" className="text-muted-foreground" />}
                   </div>
                   <div>
                     <h3 className="font-medium">{range.label}</h3>
@@ -192,7 +193,7 @@ export default function ExploreFiltersDialog({ isOpen, onClose }: ExploreFilters
                   }}
                 >
                   <div className="mr-2">
-                    <i className="fas fa-check text-green-500"></i>
+                    <Icon name="check" className="text-green-500" />
                   </div>
                   <span>{feature}</span>
                 </div>
@@ -221,7 +222,7 @@ export default function ExploreFiltersDialog({ isOpen, onClose }: ExploreFilters
             Close
           </Button>
           <div className="text-sm text-muted-foreground">
-            <i className="fas fa-info-circle mr-1"></i>
+            <Icon name="info-circle" className="mr-1" />
             Browse our collections of RealEVR Estates properties
           </div>
         </DialogFooter>

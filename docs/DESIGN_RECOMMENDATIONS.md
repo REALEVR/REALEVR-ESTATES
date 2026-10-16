@@ -29,8 +29,12 @@ property page and listings page were judged on what rendered plus the code; re-c
    "ID verified" or "phone verified" badge. A visible "Report this listing" button (no account needed) sends the report to the admins
    in-app, by email and on WhatsApp; admins can list and close reports at `GET /api/admin/listing-reports`. Add a "phone verified"
    fact only once phone numbers are actually verified and the result is stored on the account.
-5. **Fonts and icons.** Montserrat, Space Grotesk and Font Awesome all load. Keep one display and one text face, and swap Font Awesome
-   for inline SVG icons (lucide is already installed). This also removes the blank-icon flash when the icon font is slow.
+5. **(Done) Fonts and icons.** Font Awesome is gone: every icon is an inline SVG through `client/src/components/ui/icon.tsx` (lucide, plus
+   WhatsApp/Apple/Android/Pinterest marks), sized by the surrounding font size so the old classes still work, and it takes the old
+   names so amenity and category icons stored in the database keep working (an unknown name draws a small sparkle, never a blank).
+   Result of the production build: main stylesheet 252.9 KB to 161.2 KB, 8 icon font files removed, built assets 4.1 MB to 3.1 MB, and no
+   blank-icon flash on slow connections. The site keeps exactly two type faces, Montserrat (text) and Space Grotesk (headlines), each
+   requested as one 400 to 700 weight range instead of five separate weights.
 6. **Lighter first load on phones.** Aim for under 1 MB before scroll. Serve card photos at 480 px wide with `srcset`, and cap the
    first screen at about 6 cards.
 7. **Phone navigation.** The bottom tab bar labels are 11 px (the platform minimum). Raise to 12 px, and make sure the sticky

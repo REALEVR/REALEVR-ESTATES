@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import WaitlistModal from "./WaitlistModal";
+import { Icon } from '@/components/ui/icon'
 
 export default function DownloadApp() {
   const [isWaitlistOpen, setIsWaitlistOpen] = useState(false);
@@ -31,7 +32,7 @@ export default function DownloadApp() {
                 onClick={() => openWaitlist("ios")}
                 className="bg-transparent border border-border rounded-xl py-7 px-5 flex items-center hover:bg-muted hover:border-accent text-foreground h-auto"
               >
-                <i className="fab fa-apple text-2xl mr-3"></i>
+                <Icon name="apple" className="text-2xl mr-3" />
                 <div>
                   <div className="text-xs text-left">Download on the</div>
                   <div className="font-medium">App Store</div>
@@ -43,7 +44,7 @@ export default function DownloadApp() {
                 className="bg-transparent border border-accent rounded-xl py-3.5 px-5 flex items-center hover:bg-muted text-foreground"
                 data-testid="download-android-apk"
               >
-                <i className="fab fa-android text-2xl mr-3" aria-hidden="true"></i>
+                <Icon name="android" className="text-2xl mr-3" />
                 <div>
                   <div className="text-xs text-left">Download for</div>
                   <div className="font-medium">Android (APK)</div>

@@ -31,18 +31,13 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Montserrat stays the body/UI typeface. Space Grotesk replaces Fraunces
-         for display headlines — "NeoVision" theme (v2, GENE v1.9), a geometric
-         technical face to match the black & white VR-forward redesign — see
-         client/src/index.css for the full rationale. -->
+    <!-- Two faces only: Montserrat for text and the interface, Space Grotesk for display headlines. Each is requested as one
+         variable-weight range (400-700, the weights the site uses) rather than five separate weights. -->
     <!-- The font stylesheet no longer blocks the first paint: the page shows in a system font at once and the web fonts
          swap in when they arrive (display=swap is in the URL). -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"></noscript>
-    <!-- Font Awesome is self-hosted (client/src/main.tsx imports
-         @fortawesome/fontawesome-free/css/all.min.css, bundled by Vite) as
-         of GENE v1.11's mobile fix, not loaded from cdnjs.cloudflare.com
-         here — see main.tsx for why. -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400..700&family=Space+Grotesk:wght@400..700&display=swap" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400..700&family=Space+Grotesk:wght@400..700&display=swap"></noscript>
+    <!-- Icons are inline SVG (client/src/components/ui/icon.tsx), so there is no icon font to wait for. -->
     <!-- Critical first-paint styles: the page background, a header bar and a few shimmering blocks show at once, so a slow or
          dropped stylesheet on mobile data never leaves a blank or unstyled page. React replaces #root's contents when it starts. -->
     <style>

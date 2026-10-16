@@ -17,6 +17,7 @@ import { buildBreadcrumbJsonLd, CATEGORY_PAGE_META } from "@shared/seo";
 import { useAuctionList, type AuctionSummary } from "@/hooks/useAuction";
 import { formatLeft, money as auctionMoney } from "@/lib/auctionApi";
 import FaqSection from "@/components/seo/FaqSection";
+import { Icon } from '@/components/ui/icon'
 
 export default function BankSalesPage() {
   const [activeBankTab, setActiveBankTab] = useState<string>("all");
@@ -211,7 +212,7 @@ function AuctionPropertyCard({ property, auction }: AuctionPropertyCardProps) {
           className="absolute inset-0 z-10 flex items-center justify-center bg-black/0 active:bg-black/10 transition-colors"
         >
           <span className="flex items-center gap-2 rounded-full bg-black/55 backdrop-blur-sm px-4 py-2 text-sm font-medium text-white shadow-lg">
-            <i className="fas fa-play text-xs"></i>
+            <Icon name="play" className="text-xs" />
             View Tour
           </span>
         </Link>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Icon } from '@/components/ui/icon'
 
 declare global {
     interface Window {
@@ -35,7 +36,7 @@ function loadGoogleTranslate(): Promise<void> {
 
 /**
  * Wires up the header's globe icon — previously decorative, no onClick at
- * all (`<Button ...><i className="fas fa-globe" /></Button>`, going
+ * all (`<Button ...><Icon name="globe" /></Button>`, going
  * nowhere) — to a real, working language switcher.
  *
  * client/index.html already sets `<html lang="en">`, so Chrome/Edge/Brave
@@ -75,7 +76,7 @@ export default function LanguageSwitcher() {
                 aria-label="Translate this page"
                 title="Translate this page"
             >
-                <i className="fas fa-globe text-foreground"></i>
+                <Icon name="globe" className="text-foreground" />
             </Button>
             {open && (
                 <div className="absolute right-0 top-full mt-2 z-50 rounded-lg border border-border bg-card p-3 shadow-lg min-w-[200px]">

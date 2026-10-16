@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { PageSeo } from "@/components/seo/PageSeo";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { SITE_NAME } from "@shared/seo";
+import { Icon } from '@/components/ui/icon'
 
 /**
  * FAQ content, structured (not just JSX prose) so the same array both
@@ -134,15 +135,15 @@ export default function HelpCenterPage() {
                   <h3 className="font-semibold text-lg mb-4">Get in Touch</h3>
                   <div className="space-y-3">
                     <div className="flex items-center space-x-3">
-                      <i className="fas fa-envelope text-accent"></i>
+                      <Icon name="envelope" className="text-accent" />
                       <span className="text-gray-600">support@realevr.com</span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <i className="fas fa-phone text-accent"></i>
+                      <Icon name="phone" className="text-accent" />
                       <span className="text-gray-600">+256 700 000 000</span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <i className="fas fa-clock text-accent"></i>
+                      <Icon name="clock" className="text-accent" />
                       <span className="text-gray-600">Mon-Fri: 8AM-6PM EAT</span>
                     </div>
                   </div>
@@ -152,15 +153,15 @@ export default function HelpCenterPage() {
                   <h3 className="font-semibold text-lg mb-4">Quick Actions</h3>
                   <div className="space-y-3">
                     <Button variant="outline" className="w-full justify-start">
-                      <i className="fas fa-user-plus mr-2"></i>
+                      <Icon name="user-plus" className="mr-2" />
                       Register as Agent
                     </Button>
                     <Button variant="outline" className="w-full justify-start">
-                      <i className="fas fa-question-circle mr-2"></i>
+                      <Icon name="question-circle" className="mr-2" />
                       Report an Issue
                     </Button>
                     <Button variant="outline" className="w-full justify-start">
-                      <i className="fas fa-lightbulb mr-2"></i>
+                      <Icon name="lightbulb" className="mr-2" />
                       Suggest Feature
                     </Button>
                   </div>
@@ -177,7 +178,7 @@ export default function HelpCenterPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="border border-gray-200 rounded-lg p-4">
                   <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-4">
-                    <i className="fas fa-search text-accent text-xl"></i>
+                    <Icon name="search" className="text-accent text-xl" />
                   </div>
                   <h3 className="font-semibold mb-2">Finding Properties</h3>
                   <p className="text-gray-600 text-sm mb-3">
@@ -190,7 +191,7 @@ export default function HelpCenterPage() {
 
                 <div className="border border-gray-200 rounded-lg p-4">
                   <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-4">
-                    <i className="fas fa-vr-cardboard text-accent text-xl"></i>
+                    <Icon name="vr-cardboard" className="text-accent text-xl" />
                   </div>
                   <h3 className="font-semibold mb-2">Virtual Tours</h3>
                   <p className="text-gray-600 text-sm mb-3">
@@ -203,7 +204,7 @@ export default function HelpCenterPage() {
 
                 <div className="border border-gray-200 rounded-lg p-4">
                   <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-4">
-                    <i className="fas fa-credit-card text-accent text-xl"></i>
+                    <Icon name="credit-card" className="text-accent text-xl" />
                   </div>
                   <h3 className="font-semibold mb-2">Payments & Billing</h3>
                   <p className="text-gray-600 text-sm mb-3">
@@ -228,11 +229,11 @@ export default function HelpCenterPage() {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button className="bg-accent hover:bg-accent/90">
-                    <i className="fas fa-envelope mr-2"></i>
+                    <Icon name="envelope" className="mr-2" />
                     Email Support
                   </Button>
                   <Button variant="outline">
-                    <i className="fas fa-phone mr-2"></i>
+                    <Icon name="phone" className="mr-2" />
                     Call Us
                   </Button>
                 </div>

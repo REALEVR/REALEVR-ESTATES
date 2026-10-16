@@ -22,6 +22,7 @@ import {
   buildPropertyPageTitle,
 } from "@/lib/propertySeo";
 import { CATEGORY_PAGE_META } from "@shared/seo";
+import { Icon } from '@/components/ui/icon'
 
 const CATEGORY_BREADCRUMB: Record<string, { name: string; path: string }> = {
   rental_units: { name: "Rental Units", path: CATEGORY_PAGE_META.rentalUnits.path },
@@ -266,10 +267,10 @@ export default function PropertyPage() {
                 {!showMap && hasRealTour && (
                   <>
                     <button className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted" title="Zoom in" aria-label="Zoom in">
-                      <i className="fas fa-plus"></i>
+                      <Icon name="plus" />
                     </button>
                     <button className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted" title="Zoom out" aria-label="Zoom out">
-                      <i className="fas fa-minus"></i>
+                      <Icon name="minus" />
                     </button>
                     <button
                       className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted"
@@ -277,10 +278,10 @@ export default function PropertyPage() {
                       aria-label="Fullscreen"
                       onClick={() => setIsFullscreen(!isFullscreen)}
                     >
-                      <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
+                      <Icon name={isFullscreen ? 'compress' : 'expand'} />
                     </button>
                     <button className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted" title="Floor plan" aria-label="Floor plan">
-                      <i className="fas fa-map"></i>
+                      <Icon name="map" />
                     </button>
                   </>
                 )}

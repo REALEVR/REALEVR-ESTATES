@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { Icon } from '@/components/ui/icon'
 
 /** A still picture with a play button; the 1 MB YouTube player loads only when someone presses it. */
 function VideoFacade({ videoId, title }: { videoId: string; title: string }) {
@@ -21,7 +22,7 @@ function VideoFacade({ videoId, title }: { videoId: string; title: string }) {
       <img src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`} alt="" width={480} height={360} loading="lazy" decoding="async" className="h-full w-full object-cover" />
       <span className="absolute inset-0 grid place-items-center bg-black/20 transition group-hover:bg-black/30">
         <span className="grid h-16 w-16 place-items-center rounded-full bg-white/95 text-foreground shadow-lg">
-          <i className="fas fa-play ml-1 text-xl" aria-hidden="true"></i>
+          <Icon name="play" className="ml-1 text-xl" />
         </span>
       </span>
     </button>
@@ -59,7 +60,7 @@ export default function HowItWorks() {
           {steps.map((step, index) => (
             <div key={index} className="text-center">
               <div className="bg-accent/10 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                <i className={`fas fa-${step.icon} text-accent text-2xl`}></i>
+                <Icon name={step.icon} className="text-accent text-2xl" />
               </div>
               <h3 className="font-bold text-xl mb-2">{step.title}</h3>
               <p className="text-muted-foreground">{step.description}</p>
