@@ -97,6 +97,7 @@ import { registerMagicLoginRoutes } from './gene/magic-login'
 import { registerSelfServeListingRoutes } from './gene/self-serve-listing'
 import { registerWhatsappGrowthRoutes } from './gene/whatsapp-growth'
 import { registerBoostPlacementRoutes, getActiveBoostsSortedByAmount } from './gene/boost-placement'
+import { registerListingTrustRoutes } from './gene/listing-trust'
 import { registerSuccessFeeRoutes } from './gene/success-fee'
 import { registerTourProductionBookingRoutes } from './gene/tour-production-booking'
 import { registerLeadMeteringRoutes } from './gene/lead-metering'
@@ -2947,6 +2948,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // docs/GENE_PLATFORM.md v1.6. Each is additive/independent; none touches
     // an existing route or table.
     registerBoostPlacementRoutes(app, adminMiddleware)
+    registerListingTrustRoutes(app, adminMiddleware)
     registerSuccessFeeRoutes(app, adminMiddleware)
     registerTourProductionBookingRoutes(app, adminMiddleware)
     registerLeadMeteringRoutes(app, adminMiddleware)
