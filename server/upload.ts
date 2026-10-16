@@ -6,6 +6,7 @@ import { promisify } from 'util';
 import { nanoid } from 'nanoid';
 import { uploadFileToS3, getS3FileUrl } from './s3-util';
 import { uploadTourToCloudinary } from './cloudinary-util';
+import { checkCoverPhoto, PhotoRuleError } from './photo-rules';
 // @ts-ignore
 // import { uploadTourDirToFTP } from "./ftp-upload";
 // Dynamically import CommonJS tour-progress-manager for ESM compatibility
@@ -87,8 +88,18 @@ export const uploadPropertyImage = (req: Request, res: Response, next: NextFunct
     if (err) {
       return next(err);
     }
-    // After multer has processed the file, call the S3 upload middleware
-    s3UploadMiddleware(req, res, next);
+    // A listing cover must be a real, big-enough photo with no text over it. Other uploads through this
+    // route (agent portfolio pictures, logos) are not held to that, so it is opt-in per request.
+    const forListing = (req.body as any)?.purpose === 'listing' || (req as any).photoPurpose === 'listing';
+    if (!forListing || !req.file) {
+      return s3UploadMiddleware(req, res, next);
+    }
+    checkCoverPhoto(req.file.buffer)
+      .then((verdict) => {
+        if (!verdict.ok) return next(new PhotoRuleError(verdict.reason));
+        s3UploadMiddleware(req, res, next);
+      })
+      .catch(next);
   });
 };
 
