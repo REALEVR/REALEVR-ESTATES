@@ -50,6 +50,7 @@ import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
 import { sendWhatsAppMessage } from './whatsapp'
 import { getLiveReferredPropertyIds } from './self-serve-listing'
+import { hasCoverPhoto } from '../photo-rules'
 
 const COLLECTION = 'gene_boost_purchases'
 
@@ -295,6 +296,11 @@ export function registerBoostPlacementRoutes(app: Express, adminMiddleware: Requ
             const isOwner = property.ownerId != null && property.ownerId === user.id
             if (!isOwner && user.role !== 'admin') {
                 return res.status(403).json({ message: 'Only this listing\'s owner (or an admin) can boost it.' })
+            }
+
+            // No cover photo, no featured slot: don't take money for a placement that cannot show a picture.
+            if (!hasCoverPhoto(property)) {
+                return res.status(400).json({ message: 'Add a cover photo to this listing before boosting it.' })
             }
 
             // Existing pending request for the same property? Don't stack —

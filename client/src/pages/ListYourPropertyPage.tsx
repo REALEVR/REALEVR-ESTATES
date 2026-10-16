@@ -154,7 +154,9 @@ export default function ListYourPropertyPage() {
       await uploadPhoto.mutateAsync({ id: submissionId, token, file });
       setStep("verify");
     } catch (err: any) {
-      toast({ title: "Photo upload failed", description: err?.message, variant: "destructive" });
+      // A photo the rules refused must not stay on screen as if it were accepted.
+      setCoverPreview(null);
+      toast({ title: "That photo can't be used", description: err?.message, variant: "destructive" });
     }
   };
 
@@ -372,6 +374,9 @@ export default function ListYourPropertyPage() {
                 <p className="text-sm text-muted-foreground">
                   Just one photo to get this live — a full gallery or guided virtual tour can be added from the
                   dashboard right after this.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Use a real photo of the property: JPG, PNG or WebP, at least 1000 px wide, with no text or logo on it.
                 </p>
                 <input
                   ref={fileInputRef}

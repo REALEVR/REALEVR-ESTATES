@@ -394,6 +394,7 @@ const onSubmit = async (data: PropertyFormValues) => {
       console.log("WillCreateFormDataForImage",image)
       // Create FormData
       const formData = new FormData();
+      formData.append('purpose', 'listing'); // listing covers are held to the photo rules (server/photo-rules.ts)
       formData.append('image', image);
 
       console.log("DidCreateFormDataForImage",formData)
@@ -1117,7 +1118,7 @@ const onSubmit = async (data: PropertyFormValues) => {
                   <div className="border rounded-lg p-4 space-y-4">
                     <h3 className="text-lg font-medium">Property Image</h3>
                     <FormDescription>
-                      Upload a high-quality image of the property (max 5MB)
+                      Upload a real photo of the property (max 5MB). A real photograph, JPG, PNG or WebP, at least 1000 px on the long side, with no text, logo or price written over it.
                     </FormDescription>
 
                     <div className="flex items-center space-x-2">

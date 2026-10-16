@@ -142,7 +142,8 @@ const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash
 let geminiWorking: string | null = null
 let discovered: { at: number; names: string[] } | null = null
 
-function geminiCandidates(): string[] {
+/** The Gemini models to try, best first (also used by the photo check). */
+export function geminiModelCandidates(): string[] {
     const wanted = (process.env.GEMINI_MODEL || '').trim()
     return Array.from(new Set([...(geminiWorking ? [geminiWorking] : []), ...(wanted ? [wanted] : []), ...GEMINI_MODELS]))
 }
@@ -223,7 +224,7 @@ export async function callGeminiWith(ai: GeminiClient, systemPrompt: string, his
         return {}
     }
 
-    for (const model of geminiCandidates()) {
+    for (const model of geminiModelCandidates()) {
         const r = await attemptModel(model)
         if (r.reply) return r.reply
         if (r.stop) return null

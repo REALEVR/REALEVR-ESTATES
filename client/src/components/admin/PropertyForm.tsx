@@ -212,6 +212,7 @@ export default function PropertyForm({ property, onSuccess }: PropertyFormProps)
         try {
             // Create FormData
             const formData = new FormData()
+            formData.append('purpose', 'listing') // listing covers are held to the photo rules (server/photo-rules.ts)
             formData.append('image', image)
 
             // Upload the image

@@ -15,8 +15,12 @@ property page and listings page were judged on what rendered plus the code; re-c
 1. **(Done) Show value before the ask on /rental-units.** The first thing on the page is a "Viewing Package Required, 10,000 UGX" box,
    above the filters and listings. Lead with the listings and the free preview; show the package after the first row, or as a sticky
    bar once someone opens a listing.
-2. **Real photos only.** The sample BnB listing's cover is an AI-made coin illustration with the title baked in. Add a photo check on
-   upload (minimum size, no text overlays, at least 5 photos) and a "no photo, no listing" rule for featured slots.
+2. **(Done) Real photos only.** A listing cover is now checked on upload (`server/photo-rules.ts`): JPG/PNG/WebP, at least 1000 x 600 px,
+   not a flat graphic, and (via Gemini, only when it answers) a real photograph with no text or logo over it. Listing forms and the
+   self-serve page send `purpose=listing`; other uses of the upload route (agent portfolio pictures) are not held to it. A listing with
+   no cover cannot take a featured slot or buy a boost. `GET /api/admin/photo-audit` (admin; add `?ai=1` for the Gemini check) lists
+   existing covers that would fail today. "At least 5 photos": a listing has one cover, and guided room captures already need 6+ photos
+   per room, so the count is enforced there. Set `PHOTO_AI_CHECK=0` to switch the Gemini check off.
 3. **(Done) Fill the hero slot.** On phones the tour slot under the categories can show an empty grey panel with a pause button. Show a
    still of the featured tour with a Play button until the video is ready, and never show a pause control over nothing.
 4. **Trust that is checkable.** Replace claims with facts: owner joined date, number of tours, "phone verified" once you verify

@@ -388,6 +388,7 @@ export function registerSelfServeListingRoutes(app: Express): void {
         if (submission.status !== 'draft') return res.status(409).json({ message: 'This listing has already moved past the photo step.' })
 
         const { uploadPropertyImage } = await import('../upload')
+        ;(req as any).photoPurpose = 'listing'
         uploadPropertyImage(req as any, res as any, (err: any) => {
             if (err) return res.status(400).json({ message: err.message || 'Upload failed.' })
             const file = (req as any).file

@@ -26,6 +26,7 @@ import {
     sseTourProgress,
 } from './upload'
 import { registerRoomCaptureRoutes } from './room-capture'
+import { hasCoverPhoto, checkCoverPhoto, geminiVisionCheck } from './photo-rules'
 import { registerPaymentGateWayForApp } from './payment/payment-new'
 import {
     buildRobotsTxt,
@@ -682,6 +683,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const featuredProperties = properties
                 .filter((p): p is NonNullable<typeof p> => !!p)
                 .filter(isPubliclyVisibleProperty)
+                // No cover photo, no featured slot.
+                .filter(hasCoverPhoto)
 
             // Set cache control headers to prevent caching
             res.set({
@@ -2710,6 +2713,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 imagePath,
             })
         })
+    })
+
+
+    // Admin: which existing listings have a cover photo that would not pass today's rules (too small, a flat graphic,
+    // and with ?ai=1 also text laid over it or not a photograph). Reports only; it never changes a listing.
+    app.get('/api/admin/photo-audit', adminMiddleware, async (req, res) => {
+        try {
+            const useAi = req.query.ai === '1'
+            const limit = Math.min(Math.max(Number(req.query.limit) || 60, 1), 150)
+            const properties = (await storage.getAllProperties()).filter(isPubliclyVisibleProperty).slice(0, limit)
+            const flagged: { id: number; title: string; imageUrl: string; reason: string }[] = []
+            let checked = 0
+            let unreadable = 0
+            let next = 0
+            const worker = async () => {
+                while (next < properties.length) {
+                    const p = properties[next++]
+                    if (!hasCoverPhoto(p)) {
+                        flagged.push({ id: p.id, title: p.title, imageUrl: '', reason: 'No cover photo.' })
+                        continue
+                    }
+                    try {
+                        const url = /^https?:\/\//.test(p.imageUrl) ? p.imageUrl : new URL(p.imageUrl, `${req.protocol}://${req.get('host')}`).toString()
+                        const r = await fetch(url, { signal: AbortSignal.timeout(8000) })
+                        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+                        const verdict = await checkCoverPhoto(Buffer.from(await r.arrayBuffer()), { vision: useAi ? geminiVisionCheck : false })
+                        checked++
+                        if (!verdict.ok) flagged.push({ id: p.id, title: p.title, imageUrl: p.imageUrl, reason: verdict.reason ?? 'Failed the photo rules.' })
+                    } catch {
+                        unreadable++
+                    }
+                }
+            }
+            await Promise.all([worker(), worker(), worker()])
+            res.json({ total: properties.length, checked, unreadable, aiCheck: useAi, flagged })
+        } catch (error) {
+            console.error('[photo-audit] failed:', error)
+            res.status(500).json({ message: 'Photo audit failed' })
+        }
     })
 
     // Virtual tour ZIP upload, direct to S3 (admin/agent only). The browser
