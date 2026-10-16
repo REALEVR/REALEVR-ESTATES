@@ -23,8 +23,12 @@ property page and listings page were judged on what rendered plus the code; re-c
    per room, so the count is enforced there. Set `PHOTO_AI_CHECK=0` to switch the Gemini check off.
 3. **(Done) Fill the hero slot.** On phones the tour slot under the categories can show an empty grey panel with a pause button. Show a
    still of the featured tour with a Play button until the video is ready, and never show a pause control over nothing.
-4. **Trust that is checkable.** Replace claims with facts: owner joined date, number of tours, "phone verified" once you verify
-   numbers, a visible report button. Do not add ID-verified badges until IDs are actually checked.
+4. **(Done) Trust that is checkable.** Every property page now has a "What you can check" card (`ListingTrust.tsx`, facts from
+   `GET /api/properties/:id/trust`): when the manager joined, how many listings they have, how many have a tour you can open, and
+   whether their email is confirmed. It states plainly that ID documents and phone numbers are not checked yet, so there is no
+   "ID verified" or "phone verified" badge. A visible "Report this listing" button (no account needed) sends the report to the admins
+   in-app, by email and on WhatsApp; admins can list and close reports at `GET /api/admin/listing-reports`. Add a "phone verified"
+   fact only once phone numbers are actually verified and the result is stored on the account.
 5. **Fonts and icons.** Montserrat, Space Grotesk and Font Awesome all load. Keep one display and one text face, and swap Font Awesome
    for inline SVG icons (lucide is already installed). This also removes the blank-icon flash when the icon font is slow.
 6. **Lighter first load on phones.** Aim for under 1 MB before scroll. Serve card photos at 480 px wide with `srcset`, and cap the

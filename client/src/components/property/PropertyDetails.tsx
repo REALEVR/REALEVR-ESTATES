@@ -6,6 +6,7 @@ import { useLocation } from 'wouter'
 import { useAuth } from '@/hooks/use-auth'
 import { usePropertyViews } from '@/hooks/usePropertyViews'
 import OwnerContactDetails from './OwnerContactDetails'
+import ListingTrust from './ListingTrust'
 import ReviewsSection from './ReviewsSection'
 import BookingCalendarModal from './BookingCalendarModal'
 import VirtualTourModal from './VirtualTourModal'
@@ -658,6 +659,9 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                 </a>{' '}
                 before paying any deposit outside the platform.
             </p>
+
+            {/* Facts a visitor can check (account age, listing and tour counts) and a visible report button. */}
+            <ListingTrust propertyId={property.id} propertyTitle={property.title} />
 
             {/* Show owner contact details section for BnBs */}
             {isBnB && (
