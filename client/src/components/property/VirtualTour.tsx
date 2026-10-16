@@ -95,7 +95,7 @@ export default function VirtualTour({ tourUrl, isFullscreen = false, showVrButto
         >
           <img src={coverImage} alt="" className="h-full w-full object-cover" fetchPriority="high" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/10" />
-          <span className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm">
+          <span className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm">
             Loading the 360° tour…
           </span>
         </div>

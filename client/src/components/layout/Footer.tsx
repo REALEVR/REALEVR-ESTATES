@@ -28,7 +28,7 @@ function PlaceLinks() {
   return (
     <>
       <h3 className="font-display text-base mb-4 mt-6 text-foreground">Homes in</h3>
-      <ul className="space-y-2 text-sm text-muted-foreground">
+      <ul className="space-y-1 text-sm text-muted-foreground [&_a]:inline-block [&_a]:py-1.5">
         {places.map((p) => (
           <li key={p.slug}>
             <Link href={`/homes/${p.slug}`} className="hover:text-accent transition-colors">{p.name}</Link>
@@ -69,7 +69,7 @@ export default function Footer() {
 
           <div>
             <h3 className="font-display text-base mb-4 text-foreground">RealEVR Estates</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
+            <ul className="space-y-1 text-sm text-muted-foreground [&_a]:inline-block [&_a]:py-1.5">
               <li><Link href="/about" className="hover:text-accent transition-colors">About Us</Link></li>
               <li><Link href="/partners" className="hover:text-accent transition-colors">Partners</Link></li>
               <li><Link href="/how-it-works" className="hover:text-accent transition-colors">How It Works</Link></li>
@@ -81,7 +81,7 @@ export default function Footer() {
 
           <div>
             <h3 className="font-display text-base mb-4 text-foreground">Discover</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
+            <ul className="space-y-1 text-sm text-muted-foreground [&_a]:inline-block [&_a]:py-1.5">
               <li><Link href="/#featured" className="hover:text-accent transition-colors">Virtual Tours</Link></li>
               <li><Link href="/featured-properties" className="hover:text-accent transition-colors">Featured Properties</Link></li>
               <li><Link href="/properties" className="hover:text-accent transition-colors">Building Types</Link></li>
@@ -90,7 +90,7 @@ export default function Footer() {
             </ul>
             <PlaceLinks />
             <h3 className="font-display text-base mb-4 mt-6 text-foreground">Hosting</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
+            <ul className="space-y-1 text-sm text-muted-foreground [&_a]:inline-block [&_a]:py-1.5">
               <li><Link href="/admin/properties" className="hover:text-accent transition-colors">Add Your Property</Link></li>
               <li><Link href="/list-your-property" className="hover:text-accent transition-colors">List a Property</Link></li>
                             <li><Link href="/host-responsibly" className="hover:text-accent transition-colors">Host Responsibly</Link></li>
@@ -100,7 +100,7 @@ export default function Footer() {
 
           <div>
             <h3 className="font-display text-base mb-4 text-foreground">Support</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
+            <ul className="space-y-1 text-sm text-muted-foreground [&_a]:inline-block [&_a]:py-1.5">
               <li><Link href="/help" className="hover:text-accent transition-colors">Help Center</Link></li>
               <li><Link href="/contact" className="hover:text-accent transition-colors">Contact Us</Link></li>
               <li><Link href="/trust-safety" className="hover:text-accent transition-colors">Trust &amp; Safety</Link></li>
@@ -171,7 +171,7 @@ export default function Footer() {
             ))}
           </div>
 
-          <div className="text-muted-foreground text-sm text-center">
+          <div className="text-muted-foreground text-sm text-center [&_a]:inline-block [&_a]:px-1 [&_a]:py-1.5">
             &copy; {currentYear} RealEVR Estates, Inc. All rights reserved.
             <span className="mx-2">·</span>
             <Link href="/privacy" className="hover:text-accent hover:underline">Privacy</Link>

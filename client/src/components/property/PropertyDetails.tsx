@@ -339,8 +339,8 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                     </li>
                                     {isBnB && (
                                         <>
-                                        <li className="flex items-center text-accent font-medium">
-                                            <i className="fas fa-calendar-check w-6"></i>
+                                        <li className="flex items-start text-accent font-medium">
+                                            <i className="fas fa-calendar-check mt-1 w-6 shrink-0"></i>
                                             <span>20% deposit to book (non-refundable) — unlocks the tour and host contact</span>
                                         </li>
                                         <li className="ml-6 text-xs leading-relaxed text-muted-foreground">
@@ -575,7 +575,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                     </span>
                     {property.category === 'rental_units' && <span className="text-muted-foreground"> / month</span>}
                     {(property.category === 'furnished_houses' || property.category === 'BnB') && (
-                        <span className="text-muted-foreground"> / day</span>
+                        <span className="text-muted-foreground"> / night</span>
                     )}
                     {/* Optional discounted monthly rate for long-staying BnB
                         guests (PropertyFormNew.tsx) - shown alongside the
@@ -650,8 +650,8 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                 scam-wary first-time visitor. One honest, real line, linking
                 to the platform's actual existing Trust & Safety page rather
                 than inventing a new policy. */}
-            <p className="text-sm text-muted-foreground mb-8 flex items-center gap-1.5">
-                <i className="fas fa-shield-halved text-xs"></i>
+            <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
+                <i className="fas fa-shield-halved mr-1.5 text-xs" aria-hidden="true"></i>
                 You'll be contacted by the listing agent to arrange next steps.{' '}
                 <a href="/trust-safety" className="text-accent hover:underline">
                     Read our safety guidance

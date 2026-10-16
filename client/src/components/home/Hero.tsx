@@ -345,7 +345,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
                 <span className="h-2.5 w-2.5 rounded-full bg-accent" aria-hidden="true" />
                 360° tours · across Africa
               </motion.div>
-              <motion.h1 variants={riseIn} className="font-display text-6xl font-bold leading-[1.02] tracking-[-0.035em] text-foreground lg:text-[4.25rem]">
+              <motion.h1 variants={riseIn} role={isMobile ? 'presentation' : undefined} className="font-display text-6xl font-bold leading-[1.02] tracking-[-0.035em] text-foreground lg:text-[4.25rem]">
                 Walk in{' '}
                 <br />
                 <span className="text-accent">before you arrive.</span>
@@ -506,10 +506,17 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
         <img src={mansionBg} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-[60%_30%]" />
         <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/15 to-background/90" />
         <WalkingFigure />
-        <HeroTourOrbit labels={false} className="absolute -right-6 top-2 h-[132px] w-[132px] opacity-90" />
-        <h1 className="relative font-display text-[1.65rem] font-semibold leading-tight tracking-tight text-foreground [text-shadow:0_0_14px_rgba(255,255,255,0.95),0_0_4px_rgba(255,255,255,0.9)]">
-          Walk in before you arrive
-        </h1>
+        <HeroTourOrbit labels={false} className="absolute -right-8 -top-3 h-[104px] w-[104px] opacity-80" />
+        {/* Only one h1 per page: the desktop headline above is the h1 until the phone layout is in use, then this one is. */}
+        {isMobile ? (
+          <h1 className="relative font-display text-[1.65rem] font-semibold leading-tight tracking-tight text-foreground [text-shadow:0_0_14px_rgba(255,255,255,0.95),0_0_4px_rgba(255,255,255,0.9)]">
+            Walk in before you arrive
+          </h1>
+        ) : (
+          <p aria-hidden="true" className="relative font-display text-[1.65rem] font-semibold leading-tight tracking-tight text-foreground">
+            Walk in before you arrive
+          </p>
+        )}
         <p className="relative mt-1 text-[15px] font-medium text-foreground/80 [text-shadow:0_0_12px_rgba(255,255,255,0.95),0_0_4px_rgba(255,255,255,0.9)]">Tour real homes in 360° first.</p>
       </section>
 
@@ -672,7 +679,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
               type="button"
               onClick={() => setHeroSlide(slide)}
               aria-label={slide === 'tour' ? 'Show tour video' : 'Show real estate news'}
-              className="p-2.5 flex items-center justify-center"
+              className="flex min-h-11 min-w-6 items-center justify-center px-1.5"
             >
               <span
                 className={`h-1.5 rounded-full transition-[width,background-color] duration-200 ease-out ${
