@@ -87,6 +87,36 @@ client-side compass/blur hints in `RoomCaptureGuide.tsx` are advisory only, to
 reduce retakes in the field -- exactly per the product spec's non-goal of
 never letting a client-side check be the final word.
 
+## 360 photos: add every panorama in one go (v1.1)
+
+For agents and owners who have a 360 camera, the tour tab now opens on **360 photos** instead of making them create rooms and
+upload one panorama at a time (`client/src/components/admin/Tour360Uploader.tsx`). It lives in one panel with the other two ways
+of adding a tour (`TourUploadPanel.tsx`: 360 photos, Phone capture, 3D Vista ZIP), used both in the property editor (what agents
+see from "Upload Tour") and in the admin Virtual Tour Manager. Nothing navigates away any more.
+
+What it does:
+
+- Pick or drop all the panoramas at once. Each photo is checked in the browser the moment it is chosen (full 2:1 shape, at least
+  3000 px wide, JPG/PNG/WebP, under 120 MB), with a plain reason when it cannot be used (`client/src/lib/panorama.ts`, thresholds
+  mirror the server classifier).
+- Room names come from the file names ("living_room-360.jpg" becomes "Living room"; camera counters like `R0010123.JPG` become
+  "Room 3") and can be edited before uploading. Duplicate names are caught.
+- Photos upload one at a time in the order picked, so the first photo stays the first room (where the tour opens), with a progress
+  bar per photo and automatic retries (3 tries) when the connection drops.
+- Rooms already uploaded earlier are loaded back from the server draft (`GET .../manifest`), so a refresh or a second visit does not
+  lose anything. The phone-capture wizard now resumes the same way (before, a refresh made every qualified room disappear).
+- One **Publish tour** button builds and publishes, with progress. A success card then offers "Open the tour" and "Connect rooms".
+
+Server changes (`server/room-capture.ts`):
+
+- `batch=1` on a room upload skips the per-room admin alert (email, WhatsApp, push, bell). A 10-room tour used to send ten of each;
+  the single "Virtual tour published" notice still goes out at the end.
+- A lone photo that is clearly a 360 panorama but too small now says so ("at 2048 px wide it is too small to use ... at least 3000 px")
+  instead of "need at least 6 photos". Ordinary photos and sweeps keep their existing messages.
+
+Known limit: drafts are kept on the server's local disk (`uploads/tours/property_<id>_draft`). On a host whose disk is wiped on
+every deploy, a draft started before a deploy is lost, so upload and publish in one sitting (or put `uploads/` on a persistent volume).
+
 ## Known limitations (v1, by design -- see product spec for what's deferred)
 
 - **No true panorama stitching.** There is no maintained Node panorama-stitching

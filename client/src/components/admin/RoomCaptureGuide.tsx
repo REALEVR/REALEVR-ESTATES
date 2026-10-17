@@ -19,6 +19,7 @@ import {
     Video,
     X,
 } from 'lucide-react'
+import { fetchDraftRooms } from '@/lib/room-capture-api'
 
 interface RoomCaptureGuideProps {
     propertyId: number
@@ -97,6 +98,32 @@ export default function RoomCaptureGuide({ propertyId, onPublished }: RoomCaptur
     const [finalizeError, setFinalizeError] = useState('')
 
     const qualifiedCount = rooms.filter((r) => r.status === 'qualified').length
+
+    // Pick up rooms already uploaded in an earlier visit: without this a refresh made every qualified room disappear from the
+    // list (and the Build button go grey) even though the server still had them.
+    useEffect(() => {
+        let cancelled = false
+        fetchDraftRooms(propertyId).then((draft) => {
+            if (cancelled || draft.length === 0) return
+            setRooms((prev) => {
+                const bySlug = new Map(prev.map((r) => [r.slug, r]))
+                for (const d of draft) {
+                    const known = bySlug.get(d.slug)
+                    bySlug.set(d.slug, {
+                        slug: d.slug,
+                        name: known?.name ?? d.name,
+                        status: d.status,
+                        warnings: d.warnings,
+                        rejectionReasons: d.rejectionReasons,
+                    })
+                }
+                return Array.from(bySlug.values())
+            })
+        })
+        return () => {
+            cancelled = true
+        }
+    }, [propertyId])
 
     // --- Device orientation (compass) -------------------------------------
     useEffect(() => {
@@ -346,8 +373,8 @@ export default function RoomCaptureGuide({ propertyId, onPublished }: RoomCaptur
                     <AlertDescription>
                         Turn on the lights, open curtains, and clear clutter from the walking path. Stand near the
                         center of the room and rotate slowly, taking a photo roughly every 45° (about {MIN_PHOTOS_RECOMMENDED}
-                        {' '}photos covering the full room). You can also upload a video of you turning around the room, or a
-                        single 360 photo/video if you have a 360 camera.
+                        {' '}photos covering the full room). You can also upload a video of you turning around the room. Have a 360
+                        camera? Use the "360 photos" tab instead: it takes all your panoramas at once.
                     </AlertDescription>
                 </Alert>
 
@@ -484,9 +511,8 @@ export default function RoomCaptureGuide({ propertyId, onPublished }: RoomCaptur
             <div>
                 <h3 className="text-lg font-semibold mb-1">Capture with your phone</h3>
                 <p className="text-sm text-muted-foreground">
-                    No 3D Vista export? Capture each room yourself -- a guided photo sweep, a video walk-around, or a
-                    single shot from a 360 camera all work. Each room is checked automatically before it counts toward
-                    the tour.
+                    No 360 camera or 3D Vista export? Capture each room yourself with a guided photo sweep or a video
+                    walk-around. Each room is checked automatically before it counts toward the tour.
                 </p>
             </div>
 
