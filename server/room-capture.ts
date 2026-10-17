@@ -8,7 +8,7 @@
  * agents with professional tour software keep using it as-is.
  *
  * Flow:
- *   1. POST /api/upload/room-capture/:propertyId          (repeatable, once per room)
+ *   1. POST /api/upload/room-capture/:propertyId          (repeatable, once per room; batch=1 skips the per-room admin alert)
  *   2. GET  /api/upload/room-capture/:propertyId/manifest  (resume / progress UI)
  *   3. DELETE /api/upload/room-capture/:propertyId/:roomSlug  (retake a room)
  *   4. POST /api/upload/room-capture/:propertyId/finalize  (assemble + publish, SSE progress
@@ -85,6 +85,17 @@ interface ProcessedAsset {
   relPath: string;
 }
 
+/**
+ * A lone photo that is almost certainly a 360 panorama but cannot be used as one (right 2:1 shape, resolution too low) used to
+ * fall through to the "need at least 6 photos" message, which is baffling to someone who just uploaded a 360 photo. Say what is
+ * actually wrong instead. Returns null for anything else, so ordinary photos and sweeps keep their existing messages.
+ */
+export function explainLonePanorama(c: { width: number; height: number; aspectRatio: number; kind: string }): string | null {
+  const nearTwoToOne = c.aspectRatio >= 1.9 && c.aspectRatio <= 2.15;
+  if (c.kind === 'equirect_photo' || !nearTwoToOne || c.width < 1500) return null;
+  return `This looks like a 360 photo, but at ${c.width} px wide it is too small to use. Export it at full resolution from your camera or its app (at least 3000 px wide, most 360 cameras shoot 5000+) and upload it again.`;
+}
+
 async function processPhotoSet(
   photoFiles: Express.Multer.File[],
   roomTmpDir: string,
@@ -120,6 +131,13 @@ async function processPhotoSet(
       warnings,
       rejectionReasons,
     };
+  }
+
+  if (classifications.length === 1) {
+    const why = explainLonePanorama(classifications[0]);
+    if (why) {
+      return { kind: 'photo_sweep', assets: [], warnings, rejectionReasons: [why] };
+    }
   }
 
   // Otherwise treat as a multi-photo sweep: quality-check each, keep the
@@ -305,8 +323,11 @@ export const uploadRoomCapture = (req: Request, res: Response, next: NextFunctio
 
       // Every new room capture is announced (dashboard, email and WhatsApp), whoever uploaded it —
       // fire-and-forget, never lets a notification failure affect the upload response itself.
+      // A bulk 360 upload (batch=1) sends one request per room: announcing each one would mean ten emails and ten WhatsApps for
+      // one tour, so those are covered by the single "Virtual tour published" notice at the end instead.
+      const isBatch = String(req.body?.batch ?? '') === '1';
       const uploader = req.user as { id: number; role: string; fullName?: string; username?: string } | undefined;
-      if (uploader) {
+      if (uploader && !isBatch) {
         void notifyAdminsOfRoomUpload(propertyId, uploader, entry).catch(() => {});
       }
 

@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import LocationPinPicker from '@/components/admin/LocationPinPicker';
 import { AFRICAN_COUNTRIES, currenciesForCountry, currencyForCountry, placeFromTimezone } from '@shared/africa';
-import DirectS3TourUpload from '@/components/admin/DirectS3TourUpload';
+import TourUploadPanel from '@/components/admin/TourUploadPanel';
 import {
   Form,
   FormControl,
@@ -1326,8 +1326,7 @@ const onSubmit = async (data: PropertyFormValues) => {
             <CardHeader>
               <CardTitle>Virtual Tour Management</CardTitle>
               <CardDescription>
-                Upload and manage 3D Vista virtual tours for this property.
-                The ZIP file should be an exported tour from 3D Vista.
+                Add a virtual tour from 360 photos, from your phone, or from a 3D Vista export.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -1385,59 +1384,12 @@ const onSubmit = async (data: PropertyFormValues) => {
                     </div>
                   </div>
 
-                  {/* No dedicated 360 camera? Don't own 3D Vista? — the
-                      guided phone-capture flow (compass-guided room-by-room
-                      photo/video capture, quality-checked server-side, see
-                      docs/GUIDED_360_UPLOAD.md) lives on the full Virtual
-                      Tour Manager page, not duplicated inline here. This is
-                      the entry point into "the upload process" the phone
-                      capture was asked to be part of. */}
-                  <div className="rounded-lg border-2 border-accent/30 bg-accent/5 p-4">
-                    <div className="flex items-start gap-3">
-                      <Camera className="h-6 w-6 text-accent shrink-0 mt-0.5" />
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold mb-1">Don't have a 360 camera or 3D Vista?</h3>
-                        <p className="text-sm text-muted-foreground mb-3">
-                          Capture a tour right from your phone instead — walk each room while the app guides you with a
-                          compass overlay, no special equipment needed.
-                        </p>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={() => {
-                            window.location.href = `/admin/virtual-tour-manager?propertyId=${property.id}`;
-                          }}
-                        >
-                          <Camera className="mr-2 h-4 w-4" />
-                          Capture with your phone
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border bg-card p-4">
-                    <h3 className="text-lg font-semibold mb-2">Or upload a 3D Vista export</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Upload a 3D Vista tour export (ZIP file). This will extract the tour files and make them available
-                      for viewing. Maximum file size: 5GB.
-                    </p>
-
-                    {/* One upload path: straight to S3 from the browser in
-                        parallel parts (our server only ever sees a small S3
-                        key) - see DirectS3TourUpload.tsx's own doc comment
-                        for why the earlier relay-through-our-server path was
-                        retired instead of kept around as a second option. */}
-                    {property?.id ? (
-                      <DirectS3TourUpload
-                        propertyId={property.id}
-                        onSuccess={handleTourUploadSuccess}
-                      />
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        Please save the property first before uploading a tour.
-                      </p>
-                    )}
-                  </div>
+                  {/* One screen for every way of adding a tour: 360 photos, phone capture or a 3D Vista ZIP (see TourUploadPanel). */}
+                  {property?.id ? (
+                    <TourUploadPanel propertyId={property.id} onPublished={handleTourUploadSuccess} />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Please save the property first before adding a tour.</p>
+                  )}
 
                   {/* Tour preview section */}
                   {(tourPreviewUrl || property?.tourUrl) && (
@@ -1505,7 +1457,7 @@ const onSubmit = async (data: PropertyFormValues) => {
             </CardContent>
             <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4">
               <p className="text-sm text-muted-foreground">
-                Note: Upload only 3D Vista tour exports for optimal compatibility
+                Tip: 360 photos are the quickest way to a tour that looks great on phones
               </p>
 
               {!(tourPreviewUrl || property?.tourUrl) && property?.id && (

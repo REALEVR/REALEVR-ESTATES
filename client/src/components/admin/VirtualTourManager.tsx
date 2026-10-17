@@ -11,10 +11,8 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import RoomCaptureGuide from './RoomCaptureGuide'
+import TourUploadPanel from './TourUploadPanel'
 import ConnectRoomsButton from './ConnectRoomsButton'
-import DirectS3TourUpload from './DirectS3TourUpload'
 import {
     AlertCircle,
     ArrowLeft,
@@ -135,7 +133,7 @@ export default function VirtualTourManager() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Virtual Tour Manager</CardTitle>
-                        <CardDescription>Upload and manage 3D Vista virtual tours for your properties</CardDescription>
+                        <CardDescription>Add and manage virtual tours: 360 photos, phone capture or a 3D Vista export</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div>
@@ -205,43 +203,15 @@ export default function VirtualTourManager() {
                                     </div>
                                 </div>
 
-                                <Tabs defaultValue="capture" className="w-full">
-                                    <TabsList className="grid w-full grid-cols-2">
-                                        <TabsTrigger value="capture">Capture with your phone</TabsTrigger>
-                                        <TabsTrigger value="zip">Upload 3D Vista ZIP</TabsTrigger>
-                                    </TabsList>
-
-                                    <TabsContent value="capture" className="mt-4">
-                                        <RoomCaptureGuide
-                                            propertyId={property.id}
-                                            onPublished={(url) => {
-                                                setUploadSuccess(true)
-                                                setTourPreviewUrl(url)
-                                                queryClient.invalidateQueries({ queryKey: ['/api/properties', property.id] })
-                                                toast({ title: 'Success', description: 'Virtual tour built and published. Next: use Connect rooms to add doors between the rooms.' })
-                                            }}
-                                        />
-                                    </TabsContent>
-
-                                    <TabsContent value="zip" className="mt-4">
-                                        <div className="rounded-lg border bg-card p-4">
-                                            <h3 className="text-lg font-semibold mb-2">Upload Virtual Tour</h3>
-                                            <p className="text-sm text-muted-foreground mb-4">
-                                                Already have a tour exported from 3D Vista, Pano2VR, or similar
-                                                software? Upload the ZIP file directly. Maximum file size: 5GB.
-                                            </p>
-
-                                            <DirectS3TourUpload
-                                                propertyId={property.id}
-                                                onSuccess={(url) => {
-                                                    setUploadSuccess(true)
-                                                    setTourPreviewUrl(url)
-                                                    queryClient.invalidateQueries({ queryKey: ['/api/properties', property.id] })
-                                                }}
-                                            />
-                                        </div>
-                                    </TabsContent>
-                                </Tabs>
+                                <TourUploadPanel
+                                    propertyId={property.id}
+                                    onPublished={(url) => {
+                                        setUploadSuccess(true)
+                                        setTourPreviewUrl(url)
+                                        queryClient.invalidateQueries({ queryKey: ['/api/properties', property.id] })
+                                        toast({ title: 'Your virtual tour is live', description: 'Next, join the rooms with doors if you captured several.' })
+                                    }}
+                                />
 
                                 {tourPreviewUrl && (
                                     <div className="border rounded-lg p-4">
@@ -284,7 +254,7 @@ export default function VirtualTourManager() {
                     </CardContent>
                     <CardFooter className="flex justify-between">
                         <p className="text-sm text-muted-foreground">
-                            Note: Upload only 3D Vista tour exports for optimal compatibility
+                            Tip: 360 photos are the quickest way to a tour that looks great on phones
                         </p>
                     </CardFooter>
                 </Card>
