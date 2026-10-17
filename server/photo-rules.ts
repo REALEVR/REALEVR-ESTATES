@@ -13,7 +13,7 @@ import { geminiModelCandidates, isProviderResting } from './gene/ai-provider'
 export const COVER_RULES = {
     formats: ['jpeg', 'png', 'webp'],
     minLongEdge: 1000,
-    minShortEdge: 600,
+    minShortEdge: 450,
     maxAspect: 3,
     minBytes: 30_000,
     /** A photo has hundreds of distinct colours at 4 bits per channel; a flat illustration has a few dozen. */

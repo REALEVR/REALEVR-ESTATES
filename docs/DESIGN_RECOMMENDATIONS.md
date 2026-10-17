@@ -15,7 +15,7 @@ property page and listings page were judged on what rendered plus the code; re-c
 1. **(Done) Show value before the ask on /rental-units.** The first thing on the page is a "Viewing Package Required, 10,000 UGX" box,
    above the filters and listings. Lead with the listings and the free preview; show the package after the first row, or as a sticky
    bar once someone opens a listing.
-2. **(Done) Real photos only.** A listing cover is now checked on upload (`server/photo-rules.ts`): JPG/PNG/WebP, at least 1000 x 600 px,
+2. **(Done) Real photos only.** A listing cover is now checked on upload (`server/photo-rules.ts`): JPG/PNG/WebP, at least 1000 x 450 px,
    not a flat graphic, and (via Gemini, only when it answers) a real photograph with no text or logo over it. Listing forms and the
    self-serve page send `purpose=listing`; other uses of the upload route (agent portfolio pictures) are not held to it. A listing with
    no cover cannot take a featured slot or buy a boost. `GET /api/admin/photo-audit` (admin; add `?ai=1` for the Gemini check) lists
