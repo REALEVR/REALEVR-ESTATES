@@ -695,7 +695,7 @@ export function AgentDashboard() {
                             fetchAgentData()
                             toast({
                                 title: 'Property Added',
-                                description: 'Your property has been successfully added.',
+                                description: 'Your property is saved. Tap Boost on its card to appear first in search (Bronze from UGX 10,000).',
                             })
                         }}
                     />
