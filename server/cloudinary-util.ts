@@ -2,11 +2,11 @@ import { v2 as cloudinary } from 'cloudinary';
 import fs from 'fs';
 import path from 'path';
 
-// Configure Cloudinary
+// Configure Cloudinary. The account name and keys come from the environment; they used to be written in this file.
 cloudinary.config({
-    cloud_name: 'dnemgxfwh',
-    api_key: '452781244654595',
-    api_secret: 'BsW4-BLzWZRMh8_EeUVHAafwdv0'
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 /**

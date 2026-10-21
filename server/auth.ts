@@ -74,11 +74,18 @@ async function sendVerificationEmail(email: string, fullName: string, token: str
 }
 
 export function setupAuth(app: Express) {
-  // Use a default secret for offline development, but warn about it
-  const sessionSecret = process.env.SESSION_SECRET || "realevr-dev-secret-key-for-offline-use-only";
-
-  if (!process.env.SESSION_SECRET) {
-    console.warn("WARNING: Using insecure default SESSION_SECRET. Do not use in production!");
+  // A known default secret lets anyone forge a login cookie. Outside local development, if no secret is configured, make a random one
+  // for this run (people have to sign in again after a restart) instead of falling back to a value that is in the source code.
+  const isProduction = process.env.NODE_ENV === "production";
+  let sessionSecret = process.env.SESSION_SECRET;
+  if (!sessionSecret) {
+    if (isProduction) {
+      sessionSecret = randomBytes(48).toString("hex");
+      console.error("SECURITY: SESSION_SECRET is not set. Using a random secret for this run; set SESSION_SECRET so logins survive restarts.");
+    } else {
+      sessionSecret = "realevr-dev-secret-key-for-offline-use-only";
+      console.warn("WARNING: Using the development SESSION_SECRET. Do not use this in production.");
+    }
   }
 
   const sessionSettings: session.SessionOptions = {
@@ -86,7 +93,9 @@ export function setupAuth(app: Express) {
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false, // Always false for local dev (set to true only for HTTPS in production)
+      // "auto": marked Secure whenever the request came over HTTPS (the trust proxy setting below reads the forwarded protocol),
+      // and still works on plain http://localhost for development.
+      secure: "auto",
       maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
       sameSite: "lax",
       httpOnly: true,
@@ -203,15 +212,30 @@ export function setupAuth(app: Express) {
       const verificationExpiry = generateVerificationExpiry();
 
       const hashedPassword = await hashPassword(req.body.password);
+      // Copy only the fields a visitor may choose. The old code spread the whole request body into the account, so a request
+      // that said {"role":"admin"} created an administrator. Administrators are made only by an existing administrator.
+      const b = req.body ?? {};
+      const text = (v: unknown, max = 200) => (typeof v === "string" ? v.trim().slice(0, max) : undefined);
+      const requestedRole = b.role === "agent" ? "agent" : "normal";
       const user = await storage.createUser({
-        ...req.body,
+        username: text(b.username, 60),
+        email: text(b.email, 200),
+        fullName: text(b.fullName, 120),
+        phoneNumber: text(b.phoneNumber, 30),
+        countryCode: text(b.countryCode, 8),
+        companyName: text(b.companyName, 160),
+        licenseNumber: text(b.licenseNumber, 60),
+        membershipPlan: text(b.membershipPlan, 40) || null,
+        membershipStartDate: text(b.membershipStartDate, 40) || null,
+        membershipEndDate: text(b.membershipEndDate, 40) || null,
+        subscriptionPaymentId: text(b.subscriptionPaymentId, 120),
+        subscriptionStatus: text(b.subscriptionStatus, 20),
         password: hashedPassword,
-        membershipPlan: req.body.membershipPlan || null,
-        role: req.body.role || "normal",
+        role: requestedRole,
         isVerified: false,
         emailVerificationToken: verificationToken,
         emailVerificationExpires: verificationExpiry,
-      });
+      } as any);
 
       // Send verification email
       const emailSent = await sendVerificationEmail(user.email, user.fullName, verificationToken);
@@ -395,8 +419,8 @@ export function setupAuth(app: Express) {
           }
         });
 
-        // Return user without password
-        const { password, ...userWithoutPassword } = req.user as SelectUser;
+        // Return user without password or the email-verification secret
+        const { password, emailVerificationToken, emailVerificationExpires, ...userWithoutPassword } = req.user as SelectUser;
         res.status(200).json(userWithoutPassword);
       });
     })(req, res, next);
@@ -421,8 +445,9 @@ export function setupAuth(app: Express) {
     // console.log("Passport session:", (req.session as any)?.passport);
 
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
-    // Return user without password
-    const { password, ...userWithoutPassword } = req.user as SelectUser;
+    // Return the account without its password hash or the email-verification secret. (That token used to come back here, which let
+    // someone who registered with an address they do not own read it and "verify" the address themselves.)
+    const { password, emailVerificationToken, emailVerificationExpires, ...userWithoutPassword } = req.user as SelectUser;
     res.json(userWithoutPassword);
   });
 }

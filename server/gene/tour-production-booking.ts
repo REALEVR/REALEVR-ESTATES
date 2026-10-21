@@ -22,6 +22,7 @@
 import type { Express, Request, Response, RequestHandler } from 'express'
 import { readCollection, writeCollection, nextId, nowIso } from './store'
 import { storage } from '../storage'
+import { isSafeTourUrl } from '../lib/security'
 import { notifyAdminsEverywhere } from './admin-notify'
 
 const COLLECTION = 'gene_tour_production_bookings'
@@ -134,7 +135,7 @@ export function registerTourProductionBookingRoutes(app: Express, adminMiddlewar
     })
 
     // [ADMIN or AGENT] — mark the shoot complete; optionally attach the resulting tourUrl.
-    app.post('/api/gene/tour-production/bookings/:id/complete', async (req: Request, res: Response) => {
+    app.post('/api/gene/tour-production/bookings/:id/complete', adminMiddleware, async (req: Request, res: Response) => {
         try {
             const id = Number(req.params.id)
             const rows = readBookings()
@@ -144,6 +145,10 @@ export function registerTourProductionBookingRoutes(app: Express, adminMiddlewar
                 return res.status(400).json({ message: `Cannot complete a booking in status "${rows[idx].status}".` })
             }
             const tourUrl = typeof req.body?.tourUrl === 'string' ? req.body.tourUrl.trim() : undefined
+            // The address is shown to visitors inside the tour viewer: only this site's own tour files or an https page.
+            if (tourUrl && !isSafeTourUrl(tourUrl)) {
+                return res.status(400).json({ message: 'The tour link must be an https address or one of our own tour files.' })
+            }
             rows[idx] = { ...rows[idx], status: 'completed', completedAt: nowIso(), tourUrl: tourUrl || undefined }
             writeBookings(rows)
 

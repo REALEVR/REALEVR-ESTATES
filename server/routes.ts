@@ -14,6 +14,7 @@ import { request as request7 } from 'undici'
 
 import fs from 'fs'
 import { registerImageResizeRoute } from './image-resize'
+import { canManageProperty, isSafeTourUrl, stripAdminOnlyFields } from './lib/security'
 import { createTablesIfNotExist, DynamoDBUtils, TABLES, toNumericId, toStringId } from './dynamodb'
 
 import {
@@ -134,6 +135,47 @@ const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
     }
 
     next()
+}
+
+/**
+ * The payment gateway's access token lives on the server only. The browser used to be handed the real token
+ * (POST /api/payment/iotec/token) and send it back on every call, which let anyone who asked for one use RealEVR's
+ * gateway account directly. Now the browser gets a placeholder and the server adds the real token itself.
+ */
+let iotecTokenCache: { token: string; expiresAt: number } | null = null
+async function serverIotecToken(): Promise<string> {
+    if (iotecTokenCache && iotecTokenCache.expiresAt > Date.now() + 30_000) return iotecTokenCache.token
+    if (!process.env.IOTEC_CLIENT_ID || !process.env.IOTEC_CLIENT_SECRET) throw new Error('Payment gateway not configured')
+    const response = await fetch('https://id.iotec.io/connect/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ client_id: process.env.IOTEC_CLIENT_ID, client_secret: process.env.IOTEC_CLIENT_SECRET, grant_type: 'client_credentials' }),
+    })
+    const data = (await response.json()) as { access_token?: string; expires_in?: number }
+    if (!data.access_token) throw new Error('The payment gateway did not return a token')
+    iotecTokenCache = { token: data.access_token, expiresAt: Date.now() + Math.max(60, data.expires_in ?? 600) * 1000 }
+    return data.access_token
+}
+
+/**
+ * Admin or agent AND the listing's owner (or an administrator). adminMiddleware alone only checks the role, so any agent could
+ * upload to, or replace the tour of, any other agent's listing. A listing that does not exist yet is let through: there is
+ * nothing of anyone's to protect, and the handler reports the missing listing itself.
+ */
+const ownerOrAdminOfProperty = async (req: Request, res: Response, next: NextFunction) => {
+    adminMiddleware(req, res, async (err?: any) => {
+        if (err) return next(err)
+        try {
+            const raw = req.params.propertyId ?? req.params.id
+            const property = raw ? await storage.getProperty(toNumericId(raw)) : undefined
+            if (property && !canManageProperty(req.user as any, property)) {
+                return res.status(403).json({ message: 'You can only change your own listings.' })
+            }
+            next()
+        } catch (e) {
+            next(e)
+        }
+    })
 }
 
 // Free trial agents (AgentRegistrationPage.tsx's Free Trial plan) can list
@@ -350,32 +392,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 console.error('[payment/iotec] IOTEC_CLIENT_ID / IOTEC_CLIENT_SECRET not configured - tour-viewing payments cannot succeed')
                 return res.status(503).json({ error: 'Payment gateway not configured' })
             }
-            // Never log the actual secret value - this used to log both
-            // IOTEC_CLIENT_ID and IOTEC_CLIENT_SECRET on every request,
-            // putting a real credential in plaintext server logs.
-            const body = new URLSearchParams({
-                client_id: process.env.IOTEC_CLIENT_ID,
-                client_secret: process.env.IOTEC_CLIENT_SECRET,
-                grant_type: 'client_credentials',
-            })
-
-            const response = await fetch('https://id.iotec.io/connect/token', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body,
-            })
-
-            const data = await response.json()
-
-            res.status(response.status).json(data)
+            // The browser does not get the gateway's real token (see serverIotecToken). It gets a placeholder so the existing
+            // payment screens keep working unchanged; the server swaps in the real token on /collect and /status.
+            return res.status(200).json({ access_token: 'server-managed', token_type: 'Bearer', expires_in: 600 })
         } catch (err) {
             console.error(err)
             res.status(500).json({ error: 'Failed to fetch token' })
         }
     })
-    app.get('/api/payment/iotec/wallet-b', async (req: any, res: any) => {
+    app.get('/api/payment/iotec/wallet-b', requireStrictAdmin, async (req: any, res: any) => {
         interface IWalletResponse {
             currency: string
             id: string
@@ -387,11 +412,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
             console.log('Will-Fetch-Wallet-balance-Server')
 
-            const access_token = req.headers.authorization?.split(' ')[1] ?? req.body?.access_token
-
-            if (!access_token) {
-                return res.status(401).json({ error: 'Missing access token' })
-            }
+            const access_token = await serverIotecToken()
 
             const walletId = process.env.IOTEC_WALLET_ID
 
@@ -438,23 +459,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
      */
     app.get('/api/payment/iotec/status', async (req: any, res: any) => {
         // FIX 1: Read from req.query, not req.body — GET requests have no body
-        const { accessToken, transactionId } = req.query
+        const { transactionId } = req.query
 
-        // FIX 2: Validate both required params before hitting the upstream API
-        if (!accessToken) {
-            return res.status(400).json({ error: 'accessToken is required' })
-        }
-        if (!transactionId) {
-            return res.status(400).json({ error: 'transactionId is required' })
+        // FIX 2: Validate the required param before hitting the upstream API (the gateway token is added here, server side)
+        if (!transactionId || !/^[A-Za-z0-9_-]{8,80}$/.test(String(transactionId))) {
+            return res.status(400).json({ error: 'a valid transactionId is required' })
         }
 
         try {
             const { statusCode, body } = await request7(
-                `https://pay.iotec.io/api/collections/status/${transactionId}`,
+                `https://pay.iotec.io/api/collections/status/${encodeURIComponent(String(transactionId))}`,
                 {
                     method: 'GET',
                     headers: {
-                        Authorization: `Bearer ${accessToken}`,
+                        Authorization: `Bearer ${await serverIotecToken()}`,
                         'Content-Type': 'application/json',
                     },
                 }
@@ -491,7 +509,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     app.post('/api/payment/iotec/collect', async (req: any, res: any) => {
         const {
-            access_token, // required
             payer,
             payerNote,
             amount,
@@ -500,11 +517,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } = req.body
 
         // Hard validation
-        if (!access_token) {
-            return res.status(400).json({ error: 'access_token is required' })
-        }
-
-        if (!payer || !amount) {
+        if (!payer || !amount || !Number.isFinite(Number(amount)) || Number(amount) <= 0 || Number(amount) > 50_000_000) {
             return res.status(400).json({
                 error: 'payer and amount are required',
             })
@@ -514,7 +527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const { statusCode, body } = await request7('https://pay.iotec.io/api/collections/collect', {
                 method: 'POST',
                 headers: {
-                    Authorization: `Bearer ${access_token}`,
+                    Authorization: `Bearer ${await serverIotecToken()}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
@@ -734,7 +747,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
 
     // Test route to add a new property (for testing newest property logic)
-    app.get('/api/test/add-new-property', async (req, res) => {
+    app.get('/api/test/add-new-property', requireStrictAdmin, async (req, res) => {
         try {
             // Create a property that matches the expected schema
             const testProperty = {
@@ -776,7 +789,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
 
     // Test route to add sample properties for featured tour testing
-    app.get('/api/test/add-sample-properties', async (req, res) => {
+    app.get('/api/test/add-sample-properties', requireStrictAdmin, async (req, res) => {
         try {
             const sampleProperties = [
                 {
@@ -1368,9 +1381,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return res.status(404).json({ message: 'User not found' })
             }
 
-            // Return user without sensitive information
-            const { password, emailVerificationToken, ...safeUser } = user
-            res.json(safeUser)
+            // This route is open (listing pages use it to show who the owner is), so it returns only what a listing page shows.
+            // It used to return the whole account minus the password: email, phone number, role, subscription and more.
+            const actor = req.isAuthenticated?.() ? (req.user as any) : null
+            if (actor && (actor.role === 'admin' || actor.id === user.id)) {
+                const { password, emailVerificationToken, ...safeUser } = user as any
+                return res.json(safeUser)
+            }
+            const u = user as any
+            res.json({ id: u.id, fullName: u.fullName, username: u.username, companyName: u.companyName ?? null, role: u.role, isVerified: !!u.isVerified })
         } catch (error: any) {
             console.error('Error fetching user:', error)
             res.status(500).json({ message: error.message })
@@ -1378,22 +1397,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
 
     // Test endpoint to verify connectivity
-    app.post('/api/test-endpoint', (req, res) => {
-        console.log('[DEBUG] Test endpoint hit with data:', req.body)
-        console.log('[DEBUG] Request headers:', req.headers)
-        console.log('[DEBUG] Content-Type:', req.headers['content-type'])
-        console.log('[DEBUG] Request method:', req.method)
-        console.log('[DEBUG] Request URL:', req.url)
-
-        // Express already parses the body, so we can just use req.body
-        res.status(200).json({
-            message: 'Test endpoint reached successfully',
-            receivedData: req.body,
-        })
-    })
 
     // Test endpoint that creates a property directly
-    app.get('/api/test-create-property', async (req, res) => {
+    app.get('/api/test-create-property', requireStrictAdmin, async (req, res) => {
         try {
             // Create a test property
             const testProperty = {
@@ -1435,7 +1441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
 
     // HTML form endpoint for property creation
-    app.get('/api/property-form', (req, res) => {
+    app.get('/api/property-form', requireStrictAdmin, (req, res) => {
         // Send a simple HTML form that posts directly to the server
         res.send(`
       <!DOCTYPE html>
@@ -1560,7 +1566,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Create a new property (admin only)
     app.post('/api/properties/create', subscriptionMiddleware, async (req, res) => {
         console.log('[DEBUG] Incoming property data:', req.body)
-        console.log('[DEBUG] Request headers:', req.headers)
         console.log('[DEBUG] Authentication status:', req.isAuthenticated())
         if (req.user) {
             console.log('[DEBUG] User role:', req.user.role)
@@ -1633,10 +1638,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 propertyData.ownerId = parseInt(propertyData.ownerId)
             }
 
-            // If no ownerId provided and user is authenticated, use the current user's ID
-            if (!propertyData.ownerId && req.user) {
+            // Owners cannot choose who owns a listing, give it paid placement, or set the numbers visitors trust; only an
+            // administrator can. Everyone else's listing is theirs, unfeatured, with no views or reviews to start.
+            if (req.user && req.user.role !== 'admin') {
+                for (const f of ['ownerId', 'isFeatured', 'viewCount', 'reviewCount', 'rating']) delete propertyData[f]
                 propertyData.ownerId = req.user.id
-                console.log('[DEBUG] Setting ownerId to current user:', req.user.id)
+            } else if (!propertyData.ownerId && req.user) {
+                propertyData.ownerId = req.user.id
+            }
+            if (propertyData.tourUrl && !isSafeTourUrl(propertyData.tourUrl)) {
+                return res.status(400).json({ message: 'The tour link must be an https address or one of our own tour files.' })
             }
 
             // Free trial agents (see AgentRegistrationPage.tsx's Free Trial
@@ -1693,10 +1704,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return res.status(400).json({ message: 'Invalid property ID' })
             }
 
-            console.log(`[DEBUG] PATCH request for property ${id} with data:`, JSON.stringify(req.body))
-
-            console.log('DATE-OF-PROPERTY-TO-BE-UPDATED', id)
-            const updatedProperty = await storage.updateProperty(id, req.body)
+            const existing = await storage.getProperty(id)
+            if (!existing) return res.status(404).json({ message: 'Property not found' })
+            if (!canManageProperty(req.user as any, existing)) {
+                return res.status(403).json({ message: 'You can only change your own listings.' })
+            }
+            if (req.body?.tourUrl && !isSafeTourUrl(req.body.tourUrl)) {
+                return res.status(400).json({ message: 'The tour link must be an https address or one of our own tour files.' })
+            }
+            // Ownership, paid placement and the visitor-trust numbers are not for owners to set.
+            const updatedProperty = await storage.updateProperty(id, stripAdminOnlyFields(req.body ?? {}, req.user as any))
 
             if (!updatedProperty) {
                 console.log(`[DEBUG] Property with ID ${id} not found for update`)
@@ -1725,7 +1742,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return res.status(400).json({ message: 'Invalid property ID' })
             }
 
-            console.log(`[DEBUG] Toggling availability for property ${id}`)
+            const existingForToggle = await storage.getProperty(id)
+            if (existingForToggle && !canManageProperty(req.user as any, existingForToggle)) {
+                return res.status(403).json({ message: 'You can only change your own listings.' })
+            }
 
             const updatedProperty = await storage.togglePropertyAvailability(id)
             if (!updatedProperty) {
@@ -1748,7 +1768,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
 
     // Delete all test properties - GET endpoint for easy browser access (admin only)
-    app.get('/api/admin/delete-test-properties', adminMiddleware, async (req, res) => {
+    app.get('/api/admin/delete-test-properties', requireStrictAdmin, async (req, res) => {
         try {
             const testPropertyNames = [
                 'Test Property',
@@ -1812,7 +1832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
 
     // Delete all test properties (admin only)
-    app.delete('/api/admin/delete-test-properties', adminMiddleware, async (req, res) => {
+    app.delete('/api/admin/delete-test-properties', requireStrictAdmin, async (req, res) => {
         try {
             const testPropertyNames = [
                 'Test Property',
@@ -1876,7 +1896,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
 
     // Delete a property (no auth required)
-    app.delete('/api/properties/:id', async (req, res) => {
+    app.delete('/api/properties/:id', adminMiddleware, async (req, res) => {
         try {
             console.log(`[DEBUG] DELETE request for property with ID: ${req.params.id}`)
 
@@ -1901,6 +1921,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 if (directItem) {
                     property = {
                         id: parseInt(idParam),
+                        ownerId: (directItem as any).ownerId,
                         hasTour: directItem.hasTour || false,
                         tourUrl: directItem.tourUrl || '',
                         title: directItem.title || 'Unknown',
@@ -1929,6 +1950,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (!property) {
                 console.log(`[DEBUG] Property not found through any method`)
                 return res.status(404).json({ message: 'Property not found' })
+            }
+
+            // Only an administrator or the listing's own owner may delete it. (This route used to have no check at all.)
+            if (!canManageProperty(req.user as any, property)) {
+                return res.status(403).json({ message: 'You can only delete your own listings.' })
             }
 
             // Remove any associated virtual tour files if they exist
@@ -1988,9 +2014,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     app.get('/api/agent/properties', subscriptionMiddleware, async (req, res) => {
         try {
             console.log('=== AGENT PROPERTIES ENDPOINT ===')
-            console.log('Session:', req.session)
-            console.log('User:', req.user)
-            console.log('Headers:', req.headers)
 
             const user = req.user
             if (!user) {
@@ -2183,7 +2206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
 
     // Get agent subscriptions for admin dashboard
-    app.get('/api/admin/agent-subscriptions', adminMiddleware, async (req, res) => {
+    app.get('/api/admin/agent-subscriptions', requireStrictAdmin, async (req, res) => {
         try {
             const agentSubscriptions = await storage.getAgentSubscriptions()
             res.json(agentSubscriptions)
@@ -2194,7 +2217,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
 
     // Get tour payments for admin dashboard
-    app.get('/api/admin/tour-payments', adminMiddleware, async (req, res) => {
+    app.get('/api/admin/tour-payments', requireStrictAdmin, async (req, res) => {
         try {
             const tourPayments = await storage.getAllTourPayments()
             res.json(tourPayments)
@@ -2205,7 +2228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
 
     // Get agent properties for admin dashboard
-    app.get('/api/admin/agent-properties/:agentId', adminMiddleware, async (req, res) => {
+    app.get('/api/admin/agent-properties/:agentId', requireStrictAdmin, async (req, res) => {
         try {
             const agentId = parseInt(req.params.agentId)
             if (isNaN(agentId)) {
@@ -2325,7 +2348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
 
     // Get all users (admin only)
-    app.get('/api/users', adminMiddleware, async (_req, res) => {
+    app.get('/api/users', requireStrictAdmin, async (_req, res) => {
         try {
             const users = await storage.getAllUsers()
 
@@ -2382,7 +2405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
 
     // Update user role (admin only)
-    app.patch('/api/users/:id/role', adminMiddleware, async (req, res) => {
+    app.patch('/api/users/:id/role', requireStrictAdmin, async (req, res) => {
         try {
             const id = parseInt(req.params.id)
             if (isNaN(id)) {
@@ -2426,7 +2449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
      * already bypasses subscriptionMiddleware entirely) is left untouched
      * rather than demoted.
      */
-    app.patch('/api/users/:id/complimentary-access', adminMiddleware, async (req, res) => {
+    app.patch('/api/users/:id/complimentary-access', requireStrictAdmin, async (req, res) => {
         try {
             const id = parseInt(req.params.id)
             if (isNaN(id)) {
@@ -2577,7 +2600,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // app.post("/api/upload/test-ftp", uploadTestFileToFTP);
 
     // Test endpoint to add more amenities
-    app.get('/api/test/add-amenities', async (req, res) => {
+    app.get('/api/test/add-amenities', requireStrictAdmin, async (req, res) => {
         try {
             const amenities = [
                 { name: 'WiFi', icon: 'wifi', description: 'High-speed internet access' },
@@ -2616,49 +2639,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
 
     // Property update endpoint
-    app.patch('/api/properties/:id', async (req, res) => {
-        try {
-            const propertyId = parseInt(req.params.id)
-            if (isNaN(propertyId)) {
-                return res.status(400).json({ message: 'Invalid property ID' })
-            }
-
-            const updates = req.body
-            if (!updates || Object.keys(updates).length === 0) {
-                return res.status(400).json({ message: 'No update data provided' })
-            }
-
-            // If updating tour status, ensure tourUrl is provided or exists in tour-config
-            if (updates.hasTour) {
-                if (!updates.tourUrl) {
-                    const tourConfig = await getTourConfig(req.params.id)
-                    if (!tourConfig || !tourConfig.tourUrl) {
-                        return res.status(400).json({
-                            message: 'Cannot enable tour - no tour URL provided or found in tour-config',
-                        })
-                    }
-                    updates.tourUrl = tourConfig.tourUrl
-                }
-
-                // Ensure tour exists in storage
-                try {
-                    const tourExists = await dropboxStorage.tourExists(req.params.id)
-                    if (!tourExists) {
-                        return res.status(404).json({ message: 'Tour not found in storage' })
-                    }
-                } catch (err) {
-                    console.error('Error verifying tour:', err)
-                    return res.status(500).json({ message: 'Error verifying tour existence' })
-                }
-            }
-
-            const updatedProperty = await storage.updateProperty(propertyId, updates)
-            res.json(updatedProperty)
-        } catch (error: any) {
-            console.error('Error updating property:', error)
-            res.status(500).json({ message: error.message })
-        }
-    })
+    // (A second, unauthenticated PATCH /api/properties/:id used to be here; the guarded one above always answered first.)
 
     // Setup routes to serve static files
     setupStaticFileRoutes(app)
@@ -2667,7 +2648,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Upload property image (admin, agent, or property manager only)
     app.post('/api/upload/property-image', (req, res) => {
         console.log('=== PROPERTY IMAGE UPLOAD ENDPOINT ===')
-        console.log('User:', req.user)
         console.log('User role:', req.user?.role)
         console.log('Is authenticated:', req.isAuthenticated())
 
@@ -2723,7 +2703,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Admin: which existing listings have a cover photo that would not pass today's rules (too small, a flat graphic,
     // and with ?ai=1 also text laid over it or not a photograph). Reports only; it never changes a listing.
-    app.get('/api/admin/photo-audit', adminMiddleware, async (req, res) => {
+    app.get('/api/admin/photo-audit', requireStrictAdmin, async (req, res) => {
         try {
             const useAi = req.query.ai === '1'
             const limit = Math.min(Math.max(Number(req.query.limit) || 60, 1), 150)
@@ -2766,10 +2746,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // resilience) - our server is only involved before (presigning) and
     // after (pulling the finished upload back from S3 to extract and
     // republish it, in processTourFromS3).
-    app.post('/api/upload/virtual-tour/:propertyId/presign-zip', adminMiddleware, presignTourZipUpload)
-    app.post('/api/upload/virtual-tour/:propertyId/complete-multipart', adminMiddleware, completeTourZipMultipartUpload)
-    app.post('/api/upload/virtual-tour/:propertyId/abort-multipart', adminMiddleware, abortTourZipMultipartUpload)
-    app.post('/api/upload/virtual-tour/:propertyId/process-from-s3', adminMiddleware, processTourFromS3)
+    app.post('/api/upload/virtual-tour/:propertyId/presign-zip', ownerOrAdminOfProperty, presignTourZipUpload)
+    app.post('/api/upload/virtual-tour/:propertyId/complete-multipart', ownerOrAdminOfProperty, completeTourZipMultipartUpload)
+    app.post('/api/upload/virtual-tour/:propertyId/abort-multipart', ownerOrAdminOfProperty, abortTourZipMultipartUpload)
+    app.post('/api/upload/virtual-tour/:propertyId/process-from-s3', ownerOrAdminOfProperty, processTourFromS3)
 
     // SSE endpoint for tour progress
     app.get('/api/upload/virtual-tour/progress/:jobId', sseTourProgress)
@@ -2778,7 +2758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // a pre-built tour ZIP. Reuses the same SSE progress endpoint above (jobId is generic).
     // The admin-only cross-property drafts overview gets the strict guard -
     // see listRoomCaptureDrafts' own doc comment for why.
-    registerRoomCaptureRoutes(app, adminMiddleware, requireStrictAdmin)
+    registerRoomCaptureRoutes(app, ownerOrAdminOfProperty, requireStrictAdmin)
 
     // Get tour preview endpoint
     app.get('/api/tours/preview/:propertyId', async (req, res) => {
@@ -2837,33 +2817,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
     })
 
-    app.post('/api/setup-dynamodb', async (req, res) => {
-        try {
-            await createTablesIfNotExist()
-            // Insert default admin user
-            const adminUser = {
-                id: '1',
-                username: 'admin',
-                password: 'admin123', // You should hash this in production!
-                email: 'admin@realevr.com',
-                fullName: 'Admin User',
-                membershipPlan: 'premium',
-                membershipStartDate: null,
-                membershipEndDate: null,
-                role: 'admin',
-                isVerified: true,
-            }
-            await DynamoDBUtils.putItem(TABLES.USERS, adminUser)
-            res.json({ message: 'DynamoDB tables created and admin user added!' })
-        } catch (error) {
-            const errorMessage =
-                error && typeof error === 'object' && 'message' in error ? (error as any).message : String(error)
-            res.status(500).json({ error: errorMessage || 'Failed to setup DynamoDB' })
-        }
-    })
+    // POST /api/setup-dynamodb was removed: it was open to everyone and overwrote user #1 with a default admin account.
 
     // Debug endpoint to check DynamoDB property keys
-    app.get('/api/debug/property-keys', async (req, res) => {
+    app.get('/api/debug/property-keys', requireStrictAdmin, async (req, res) => {
         try {
             console.log('[DEBUG] Scanning DynamoDB properties table for all keys...')
             const items = await DynamoDBUtils.scanTable(TABLES.PROPERTIES)
@@ -2914,31 +2871,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerDataRequestRoutes(app)
     startAuctionService()
     scheduleTourHealthAtStartup()
-    registerGeneIngestionRoutes(app, adminMiddleware)
-    registerGeneAnalyticsRoutes(app, adminMiddleware)
+    registerGeneIngestionRoutes(app, requireStrictAdmin)
+    registerGeneAnalyticsRoutes(app, requireStrictAdmin)
     registerAnalyticsExportRoutes(app, adminMiddleware)
     registerAgentPortfolioRoutes(app)
-    registerGeneLearningLoopRoutes(app, adminMiddleware)
-    registerDataPartnershipsRoutes(app, adminMiddleware)
-    registerListingsApiRoutes(app, adminMiddleware)
-    registerWhatsappRoutes(app, adminMiddleware)
-    registerDataQualityRoutes(app, adminMiddleware)
-    registerPaymentsCoreRoutes(app, adminMiddleware)
-    registerBtcPaymentsRoutes(app, adminMiddleware)
-    registerInvestorAnalyticsRoutes(app, adminMiddleware)
-    registerListingsLifecycleRoutes(app, adminMiddleware)
-    registerContentPromotionRoutes(app, adminMiddleware)
-    registerSupportRoutes(app, adminMiddleware)
-    registerInfraHealthRoutes(app, adminMiddleware)
-    registerQaSecurityRoutes(app, adminMiddleware)
-    registerBtcQrRoutes(app, adminMiddleware)
-    registerSlackBridgeRoutes(app, adminMiddleware)
-    registerAgentWhatsappOnboardingRoutes(app, adminMiddleware)
-    registerTourAccessPassRoutes(app, adminMiddleware)
+    registerGeneLearningLoopRoutes(app, requireStrictAdmin)
+    registerDataPartnershipsRoutes(app, requireStrictAdmin)
+    registerListingsApiRoutes(app, requireStrictAdmin)
+    registerWhatsappRoutes(app, requireStrictAdmin)
+    registerDataQualityRoutes(app, requireStrictAdmin)
+    registerPaymentsCoreRoutes(app, requireStrictAdmin)
+    registerBtcPaymentsRoutes(app, requireStrictAdmin)
+    registerInvestorAnalyticsRoutes(app, requireStrictAdmin)
+    registerListingsLifecycleRoutes(app, requireStrictAdmin)
+    registerContentPromotionRoutes(app, requireStrictAdmin)
+    registerSupportRoutes(app, requireStrictAdmin)
+    registerInfraHealthRoutes(app, requireStrictAdmin)
+    registerQaSecurityRoutes(app, requireStrictAdmin)
+    registerBtcQrRoutes(app, requireStrictAdmin)
+    registerSlackBridgeRoutes(app, requireStrictAdmin)
+    registerAgentWhatsappOnboardingRoutes(app, requireStrictAdmin)
+    registerTourAccessPassRoutes(app, requireStrictAdmin)
     registerSimilarPropertiesPassRoutes(app)
     registerPersonalAgentRoutes(app)
-    registerReferralRewardsRoutes(app, adminMiddleware)
-    registerListingEarningsRoutes(app, adminMiddleware)
+    registerReferralRewardsRoutes(app, requireStrictAdmin)
+    registerListingEarningsRoutes(app, requireStrictAdmin)
     registerBuildingRecommendationRoutes(app)
     registerBnbBookingRoutes(app)
     registerWhatsappConciergeRoutes(app)
@@ -2951,14 +2908,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Monetization playbook (2026-08-29) implementation pass — see
     // docs/GENE_PLATFORM.md v1.6. Each is additive/independent; none touches
     // an existing route or table.
-    registerBoostPlacementRoutes(app, adminMiddleware)
-    registerListingTrustRoutes(app, adminMiddleware)
+    registerBoostPlacementRoutes(app, requireStrictAdmin)
+    registerListingTrustRoutes(app, requireStrictAdmin)
     registerRumRoutes(app)
     registerCountrySpotRoutes(app)
     startCountrySpotService()
-    registerSuccessFeeRoutes(app, adminMiddleware)
-    registerTourProductionBookingRoutes(app, adminMiddleware)
-    registerLeadMeteringRoutes(app, adminMiddleware)
+    registerSuccessFeeRoutes(app, requireStrictAdmin)
+    registerTourProductionBookingRoutes(app, requireStrictAdmin)
+    registerLeadMeteringRoutes(app, requireStrictAdmin)
     registerTenantConsentRoutes(app)
 
     // Popup Google sign-in, admin user-analytics dashboard, web push
@@ -2982,10 +2939,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // docs/GENE_PLATFORM.md v1.16 and server/gene/ai-workforce.ts's header
     // for the outreach/sales-authority limits this module deliberately
     // will not cross.
-    registerAiWorkforceRoutes(app, adminMiddleware)
+    registerAiWorkforceRoutes(app, requireStrictAdmin)
 
     // Admin endpoint to manually trigger reminders for testing
-    app.post('/api/admin/test-reminders', adminMiddleware, async (_req: any, res: any) => {
+    app.post('/api/admin/test-reminders', requireStrictAdmin, async (_req: any, res: any) => {
         try {
             console.log('[Admin] Manually triggering reminders...')
             await Promise.all([runDepositReminders(), runViewingReminders()])

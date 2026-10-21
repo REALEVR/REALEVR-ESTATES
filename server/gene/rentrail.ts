@@ -228,12 +228,18 @@ async function getIotecAccessToken(): Promise<string> {
  * called here directly (not through that route) so this module can verify
  * server-side without round-tripping through the client's token. */
 async function getIotecCollectionStatus(accessToken: string, transactionId: string): Promise<string> {
-    const response = await fetch(`https://pay.iotec.io/api/collections/status/${transactionId}`, {
+    return (await getIotecCollection(accessToken, transactionId)).status
+}
+
+/** The collection as the gateway reports it: its status and, when the gateway says so, how much it collected. */
+async function getIotecCollection(accessToken: string, transactionId: string): Promise<{ status: string; amount: number | null }> {
+    const response = await fetch(`https://pay.iotec.io/api/collections/status/${encodeURIComponent(transactionId)}`, {
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     })
-    const data = (await response.json()) as { status?: string }
+    const data = (await response.json()) as { status?: string; amount?: number | string }
     if (!data.status) throw new Error('IoTec did not return a transaction status.')
-    return data.status
+    const amount = Number(data.amount)
+    return { status: data.status, amount: Number.isFinite(amount) ? amount : null }
 }
 
 /** The disbursement-side twin of getIotecCollectionStatus above — same
@@ -472,15 +478,33 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
 
             const payment = rows[idx]
             if (payment.status !== 'pending_collection') {
-                return res.json(payment) // already handled — idempotent
+                return res.json({ id: payment.id, status: payment.status }) // already handled — idempotent
+            }
+
+            // One gateway transaction can settle one payment, once. Without this, a single real payment could be reported
+            // against any number of payments (this route is open to the payer, who has no account), and each would pay out.
+            if (!/^[A-Za-z0-9_-]{8,80}$/.test(transactionId)) {
+                return res.status(400).json({ message: 'That transaction id does not look right.' })
+            }
+            if (rows.some((r) => r.id !== id && r.iotecTransactionId === transactionId)) {
+                return res.status(409).json({ message: 'That transaction has already been used for another payment.' })
             }
 
             const accessToken = await getIotecAccessToken()
-            const status = await getIotecCollectionStatus(accessToken, transactionId)
+            const collection = await getIotecCollection(accessToken, transactionId)
+            const status = collection.status
+            // The money collected must cover this payment. If the gateway does not say how much it collected, the payment is
+            // still recorded but is never paid out automatically: a person checks it first.
+            const covered = collection.amount !== null && collection.amount >= payment.amount
 
             if (status === 'Success') {
                 payment.iotecTransactionId = transactionId
                 payment.status = 'payout_pending_manual' // attemptAutoDisbursement below may move this straight to paid_out or payout_processing
+                if (!covered) {
+                    payment.disbursementError = collection.amount === null
+                        ? 'The gateway did not report the collected amount, so this payout needs a person to check it.'
+                        : `The gateway collected ${collection.amount}, less than the ${payment.amount} owed, so this payout needs a person to check it.`
+                }
                 // RealEVR's own EFRIS invoice for the service fee — earned
                 // the instant collection is confirmed, independent of how
                 // the landlord payout leg below turns out. See ./efris.ts's
@@ -498,7 +522,7 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
                 payment.efrisInvoiceNumber = efrisResult.invoiceNumber
                 payment.efrisError = efrisResult.error
                 payment.efrisIssuedAt = efrisResult.issuedAt
-                await attemptAutoDisbursement(payment)
+                if (covered) await attemptAutoDisbursement(payment)
                 // (as RentRailStatus): see checkAndUpdateDisbursementStatus's
                 // comment on the same pattern — TS narrows across the call.
                 if ((payment.status as RentRailStatus) === 'paid_out') {
@@ -512,10 +536,10 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
             rows[idx] = payment
             savePayments(rows)
 
-            res.json(payment)
+            res.json({ id: payment.id, status: payment.status })
         } catch (error: any) {
             console.error('[gene/rentrail] collected error', error)
-            res.status(500).json({ message: 'Failed to confirm payment', error: error?.message })
+            res.status(500).json({ message: 'Failed to confirm payment' })
         }
     })
 
@@ -534,7 +558,31 @@ export function registerRentRailRoutes(app: Express, requireStrictAdmin: Request
             payment.updatedAt = nowIso()
             savePayments(rows)
         }
-        res.json(payment)
+        // The payment id is a small number anyone can count through, so this open read shows only what the receipt page needs,
+        // with phone numbers hidden. The full record is for the people in it and for administrators.
+        const viewer = req.isAuthenticated?.() ? (req.user as { id?: number; role?: string; phoneNumber?: string | null }) : null
+        const involved =
+            !!viewer &&
+            (viewer.role === 'admin' ||
+                viewer.id === payment.tenantUserId ||
+                (!!viewer.phoneNumber && [payment.tenantPhone, payment.landlordPhone].includes(String(viewer.phoneNumber).replace(/\D/g, ''))))
+        if (involved) return res.json(payment)
+        const mask = (p: string) => (p ? `${'*'.repeat(Math.max(0, p.length - 3))}${p.slice(-3)}` : '')
+        res.json({
+            id: payment.id,
+            txRef: payment.txRef,
+            status: payment.status,
+            tenantName: payment.tenantName,
+            landlordName: payment.landlordName,
+            tenantPhone: mask(payment.tenantPhone),
+            landlordPhone: mask(payment.landlordPhone),
+            amount: payment.amount,
+            currency: payment.currency,
+            serviceFee: payment.serviceFee,
+            netPayout: payment.netPayout,
+            collectionError: payment.collectionError,
+            updatedAt: payment.updatedAt,
+        })
     })
 
     /** [PUBLIC] A tenant's own payment history — needs to be signed in. */

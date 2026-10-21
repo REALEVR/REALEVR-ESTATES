@@ -4,12 +4,13 @@
 
 import AWS from 'aws-sdk';
 
-// Configure AWS (using cloud DynamoDB)
-AWS.config.update({
-  region: 'eu-north-1',
-  accessKeyId: 'AKIAYBWO4BQQZR5SUWG4',
-  secretAccessKey: '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'
-});
+// Configure AWS (using cloud DynamoDB). Credentials come from the environment (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY);
+// never put keys in this file.
+if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+  console.error('Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in the environment first.');
+  process.exit(1);
+}
+AWS.config.update({ region: process.env.AWS_REGION || 'eu-north-1' });
 
 const dynamodb = new AWS.DynamoDB.DocumentClient();
 
