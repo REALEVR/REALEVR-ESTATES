@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import EmptyState from '@/components/ui/empty-state'
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -239,10 +240,7 @@ export default function BnBsPage() {
             </div>
           </div>
         ) : (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-semibold mb-2">No properties found</h2>
-            <p className="text-gray-500">Try adjusting your search criteria</p>
-          </div>
+          <EmptyState title="No homes match these filters" actions={[{ label: 'See all homes', href: '/properties' }, { label: 'List a property', href: '/list-your-property' }]}>Loosen a filter, or ask Kevin and he will look for one that fits.</EmptyState>
         )}
       </div>
       <FaqSection page="bnbs" />

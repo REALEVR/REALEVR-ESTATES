@@ -42,7 +42,7 @@ export default function MobileTabBar() {
                     ) : (
                         <button type="button" onClick={() => setAuthModalOpen(true)} className={tabClass(false)}>
                             <UserCircle2 className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />
-                            <span className="text-[11px] font-medium">Sign in</span>
+                            <span className="text-xs font-medium">Sign in</span>
                         </button>
                     )}
                 </div>
@@ -73,7 +73,7 @@ function TabLink({
         <Link href={href} className={tabClass(active)} aria-current={active ? 'page' : undefined}>
             {active && <span className="absolute top-0 h-[3px] w-8 rounded-b-full bg-[hsl(var(--gold))]" aria-hidden="true" />}
             <Icon className="h-6 w-6" strokeWidth={active ? 2.25 : 1.75} aria-hidden="true" />
-            <span className={`text-[11px] ${active ? 'font-semibold' : 'font-medium'}`}>{label}</span>
+            <span className={`text-xs ${active ? 'font-semibold' : 'font-medium'}`}>{label}</span>
         </Link>
     )
 }

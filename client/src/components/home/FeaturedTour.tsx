@@ -299,7 +299,7 @@ export default function FeaturedTour() {
                             </li>
                           ))}
                           {(!featuredProperty.amenities || !Array.isArray(featuredProperty.amenities) || featuredProperty.amenities.length === 0) && (
-                            <li className="text-muted-foreground italic">No amenities listed</li>
+                            <li className="text-muted-foreground">The host has not listed amenities. Open the home to ask what is included.</li>
                           )}
                         </ul>
                       </div>

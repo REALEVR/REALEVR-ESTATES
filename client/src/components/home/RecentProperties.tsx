@@ -1,4 +1,5 @@
 import { useIsMobile } from '@/hooks/use-mobile'
+import EmptyState from '@/components/ui/empty-state'
 import { useProperties } from '@/hooks/usePropertyData'
 import PropertyCard from './PropertyCard'
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel'
@@ -22,7 +23,7 @@ export default function RecentProperties() {
         ? [...allProperties]
               .filter((p) => p.title && p.title.trim() !== '') // Filter out properties with no title
               .sort((a, b) => b.id - a.id) // Sort by id descending (newest first)
-              .slice(0, 8) // Take top 8
+              .slice(0, 6) // First screen: six cards is about 1 MB less to load on a phone; "Show all" has the rest
         : []
 
     // Debug logging
@@ -70,10 +71,9 @@ export default function RecentProperties() {
                         </Link>
                     </div>
                 </div>
-                <div className="text-center py-12 text-muted-foreground">
-                    <p className="text-lg mb-2">No properties to display</p>
-                    <p className="text-sm">Newly added listings will appear here.</p>
-                </div>
+                <EmptyState title="No new listings yet" actions={[{ label: 'List a property', href: '/list-your-property' }]}>
+                    Newly added listings will appear here.
+                </EmptyState>
             </div>
         )
     }
