@@ -67,6 +67,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                             <SafeImage
                                 src={property.imageUrl}
                                 alt={property.title}
+                                responsive
                                 loading="lazy"
                                 decoding="async"
                                 className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"

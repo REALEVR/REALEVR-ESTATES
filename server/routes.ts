@@ -13,6 +13,7 @@ import * as dropboxStorage from './dropbox-storage'
 import { request as request7 } from 'undici'
 
 import fs from 'fs'
+import { registerImageResizeRoute } from './image-resize'
 import { createTablesIfNotExist, DynamoDBUtils, TABLES, toNumericId, toStringId } from './dynamodb'
 
 import {
@@ -98,6 +99,7 @@ import { registerSelfServeListingRoutes } from './gene/self-serve-listing'
 import { registerWhatsappGrowthRoutes } from './gene/whatsapp-growth'
 import { registerBoostPlacementRoutes, getActiveBoostsSortedByAmount } from './gene/boost-placement'
 import { registerListingTrustRoutes } from './gene/listing-trust'
+import { registerRumRoutes } from './gene/rum'
 import { registerSuccessFeeRoutes } from './gene/success-fee'
 import { registerTourProductionBookingRoutes } from './gene/tour-production-booking'
 import { registerLeadMeteringRoutes } from './gene/lead-metering'
@@ -2659,6 +2661,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Setup routes to serve static files
     setupStaticFileRoutes(app)
+    registerImageResizeRoute(app)
 
     // Upload property image (admin, agent, or property manager only)
     app.post('/api/upload/property-image', (req, res) => {
@@ -2949,6 +2952,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // an existing route or table.
     registerBoostPlacementRoutes(app, adminMiddleware)
     registerListingTrustRoutes(app, adminMiddleware)
+    registerRumRoutes(app)
     registerSuccessFeeRoutes(app, adminMiddleware)
     registerTourProductionBookingRoutes(app, adminMiddleware)
     registerLeadMeteringRoutes(app, adminMiddleware)

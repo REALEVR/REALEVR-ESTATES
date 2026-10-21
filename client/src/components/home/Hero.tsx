@@ -373,9 +373,10 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
                   <Icon name="search" className="mr-2 text-sm" />
                   Search homes
                 </a>
+                {/* Search is the one loud action; this is a quiet text link. */}
                 <Link
                   href="/new-listings"
-                  className="inline-flex items-center rounded-full border-[1.5px] border-accent bg-background/60 px-7 py-3 text-base font-semibold text-accent backdrop-blur-sm transition-[transform,background-color,color] duration-150 ease-out hover:bg-accent hover:text-accent-foreground active:scale-[0.97]"
+                  className="inline-flex items-center rounded-full px-3 py-3 text-base font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 transition-colors duration-150 ease-out hover:decoration-foreground active:scale-[0.97]"
                 >
                   See new listings
                 </Link>
@@ -424,7 +425,7 @@ const Hero: React.FC<HeroProps> = ({ videoUrl }) => {
                       : 'Price on request'}
                   </span>
                 </span>
-                <span className="shrink-0 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground">Open tour</span>
+                <span className="shrink-0 text-sm font-semibold text-foreground underline decoration-foreground/30 underline-offset-4">Open tour</span>
               </Link>
             )}
 

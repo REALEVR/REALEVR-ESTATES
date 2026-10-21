@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import EmptyState from '@/components/ui/empty-state'
 import { Link } from 'wouter'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
@@ -31,6 +32,8 @@ const categoryLabels = {
     for_sale: 'Properties For Sale',
     bank_sales: 'Bank Sales',
 }
+
+const FIRST_SCREEN_CARDS = 6
 
 export default function Home() {
     const [activeTab, setActiveTab] = useState('all')
@@ -213,14 +216,23 @@ export default function Home() {
                                 {Object.entries(propertyCategories).map(([category, categoryProperties]) => (
                                     <TabsContent value={category} key={category}>
                                         {categoryProperties.length === 0 ? (
-                                            <div className="text-center py-8">
-                                                <p className="text-muted-foreground">No properties found in this category.</p>
-                                            </div>
+                                            <EmptyState title="Nothing in this category yet" actions={[{ label: 'See all homes', href: '/properties' }]}>
+                                                Try another tab, or ask Kevin to look for you.
+                                            </EmptyState>
                                         ) : (
                                             <div className="rail">
-                                                {categoryProperties.map((property) => (
+                                                {/* Six cards are what a phone shows before scrolling; the rest are one tap away. */}
+                                                {categoryProperties.slice(0, FIRST_SCREEN_CARDS).map((property) => (
                                                     <PropertyCard key={property.id} property={property} />
                                                 ))}
+                                                {categoryProperties.length > FIRST_SCREEN_CARDS && (
+                                                    <Link
+                                                        href="/properties"
+                                                        className="grid min-h-[12rem] place-items-center rounded-2xl border border-dashed border-border px-6 text-center text-sm font-semibold text-foreground hover:bg-muted"
+                                                    >
+                                                        Show all {categoryProperties.length} homes
+                                                    </Link>
+                                                )}
                                             </div>
                                         )}
                                     </TabsContent>

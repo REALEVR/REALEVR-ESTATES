@@ -370,7 +370,23 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                                     {(() => {
                                         const amenities = getSafeAmenities(property) ?? []
                                         if (amenities.length === 0) {
-                                            return <li className="text-muted-foreground/70 italic">No amenities listed</li>
+                                            return (
+                                                <li className="text-muted-foreground/70">
+                                                    The host has not listed amenities.
+                                                    {property.ownerId && user?.id !== property.ownerId && (
+                                                        <>
+                                                            {' '}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setIsMessageAgentModalOpen(true)}
+                                                                className="font-semibold text-foreground underline underline-offset-4"
+                                                            >
+                                                                Ask what is included
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </li>
+                                            )
                                         }
                                         return amenities.map((amenity, index) => (
                                             <li key={index} className="flex items-center">
@@ -607,9 +623,9 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
             <BitcoinPriceStrip property={property} only="desktop" />
 
             {/* Phone: the price and the two things you do here stay under your thumb, above the tab
-                bar, like a booking bar in a travel app. The desktop buttons above are hidden here. */}
+                bar (z-35: over the soft blur strip at z-30, under the tab bar at z-40), like a booking bar in a travel app. The desktop buttons above are hidden here. */}
             <div
-                className="fixed inset-x-0 z-30 flex items-center gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-xl md:hidden"
+                className="fixed inset-x-0 z-[35] flex items-center gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-xl md:hidden"
                 style={{ bottom: 'var(--mobile-tabbar-h)' }}
             >
                 <div className="min-w-0 flex-1 leading-tight">
@@ -632,7 +648,7 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
                     Tour
                 </Button>
             </div>
-            <div className="h-16 md:hidden" aria-hidden="true" />
+            <div className="h-[4.5rem] md:hidden" aria-hidden="true" />
 
             {property.ownerId && (
                 <MessageAgentModal

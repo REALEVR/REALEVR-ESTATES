@@ -1,8 +1,10 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import { startSpeedReport } from "./lib/rum";
 
 createRoot(document.getElementById("root")!).render(<App />);
+startSpeedReport();
 
 // Register the service worker for PWA installability (the landlord mini
 // app, and installability site-wide) — see public/sw.js for what it does

@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import EmptyState from '@/components/ui/empty-state'
 import { useQuery } from '@tanstack/react-query'
 import { Property } from '@shared/schema'
 import PropertyCard from '@/components/home/PropertyCard'
@@ -67,7 +68,7 @@ export default function NewListingsPage() {
                     jsonLd={newListingsJsonLd}
                 />
                 <h1 className="text-3xl font-bold mb-6">New Listings</h1>
-                <p className="text-gray-500">No listings found.</p>
+                <EmptyState title="No new listings yet" actions={[{ label: 'See all homes', href: '/properties' }, { label: 'List a property', href: '/list-your-property' }]}>New homes appear here the moment they are listed.</EmptyState>
             </div>
         )
     }

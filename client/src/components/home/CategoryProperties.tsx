@@ -1,4 +1,5 @@
 import { useState } from "react";
+import EmptyState from '@/components/ui/empty-state'
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PropertyCard from "@/components/home/PropertyCard";
@@ -67,9 +68,7 @@ export default function CategoryProperties() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">No properties found in this category.</p>
-                </div>
+                <EmptyState title="Nothing in this category yet" actions={[{ label: 'See all homes', href: '/properties' }]} />
               )}
             </TabsContent>
           ))}

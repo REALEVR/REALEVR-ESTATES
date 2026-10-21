@@ -26,6 +26,12 @@ interface SignupsSeries {
   undatedAccountCount: number;
 }
 
+interface SpeedSummary {
+  days: number;
+  targets: { lcpMs: number; fcpMs: number; cls: number; inpMs: number; kb: number };
+  connections: Record<"fast" | "slow" | "unknown", { visits: number; p75: Partial<Record<"fcp" | "lcp" | "ttfb" | "cls" | "inp" | "kb", number>> }>;
+}
+
 interface CountryBreakdown {
   totalUsers: number;
   missingCountryCode: number;
@@ -44,6 +50,7 @@ export default function AdminAnalytics() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [signups, setSignups] = useState<SignupsSeries | null>(null);
   const [countries, setCountries] = useState<CountryBreakdown | null>(null);
+  const [speed, setSpeed] = useState<SpeedSummary | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -57,6 +64,8 @@ export default function AdminAnalytics() {
         setOverview(o);
         setSignups(s);
         setCountries(c);
+        // Page speed is a bonus panel: if it cannot load, the rest of the page still shows.
+        setSpeed(await fetchJson<SpeedSummary>("/api/admin/rum").catch(() => null));
       } catch (err: any) {
         toast({ title: "Couldn't load analytics", description: err?.message, variant: "destructive" });
       } finally {
@@ -88,6 +97,8 @@ export default function AdminAnalytics() {
         <StatCard icon={<Phone className="h-5 w-5" />} label="With phone" value={overview?.usersWithPhone ?? 0} />
         <StatCard icon={<Globe2 className="h-5 w-5" />} label="With country" value={overview?.usersWithCountryCode ?? 0} />
       </div>
+
+      {speed && <SpeedCard speed={speed} />}
 
       <div className="grid md:grid-cols-2 gap-6 mb-8">
         <Card>
@@ -176,6 +187,59 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
         <CardDescription className="flex items-center gap-1.5">{icon} {label}</CardDescription>
         <CardTitle className="text-2xl">{value.toLocaleString()}</CardTitle>
       </CardHeader>
+    </Card>
+  );
+}
+
+
+const CONNECTION_LABEL = { fast: "Fast (4G)", slow: "Slow (3G or data saver)", unknown: "Unknown" } as const;
+
+/** 75th-percentile page speed for the last week, by connection. Red when over Google's "good" line. */
+function SpeedCard({ speed }: { speed: SpeedSummary }) {
+  const t = speed.targets;
+  const cell = (v: number | undefined, limit: number, fmt: (n: number) => string) =>
+    v === undefined ? <span className="text-muted-foreground">no data</span> : <span className={v > limit ? "font-semibold text-red-600" : "font-semibold text-green-700"}>{fmt(v)}</span>;
+  const sec = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
+  return (
+    <Card className="mb-8">
+      <CardHeader>
+        <CardTitle className="text-base">Page speed — real visitors, last {speed.days} days</CardTitle>
+        <CardDescription>
+          75th percentile. Targets: main picture under {sec(t.lcpMs)}, first paint under {sec(t.fcpMs)}, layout jump under {t.cls}, tap response under {t.inpMs} ms,
+          under {t.kb / 1024} MB loaded. One visit in four reports.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-muted-foreground">
+              <th className="py-2 pr-4 font-medium">Connection</th>
+              <th className="py-2 pr-4 font-medium">Reports</th>
+              <th className="py-2 pr-4 font-medium">First paint</th>
+              <th className="py-2 pr-4 font-medium">Main picture</th>
+              <th className="py-2 pr-4 font-medium">Layout jump</th>
+              <th className="py-2 pr-4 font-medium">Tap response</th>
+              <th className="py-2 font-medium">Loaded</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(["fast", "slow", "unknown"] as const).map((k) => {
+              const row = speed.connections[k];
+              return (
+                <tr key={k} className="border-t border-border">
+                  <td className="py-2 pr-4">{CONNECTION_LABEL[k]}</td>
+                  <td className="py-2 pr-4">{row.visits}</td>
+                  <td className="py-2 pr-4">{cell(row.p75.fcp, t.fcpMs, sec)}</td>
+                  <td className="py-2 pr-4">{cell(row.p75.lcp, t.lcpMs, sec)}</td>
+                  <td className="py-2 pr-4">{cell(row.p75.cls, t.cls, (n) => String(n))}</td>
+                  <td className="py-2 pr-4">{cell(row.p75.inp, t.inpMs, (n) => `${n} ms`)}</td>
+                  <td className="py-2">{cell(row.p75.kb, t.kb, (n) => `${(n / 1024).toFixed(1)} MB`)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </CardContent>
     </Card>
   );
 }

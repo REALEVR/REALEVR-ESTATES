@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import EmptyState from '@/components/ui/empty-state'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'wouter'
 import { Property } from '@shared/schema'
@@ -135,11 +136,12 @@ export default function AllPropertiesPage() {
                 {Object.entries(byCategory).map(([category, categoryProperties]) => (
                     <TabsContent value={category} key={category}>
                         {categoryProperties.length === 0 ? (
-                            <div className="text-center py-12 text-muted-foreground">
-                                <p>
-                                    No properties found{mapLocation ? ` in ${mapLocation}` : ''} in this category.
-                                </p>
-                            </div>
+                            <EmptyState
+                                title={`No homes${mapLocation ? ` in ${mapLocation}` : ''} in this category yet`}
+                                actions={[{ label: 'Try another category', href: '/properties' }, { label: 'List a property', href: '/list-your-property' }]}
+                            >
+                                Own or manage one here? Listing is free.
+                            </EmptyState>
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                                 {categoryProperties.map((property) => (
