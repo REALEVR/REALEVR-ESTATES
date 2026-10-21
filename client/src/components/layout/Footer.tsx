@@ -94,6 +94,7 @@ export default function Footer() {
             <ul className="space-y-1 text-sm text-muted-foreground [&_a]:inline-block [&_a]:py-1.5">
               <li><Link href="/admin/properties" className="hover:text-accent transition-colors">Add Your Property</Link></li>
               <li><Link href="/list-your-property" className="hover:text-accent transition-colors">List a Property</Link></li>
+              <li><Link href="/promotions" className="hover:text-accent transition-colors">Promote in Your Country</Link></li>
                             <li><Link href="/host-responsibly" className="hover:text-accent transition-colors">Host Responsibly</Link></li>
               <li><Link href="/how-it-works" className="hover:text-accent transition-colors">How Listing Works</Link></li>
             </ul>

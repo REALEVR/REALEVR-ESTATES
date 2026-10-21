@@ -86,6 +86,8 @@ const FeesPage = lazy(() => import('@/pages/FeesPage'))
 const BecomeAPartner = lazy(() => import('@/pages/BecomeAPartner'))
 const CareersPage = lazy(() => import('@/pages/CareersPage'))
 const AdminPartners = lazy(() => import('@/pages/AdminPartners'))
+const AdminCountrySpots = lazy(() => import('@/pages/AdminCountrySpots'))
+const PromotionsPage = lazy(() => import('@/pages/PromotionsPage'))
 const AdminDataRequests = lazy(() => import('@/pages/AdminDataRequests'))
 const AuctionApplyPage = lazy(() => import('@/pages/AuctionApplyPage'))
 const AuctionTerms = lazy(() => import('@/pages/AuctionTerms'))
@@ -178,6 +180,7 @@ function Router() {
             <Route path="/auth" component={AuthPage} />
             <Route path="/verify-email" component={VerifyEmailPage} />
             <Route path="/profile" component={ProfilePage} />
+            <Route path="/promotions" component={PromotionsPage} />
             <Route path="/test-page" component={TestPage} />
             <Route path="/agent/register" component={AgentRegistrationPage} />
             <Route path="/agent/dashboard" component={AgentDashboard} />
@@ -248,6 +251,7 @@ function Router() {
             <ProtectedAdminRoute path="/admin/payments" component={AdminPayments} allowedRoles={['admin']} />
             <ProtectedAdminRoute path="/admin/crypto-buyers" component={AdminCryptoBuyers} allowedRoles={['admin']} />
             <ProtectedAdminRoute path="/admin/partners" component={AdminPartners} allowedRoles={['admin']} />
+            <ProtectedAdminRoute path="/admin/country-spots" component={AdminCountrySpots} allowedRoles={['admin']} />
             <ProtectedAdminRoute path="/admin/data-requests" component={AdminDataRequests} allowedRoles={['admin']} />
             {/* Strictly admin-only — phone numbers and point redemptions, see server/gene/building-recommendations.ts. */}
             <ProtectedAdminRoute path="/admin/recommendations" component={AdminRecommendations} allowedRoles={['admin']} />

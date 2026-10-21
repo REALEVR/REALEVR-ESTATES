@@ -100,6 +100,7 @@ import { registerWhatsappGrowthRoutes } from './gene/whatsapp-growth'
 import { registerBoostPlacementRoutes, getActiveBoostsSortedByAmount } from './gene/boost-placement'
 import { registerListingTrustRoutes } from './gene/listing-trust'
 import { registerRumRoutes } from './gene/rum'
+import { registerCountrySpotRoutes, startCountrySpotService } from './gene/country-spots'
 import { registerSuccessFeeRoutes } from './gene/success-fee'
 import { registerTourProductionBookingRoutes } from './gene/tour-production-booking'
 import { registerLeadMeteringRoutes } from './gene/lead-metering'
@@ -2953,6 +2954,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerBoostPlacementRoutes(app, adminMiddleware)
     registerListingTrustRoutes(app, adminMiddleware)
     registerRumRoutes(app)
+    registerCountrySpotRoutes(app)
+    startCountrySpotService()
     registerSuccessFeeRoutes(app, adminMiddleware)
     registerTourProductionBookingRoutes(app, adminMiddleware)
     registerLeadMeteringRoutes(app, adminMiddleware)

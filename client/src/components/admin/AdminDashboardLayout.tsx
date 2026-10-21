@@ -44,6 +44,7 @@ const NAV_ITEMS: Array<{ href: string; label: string; icon: typeof LayoutDashboa
     { href: '/admin/payments', label: 'Payments', icon: Wallet, roles: ['admin'] },
     { href: '/admin/crypto-buyers', label: 'Crypto buyers', icon: Wallet, roles: ['admin'] },
     { href: '/admin/partners', label: 'Partners', icon: Users, roles: ['admin'] },
+    { href: '/admin/country-spots', label: 'Country spots', icon: Wallet, roles: ['admin'] },
     { href: '/admin/data-requests', label: 'Data requests', icon: Receipt, roles: ['admin'] },
     { href: '/admin/tour-health', label: 'Tour Health', icon: Video, roles: ['admin'] },
     { href: '/admin/room-captures', label: 'Room Captures', icon: Camera, roles: ['admin'] },

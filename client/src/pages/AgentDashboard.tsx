@@ -476,6 +476,9 @@ export function AgentDashboard() {
                                                   </Button>
                                                   <BoostPurchaseCard propertyId={property.id} />
                                               </div>
+                                              <Link href="/promotions" className="mt-2 block text-center text-xs font-semibold text-muted-foreground underline underline-offset-4 hover:text-foreground">
+                                                  Promote in your country
+                                              </Link>
                                               <Button
                                                   variant={property.isAvailable ? 'outline' : 'default'}
                                                   size="sm"

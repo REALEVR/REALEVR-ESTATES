@@ -13,6 +13,7 @@ import FeaturedTour from '@/components/home/FeaturedTour'
 import FeaturedProperties from '@/components/home/FeaturedProperties'
 import RecentProperties from '@/components/home/RecentProperties'
 import PropertyCard from '@/components/home/PropertyCard'
+import CountrySpotsStrip from '@/components/home/CountrySpotsStrip'
 import AmenitiesHighlight from '@/components/home/AmenitiesHighlight'
 import HowItWorks from '@/components/home/HowItWorks'
 import DownloadApp from '@/components/home/DownloadApp'
@@ -42,7 +43,7 @@ export default function Home() {
     const [heroVideoUrl, setHeroVideoUrl] = useState('')
 
     const { data: properties, isLoading, error } = useProperties()
-    const { abroad } = usePlace()
+    const { abroad, place } = usePlace()
 
     // Fetch video settings
     useEffect(() => {
@@ -154,6 +155,7 @@ export default function Home() {
                 here too, but that's the same "most viewed" idea this
                 section's own "Newest" sort option already covers — removed
                 as redundant rather than kept as a 4th thing to maintain. */}
+            {!abroad && <Reveal><CountrySpotsStrip country={place.country} /></Reveal>}
             <Reveal><section className="py-8 md:py-12">
                 <div className="mx-auto max-w-[1500px] px-0 md:px-8">
                     {/* Design pass: a small uppercase "kicker" label above each
