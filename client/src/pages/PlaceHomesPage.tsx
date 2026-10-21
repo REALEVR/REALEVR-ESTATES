@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { buildPlaceHomesMeta } from "@shared/seo";
 import AdSlot from "@/components/ads/AdSlot";
+import CountrySpotsStrip from "@/components/home/CountrySpotsStrip";
 import { cityBySlug, countryBySlug, inferListingCountry, listingCity, slugify } from "@shared/africa";
 
 interface PlaceRow {
@@ -107,6 +108,8 @@ export default function PlaceHomesPage() {
           <Share2 className="mr-1.5 h-4 w-4" /> Share
         </Button>
       </div>
+
+      {!city && <CountrySpotsStrip country={country.code} showInvite />}
 
       {listings.isLoading ? (
         <div className="flex justify-center py-16">

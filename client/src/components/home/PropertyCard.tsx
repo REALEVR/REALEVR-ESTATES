@@ -8,6 +8,7 @@ import Tilt from '@/components/motion/Tilt'
 import SafeImage from '@/components/ui/safe-image'
 import { Star, Rocket, Heart, Share2, Play, Orbit } from 'lucide-react'
 import { useActiveBoostedPropertyIds } from '@/hooks/useActiveBoosts'
+import { useActiveCountrySpots } from '@/hooks/useCountrySpots'
 import BuyWithBitcoinButton from '@/components/crypto/BuyWithBitcoinButton'
 
 interface PropertyCardProps {
@@ -35,6 +36,9 @@ export default function PropertyCard({ property }: PropertyCardProps) {
     // Same badge, wherever this card renders: only while a real, active boost covers it.
     const { data: activeBoosts } = useActiveBoostedPropertyIds()
     const isBoosted = !!activeBoosts?.propertyIds?.includes(property.id)
+    // A paid country spot (server/gene/country-spots.ts). Labelled plainly: it is a promotion, not a ranking.
+    const { data: countrySpots } = useActiveCountrySpots()
+    const isPromoted = !isBoosted && !!countrySpots?.spots?.some((s) => s.propertyId === property.id)
 
     // POLICY: the grid card never gates viewing for any category - tapping the photo or the
     // card goes straight to the property page, where each category's payment moment (if any)
@@ -81,6 +85,12 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                                 <span className="flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-foreground shadow-sm">
                                     <Rocket className="h-3 w-3 text-accent" aria-hidden="true" />
                                     Boosted
+                                </span>
+                            )}
+                            {isPromoted && (
+                                <span className="flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-foreground shadow-sm">
+                                    <Rocket className="h-3 w-3 text-accent" aria-hidden="true" />
+                                    Promoted
                                 </span>
                             )}
                             {property.isAvailable === false && (
