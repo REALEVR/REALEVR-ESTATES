@@ -143,15 +143,35 @@ export async function downloadWhatsAppMediaById(mediaId: string): Promise<{ buff
     }
 }
 
+/** True for an https address on infobip.com (or on the host named by INFOBIP_BASE_URL). */
+export function isInfobipMediaUrl(raw: string): boolean {
+    try {
+        const u = new URL(raw)
+        if (u.protocol !== 'https:' || u.username || u.password) return false
+        const host = u.hostname.toLowerCase()
+        if (host === 'infobip.com' || host.endsWith('.infobip.com')) return true
+        const configured = process.env.INFOBIP_BASE_URL ? new URL(/^https?:/.test(process.env.INFOBIP_BASE_URL) ? process.env.INFOBIP_BASE_URL : `https://${process.env.INFOBIP_BASE_URL}`).hostname.toLowerCase() : ''
+        return !!configured && host === configured
+    } catch {
+        return false
+    }
+}
+
 /** Infobip path: the inbound webhook already hands a directly-fetchable
  * media URL — no ID-resolution hop needed, just the App API key to
  * authorize the download. */
 export async function downloadWhatsAppMediaFromUrl(url: string): Promise<{ buffer: Buffer; contentType: string } | null> {
     const apiKey = process.env.INFOBIP_API_KEY
     if (!apiKey) return null
+    // The address comes from an inbound message, and the request carries our Infobip API key. Only fetch from Infobip itself:
+    // otherwise anyone who can reach the webhook could make this server call any address, and hand them the key.
+    if (!isInfobipMediaUrl(url)) {
+        console.warn('[gene/whatsapp-listing-upload] refused a media address that is not on Infobip')
+        return null
+    }
 
     try {
-        const fileRes = await fetch(url, { headers: { Authorization: `App ${apiKey}` } })
+        const fileRes = await fetch(url, { headers: { Authorization: `App ${apiKey}` }, redirect: 'error' })
         if (!fileRes.ok) return null
         const arrayBuffer = await fileRes.arrayBuffer()
         const contentType = fileRes.headers.get('content-type') || 'image/jpeg'

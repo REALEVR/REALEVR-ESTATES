@@ -235,7 +235,7 @@ function Router() {
             <ProtectedAdminRoute
                 path="/admin/boost-confirmations"
                 component={AdminBoostConfirmations}
-                allowedRoles={['admin', 'agent']}
+                allowedRoles={['admin']}
             />
             {/* Strictly admin-only — spans every agent's in-progress room
                 captures, matching the strict guard on its own API route. */}

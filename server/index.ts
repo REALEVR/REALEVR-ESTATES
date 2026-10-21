@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from 'express'
 import compression from 'compression'
 import { registerRoutes } from './routes'
+import { corsAllowlist, securityHeaders } from './lib/security'
+import { applyRateLimits } from './lib/rate-limits'
 import { createTablesIfNotExist } from './dynamodb'
 import { initCronJobs } from './cron/index'
 import fs from 'fs'
@@ -23,35 +25,25 @@ if (!fs.existsSync(tourDir)) {
 }
 
 const app = express()
+app.disable('x-powered-by')
 // Text over the wire is compressed (the page script alone is ~2 MB raw, ~650 KB compressed). Server-sent events are left
 // alone so progress messages are not held back in a buffer.
 app.use(compression({ filter: (req, res) => !String(res.getHeader('Content-Type') ?? '').includes('text/event-stream') && !String(req.headers.accept ?? '').includes('text/event-stream') && compression.filter(req, res) }))
 // The WhatsApp webhook is signed over the exact bytes Meta sent, so keep them (only for that path; other bodies can be huge).
 app.use(
     express.json({
-        limit: '5gb',
+        limit: '25mb',
         verify: (req, _res, buf) => {
             if ((req as { url?: string }).url?.startsWith('/api/gene/whatsapp/webhook')) (req as { rawBody?: Buffer }).rawBody = buf
         },
     })
 )
-app.use(express.urlencoded({ extended: true, limit: '5gb' }))
+app.use(express.urlencoded({ extended: true, limit: '5mb' }))
 
-// Add CORS headers
-app.use((req, res, next) => {
-    const origin = req.headers.origin
-    if (origin) {
-        res.header('Access-Control-Allow-Origin', origin)
-    }
-    res.header('Access-Control-Allow-Credentials', 'true')
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS')
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization')
-
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end()
-    }
-    next()
-})
+// Headers, which websites may call the API from a browser, then request-rate limits (server/lib/security.ts, rate-limits.ts).
+app.use(securityHeaders())
+app.use(corsAllowlist())
+applyRateLimits(app)
 
 app.use((req, res, next) => {
     const start = Date.now()

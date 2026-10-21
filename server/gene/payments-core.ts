@@ -118,7 +118,7 @@ export function registerPaymentsCoreRoutes(app: Express, adminMiddleware: Reques
      * NOTE: for `mobile_money` / `card` this will currently 400 with a clear
      * "not configured" error rather than a fake success — see class docs above.
      */
-    app.post('/api/gene/payments/charge', async (req, res) => {
+    app.post('/api/gene/payments/charge', adminMiddleware, async (req, res) => {
         try {
             const { propertyId, amountMinor, currency, provider } = req.body ?? {}
 

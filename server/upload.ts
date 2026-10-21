@@ -39,16 +39,18 @@ if (!fs.existsSync(tourDir)) {
 const imageStorage = multer.memoryStorage();
 
 // Multer configuration for property images
+const RASTER_TYPES: Record<string, string> = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif', 'image/avif': '.avif' };
 const multerUpload = multer({
   storage: imageStorage,
   limits: {
     fileSize: 20 * 1024 * 1024, // 20MB limit
   },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    // Photos only. SVG is an image type too, but it can carry script, so it is not accepted.
+    if (RASTER_TYPES[file.mimetype]) {
       cb(null, true);
     } else {
-      cb(new Error('Not an image! Please upload an image file.') as any);
+      cb(new Error('Please upload a JPG, PNG, WebP, GIF or AVIF photo.') as any);
     }
   }
 });
@@ -62,7 +64,8 @@ const s3UploadMiddleware = async (req: Request, res: Response, next: NextFunctio
   try {
     const file = req.file;
     const uniqueId = nanoid(16);
-    const extension = path.extname(file.originalname);
+    // The extension comes from the checked type, not from the visitor's file name.
+    const extension = RASTER_TYPES[file.mimetype] ?? '.jpg';
     const key = `images/${uniqueId}${extension}`;
 
     // Upload to S3
