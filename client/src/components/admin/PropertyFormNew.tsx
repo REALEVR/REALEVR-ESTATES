@@ -391,15 +391,12 @@ const onSubmit = async (data: PropertyFormValues) => {
     setUploadError("");
 
     try {
-      console.log("WillCreateFormDataForImage",image)
       // Create FormData
       const formData = new FormData();
       formData.append('purpose', 'listing'); // listing covers are held to the photo rules (server/photo-rules.ts)
       formData.append('image', image);
 
-      console.log("DidCreateFormDataForImage",formData)
 
-      console.log("WillMakeImageResponsePost")
 
       // Upload the image
       const response = await fetch('/api/upload/property-image', {
@@ -408,12 +405,10 @@ const onSubmit = async (data: PropertyFormValues) => {
         credentials: 'include',
       });
 
-      console.log("WillMakeImageResponsePost")
 
 
       const result = await response.json();
 
-      console.log("DidGetImageResponseResult",result)
 
       if (response.ok && result.status === 'success') {
         setUploadSuccess(true);
@@ -1249,19 +1244,12 @@ const onSubmit = async (data: PropertyFormValues) => {
                     disabled={form.formState.isSubmitting}
                     className="min-w-[150px]"
                     onClick={() => {
-                      console.log('Save Property button clicked');
-                      
                       // Check for form validation errors first
                       const formData = form.getValues();
-                      console.log('Current form values:', formData);
-                      console.log('Form errors:', form.formState.errors);
-                      console.log('Form is valid:', form.formState.isValid);
                       
                       // Try to trigger validation
                       form.trigger().then((isValid) => {
-                        console.log('Validation result:', isValid);
                         if (!isValid) {
-                          console.log('Form validation failed:', form.formState.errors);
                           // Show validation errors to user
                           const errorMessages = Object.entries(form.formState.errors)
                             .map(([field, error]: [string, any]) => `${field}: ${error.message}`)
@@ -1271,7 +1259,6 @@ const onSubmit = async (data: PropertyFormValues) => {
                         }
                         
                         try {
-                          console.log('Calling onSubmit directly since validation passed');
                           onSubmit(formData);
                         } catch (e) {
                           console.error('Error calling onSubmit:', e);
