@@ -15,6 +15,7 @@ import { request as request7 } from 'undici'
 import fs from 'fs'
 import { registerImageResizeRoute } from './image-resize'
 import { canManageProperty, isSafeTourUrl, stripAdminOnlyFields } from './lib/security'
+import { sendStorageReadError } from './lib/storage-errors'
 import { createTablesIfNotExist, DynamoDBUtils, TABLES, toNumericId, toStringId } from './dynamodb'
 
 import {
@@ -683,7 +684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 Expires: '0',
             }).json(presentListings(req, properties))
         } catch (error) {
-            res.status(500).json({ message: 'Failed to fetch properties' })
+            sendStorageReadError(res, 'GET /api/properties', error, 'Failed to fetch properties')
         }
     })
 
@@ -710,7 +711,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 Expires: '0',
             }).json(presentListings(req, featuredProperties))
         } catch (error) {
-            res.status(500).json({ message: 'Failed to fetch featured properties' })
+            sendStorageReadError(res, 'GET /api/properties/featured', error, 'Failed to fetch featured properties')
         }
     })
 
@@ -726,7 +727,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 Expires: '0',
             }).json(presentListings(req, popularProperties))
         } catch (error) {
-            res.status(500).json({ message: 'Failed to fetch popular properties' })
+            sendStorageReadError(res, 'GET /api/properties/popular', error, 'Failed to fetch popular properties')
         }
     })
 
@@ -742,7 +743,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 Expires: '0',
             }).json(recentProperties)
         } catch (error) {
-            res.status(500).json({ message: 'Failed to fetch recently added properties' })
+            sendStorageReadError(res, 'GET /api/properties/recent', error, 'Failed to fetch recently added properties')
         }
     })
 
@@ -897,7 +898,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 Expires: '0',
             }).json(presentListings(req, properties))
         } catch (error) {
-            res.status(500).json({ message: 'Failed to fetch properties by category' })
+            sendStorageReadError(res, 'GET /api/properties/category/:category', error, 'Failed to fetch properties by category')
         }
     })
 
@@ -914,7 +915,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 Expires: '0',
             }).json(presentListings(req, properties))
         } catch (error) {
-            res.status(500).json({ message: 'Failed to search properties' })
+            sendStorageReadError(res, 'GET /api/properties/search', error, 'Failed to search properties')
         }
     })
 
@@ -1145,7 +1146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 Expires: '0',
             }).json(properties)
         } catch (error) {
-            res.status(500).json({ message: 'Failed to filter properties' })
+            sendStorageReadError(res, 'POST /api/properties/filter', error, 'Failed to filter properties')
         }
     })
 
