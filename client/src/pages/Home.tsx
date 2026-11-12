@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import ListingsUnavailable from '@/components/ui/listings-unavailable'
 import EmptyState from '@/components/ui/empty-state'
 import { Link } from 'wouter'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -42,7 +43,7 @@ export default function Home() {
     // /admin/properties) overrides it once /api/video-settings resolves.
     const [heroVideoUrl, setHeroVideoUrl] = useState('')
 
-    const { data: properties, isLoading, error } = useProperties()
+    const { data: properties, isLoading, error, refetch } = useProperties()
     const { abroad, place } = usePlace()
 
     // Fetch video settings
@@ -192,9 +193,7 @@ export default function Home() {
                             ))}
                         </div>
                     ) : error ? (
-                        <div className="text-center py-8">
-                            <p className="text-red-500">Error loading properties. Please try again later.</p>
-                        </div>
+                        <ListingsUnavailable onRetry={() => refetch()} />
                     ) : (
                         <>
                             <Tabs defaultValue="all" className="w-full" onValueChange={setActiveTab}>
