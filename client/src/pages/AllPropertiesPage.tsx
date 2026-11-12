@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import ListingsUnavailable from '@/components/ui/listings-unavailable'
 import EmptyState from '@/components/ui/empty-state'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'wouter'
@@ -29,7 +30,7 @@ export default function AllPropertiesPage() {
     // The header's search box sends people here as /properties?q=...; every word must appear in the title, place or type.
     const query = (searchParams.get('q') ?? '').trim()
     const [mapLocation, setMapLocation] = useState<string | null>(null)
-    const { data: properties, isLoading, error } = useQuery<Property[]>({
+    const { data: properties, isLoading, error, refetch } = useQuery<Property[]>({
         queryKey: ['/api/properties'],
     })
 
@@ -94,7 +95,7 @@ export default function AllPropertiesPage() {
                     jsonLd={allJsonLd}
                 />
                 <h1 className="text-3xl font-bold mb-6">All Properties</h1>
-                <p className="text-red-500">Error loading properties. Please try again later.</p>
+                <ListingsUnavailable onRetry={() => refetch()} />
             </div>
         )
     }

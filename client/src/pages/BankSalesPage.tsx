@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import ListingsUnavailable from '@/components/ui/listings-unavailable'
 import SafeImage from '@/components/ui/safe-image'
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -24,7 +25,7 @@ export default function BankSalesPage() {
   const { toast } = useToast();
 
   // Get all bank sales properties
-  const { data: allProperties, isLoading, error } = useQuery<Property[]>({
+  const { data: allProperties, isLoading, error, refetch } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
   });
 
@@ -115,9 +116,7 @@ export default function BankSalesPage() {
           ))}
         </div>
       ) : error ? (
-        <div className="p-8 text-center">
-          <p className="text-red-500">Error loading properties. Please try again later.</p>
-        </div>
+        <ListingsUnavailable onRetry={() => refetch()} />
       ) : (
         <Tabs defaultValue="all" onValueChange={setActiveBankTab}>
           <TabsList className="mb-6 flex overflow-x-auto space-x-1 pb-1">

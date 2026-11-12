@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ListingsUnavailable from '@/components/ui/listings-unavailable'
 import EmptyState from '@/components/ui/empty-state'
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,7 +18,7 @@ export default function CategoryProperties() {
     { id: "bank_sales", label: "Bank Sales", icon: "landmark" }
   ];
   
-  const { data: properties, isLoading, error } = usePropertiesByCategory(activeCategory);
+  const { data: properties, isLoading, error, refetch } = usePropertiesByCategory(activeCategory);
   
   return (
     <section className="py-10">
@@ -58,9 +59,7 @@ export default function CategoryProperties() {
                   ))}
                 </div>
               ) : error ? (
-                <div className="text-center py-8">
-                  <p className="text-red-500">Error loading properties. Please try again later.</p>
-                </div>
+                <ListingsUnavailable onRetry={() => refetch()} />
               ) : properties && properties.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {properties.map(property => (

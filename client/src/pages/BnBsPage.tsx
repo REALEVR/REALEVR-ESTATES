@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import ListingsUnavailable from '@/components/ui/listings-unavailable'
 import EmptyState from '@/components/ui/empty-state'
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ export default function BnBsPage() {
   const [, setLocation] = useLocation();
   
   // Get all properties 
-  const { data: properties, isLoading, error } = useQuery<Property[]>({
+  const { data: properties, isLoading, error, refetch } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
   });
   
@@ -218,9 +219,7 @@ export default function BnBsPage() {
             ))}
           </div>
         ) : error ? (
-          <div className="text-center py-8">
-            <p className="text-red-500">Error loading properties. Please try again later.</p>
-          </div>
+          <ListingsUnavailable onRetry={() => refetch()} />
         ) : sortedProperties?.length ? (
           <div>
             <div className="mb-4 text-gray-500">
