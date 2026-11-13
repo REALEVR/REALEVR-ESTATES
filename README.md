@@ -10,7 +10,7 @@ and secure booking payments.
 - **Server**: Express + TypeScript
 - **Data**: AWS DynamoDB (primary), with a legacy Postgres/Drizzle schema retained
   for typing and the seed/migration scripts
-- **Storage**: AWS S3 (tour hosting), Dropbox and Cloudinary integrations
+- **Storage**: AWS S3 (photos and tour hosting), Dropbox integration
 - **Payments**: Flutterwave, IoTec
 - **AI**: Google Gemini (`@google/genai`), proxied through the server so the API
   key never reaches the browser

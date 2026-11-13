@@ -5,7 +5,6 @@ import path from 'path';
 import { promisify } from 'util';
 import { nanoid } from 'nanoid';
 import { uploadFileToS3, getS3FileUrl } from './s3-util';
-import { uploadTourToCloudinary } from './cloudinary-util';
 import { checkCoverPhoto, PhotoRuleError } from './photo-rules';
 // @ts-ignore
 // import { uploadTourDirToFTP } from "./ftp-upload";
