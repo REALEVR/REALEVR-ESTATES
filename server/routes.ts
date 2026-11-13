@@ -15,7 +15,8 @@ import { request as request7 } from 'undici'
 import fs from 'fs'
 import { registerImageResizeRoute } from './image-resize'
 import { canManageProperty, isSafeTourUrl, stripAdminOnlyFields } from './lib/security'
-import { createTablesIfNotExist, DynamoDBUtils, TABLES, toNumericId, toStringId } from './dynamodb'
+import { parseRouteId } from './lib/ids'
+import { createTablesIfNotExist, DynamoDBUtils, TABLES, toStringId } from './dynamodb'
 
 import {
     uploadPropertyImage,
@@ -167,7 +168,11 @@ const ownerOrAdminOfProperty = async (req: Request, res: Response, next: NextFun
         if (err) return next(err)
         try {
             const raw = req.params.propertyId ?? req.params.id
-            const property = raw ? await storage.getProperty(toNumericId(raw)) : undefined
+            const propertyId = raw ? parseRouteId(raw) : undefined
+            if (propertyId !== undefined && isNaN(propertyId)) {
+                return res.status(400).json({ message: 'Invalid property ID' })
+            }
+            const property = propertyId !== undefined ? await storage.getProperty(propertyId) : undefined
             if (property && !canManageProperty(req.user as any, property)) {
                 return res.status(403).json({ message: 'You can only change your own listings.' })
             }
@@ -921,7 +926,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Get a specific property by ID - must be placed after other /api/properties/... routes
     app.get('/api/properties/:id', async (req, res) => {
         try {
-            const id = toNumericId(req.params.id) // Convert to number
+            const id = parseRouteId(req.params.id) // Convert to number
             if (isNaN(id)) {
                 return res.status(400).json({ message: 'Invalid property ID' })
             }
@@ -950,7 +955,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Increment property view count
     app.post('/api/properties/:id/view', async (req, res) => {
         try {
-            const id = toNumericId(req.params.id) // Convert to number
+            const id = parseRouteId(req.params.id) // Convert to number
             if (isNaN(id)) {
                 return res.status(400).json({ message: 'Invalid property ID' })
             }
@@ -989,7 +994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // landlordPhone) - they otherwise have no account to notify in-app.
     app.post('/api/properties/:id/rent-payment-intent', async (req, res) => {
         try {
-            const id = toNumericId(req.params.id)
+            const id = parseRouteId(req.params.id)
             if (isNaN(id)) {
                 return res.status(400).json({ message: 'Invalid property ID' })
             }
@@ -1371,7 +1376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Get user by ID (for property owner details)
     app.get('/api/users/:id', async (req, res) => {
         try {
-            const userId = parseInt(req.params.id)
+            const userId = parseRouteId(req.params.id)
             if (isNaN(userId)) {
                 return res.status(400).json({ message: 'Invalid user ID' })
             }
@@ -1699,7 +1704,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Update a property (admin only)
     app.patch('/api/properties/:id', adminMiddleware, async (req, res) => {
         try {
-            const id = toNumericId(req.params.id) // Convert to number
+            const id = parseRouteId(req.params.id) // Convert to number
             if (isNaN(id)) {
                 return res.status(400).json({ message: 'Invalid property ID' })
             }
@@ -1737,7 +1742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Toggle property availability (admin/property manager only)
     app.post('/api/properties/:id/toggle-availability', adminMiddleware, async (req, res) => {
         try {
-            const id = toNumericId(req.params.id) // Convert to number
+            const id = parseRouteId(req.params.id) // Convert to number
             if (isNaN(id)) {
                 return res.status(400).json({ message: 'Invalid property ID' })
             }
@@ -1934,7 +1939,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             // If direct lookup failed, try the normal storage method as fallback
             if (!property) {
-                const id = toNumericId(idParam)
+                const id = parseRouteId(idParam)
                 console.log(`[DEBUG] Direct lookup failed, trying normal method with numeric ID: ${id}`)
                 console.log(`[DEBUG] Normal lookup key:`, { id: toStringId(id) })
 
@@ -2052,7 +2057,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return res.status(403).json({ message: 'Unauthorized. Agent or admin role required.' })
             }
 
-            const propertyId = parseInt(req.params.id)
+            const propertyId = parseRouteId(req.params.id)
             if (isNaN(propertyId)) {
                 return res.status(400).json({ message: 'Invalid property ID' })
             }
@@ -2093,7 +2098,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return res.status(403).json({ message: 'Unauthorized. Agent or admin role required.' })
             }
 
-            const propertyId = parseInt(req.params.propertyId)
+            const propertyId = parseRouteId(req.params.propertyId)
             if (isNaN(propertyId)) {
                 return res.status(400).json({ message: 'Invalid property ID' })
             }
@@ -2230,7 +2235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Get agent properties for admin dashboard
     app.get('/api/admin/agent-properties/:agentId', requireStrictAdmin, async (req, res) => {
         try {
-            const agentId = parseInt(req.params.agentId)
+            const agentId = parseRouteId(req.params.agentId)
             if (isNaN(agentId)) {
                 return res.status(400).json({ message: 'Invalid agent ID' })
             }
@@ -2407,7 +2412,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Update user role (admin only)
     app.patch('/api/users/:id/role', requireStrictAdmin, async (req, res) => {
         try {
-            const id = parseInt(req.params.id)
+            const id = parseRouteId(req.params.id)
             if (isNaN(id)) {
                 return res.status(400).json({ message: 'Invalid user ID' })
             }
@@ -2451,7 +2456,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
      */
     app.patch('/api/users/:id/complimentary-access', requireStrictAdmin, async (req, res) => {
         try {
-            const id = parseInt(req.params.id)
+            const id = parseRouteId(req.params.id)
             if (isNaN(id)) {
                 return res.status(400).json({ message: 'Invalid user ID' })
             }
