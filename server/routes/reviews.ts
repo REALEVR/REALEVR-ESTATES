@@ -7,6 +7,7 @@ import {
     getPropertyRatingSummary,
 } from '../models/Review'
 import { storage } from '../storage'
+import { parseRouteId } from '../lib/ids'
 
 const router = Router()
 
@@ -22,7 +23,7 @@ async function syncPropertyRatingSummary(propertyId: number): Promise<void> {
 // GET /api/reviews/property/:propertyId - Public list of reviews for a property
 router.get('/property/:propertyId', async (req: any, res: any) => {
     try {
-        const propertyId = parseInt(req.params.propertyId, 10)
+        const propertyId = parseRouteId(req.params.propertyId)
         if (Number.isNaN(propertyId)) {
             return res.status(400).json({ message: 'Invalid property id' })
         }
