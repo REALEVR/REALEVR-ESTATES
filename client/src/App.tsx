@@ -291,9 +291,7 @@ function AppShell() {
     useEffect(() => {
         const handler = (data: { accessToken: string; amount: string; source: string }) => {
 
-            console.log("DidReceivedPaymentGateWayIntializationEvent")
             setGateway(data)
-            console.log(`DidSetPaymentGateWayDaya : ${data.accessToken} amount:${data.amount} and source of:${data.source} `)
 
         }
 

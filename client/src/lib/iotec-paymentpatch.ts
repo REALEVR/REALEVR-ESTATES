@@ -40,15 +40,12 @@ export async function sendPaymentRequest(): Promise<IReturnToken> {
 
         const data = await res.json()
 
-        console.log('FETCHED-DATA', data)
         if (!data.access_token) {
-            console.log('NO-WILL-FETCH-TOKEN')
 
             throw new Error('No access_token returned')
         }
 
         accessToken = data.access_token
-        console.log('DID-RECIEIVE-TOKEN', accessToken)
 
         return {
             accessToken: accessToken,
