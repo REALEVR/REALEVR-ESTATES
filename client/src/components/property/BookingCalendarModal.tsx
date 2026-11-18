@@ -38,6 +38,9 @@ interface BookingCalendarModalProps {
     owner?: User | null
 }
 
+/** Rental viewing fee, charged in UGX (see RefundPolicy and server/gene/tour-access-pass.ts). */
+const VIEWING_FEE_UGX = 15000
+
 export default function BookingCalendarModal({
     isOpen,
     onClose,
@@ -63,8 +66,12 @@ export default function BookingCalendarModal({
 
     // For BnBs, calculate 20% deposit
     const isBnB = propertyCategory === 'BnB' || propertyCategory === 'furnished_houses'
-    const totalAmount = isBnB ? propertyPrice * numNights : 15000 // 15,000 UGX viewing fee for rentals
+    const totalAmount = isBnB ? propertyPrice * numNights : VIEWING_FEE_UGX
     const depositAmount = isBnB ? Math.round(totalAmount * 0.2) : totalAmount
+    // The rental viewing fee is always UGX 15,000, whatever currency the
+    // listing itself is priced in. Labelling it with propertyCurrency showed
+    // e.g. "15,000 USD" on USD-priced rentals while the gateway charges UGX.
+    const paymentCurrency = isBnB ? propertyCurrency : 'UGX'
 
     // Booking calendar visibility (see server/gene/bnb-bookings.ts) — lets
     // this picker refuse a check-in date someone else already booked,
@@ -344,7 +351,7 @@ export default function BookingCalendarModal({
                                     <Button variant="outline" onClick={() => setTab('calendar')}>
                                         Back
                                     </Button>
-                                    <Button onClick={handleBookNow}>Book Viewing (15,000 {propertyCurrency})</Button>
+                                    <Button onClick={handleBookNow}>Book Viewing ({VIEWING_FEE_UGX.toLocaleString()} UGX)</Button>
                                 </DialogFooter>
                             </TabsContent>
                         )}
@@ -448,7 +455,7 @@ export default function BookingCalendarModal({
                 propertyTitle={propertyTitle}
                 paymentType={isBnB ? 'BnBBookingDeposit' : 'ViewingFee'}
                 amount={depositAmount}
-                currency={propertyCurrency}
+                currency={paymentCurrency}
                 successCallback={handlePaymentSuccess}
             />
 
