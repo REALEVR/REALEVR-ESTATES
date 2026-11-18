@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import PropertyLocationMap from '@/components/property/PropertyLocationMap'
 import AdSlot from '@/components/ads/AdSlot'
 import { describeFilters, filtersFromSearch, hasFilters, matchesFilters } from '@shared/property-filters'
+import { CATEGORY_TAB_PARAM, CATEGORY_TABS, parseCategoryTab, withCategoryTab, type CategoryTab } from '@shared/property-tabs'
 
 /**
  * "All Properties" — the second of the 3 top-level browsing destinations
@@ -22,10 +23,14 @@ import { describeFilters, filtersFromSearch, hasFilters, matchesFilters } from '
  */
 export default function AllPropertiesPage() {
     // What Kevin (or a link) asked for: /properties?loc=Kololo&max=3000000&beds=2&cat=rental_units
-    const [searchParams] = useSearchParams()
+    const [searchParams, setSearchParams] = useSearchParams()
     const filters = useMemo(() => filtersFromSearch(searchParams), [searchParams])
     const filtered = hasFilters(filters)
-    const [activeTab, setActiveTab] = useState('all')
+    // The open category lives in the URL (?tab=for_sale) so links, refreshes and
+    // the back button keep it. `replace` avoids one history entry per tab click.
+    const activeTab = parseCategoryTab(searchParams.get(CATEGORY_TAB_PARAM))
+    const selectTab = (value: string) =>
+        setSearchParams((current: URLSearchParams) => withCategoryTab(current, parseCategoryTab(value)), { replace: true })
     // The header's search box sends people here as /properties?q=...; every word must appear in the title, place or type.
     const query = (searchParams.get('q') ?? '').trim()
     const [mapLocation, setMapLocation] = useState<string | null>(null)
@@ -62,7 +67,7 @@ export default function AllPropertiesPage() {
     const live = mapLocation
         ? liveAll.filter((p) => p.location?.toLowerCase().includes(mapLocation.toLowerCase()))
         : liveAll
-    const byCategory: Record<string, Property[]> = {
+    const byCategory: Record<CategoryTab, Property[]> = {
         all: live,
         rental_units: live.filter((p) => p.category === 'rental_units'),
         furnished_houses: live.filter((p) => p.category === 'furnished_houses'),
@@ -125,13 +130,25 @@ export default function AllPropertiesPage() {
                 onSelectLocation={setMapLocation}
             />
 
-            <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
+            <Tabs value={activeTab} onValueChange={selectTab}>
                 <TabsList className="flex md:grid md:grid-cols-5 w-full mb-8 overflow-x-auto hide-scrollbar justify-start md:justify-center gap-1 md:gap-0">
-                    <TabsTrigger value="all" className="flex-shrink-0">All</TabsTrigger>
-                    <TabsTrigger value="rental_units" className="flex-shrink-0">For Rent</TabsTrigger>
-                    <TabsTrigger value="furnished_houses" className="flex-shrink-0">BnBs</TabsTrigger>
-                    <TabsTrigger value="for_sale" className="flex-shrink-0">For Sale</TabsTrigger>
-                    <TabsTrigger value="bank_sales" className="flex-shrink-0">Bank Sales</TabsTrigger>
+                    {CATEGORY_TABS.map(({ value, label }) => {
+                        const count = byCategory[value].length
+                        return (
+                            <TabsTrigger
+                                key={value}
+                                value={value}
+                                className="flex-shrink-0 gap-1.5"
+                                aria-label={`${label}, ${count} ${count === 1 ? 'home' : 'homes'}`}
+                            >
+                                {label}
+                                {/* Count tells people which tabs are worth opening before they tap. */}
+                                <span aria-hidden="true" className="tabular-nums text-xs opacity-70">
+                                    {count}
+                                </span>
+                            </TabsTrigger>
+                        )
+                    })}
                 </TabsList>
                 {Object.entries(byCategory).map(([category, categoryProperties]) => (
                     <TabsContent value={category} key={category}>
