@@ -83,7 +83,8 @@ import { registerQaSecurityRoutes } from './gene/qa-security'
 import { registerBtcQrRoutes } from './gene/btc-qr'
 import { registerSlackBridgeRoutes } from './gene/slack-bridge'
 import { registerAgentWhatsappOnboardingRoutes } from './gene/agent-whatsapp-onboarding'
-import { registerTourAccessPassRoutes, issuePass } from './gene/tour-access-pass'
+import { registerTourAccessPassRoutes, issuePass, findPassByTransactionId } from './gene/tour-access-pass'
+import { decideIotecRecord, isValidIotecTransactionId, type IotecCollectionReport } from './gene/iotec-record-verify'
 import { registerSimilarPropertiesPassRoutes } from './gene/similar-properties-pass'
 import { registerPersonalAgentRoutes } from './gene/personal-agent'
 import { registerAfricaMediaFeedRoutes } from './gene/africa-media-feed'
@@ -503,6 +504,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
     })
 
+    /** What IoTec itself says about a collection, fetched with the server's own token. */
+    async function fetchIotecCollection(transactionId: string): Promise<IotecCollectionReport> {
+        const { statusCode, body } = await request7(
+            `https://pay.iotec.io/api/collections/status/${encodeURIComponent(transactionId)}`,
+            {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${await serverIotecToken()}`,
+                    'Content-Type': 'application/json',
+                },
+            }
+        )
+        const data = (await body.json()) as { status?: string; amount?: number | string }
+        if (statusCode < 200 || statusCode >= 300 || !data?.status) {
+            throw new Error(`IoTec status lookup failed (HTTP ${statusCode})`)
+        }
+        const gatewayAmount = Number(data.amount)
+        return { status: data.status, amount: data.amount != null && Number.isFinite(gatewayAmount) ? gatewayAmount : null }
+    }
+
     /**
      * Make Mobile Money Intergation
      */
@@ -571,13 +592,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const sessionUserId = req.isAuthenticated?.() ? (req.user as any)?.id : undefined
         const resolvedUserId = Number.isFinite(Number(bodyUserId)) && Number(bodyUserId) > 0 ? Number(bodyUserId) : sessionUserId
 
-        console.log('Current-Request-Body', req.body)
+        // Never trust the browser about money: ask IoTec whether this
+        // transaction really succeeded, and for how much, before recording it,
+        // issuing a tour pass or telling the admins (see gene/iotec-record-verify.ts).
+        if (!isValidIotecTransactionId(transactionId)) {
+            return res.status(400).json({ error: 'a valid transactionId is required' })
+        }
+        let verifiedAmount: number
+        try {
+            const decision = decideIotecRecord(await fetchIotecCollection(transactionId), Number(amount))
+            if (!decision.ok) {
+                return res.status(decision.httpStatus).json({ error: decision.message })
+            }
+            verifiedAmount = decision.amount
+        } catch (err) {
+            console.error('[payment/iotect/record] could not verify transaction with IoTec:', err)
+            return res.status(502).json({ error: 'Could not confirm this payment with the payment provider. Please try again.' })
+        }
+        // Replaying an already-recorded transaction must not mint another pass or alert the admins again.
+        if (findPassByTransactionId(transactionId)) {
+            return res.json({ recorded: true, duplicate: true })
+        }
+
         try {
             await storage.recordTourPayment({
                 transactionId: transactionId,
                 propertyId: parseFloat(propertyId),
                 userId: resolvedUserId || null,
-                amount: amount,
+                amount: verifiedAmount,
                 currency: currency,
                 timestamp: new Date().toISOString(),
             })
@@ -589,9 +631,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // pass for this confirmed IoTec payment (see docs/GENE_PLATFORM.md).
         // Best-effort only — never affects the existing IoTec recording above.
         try {
-            const numericAmount = Number(amount)
-            if (Number.isFinite(resolvedUserId) && (resolvedUserId as number) > 0 && Number.isFinite(numericAmount) && numericAmount > 0) {
-                issuePass(resolvedUserId as number, 'iotec', numericAmount, currency || 'UGX')
+            if (Number.isFinite(resolvedUserId) && (resolvedUserId as number) > 0) {
+                issuePass(resolvedUserId as number, 'iotec', verifiedAmount, currency || 'UGX', transactionId)
             }
         } catch (error) {
             console.error('[GENE] Failed to issue tour pass for IoTec payment:', error)
@@ -644,7 +685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const isBnbBooking = typeof checkIn === 'string' && checkIn && typeof checkOut === 'string' && checkOut
             const property = await storage.getProperty(parseFloat(propertyId)).catch(() => null)
             const propertyLabel = property?.title ?? `property #${propertyId}`
-            const amountLabel = `${Number(amount).toLocaleString()} ${currency || 'UGX'}`
+            const amountLabel = `${verifiedAmount.toLocaleString()} ${currency || 'UGX'}`
 
             await notifyAdminsEverywhere({
                 title: isBnbBooking ? 'BnB booking deposit received' : 'Tour payment received',
@@ -660,6 +701,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (error) {
             console.error('[GENE] Failed to notify admins of IoTec payment:', error)
         }
+
+        // This route used to end without a response, leaving every caller's request hanging.
+        res.json({ recorded: true })
     })
 
     // Get all properties

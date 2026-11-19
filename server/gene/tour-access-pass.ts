@@ -45,6 +45,8 @@ export interface TourAccessPass {
     propertiesAllowed: number
     viewedPropertyIds: number[]
     status: TourPassStatus
+    /** Gateway transaction that paid for this pass, when known. One transaction buys one pass. */
+    transactionId?: string
 }
 
 export interface CanViewResult {
@@ -73,6 +75,7 @@ export function issuePass(
     source: TourPassSource,
     amountPaid: number,
     currency: string,
+    transactionId?: string,
 ): TourAccessPass {
     if (!Number.isFinite(userId) || userId <= 0) {
         throw new Error('issuePass: userId must be a positive number')
@@ -85,6 +88,10 @@ export function issuePass(
     }
 
     const rows = loadPasses()
+    if (transactionId) {
+        const existing = rows.find((r) => r.transactionId === transactionId)
+        if (existing) return existing
+    }
     const id = nextId(rows)
     const issuedAt = nowIso()
     const expiresAt = new Date(Date.now() + TOUR_PASS_VALIDITY_HOURS * 60 * 60 * 1000).toISOString()
@@ -100,6 +107,7 @@ export function issuePass(
         propertiesAllowed: TOUR_PASS_MAX_PROPERTIES,
         viewedPropertyIds: [],
         status: 'active',
+        ...(transactionId ? { transactionId } : {}),
     }
     rows.push(row)
     savePasses(rows)
@@ -117,6 +125,11 @@ export function issuePass(
     }
 
     return row
+}
+
+/** The pass a gateway transaction already paid for, if any. */
+export function findPassByTransactionId(transactionId: string): TourAccessPass | null {
+    return loadPasses().find((r) => r.transactionId === transactionId) ?? null
 }
 
 /**
