@@ -15,6 +15,7 @@ import { request as request7 } from 'undici'
 import fs from 'fs'
 import { registerImageResizeRoute } from './image-resize'
 import { canManageProperty, isSafeTourUrl, stripAdminOnlyFields } from './lib/security'
+import { debugLog } from './lib/debug-log'
 import { createTablesIfNotExist, DynamoDBUtils, TABLES, toNumericId, toStringId } from './dynamodb'
 
 import {
@@ -201,7 +202,7 @@ function getFreeAgentEmails(): string[] {
 
 // Middleware to check if user has active subscription (for agents)
 const subscriptionMiddleware = (req: Request, res: Response, next: NextFunction) => {
-    console.log('Current Request', req)
+    debugLog('subscriptionMiddleware', req.method, req.path)
     if (!req.isAuthenticated()) {
         return res.status(401).json({ message: 'Not authenticated' })
     }
@@ -571,7 +572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const sessionUserId = req.isAuthenticated?.() ? (req.user as any)?.id : undefined
         const resolvedUserId = Number.isFinite(Number(bodyUserId)) && Number(bodyUserId) > 0 ? Number(bodyUserId) : sessionUserId
 
-        console.log('Current-Request-Body', req.body)
+        debugLog('Tour payment request body:', req.body)
         try {
             await storage.recordTourPayment({
                 transactionId: transactionId,
@@ -671,9 +672,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 : allProperties.filter(isPubliclyVisibleProperty)
 
             // Debug logging for property IDs and types
-            console.log('[DEBUG] Properties from storage:')
+            debugLog('Properties from storage:')
             properties.slice(0, 5).forEach((prop) => {
-                console.log(`  - ID: ${prop.id} (type: ${typeof prop.id}), Title: ${prop.title}`)
+                debugLog(`  - ID: ${prop.id} (type: ${typeof prop.id}), Title: ${prop.title}`)
             })
 
             // Set cache control headers to prevent caching
@@ -778,7 +779,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
 
             const newProperty = await storage.createProperty(testProperty)
-            console.log(`[DEBUG] Created test property: "${newProperty.title}" with ID ${newProperty.id}`)
+            debugLog(`Created test property: "${newProperty.title}" with ID ${newProperty.id}`)
 
             // Return the newly created property
             res.json(newProperty)
@@ -868,7 +869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 try {
                     const property = await storage.createProperty(propertyData)
                     createdProperties.push(property)
-                    console.log(`[DEBUG] Created sample property: "${property.title}" with ID ${property.id}`)
+                    debugLog(`Created sample property: "${property.title}" with ID ${property.id}`)
                 } catch (error) {
                     console.error(`[ERROR] Failed to create property "${propertyData.title}":`, error)
                 }
@@ -926,14 +927,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return res.status(400).json({ message: 'Invalid property ID' })
             }
 
-            console.log(`[DEBUG] Getting property with ID ${id}`)
+            debugLog(`Getting property with ID ${id}`)
             const property = await storage.getProperty(id)
             if (!property) {
-                console.log(`[DEBUG] Property with ID ${id} not found`)
+                debugLog(`Property with ID ${id} not found`)
                 return res.status(404).json({ message: 'Property not found' })
             }
 
-            console.log(`[DEBUG] Found property ${id}: ${property.title}`)
+            debugLog(`Found property ${id}: ${property.title}`)
 
             // Set cache control headers to prevent caching
             res.set({
@@ -955,15 +956,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return res.status(400).json({ message: 'Invalid property ID' })
             }
 
-            console.log(`[DEBUG] Incrementing view count for property ${id}`)
+            debugLog(`Incrementing view count for property ${id}`)
             const updatedProperty = await storage.incrementPropertyViewCount(id)
 
             if (!updatedProperty) {
-                console.log(`[DEBUG] Property with ID ${id} not found for view count increment`)
+                debugLog(`Property with ID ${id} not found for view count increment`)
                 return res.status(404).json({ message: 'Property not found' })
             }
 
-            console.log(`[DEBUG] Property ${id} view count updated to: ${updatedProperty.viewCount}`)
+            debugLog(`Property ${id} view count updated to: ${updatedProperty.viewCount}`)
 
             res.status(200).json({
                 success: true,
@@ -1424,9 +1425,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 currency: 'UGX',
             }
 
-            console.log('[DEBUG] Creating test property via direct endpoint')
+            debugLog('Creating test property via direct endpoint')
             const property = await storage.createProperty(testProperty)
-            console.log('[DEBUG] Test property created successfully:', property)
+            debugLog('Test property created successfully:', property)
             res.status(201).json({
                 message: 'Test property created successfully',
                 property,
@@ -1565,16 +1566,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Create a new property (admin only)
     app.post('/api/properties/create', subscriptionMiddleware, async (req, res) => {
-        console.log('[DEBUG] Incoming property data:', req.body)
-        console.log('[DEBUG] Authentication status:', req.isAuthenticated())
+        debugLog('Incoming property data:', req.body)
+        debugLog('Authentication status:', req.isAuthenticated())
         if (req.user) {
-            console.log('[DEBUG] User role:', req.user.role)
+            debugLog('User role:', req.user.role)
         } else {
-            console.log('[DEBUG] No user found in request')
+            debugLog('No user found in request')
         }
 
         try {
-            console.log('[DEBUG] Incoming property creation data:', JSON.stringify(req.body))
+            debugLog('Incoming property creation data:', JSON.stringify(req.body))
 
             // Parse and validate the incoming data
             const propertyData = { ...req.body }
@@ -1672,10 +1673,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return res.status(400).json({ message: 'Title and location are required' })
             }
 
-            console.log('[DEBUG] Processed property data:', JSON.stringify(propertyData))
+            debugLog('Processed property data:', JSON.stringify(propertyData))
 
             const property = await storage.createProperty(propertyData)
-            console.log('[DEBUG] Property created successfully:', property)
+            debugLog('Property created successfully:', property)
             res.status(201).json(property)
 
             // Credit the uploading account for this listing (see
@@ -1716,11 +1717,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const updatedProperty = await storage.updateProperty(id, stripAdminOnlyFields(req.body ?? {}, req.user as any))
 
             if (!updatedProperty) {
-                console.log(`[DEBUG] Property with ID ${id} not found for update`)
+                debugLog(`Property with ID ${id} not found for update`)
                 return res.status(404).json({ message: 'Property not found' })
             }
 
-            console.log(`[DEBUG] Property ${id} successfully updated, sending response`)
+            debugLog(`Property ${id} successfully updated, sending response`)
 
             // Set cache control headers to prevent caching
             res.set({
@@ -1749,11 +1750,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             const updatedProperty = await storage.togglePropertyAvailability(id)
             if (!updatedProperty) {
-                console.log(`[DEBUG] Property with ID ${id} not found for availability toggle`)
+                debugLog(`Property with ID ${id} not found for availability toggle`)
                 return res.status(404).json({ message: 'Property not found' })
             }
 
-            console.log(`[DEBUG] Property ${id} availability toggled to: ${updatedProperty.isAvailable}`)
+            debugLog(`Property ${id} availability toggled to: ${updatedProperty.isAvailable}`)
 
             // Set cache control headers to prevent caching
             res.set({
@@ -1778,7 +1779,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 'Brand New Test Property',
             ]
 
-            console.log(`[DEBUG] Deleting test properties: ${testPropertyNames.join(', ')}`)
+            debugLog(`Deleting test properties: ${testPropertyNames.join(', ')}`)
 
             // Get all properties to find the test ones
             const allProperties = await storage.getAllProperties()
@@ -1786,22 +1787,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 testPropertyNames.some((name) => p.title && p.title.toLowerCase().includes(name.toLowerCase()))
             )
 
-            console.log(`[DEBUG] Found ${testProperties.length} test properties to delete:`)
-            testProperties.forEach((p) => console.log(`  - ${p.title} (ID: ${p.id})`))
+            debugLog(`Found ${testProperties.length} test properties to delete:`)
+            testProperties.forEach((p) => debugLog(`  - ${p.title} (ID: ${p.id})`))
 
             const results = []
             for (const property of testProperties) {
                 try {
                     const deleted = await storage.deleteProperty(property.id)
                     if (deleted) {
-                        console.log(`[DEBUG] Deleted property: ${property.title} (ID: ${property.id})`)
+                        debugLog(`Deleted property: ${property.title} (ID: ${property.id})`)
                         results.push({
                             id: property.id,
                             title: property.title,
                             status: 'deleted',
                         })
                     } else {
-                        console.log(`[DEBUG] Failed to delete property: ${property.title} (ID: ${property.id})`)
+                        debugLog(`Failed to delete property: ${property.title} (ID: ${property.id})`)
                         results.push({
                             id: property.id,
                             title: property.title,
@@ -1842,7 +1843,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 'Brand New Test Property',
             ]
 
-            console.log(`[DEBUG] Deleting test properties: ${testPropertyNames.join(', ')}`)
+            debugLog(`Deleting test properties: ${testPropertyNames.join(', ')}`)
 
             // Get all properties to find the test ones
             const allProperties = await storage.getAllProperties()
@@ -1850,22 +1851,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 testPropertyNames.some((name) => p.title && p.title.toLowerCase().includes(name.toLowerCase()))
             )
 
-            console.log(`[DEBUG] Found ${testProperties.length} test properties to delete:`)
-            testProperties.forEach((p) => console.log(`  - ${p.title} (ID: ${p.id})`))
+            debugLog(`Found ${testProperties.length} test properties to delete:`)
+            testProperties.forEach((p) => debugLog(`  - ${p.title} (ID: ${p.id})`))
 
             const results = []
             for (const property of testProperties) {
                 try {
                     const deleted = await storage.deleteProperty(property.id)
                     if (deleted) {
-                        console.log(`[DEBUG] Deleted property: ${property.title} (ID: ${property.id})`)
+                        debugLog(`Deleted property: ${property.title} (ID: ${property.id})`)
                         results.push({
                             id: property.id,
                             title: property.title,
                             status: 'deleted',
                         })
                     } else {
-                        console.log(`[DEBUG] Failed to delete property: ${property.title} (ID: ${property.id})`)
+                        debugLog(`Failed to delete property: ${property.title} (ID: ${property.id})`)
                         results.push({
                             id: property.id,
                             title: property.title,
@@ -1898,25 +1899,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Delete a property (no auth required)
     app.delete('/api/properties/:id', adminMiddleware, async (req, res) => {
         try {
-            console.log(`[DEBUG] DELETE request for property with ID: ${req.params.id}`)
+            debugLog(`DELETE request for property with ID: ${req.params.id}`)
 
             const idParam = req.params.id
             if (!idParam) {
-                console.log(`[DEBUG] No property ID provided`)
+                debugLog(`No property ID provided`)
                 return res.status(400).json({ message: 'Property ID is required' })
             }
 
             // Debug: Log the exact key being used for direct lookup
-            console.log(`[DEBUG] Direct lookup key:`, { id: idParam })
-            console.log(`[DEBUG] Direct lookup key type:`, typeof idParam)
+            debugLog(`Direct lookup key:`, { id: idParam })
+            debugLog(`Direct lookup key type:`, typeof idParam)
 
             // First try direct DynamoDB lookup with string ID to avoid precision issues
-            console.log(`[DEBUG] Trying direct DynamoDB lookup with string ID: ${idParam}`)
+            debugLog(`Trying direct DynamoDB lookup with string ID: ${idParam}`)
             let property: any = null
 
             try {
                 const directItem = await DynamoDBUtils.getItem(TABLES.PROPERTIES, { id: idParam })
-                console.log(`[DEBUG] Direct lookup result:`, directItem)
+                debugLog(`Direct lookup result:`, directItem)
 
                 if (directItem) {
                     property = {
@@ -1926,29 +1927,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         tourUrl: directItem.tourUrl || '',
                         title: directItem.title || 'Unknown',
                     }
-                    console.log(`[DEBUG] Found property via direct lookup:`, property.title)
+                    debugLog(`Found property via direct lookup:`, property.title)
                 }
             } catch (directError) {
-                console.log(`[DEBUG] Direct lookup failed:`, directError)
+                debugLog(`Direct lookup failed:`, directError)
             }
 
             // If direct lookup failed, try the normal storage method as fallback
             if (!property) {
                 const id = toNumericId(idParam)
-                console.log(`[DEBUG] Direct lookup failed, trying normal method with numeric ID: ${id}`)
-                console.log(`[DEBUG] Normal lookup key:`, { id: toStringId(id) })
+                debugLog(`Direct lookup failed, trying normal method with numeric ID: ${id}`)
+                debugLog(`Normal lookup key:`, { id: toStringId(id) })
 
                 if (isNaN(id)) {
-                    console.log(`[DEBUG] Invalid property ID: ${idParam}`)
+                    debugLog(`Invalid property ID: ${idParam}`)
                     return res.status(400).json({ message: 'Invalid property ID' })
                 }
 
                 property = await storage.getProperty(id)
-                console.log(`[DEBUG] Normal storage lookup result:`, property)
+                debugLog(`Normal storage lookup result:`, property)
             }
 
             if (!property) {
-                console.log(`[DEBUG] Property not found through any method`)
+                debugLog(`Property not found through any method`)
                 return res.status(404).json({ message: 'Property not found' })
             }
 
@@ -1983,21 +1984,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (property && typeof property.id === 'number') {
                 try {
                     success = await storage.deleteProperty(property.id)
-                    console.log(`[DEBUG] Normal deletion result: ${success}`)
+                    debugLog(`Normal deletion result: ${success}`)
                 } catch (normalDeleteError) {
-                    console.log(`[DEBUG] Normal deletion failed:`, normalDeleteError)
+                    debugLog(`Normal deletion failed:`, normalDeleteError)
                 }
             }
 
             // If normal deletion failed, try direct DynamoDB deletion
             if (!success) {
-                console.log(`[DEBUG] Trying direct DynamoDB deletion with string ID: ${idParam}`)
+                debugLog(`Trying direct DynamoDB deletion with string ID: ${idParam}`)
                 try {
                     const directDeleteResult = await DynamoDBUtils.deleteItem(TABLES.PROPERTIES, { id: idParam })
                     success = !!directDeleteResult
-                    console.log(`[DEBUG] Direct deletion result: ${success}`)
+                    debugLog(`Direct deletion result: ${success}`)
                 } catch (directDeleteError) {
-                    console.log(`[DEBUG] Direct deletion also failed:`, directDeleteError)
+                    debugLog(`Direct deletion also failed:`, directDeleteError)
                 }
             }
 
@@ -2029,7 +2030,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             const properties = await storage.getPropertiesByOwner(user.id)
             console.log('Properties found:', properties.length)
-            console.log('Properties returned:', properties)
+            debugLog('Agent properties returned:', properties.length)
             res.json(properties)
         } catch (error: any) {
             console.error('Error in agent properties endpoint:', error)
@@ -2659,7 +2660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Get user from request
         const user = req.user
-        console.log('User object:', user)
+        debugLog('Upload user:', user?.id, user?.role)
 
         // Only check role if user is not an admin, agent, or property manager
         if (!user.role || (user.role !== 'admin' && user.role !== 'agent' && user.role !== 'property_manager')) {
@@ -2822,7 +2823,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Debug endpoint to check DynamoDB property keys
     app.get('/api/debug/property-keys', requireStrictAdmin, async (req, res) => {
         try {
-            console.log('[DEBUG] Scanning DynamoDB properties table for all keys...')
+            debugLog('Scanning DynamoDB properties table for all keys...')
             const items = await DynamoDBUtils.scanTable(TABLES.PROPERTIES)
 
             const keyInfo = items.map((item) => ({
@@ -2833,7 +2834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 sample: Object.keys(item).slice(0, 5),
             }))
 
-            console.log('[DEBUG] Found property keys:', keyInfo)
+            debugLog('Found property keys:', keyInfo)
 
             res.json({
                 message: `Found ${items.length} properties`,
