@@ -22,7 +22,8 @@
  * right after creating a purchase here, and on a real confirmed IoTec
  * transaction calls POST /api/gene/boost/:id/confirm-payment, which
  * activates the purchase itself (buyer-only, no admin involved) and is
- * what actually flips `isFeatured` on. `paymentMethod`/`transactionId`
+ * what actually flips `isFeatured` on. The server re-checks the transaction
+ * with IoTec first (./boost-payment-verify.ts); the browser's word is not enough. `paymentMethod`/`transactionId`
  * record which path activated a purchase, for the admin queue's own
  * visibility into the mix.
  *
@@ -51,6 +52,7 @@ import { storage } from '../storage'
 import { sendWhatsAppMessage } from './whatsapp'
 import { getLiveReferredPropertyIds } from './self-serve-listing'
 import { hasCoverPhoto } from '../photo-rules'
+import { decideBoostPayment, isValidIotecTransactionId, type IotecStatusLookup } from './boost-payment-verify'
 
 const COLLECTION = 'gene_boost_purchases'
 
@@ -269,7 +271,7 @@ export async function getActiveBoostsSortedByAmount(): Promise<
         .map((r) => ({ propertyId: r.propertyId, amountUgx: r.amountUgx, tier: r.tier, tierLabel: BOOST_TIERS[r.tier].label }))
 }
 
-export function registerBoostPlacementRoutes(app: Express, adminMiddleware: RequestHandler): void {
+export function registerBoostPlacementRoutes(app: Express, adminMiddleware: RequestHandler, lookupIotecStatus: IotecStatusLookup): void {
     // Public — tiers/pricing for the purchase UI.
     app.get('/api/gene/boost/tiers', (_req: Request, res: Response) => {
         res.json({ tiers: BOOST_TIERS, currency: 'UGX' })
@@ -437,9 +439,9 @@ export function registerBoostPlacementRoutes(app: Express, adminMiddleware: Requ
                 return res.status(401).json({ message: 'Sign in first.' })
             }
             const id = Number(req.params.id)
-            const transactionId = typeof req.body?.transactionId === 'string' ? req.body.transactionId : ''
-            if (!Number.isFinite(id) || !transactionId) {
-                return res.status(400).json({ message: 'id and transactionId are required.' })
+            const transactionId = req.body?.transactionId
+            if (!Number.isFinite(id) || !isValidIotecTransactionId(transactionId)) {
+                return res.status(400).json({ message: 'id and a valid transactionId are required.' })
             }
 
             const existing = readPurchases().find((r) => r.id === id)
@@ -451,6 +453,22 @@ export function registerBoostPlacementRoutes(app: Express, adminMiddleware: Requ
             }
             if (existing.status !== 'pending_manual_confirmation') {
                 return res.status(400).json({ message: `Cannot confirm a purchase in status "${existing.status}".` })
+            }
+
+            // Never trust the browser about money: ask IoTec whether this transaction
+            // really succeeded, for at least this tier's price, and that it has not
+            // already paid for another boost (see ./boost-payment-verify.ts).
+            let report
+            try {
+                report = await lookupIotecStatus(transactionId)
+            } catch (err) {
+                console.error('[gene/boost-placement] could not verify transaction with IoTec:', err)
+                return res.status(502).json({ message: 'Could not confirm this payment with the payment provider. Please try again.' })
+            }
+            const transactionAlreadyUsed = readPurchases().some((r) => r.id !== id && r.transactionId === transactionId)
+            const decision = decideBoostPayment({ report, expectedAmountUgx: existing.amountUgx, transactionAlreadyUsed })
+            if (!decision.ok) {
+                return res.status(decision.httpStatus).json({ message: decision.message })
             }
 
             const confirmedBy = user.username ?? user.email ?? `user-${user.id}`

@@ -99,6 +99,7 @@ import { registerMagicLoginRoutes } from './gene/magic-login'
 import { registerSelfServeListingRoutes } from './gene/self-serve-listing'
 import { registerWhatsappGrowthRoutes } from './gene/whatsapp-growth'
 import { registerBoostPlacementRoutes, getActiveBoostsSortedByAmount } from './gene/boost-placement'
+import { fetchIotecCollectionStatus } from './gene/boost-payment-verify'
 import { registerListingTrustRoutes } from './gene/listing-trust'
 import { registerRumRoutes } from './gene/rum'
 import { registerCountrySpotRoutes, startCountrySpotService } from './gene/country-spots'
@@ -2908,7 +2909,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Monetization playbook (2026-08-29) implementation pass — see
     // docs/GENE_PLATFORM.md v1.6. Each is additive/independent; none touches
     // an existing route or table.
-    registerBoostPlacementRoutes(app, requireStrictAdmin)
+    registerBoostPlacementRoutes(app, requireStrictAdmin, (transactionId) => fetchIotecCollectionStatus(transactionId, serverIotecToken))
     registerListingTrustRoutes(app, requireStrictAdmin)
     registerRumRoutes(app)
     registerCountrySpotRoutes(app)
