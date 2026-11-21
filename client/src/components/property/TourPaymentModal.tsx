@@ -102,7 +102,17 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
         }
     }
 
-    const handlePaymentClose = () => {
+    // Cancel / dismiss: close the paywall only. This must NOT call
+    // onPaymentSuccess — that registers a 24-hour viewing pass in the
+    // parent (usePropertyViews.registerPayment), so wiring it to Cancel
+    // handed out the UGX 15,000 pass for free.
+    const handleCancel = () => {
+        setIsProcessing(false)
+        onClose()
+    }
+
+    // Only reached from the payment gateway's completed-payment event.
+    const handlePaymentComplete = () => {
         setIsProcessing(false)
         onClose()
         onPaymentSuccess()
@@ -122,7 +132,7 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
                 currency: 'UGX',
                 transactionId: data.transactionID!,
             })
-            handlePaymentClose()
+            handlePaymentComplete()
         }
         /**
          * Failed Payment
@@ -278,7 +288,7 @@ export default function TourPaymentModal({ isOpen, onClose, property, onPaymentS
                     )}
 
                     <div className="text-center">
-                        <Button variant="ghost" onClick={handlePaymentClose} className="text-gray-500">
+                        <Button variant="ghost" onClick={handleCancel} className="text-gray-500">
                             Cancel
                         </Button>
                     </div>
