@@ -7,6 +7,7 @@ import { openKevin } from "@/components/kevin/kevinEvents";
 import GoogleMapFrame from "@/components/maps/GoogleMapFrame";
 import { directionsUrl, hasPin, openUrl } from "@/lib/googleMaps";
 import PropertyDetails from "@/components/property/PropertyDetails";
+import RecentlyViewed from "@/components/property/RecentlyViewed";
 import { Button } from "@/components/ui/button";
 import { useProperty, trackPropertyView } from "@/hooks/usePropertyData";
 import { queryClient } from "@/lib/queryClient";
@@ -305,6 +306,8 @@ export default function PropertyPage() {
           </div>
         </div>
       </div>
+
+      <RecentlyViewed currentPropertyId={propertyId} />
     </div>
   );
 }
