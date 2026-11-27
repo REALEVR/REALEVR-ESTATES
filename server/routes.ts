@@ -16,6 +16,7 @@ import fs from 'fs'
 import { registerImageResizeRoute } from './image-resize'
 import { canManageProperty, isSafeTourUrl, stripAdminOnlyFields } from './lib/security'
 import { createTablesIfNotExist, DynamoDBUtils, TABLES, toNumericId, toStringId } from './dynamodb'
+import { parsePropertyIdList } from './lib/property-ids'
 
 import {
     uploadPropertyImage,
@@ -665,6 +666,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Get all properties
     app.get('/api/properties', async (req, res) => {
         try {
+            // Batch lookup: ?ids=1,2,3 returns just those listings, in the
+            // order asked for, via one GetItem each instead of a full scan.
+            // Unknown and (for the public) unavailable ids are left out
+            // rather than failing the whole batch. See server/lib/property-ids.ts.
+            if (req.query.ids !== undefined) {
+                const parsed = parsePropertyIdList(req.query.ids)
+                if (!parsed.ok) {
+                    return res.status(400).json({ message: parsed.error })
+                }
+                const found = await Promise.all(parsed.ids.map((id) => storage.getProperty(id)))
+                const showUnavailable = canViewUnavailableProperties(req)
+                const batch = found.filter(
+                    (property): property is NonNullable<typeof property> =>
+                        property !== undefined && (showUnavailable || isPubliclyVisibleProperty(property)),
+                )
+                return res
+                    .set({ 'Cache-Control': 'no-cache, no-store, must-revalidate', Pragma: 'no-cache', Expires: '0' })
+                    .json(presentListings(req, batch))
+            }
+
             const allProperties = await storage.getAllProperties()
             const properties = canViewUnavailableProperties(req)
                 ? allProperties
